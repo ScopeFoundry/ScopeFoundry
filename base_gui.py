@@ -29,7 +29,7 @@ from matplotlib.figure import Figure
 
 from logged_quantity import LoggedQuantity
 
-from equipment.image_display import ImageDisplay
+#from equipment.image_display import ImageDisplay
 
 import h5_io
 
