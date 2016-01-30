@@ -91,9 +91,10 @@ class Measurement(QtCore.QObject):
         self.set_progress(50)
         try:
             self._run()
-        except Exception as err:
-            self.interrupt_measurement_called = True
-            raise err
+            
+        #except Exception as err:
+        #    self.interrupt_measurement_called = True
+        #    raise err
         finally:
             self.set_progress(0)  # set progress bars back to zero
             self.measurement_state_changed.emit(False)
