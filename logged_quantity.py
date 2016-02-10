@@ -1,6 +1,7 @@
 from PySide import  QtCore, QtGui
 import pyqtgraph
 import numpy as np
+from collections import OrderedDict
 
 class LoggedQuantity(QtCore.QObject):
 
@@ -307,6 +308,31 @@ class LQRange(QtCore.QObject):
             #print "sending step display Updates"
             #self.step.send_display_updates(force=True)
             self.updated_range.emit()
+
+class LQCollection(object):
+
+    def __init__(self):
+        self._logged_quantities = OrderedDict()
+        
+    def New(self, name, **kwargs):
+        lq = LoggedQuantity(name=name, **kwargs)
+        self._logged_quantities[name] = lq
+        self.__dict__[name] = lq
+        return lq
+    
+    """def __getattr__(self, name):
+        return self.logged_quantities[name]
+
+    def __getitem__(self, key):
+        return self.logged_quantities[key]
+
+    def __getattribute__(self,name):
+        if name in self.logged_quantities.keys():
+            return self.logged_quantities[name]
+        else:
+            return object.__getattribute__(self, name)
+    """
+    
 
 def print_signals_and_slots(obj):
     for i in xrange(obj.metaObject().methodCount()):
