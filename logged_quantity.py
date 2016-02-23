@@ -63,6 +63,7 @@ class LoggedQuantity(QtCore.QObject):
     def update_value(self, new_val=None, update_hardware=True, send_signal=True, reread_hardware=None):
         #print "LQ update_value", self.name, self.val, "-->",  new_val
         if new_val == None:
+            print "update_value {} new_val is None. From Sender {}".format(self.name, self.sender())
             new_val = self.sender().text()
 
         if (self.val == new_val):
@@ -154,8 +155,19 @@ class LoggedQuantity(QtCore.QObject):
         elif type(widget) == QtGui.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
             if self.ro:
-                widget.setReadOnly(True)  # FIXME     
-            widget.textChanged[str].connect(self.updated_text_value)
+                widget.setReadOnly(True)  # FIXME
+            def on_edit_finished():
+                print "on_edit_finished", self.name
+                self.update_value(widget.text())     
+            widget.editingFinished.connect(on_edit_finished)
+        elif type(widget) == QtGui.QPlainTextEdit:
+            # FIXME doesn't quite work right: a signal character resets cursor position
+            self.updated_text_value[str].connect(widget.setPlainText)
+            # TODO Read only
+            def set_from_plaintext():
+                self.update_value(widget.toPlainText())
+            widget.textChanged.connect(set_from_plaintext)
+            
         elif type(widget) == QtGui.QComboBox:
             # need to have a choice list to connect to a QComboBox
             assert self.choices is not None 
@@ -232,6 +244,30 @@ class LoggedQuantity(QtCore.QObject):
                 widget.setReadOnly(self.ro)    
             #elif
         self.updated_readonly.emit(self.ro)
+        
+
+class FileLQ(LoggedQuantity):
+    
+    def __init__(self, name, default_dir=None, **kwargs):
+        kwargs.pop('dtype', None)
+        
+        LoggedQuantity.__init__(self, name, dtype=str, **kwargs)
+        
+        self.default_dir = default_dir
+        
+    def connect_to_browse_widgets(self, lineEdit, pushButton):
+        assert type(lineEdit) == QtGui.QLineEdit
+        self.connect_bidir_to_widget(lineEdit)
+    
+        assert type(pushButton) == QtGui.QPushButton
+        pushButton.clicked.connect(self.file_browser)
+    
+    def file_browser(self):
+        # TODO add default directory, etc
+        fname, _ = QtGui.QFileDialog.getOpenFileName(None)
+        print repr(fname)
+        if fname:
+            self.update_value(fname)
         
 class LQRange(QtCore.QObject):
     """
@@ -314,11 +350,20 @@ class LQCollection(object):
     def __init__(self):
         self._logged_quantities = OrderedDict()
         
-    def New(self, name, **kwargs):
-        lq = LoggedQuantity(name=name, **kwargs)
+    def New(self, name, dtype=float, **kwargs):
+        if dtype == 'file':
+            lq = FileLQ(name=name, **kwargs)
+        else:
+            lq = LoggedQuantity(name=name, dtype=dtype, **kwargs)
         self._logged_quantities[name] = lq
         self.__dict__[name] = lq
         return lq
+    
+    def as_list(self):
+        return self._logged_quantities.values()
+    
+    def as_dict(self):
+        return self._logged_quantities
     
     """def __getattr__(self, name):
         return self.logged_quantities[name]
