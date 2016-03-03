@@ -9,6 +9,7 @@ import datetime
 import numpy as np
 import collections
 from collections import OrderedDict
+import ConfigParser
 
 from PySide import QtCore, QtGui, QtUiTools
 import pyqtgraph as pg
@@ -36,26 +37,30 @@ from helper_funcs import confirm_on_close, load_qt_ui_file, OrderedAttrDict
 
 import h5_io
 
-this_dir, this_filename = os.path.split(__file__)
 
 
 class BaseApp(QtCore.QObject):
     
     def __init__(self, argv):
         
+        self.this_dir, self.this_filename = os.path.split(__file__)
+
+        
         self.qtapp = QtGui.QApplication.instance()
         if not self.qtapp:
             self.qtapp = QtGui.QApplication(argv)
 
         
-        if not hasattr(self, 'name'):
-            self.name = "ScopeFoundry"
-        self.qtapp.setApplicationName(self.name)
         
         self.settings = LQCollection()
         
         self.setup_console_widget()
         self.setup()
+
+        if not hasattr(self, 'name'):
+            self.name = "ScopeFoundry"
+        self.qtapp.setApplicationName(self.name)
+
         
     def exec_(self):
         return self.qtapp.exec_()
@@ -82,12 +87,60 @@ class BaseApp(QtCore.QObject):
 
     def setup(self):
         pass
-    
 
+
+    def settings_save_ini(self, fname, save_ro=True):
+        config = ConfigParser.ConfigParser()
+        config.optionxform = str
+        config.add_section('app')
+        config.set('app', 'name', self.name)
+        for lqname, lq in self.settings.as_dict().items():
+            if not lq.ro or save_ro:
+                config.set('app', lqname, lq.val)
+                
+        with open(fname, 'wb') as configfile:
+            config.write(configfile)
+        
+        print "ini settings saved to", fname, config.optionxform      
+
+    def settings_load_ini(self, fname):
+        print "ini settings loading from", fname
+        
+        def str2bool(v):
+            return v.lower() in ("yes", "true", "t", "1")
+
+        config = ConfigParser.ConfigParser()
+        config.optionxform = str
+        config.read(fname)
+
+        if 'app' in config.sections():
+            for lqname, new_val in config.items('app'):
+                print lqname
+                lq = self.settings.as_dict().get(lqname)
+                if lq:
+                    if lq.dtype == bool:
+                        new_val = str2bool(new_val)
+                    lq.update_value(new_val)
+
+    def settings_save_ini_ask(self, dir=None, save_ro=True):
+        # TODO add default directory, etc
+        fname, _ = QtGui.QFileDialog.getSaveFileName(self.ui, caption=u'Save Settings', dir=u"", filter=u"Settings (*.ini)")
+        print repr(fname)
+        if fname:
+            self.settings_save_ini(fname, save_ro=save_ro)
+        return fname
+
+    def settings_load_ini_ask(self, dir=None):
+        # TODO add default directory, etc
+        fname, _ = QtGui.QFileDialog.getOpenFileName(None, "Settings (*.ini)")
+        print repr(fname)
+        if fname:
+            self.settings_load_ini(fname)
+        return fname  
 
 class BaseMicroscopeApp(BaseApp):
     
-    ui_filename = os.path.join(this_dir,"base_microscope_app.ui")
+    
     
     name = "ScopeFoundry"
     
@@ -100,9 +153,8 @@ class BaseMicroscopeApp(BaseApp):
 
     def __init__(self, argv):
         BaseApp.__init__(self, argv)
-        
-        self.settings = LQCollection()
-        
+        ui_filename = os.path.join(self.this_dir,"base_microscope_app.ui")
+                
         self.hardware = OrderedAttrDict()
         self.measurements = OrderedAttrDict()
 
