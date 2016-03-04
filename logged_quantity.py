@@ -2,6 +2,7 @@ from PySide import  QtCore, QtGui
 import pyqtgraph
 import numpy as np
 from collections import OrderedDict
+import json
 
 class LoggedQuantity(QtCore.QObject):
 
@@ -45,12 +46,15 @@ class LoggedQuantity(QtCore.QObject):
         
         self.widget_list = []
         
+    def coerce_to_type(self, x):
+        return self.dtype(x)
+        
     def read_from_hardware(self, send_signal=True):
         if self.hardware_read_func:
             self.oldval = self.val
             val = self.hardware_read_func()
             #print "read_from_hardware", self.name, val
-            self.val = self.dtype(val)
+            self.val = self.coerce_to_type(val)
             if send_signal:
                 self.send_display_updates()
         return self.val
@@ -62,20 +66,28 @@ class LoggedQuantity(QtCore.QObject):
     @QtCore.Slot()
     def update_value(self, new_val=None, update_hardware=True, send_signal=True, reread_hardware=None):
         #print "LQ update_value", self.name, self.val, "-->",  new_val
-        if new_val == None:
-            print "update_value {} new_val is None. From Sender {}".format(self.name, self.sender())
+        if new_val is None:
+            #print "update_value {} new_val is None. From Sender {}".format(self.name, self.sender())
             new_val = self.sender().text()
 
-        if (self.val == new_val):
+        self.oldval = self.coerce_to_type(self.val)
+        new_val = self.coerce_to_type(new_val)
+        
+        #print "LQ update_value1", self.name
+
+        if self.same_values(self.oldval, new_val):
+            #print "same_value so returning", self.oldval, new_val
             self._in_reread_loop = False #once value has settled in the event loop, re-enable reading from hardware
             return
+        
+        self.val = new_val
+
+        #print "LQ update_value2", self.name
         
         if reread_hardware is None:
             reread_hardware = self.reread_from_hardware_after_write
         
-        self.oldval = self.val
         #print "called update_value", self.name, new_val, reread_hardware
-        self.val = self.dtype(new_val)
         if update_hardware and self.hardware_set_func and not self._in_reread_loop:
             self.hardware_set_func(self.val)
             if reread_hardware:
@@ -90,15 +102,12 @@ class LoggedQuantity(QtCore.QObject):
             
     def send_display_updates(self, force=False):
         #print "send_display_updates: {} force={}".format(self.name, force)
-        if (self.oldval != self.val) or (force):
+        if (not self.same_values(self.oldval, self.val)) or (force):
             
             #print "send display updates", self.name, self.val, self.oldval
-            if self.dtype == str:
-                self.updated_value[str].emit(self.val)
-                self.updated_text_value.emit(self.val)
-            else:
-                self.updated_value[str].emit( self.fmt % self.val )
-                self.updated_text_value.emit( self.fmt % self.val )
+            str_val = self.string_value()
+            self.updated_value[str].emit(str_val)
+            self.updated_text_value.emit(str_val)
                 
             self.updated_value[float].emit(self.val)
             if self.dtype != float:
@@ -114,7 +123,20 @@ class LoggedQuantity(QtCore.QObject):
         else:
             pass
             #print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
-            
+    
+    def same_values(self, v1, v2):
+        return v1 == v2
+    
+    def string_value(self):
+        if self.dtype == str:
+            return self.val
+        else:
+            return self.fmt % self.val
+
+    def ini_string_value(self):
+        return str(self.val)
+
+    
     def update_choice_index_value(self, new_choice_index, **kwargs):
         self.update_value(self.choices[new_choice_index][1], **kwargs)
         
@@ -246,6 +268,8 @@ class LoggedQuantity(QtCore.QObject):
         self.updated_readonly.emit(self.ro)
         
 
+            
+
 class FileLQ(LoggedQuantity):
     
     def __init__(self, name, default_dir=None, **kwargs):
@@ -268,7 +292,90 @@ class FileLQ(LoggedQuantity):
         print repr(fname)
         if fname:
             self.update_value(fname)
+
+class ArrayLQ(LoggedQuantity):
+    updated_shape = QtCore.Signal(str)
+    
+    def __init__(self, name, dtype=float, 
+                 hardware_read_func=None, hardware_set_func=None, 
+                 initial=[], fmt="%g", si=True,
+                 ro = False,
+                 unit = None,
+                 vmin=-1e12, vmax=+1e12, choices=None):
+        QtCore.QObject.__init__(self)
         
+        self.name = name
+        self.dtype = dtype
+        self.val = np.array(initial, dtype=dtype)
+        self.hardware_read_func = hardware_read_func
+        self.hardware_set_func = hardware_set_func
+        self.fmt = fmt # % string formatting string. This is ignored if dtype==str
+        self.unit = unit
+        self.vmin = vmin
+        self.vmax = vmax
+        self.ro = ro # Read-Only
+        
+        if self.dtype == int:
+            self.spinbox_decimals = 0
+        else:
+            self.spinbox_decimals = 2
+        self.reread_from_hardware_after_write = False
+        
+        self.oldval = None
+        
+        self._in_reread_loop = False # flag to prevent reread from hardware loops
+        
+        self.widget_list = []
+
+    def same_values(self, v1, v2):
+        if v1.shape == v2.shape:
+            return np.all(v1 == v2)
+            print "same_values", v2-v1, np.all(v1 == v2)        
+        else:
+            return False
+            
+
+
+
+    def change_shape(self, newshape):
+        #TODO
+        pass
+ 
+    def string_value (self):
+        return json.dumps(self.val.tolist())
+    
+    def ini_string_value(self):
+        return json.dumps(self.val.tolist())
+    
+    def coerce_to_type(self, x):
+        #print type(x)
+        if type(x) in (unicode, str):
+            x = json.loads(x)
+            #print repr(x)
+        return np.array(x, dtype=self.dtype)
+    
+    def send_display_updates(self, force=False):
+        print self.name, 'send_display_updates'
+        #print "send_display_updates: {} force={}".format(self.name, force)
+        if force or np.any(self.oldval != self.val):
+            
+            #print "send display updates", self.name, self.val, self.oldval
+            str_val = self.string_value()
+            self.updated_value[str].emit(str_val)
+            self.updated_text_value.emit(str_val)
+                
+            #self.updated_value[float].emit(self.val)
+            #if self.dtype != float:
+            #    self.updated_value[int].emit(self.val)
+            #self.updated_value[bool].emit(self.val)
+            self.updated_value[()].emit()
+            
+            self.oldval = self.val
+        else:
+            pass
+            #print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
+    
+
 class LQRange(QtCore.QObject):
     """
     LQRange is a collection of logged quantities that describe a
@@ -351,10 +458,15 @@ class LQCollection(object):
         self._logged_quantities = OrderedDict()
         
     def New(self, name, dtype=float, **kwargs):
-        if dtype == 'file':
-            lq = FileLQ(name=name, **kwargs)
+        is_array = kwargs.pop('array', False)
+        print name, 'is_array', is_array
+        if is_array:
+            lq = ArrayLQ(name=name, dtype=dtype, **kwargs)
         else:
-            lq = LoggedQuantity(name=name, dtype=dtype, **kwargs)
+            if dtype == 'file':
+                lq = FileLQ(name=name, **kwargs)
+            else:
+                lq = LoggedQuantity(name=name, dtype=dtype, **kwargs)
         self._logged_quantities[name] = lq
         self.__dict__[name] = lq
         return lq

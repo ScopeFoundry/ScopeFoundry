@@ -96,7 +96,7 @@ class BaseApp(QtCore.QObject):
         config.set('app', 'name', self.name)
         for lqname, lq in self.settings.as_dict().items():
             if not lq.ro or save_ro:
-                config.set('app', lqname, lq.val)
+                config.set('app', lqname, lq.ini_string_value())
                 
         with open(fname, 'wb') as configfile:
             config.write(configfile)
