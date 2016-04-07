@@ -18,6 +18,8 @@ class LoggedQuantity(QtCore.QObject):
                  initial=0, fmt="%g", si=True,
                  ro = False,
                  unit = None,
+                 spinbox_decimals = 2,
+                 spinbox_step=0.1,
                  vmin=-1e12, vmax=+1e12, choices=None):
         QtCore.QObject.__init__(self)
         
@@ -37,8 +39,13 @@ class LoggedQuantity(QtCore.QObject):
         if self.dtype == int:
             self.spinbox_decimals = 0
         else:
-            self.spinbox_decimals = 2
+            self.spinbox_decimals = spinbox_decimals
         self.reread_from_hardware_after_write = False
+        
+        if self.dtype == int:
+            self.spinbox_step = 1
+        else:
+            self.spinbox_step = spinbox_step
         
         self.oldval = None
         
@@ -153,10 +160,8 @@ class LoggedQuantity(QtCore.QObject):
                 widget.setMaximum(self.vmax)
             if self.unit is not None:
                 widget.setSuffix(" "+self.unit)
-            if self.dtype == int:
-                widget.setDecimals(0)
-            self.change_readonly(self.ro)
             widget.setDecimals(self.spinbox_decimals)
+            widget.setSingleStep(self.spinbox_step)
             widget.setValue(self.val)
             #events
             self.updated_value[float].connect(widget.setValue)
@@ -225,10 +230,11 @@ class LoggedQuantity(QtCore.QObject):
                 widget.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
                 widget.setReadOnly(True)
             widget.setDecimals(self.spinbox_decimals)
+            widget.setSingleStep(self.spinbox_step)
             self.updated_value[float].connect(widget.setValue)
-            if not self.ro:
+            #if not self.ro:
                 #widget.valueChanged[float].connect(self.update_value)
-                widget.valueChanged.connect(self.update_value)
+            widget.valueChanged.connect(self.update_value)
         elif type(widget) == QtGui.QLabel:
             self.updated_text_value.connect(widget.setText)
         else:
@@ -237,6 +243,7 @@ class LoggedQuantity(QtCore.QObject):
         self.send_display_updates(force=True)
         #self.widget = widget
         self.widget_list.append(widget)
+        self.change_readonly(self.ro)
     
     def change_choice_list(self, choices):
         #widget = self.widget
