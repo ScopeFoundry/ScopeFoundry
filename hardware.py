@@ -1,14 +1,15 @@
 from PySide import QtCore, QtGui
-from logged_quantity import LoggedQuantity
+from logged_quantity import LQCollection#, LoggedQuantity
 from collections import OrderedDict
 import pyqtgraph as pg
 
 class HardwareComponent(QtCore.QObject):
 
     def add_logged_quantity(self, name, **kwargs):
-        lq = LoggedQuantity(name=name, **kwargs)
-        self.logged_quantities[name] = lq
-        return lq
+        #lq = LoggedQuantity(name=name, **kwargs)
+        #self.logged_quantities[name] = lq
+        #return lq
+        return self.settings.New(name, **kwargs)
 
     def add_operation(self, name, op_func):
         """type name: str
@@ -16,14 +17,13 @@ class HardwareComponent(QtCore.QObject):
         """
         self.operations[name] = op_func   
             
-    def __init__(self, gui, debug=False):
-        """type gui: BaseGUI
-        """        
+    def __init__(self, app, debug=False):
         QtCore.QObject.__init__(self)
 
-        self.gui = gui
+        self.app = app
 
-        self.logged_quantities = OrderedDict()
+        #self.logged_quantities = OrderedDict()
+        self.settings = LQCollection()
         self.operations = OrderedDict()
 
         self.connected = self.add_logged_quantity("connected", dtype=bool)
@@ -54,7 +54,7 @@ class HardwareComponent(QtCore.QObject):
         raise NotImplementedError()
 
     def _add_control_widgets_to_hardware_tab(self):
-        cwidget = self.gui.ui.hardware_tab_scrollArea_content_widget
+        cwidget = self.app.ui.hardware_tab_scrollArea_content_widget
         
         self.controls_groupBox = QtGui.QGroupBox(self.name)
         self.controls_formLayout = QtGui.QFormLayout()
@@ -68,7 +68,7 @@ class HardwareComponent(QtCore.QObject):
 
         
         self.control_widgets = OrderedDict()
-        for lqname, lq in self.logged_quantities.items():
+        for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
             if lq.choices is not None:
                 widget = QtGui.QComboBox()
@@ -99,7 +99,7 @@ class HardwareComponent(QtCore.QObject):
         self.controls_formLayout.addRow("Logged Quantities:", self.read_from_hardware_button)
     
     def _add_control_widgets_to_hardware_tree(self):
-        tree = self.gui.ui.hardware_treeWidget
+        tree = self.app.ui.hardware_treeWidget
         #tree = QTreeWidget()
         tree.setColumnCount(2)
         tree.setHeaderLabels(["Hardware", "Value"])
@@ -108,7 +108,7 @@ class HardwareComponent(QtCore.QObject):
         tree.insertTopLevelItem(0, self.tree_item)
         self.tree_item.setFirstColumnSpanned(True)
         
-        for lqname, lq in self.logged_quantities.items():
+        for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
             if lq.choices is not None:
                 widget = QtGui.QComboBox()
@@ -149,7 +149,7 @@ class HardwareComponent(QtCore.QObject):
 
     @QtCore.Slot()    
     def read_from_hardware(self):
-        for name, lq in self.logged_quantities.items():
+        for name, lq in self.settings.as_dict().items():
             if self.debug_mode.val: print "read_from_hardware", name
             lq.read_from_hardware()
         
