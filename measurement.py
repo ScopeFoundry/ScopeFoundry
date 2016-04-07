@@ -18,16 +18,16 @@ class Measurement(QtCore.QObject):
     measurement_interrupted = QtCore.Signal(()) # signal sent when  measurement is complete due to an interruption
     measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
     
-    def __init__(self, gui):
-        """type gui: MicroscopeGUI
+    def __init__(self, app):
+        """type app: MicroscopeApp
         """
         
         QtCore.QObject.__init__(self)
 
-        self.gui = gui
+        self.app = app
         
         self.display_update_period = 0.1 # seconds
-        self.display_update_timer = QtCore.QTimer(self.gui.ui)
+        self.display_update_timer = QtCore.QTimer(self)
         self.display_update_timer.timeout.connect(self.on_display_update_timer)
         self.acq_thread = None
         
@@ -175,7 +175,7 @@ class Measurement(QtCore.QObject):
         #self.ui.raise() #just to be sure it's on top
     
     def _add_control_widgets_to_measurements_tab(self):
-        cwidget = self.gui.ui.measurements_tab_scrollArea_content_widget
+        cwidget = self.app.ui.measurements_tab_scrollArea_content_widget
         
         self.controls_groupBox = QtGui.QGroupBox(self.name)
         self.controls_formLayout = QtGui.QFormLayout()
@@ -213,7 +213,7 @@ class Measurement(QtCore.QObject):
             
     def _add_control_widgets_to_measurements_tree(self, tree=None):
         if tree is None:
-            tree = self.gui.ui.measurements_treeWidget
+            tree = self.app.ui.measurements_treeWidget
         
         tree.setColumnCount(2)
         tree.setHeaderLabels(["Measurements", "Value"])
