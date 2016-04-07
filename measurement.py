@@ -5,10 +5,11 @@ Created on Tue Apr  1 09:25:48 2014
 @author: esbarnard
 """
 
-from PySide import QtCore, QtGui, QtUiTools
+from PySide import QtCore, QtGui
 import threading
 import time
-from logged_quantity import LoggedQuantity
+from ScopeFoundry.logged_quantity import LQCollection
+from ScopeFoundry.helper_funcs import load_qt_ui_file
 from collections import OrderedDict
 import pyqtgraph as pg
 
@@ -16,7 +17,7 @@ class Measurement(QtCore.QObject):
     
     measurement_sucessfully_completed = QtCore.Signal(()) # signal sent when full measurement is complete
     measurement_interrupted = QtCore.Signal(()) # signal sent when  measurement is complete due to an interruption
-    measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
+    #measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
     
     def __init__(self, app):
         """type app: MicroscopeApp
@@ -33,11 +34,16 @@ class Measurement(QtCore.QObject):
         
         self.interrupt_measurement_called = False
         
-        self.logged_quantities = OrderedDict()
+        #self.logged_quantities = OrderedDict()
+        self.settings = LQCollection()
         self.operations = OrderedDict()
         
-        #TODO Add running logged quantity
-        self.progress = self.add_logged_quantity('progress', dtype=float, unit="%", si=False, ro=True)
+        
+        self.activation = self.settings.New('activation', dtype=bool, ro=False) # does the user want to the thread to be running
+        self.running    = self.settings.New('running', dtype=bool, ro=True) # is the thread actually running?
+        self.progress   = self.settings.New('progress', dtype=float, unit="%", si=False, ro=True)
+
+        self.activation.updated_value.connect(self.start_stop)
 
         self.add_operation("start", self.start)
         self.add_operation("interrupt", self.interrupt)
@@ -62,10 +68,11 @@ class Measurement(QtCore.QObject):
 
 
     def setup(self):
-        "Override this to set up logged quantites and gui connections"
-        """Runs during __init__, before the hardware connection is established
+        """Override this to set up logged quantities and gui connections
+        Runs during __init__, before the hardware connection is established
         Should generate desired LoggedQuantities"""
-        raise NotImplementedError()
+        pass
+        #raise NotImplementedError()
         
     def setup_figure(self):
         print "Empty setup_figure called"
@@ -78,7 +85,8 @@ class Measurement(QtCore.QObject):
         if (self.acq_thread is not None) and self.is_measuring():
             raise RuntimeError("Cannot start a new measurement while still measuring")
         self.acq_thread = threading.Thread(target=self._thread_run)
-        self.measurement_state_changed.emit(True)
+        #self.measurement_state_changed.emit(True)
+        self.running.update_value(True)
         self.acq_thread.start()
         self.t_start = time.time()
         self.display_update_timer.start(self.display_update_period*1000)
@@ -96,8 +104,9 @@ class Measurement(QtCore.QObject):
         #    self.interrupt_measurement_called = True
         #    raise err
         finally:
+            self.running.update_value(False)
             self.set_progress(0)  # set progress bars back to zero
-            self.measurement_state_changed.emit(False)
+            #self.measurement_state_changed.emit(False)
             if self.interrupt_measurement_called:
                 self.measurement_interrupted.emit()
             else:
@@ -110,6 +119,7 @@ class Measurement(QtCore.QObject):
     def interrupt(self):
         print "measurement", self.name, "interrupt"
         self.interrupt_measurement_called = True
+        self.activation.update_value(False)
         #Make sure display is up to date        
         #self.on_display_update_timer()
 
@@ -124,10 +134,12 @@ class Measurement(QtCore.QObject):
         
     def is_measuring(self):
         if self.acq_thread is None:
+            self.running.update_value(False)
             return False
         else:
-            return self.acq_thread.is_alive()
-        
+            resp =  self.acq_thread.is_alive()
+            self.running.update_value(resp)
+            return resp
     
     def update_display(self):
         "Override this function to provide figure updates when the display timer runs"
@@ -146,8 +158,7 @@ class Measurement(QtCore.QObject):
                 self.display_update_timer.stop()
 
     def add_logged_quantity(self, name, **kwargs):
-        lq = LoggedQuantity(name=name, **kwargs)
-        self.logged_quantities[name] = lq
+        lq = self.settings.New(name=name, **kwargs)
         return lq
     
     def add_operation(self, name, op_func):
@@ -161,12 +172,7 @@ class Measurement(QtCore.QObject):
         if ui_fname is not None:
             self.ui_filename = ui_fname
         # Load Qt UI from .ui file
-        ui_loader = QtUiTools.QUiLoader()
-        ui_file = QtCore.QFile(self.ui_filename)
-        ui_file.open(QtCore.QFile.ReadOnly)
-        self.ui = ui_loader.load(ui_file)
-        ui_file.close()
-
+        self.ui = load_qt_ui_file(self.ui_filename)
         self.show_ui()
         
     def show_ui(self):
