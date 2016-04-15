@@ -12,6 +12,17 @@ from ScopeFoundry.logged_quantity import LQCollection
 from ScopeFoundry.helper_funcs import load_qt_ui_file
 from collections import OrderedDict
 import pyqtgraph as pg
+import warnings
+
+class MeasurementQThread(QtCore.QThread):
+    def __init__(self, measurement, parent=None):
+        super(MeasurementQThread, self).__init__(parent)
+        self.measurement = measurement
+    
+    def run(self):
+        self.measurement._run()
+
+
 
 class Measurement(QtCore.QObject):
     
@@ -20,7 +31,7 @@ class Measurement(QtCore.QObject):
     #measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
     
     def __init__(self, app):
-        """type app: MicroscopeApp
+        """type app: BaseMicroscopeApp
         """
         
         QtCore.QObject.__init__(self)
@@ -84,9 +95,12 @@ class Measurement(QtCore.QObject):
         self.interrupt_measurement_called = False
         if (self.acq_thread is not None) and self.is_measuring():
             raise RuntimeError("Cannot start a new measurement while still measuring")
-        self.acq_thread = threading.Thread(target=self._thread_run)
+        #self.acq_thread = threading.Thread(target=self._thread_run)
+        self.acq_thread = MeasurementQThread(self)
+        self.acq_thread.finished.connect(self.post_run)
         #self.measurement_state_changed.emit(True)
         self.running.update_value(True)
+        self.pre_run()
         self.acq_thread.start()
         self.t_start = time.time()
         self.display_update_timer.start(self.display_update_period*1000)
@@ -112,6 +126,11 @@ class Measurement(QtCore.QObject):
             else:
                 self.measurement_sucessfully_completed.emit()
 
+    @property
+    def gui(self):
+        warnings.warn("Measurement.gui is deprecated use .app", DeprecationWarning)
+        return self.app
+    
     def set_progress(self, pct):
         self.progress.update_value(pct)
                 
@@ -137,7 +156,8 @@ class Measurement(QtCore.QObject):
             self.running.update_value(False)
             return False
         else:
-            resp =  self.acq_thread.is_alive()
+            #resp =  self.acq_thread.is_alive()
+            resp = self.acq_thread.isRunning()
             self.running.update_value(resp)
             return resp
     
@@ -190,7 +210,7 @@ class Measurement(QtCore.QObject):
         cwidget.layout().addWidget(self.controls_groupBox)
                 
         self.control_widgets = OrderedDict()
-        for lqname, lq in self.logged_quantities.items():
+        for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
             if lq.choices is not None:
                 widget = QtGui.QComboBox()
@@ -232,7 +252,7 @@ class Measurement(QtCore.QObject):
         self.progress.updated_value.connect(self.tree_progressBar.setValue)
 
         # Add logged quantities to tree
-        for lqname, lq in self.logged_quantities.items():
+        for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
             if lq.choices is not None:
                 widget = QtGui.QComboBox()
