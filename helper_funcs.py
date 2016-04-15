@@ -12,15 +12,19 @@ class OrderedAttrDict(object):
         self.__dict__[name] = obj
         return obj
     
+    
     def keys(self):
         return self._odict.keys()
     def values(self):
-        return self._dict.values()
+        return self._odict.values()
     def items(self):
         return self._odict.items()
     
     def __len__(self):
         return len(self._odict)
+    
+    def __getitem__(self, key):
+        return self._odict[key]
 
 def sibling_path(a, b):
     return os.path.join(os.path.dirname(a), b)
