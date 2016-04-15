@@ -1,7 +1,7 @@
 import sys
 from PySide import QtGui
 
-from ScopeFoundry import BaseMicroscopeGUI
+from ScopeFoundry import BaseMicroscopeApp
 
 # Import Hardware Components
 from hardware_components.apd_counter import  APDCounterHardwareComponent
@@ -9,12 +9,12 @@ from ScopeFoundry.examples.hardware.dummy_xy_stage import DummyXYStage
 
 # Import Measurement Components
 from measurement_components.apd_optimizer_simple import APDOptimizerMeasurement
-from measurement_components.simple_xy_scan import SimpleXYScan
+from ScopeFoundry.scanning.xy_scan_base import SimpleXYScan
 
 
-class ExampleXYSlowscanGUI(BaseMicroscopeGUI):
+class ExampleXYSlowscanApp(BaseMicroscopeApp):
 
-    ui_filename = "../../ScopeFoundry/base_gui.ui"
+    #ui_filename = "../../ScopeFoundry/base_gui.ui"
 
     def setup(self):
         #Add hardware components
@@ -35,14 +35,10 @@ class ExampleXYSlowscanGUI(BaseMicroscopeGUI):
         #Add additional logged quantities
 
         # Connect to custom gui
-
+        self.ui.show()
+        self.ui.activateWindow()
 
 
 if __name__ == '__main__':
-    app = QtGui.QApplication(sys.argv)
-    app.setApplicationName("Example XY slowscan App")
-
-    gui = ExampleXYSlowscanGUI(app)
-    gui.show()
-
+    app = ExampleXYSlowscanApp(sys.argv)
     sys.exit(app.exec_())
