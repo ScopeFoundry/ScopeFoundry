@@ -35,7 +35,7 @@ import h5_io
 
 class BaseMicroscopeGUI(object):
     
-    ui_filename = "base_gui.ui"
+    ui_filename = "../ScopeFoundry/base_gui.ui"
     
     def __del__ ( self ): 
         self.ui = None
