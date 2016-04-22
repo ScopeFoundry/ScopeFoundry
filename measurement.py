@@ -105,9 +105,17 @@ class Measurement(QtCore.QObject):
         self.t_start = time.time()
         self.display_update_timer.start(self.display_update_period*1000)
 
+    def pre_run(self):
+        "over-ride this method to enable main-thread initialization prior to measurement thread start"
+        pass
+    
     def _run(self):
         raise NotImplementedError("Measurement {}._run() not defined".format(self.name))
     
+    def post_run(self):
+        "over-ride this method to enable main-thread finalization after to measurement thread completes"
+        pass
+        
     def _thread_run(self):
         #self.progress_updated.emit(50) # set progress bars to default run position at 50%
         self.set_progress(50)
