@@ -2,6 +2,7 @@ from PySide import QtCore, QtGui
 from logged_quantity import LQCollection#, LoggedQuantity
 from collections import OrderedDict
 import pyqtgraph as pg
+import warnings
 
 class HardwareComponent(QtCore.QObject):
 
@@ -175,3 +176,9 @@ class HardwareComponent(QtCore.QObject):
             self.connect()
         else:
             self.disconnect()
+            
+            
+    @property
+    def gui(self):
+        warnings.warn("Hardware.gui is deprecated use .app", DeprecationWarning)
+        return self.app
