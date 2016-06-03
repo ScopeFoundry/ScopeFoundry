@@ -5,6 +5,7 @@ Created on Feb 4, 2016
 '''
 
 from ScopeFoundry import Measurement
+from ScopeFoundry.helper_funcs import sibling_path, load_qt_ui_file
 import numpy as np
 import pyqtgraph as pg
 import time
@@ -12,12 +13,16 @@ from ScopeFoundry import h5_io
 from hardware_components import apd_counter
 from PySide import QtCore
 from ScopeFoundry import LQRange
+import warnings
 
-class SimpleXYScan(Measurement):
-    name = "simple_xy_scan"
-    ui_filename = "ScopeFoundry/scanning/xy_scan_base.ui"
+class BaseXYSlowScan(Measurement):
+    name = "base_xy_slowscan"
     
     def setup(self):
+        self.ui_filename = sibling_path(__file__,"xy_scan_base.ui")
+        self.ui = load_qt_ui_file(self.ui_filename)
+        self.ui.show()
+
         self.display_update_period = 0.001 #seconds
 
         #connect events        
@@ -92,11 +97,14 @@ class SimpleXYScan(Measurement):
                               self.v_array[-1] + 0.5*self.dv.val]
                 
     
-    def _run(self):
-        
+    def pre_run(self):
         # set all logged quantities read only
         for lqname in "h0 h1 v0 v1 dh dv Nh Nv".split():
-            self.logged_quantities[lqname].change_readonly(True)
+            self.settings.as_dict()[lqname].change_readonly(True)
+    
+    def _run(self):
+        
+        self.save_h5 = False
         
         #Hardware
         # self.apd_counter_hc = self.gui.hardware_components['apd_counter']
@@ -111,19 +119,23 @@ class SimpleXYScan(Measurement):
         
         self.initial_scan_setup_plotting = True
         
+        self.display_image_map = np.zeros((self.settings.Nv.val, self.settings.Nh.val), dtype=float)
+
+        
         try:
             # h5 data file setup
             self.t0 = time.time()
-            self.h5_file = h5_io.h5_base_file(self.gui, "%i_%s.h5" % (self.t0, self.name) )
-            self.h5_file.attrs['time_id'] = self.t0
-            H = self.h5_meas_group = self.h5_file.create_group(self.name)        
+            if self.save_h5:
+                self.h5_file = h5_io.h5_base_file(self.gui, "%i_%s.h5" % (self.t0, self.name) )
+                self.h5_file.attrs['time_id'] = self.t0
+                H = self.h5_meas_group = self.h5_file.create_group(self.name)        
             
-            #create h5 data arrays
-            H['h_array'] = self.h_array
-            H['v_array'] = self.v_array
-            H['range_extent'] = self.range_extent
-            H['corners'] = self.corners
-            H['imshow_extent'] = self.imshow_extent
+                #create h5 data arrays
+                H['h_array'] = self.h_array
+                H['v_array'] = self.v_array
+                H['range_extent'] = self.range_extent
+                H['corners'] = self.corners
+                H['imshow_extent'] = self.imshow_extent
             
             self.pre_scan_setup()
             
@@ -132,7 +144,8 @@ class SimpleXYScan(Measurement):
             for jj, y in enumerate(self.v_array):
                 if self.interrupt_measurement_called: break
                 self.stage.y_position.update_value(y)
-                self.h5_file.flush() # flush data to file every line
+                if self.save_h5:    
+                    self.h5_file.flush() # flush data to file every line
                 for ii, x in enumerate(self.h_array):
                     if self.interrupt_measurement_called: break                    
                     self.stage.x_position.update_value(x)
@@ -142,11 +155,15 @@ class SimpleXYScan(Measurement):
                     self.collect_pixel(jj, ii)
                     self.progress.update_value(100.0*self.pixel_i / (self.Nh.val*self.Nv.val))
         finally:
+            
+            if self.save_h5:
+                self.h5_file.close()
+    
+    def post_run(self):
             # set all logged quantities writable
             for lqname in "h0 h1 v0 v1 dh dv Nh Nv".split():
-                self.logged_quantities[lqname].change_readonly(False)
-            
-            self.h5_file.close()
+                self.settings.as_dict()[lqname].change_readonly(False)
+
             
     def clear_qt_attr(self, attr_name):
         if hasattr(self, attr_name):
@@ -191,7 +208,7 @@ class SimpleXYScan(Measurement):
         
         self.img_plot.addItem(self.scan_roi)        
         for lqname in 'h0 h1 v0 v1 dh dv'.split():
-            self.logged_quantities[lqname].updated_value.connect(self.update_scan_roi)
+            self.settings.as_dict()[lqname].updated_value.connect(self.update_scan_roi)
                     
         self.img_plot.scene().sigMouseMoved.connect(self.mouseMoved)
     
@@ -231,7 +248,7 @@ class SimpleXYScan(Measurement):
             
             self.initial_scan_setup_plotting = False
         else:
-            self.img_item.setImage(self.apd_map.T, autoRange=False, autoLevels=False)
+            self.img_item.setImage(self.display_image_map.T, autoRange=False, autoLevels=False)
             #self.hist_lut.imageChanged(autoLevel=True)        
     
     def mouseMoved(self,evt):
@@ -249,7 +266,7 @@ class SimpleXYScan(Measurement):
 
     def scan_specific_setup(self):
         "subclass this function to setup additional logged quantities and gui connections"
-        self.stage = self.gui.hardware_components['dummy_xy_stage']
+        self.stage = self.gui.hardware.dummy_xy_stage
         
         #self.gui.hardware_components['dummy_xy_stage'].x_position.connect_bidir_to_widget(self.ui.x_doubleSpinBox)
         #self.gui.hardware_components['dummy_xy_stage'].y_position.connect_bidir_to_widget(self.ui.y_doubleSpinBox)
@@ -275,4 +292,13 @@ class SimpleXYScan(Measurement):
     
     def post_scan_cleanup(self):
         print self.name, "post_scan_setup not implemented"
+        
+        
+class SimpleXYScan(BaseXYSlowScan):
+    name='simple_xy_scan'
+    
+    def collect_pixel(self, i_h, i_v):
+        print i_h, i_v
+        self.display_image_map[i_h, i_v] = np.random.rand()
+        time.sleep(0.1)
 

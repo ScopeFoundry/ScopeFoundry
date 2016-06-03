@@ -8,6 +8,8 @@ import time
 import datetime
 import numpy as np
 import collections
+from collections import OrderedDict
+import ConfigParser
 
 from PySide import QtCore, QtGui, QtUiTools
 import pyqtgraph as pg
@@ -27,51 +29,40 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 
 from matplotlib.figure import Figure
 
-from logged_quantity import LoggedQuantity
+from logged_quantity import LoggedQuantity, LQCollection
+
+from helper_funcs import confirm_on_close, load_qt_ui_file, OrderedAttrDict, sibling_path
 
 #from equipment.image_display import ImageDisplay
 
 import h5_io
+import warnings
 
-class BaseMicroscopeGUI(object):
+
+class BaseApp(QtCore.QObject):
     
-    ui_filename = "../ScopeFoundry/base_gui.ui"
-    
-    def __del__ ( self ): 
-        self.ui = None
-
-    def show(self): 
-        #self.ui.exec_()
-        self.ui.show()
-
-    def __init__(self, app):
-        self.app = app
-        self.logged_quantities = collections.OrderedDict()
-        self.hardware_components = collections.OrderedDict()
-        self.measurement_components = collections.OrderedDict()
-        self.figs = collections.OrderedDict()
-
-        # Load Qt UI from .ui file
-        ui_loader = QtUiTools.QUiLoader()
-        ui_file = QtCore.QFile(self.ui_filename)
-        ui_file.open(QtCore.QFile.ReadOnly)
-        self.ui = ui_loader.load(ui_file)
-        ui_file.close()
+    def __init__(self, argv):
         
-        self.closeEventEater = CloseEventEater()
-        self.ui.installEventFilter(self.closeEventEater)
+        self.this_dir, self.this_filename = os.path.split(__file__)
 
-        # Run the subclass setup function
-        self.setup()
+        self.qtapp = QtGui.QApplication.instance()
+        if not self.qtapp:
+            self.qtapp = QtGui.QApplication(argv)
+        
+        self.settings = LQCollection()
+        
+        self.setup_console_widget()
+        #self.setup()
 
-        self.ui.hardware_treeWidget.setColumnWidth(0,175)
-        self.ui.measurements_treeWidget.setColumnWidth(0,175)
+        if not hasattr(self, 'name'):
+            self.name = "ScopeFoundry"
+        self.qtapp.setApplicationName(self.name)
 
-        # Setup the figures         
-        for name, measure in self.measurement_components.items():
-            print "setting up figures for", name, "measurement", measure.name
-            measure.setup_figure()
-
+        
+    def exec_(self):
+        return self.qtapp.exec_()
+        
+    def setup_console_widget(self):
         # Console 
         #self.console_widget = pyqtgraph.console.ConsoleWidget(namespace={'gui':self, 'pg':pg, 'np':np}, text="ScopeFoundry GUI console")
         # https://github.com/ipython/ipython-in-depth/blob/master/examples/Embedding/inprocess_qtconsole.py
@@ -79,7 +70,7 @@ class BaseMicroscopeGUI(object):
         self.kernel_manager.start_kernel()
         self.kernel = self.kernel_manager.kernel
         self.kernel.gui = 'qt4'
-        self.kernel.shell.push({'np': np, 'gui': self})
+        self.kernel.shell.push({'np': np, 'app': self})
         self.kernel_client = self.kernel_manager.client()
         self.kernel_client.start_channels()
 
@@ -88,8 +79,102 @@ class BaseMicroscopeGUI(object):
         self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
         self.console_widget.kernel_manager = self.kernel_manager
         self.console_widget.kernel_client = self.kernel_client
-        #self.console_widget.exit_requested.connect(stop)
-        #self.console_widget.show()
+        
+        return self.console_widget         
+
+    def setup(self):
+        pass
+
+
+    def settings_save_ini(self, fname, save_ro=True):
+        config = ConfigParser.ConfigParser()
+        config.optionxform = str
+        config.add_section('app')
+        config.set('app', 'name', self.name)
+        for lqname, lq in self.settings.as_dict().items():
+            if not lq.ro or save_ro:
+                config.set('app', lqname, lq.ini_string_value())
+                
+        with open(fname, 'wb') as configfile:
+            config.write(configfile)
+        
+        print "ini settings saved to", fname, config.optionxform      
+
+    def settings_load_ini(self, fname):
+        print "ini settings loading from", fname
+        
+        def str2bool(v):
+            return v.lower() in ("yes", "true", "t", "1")
+
+        config = ConfigParser.ConfigParser()
+        config.optionxform = str
+        config.read(fname)
+
+        if 'app' in config.sections():
+            for lqname, new_val in config.items('app'):
+                print lqname
+                lq = self.settings.as_dict().get(lqname)
+                if lq:
+                    if lq.dtype == bool:
+                        new_val = str2bool(new_val)
+                    lq.update_value(new_val)
+
+    def settings_save_ini_ask(self, dir=None, save_ro=True):
+        # TODO add default directory, etc
+        fname, _ = QtGui.QFileDialog.getSaveFileName(self.ui, caption=u'Save Settings', dir=u"", filter=u"Settings (*.ini)")
+        print repr(fname)
+        if fname:
+            self.settings_save_ini(fname, save_ro=save_ro)
+        return fname
+
+    def settings_load_ini_ask(self, dir=None):
+        # TODO add default directory, etc
+        fname, _ = QtGui.QFileDialog.getOpenFileName(None, "Settings (*.ini)")
+        print repr(fname)
+        if fname:
+            self.settings_load_ini(fname)
+        return fname  
+
+class BaseMicroscopeApp(BaseApp):
+    name = "ScopeFoundry"
+    
+    def __del__ ( self ): 
+        self.ui = None
+
+    def show(self): 
+        #self.ui.exec_()
+        self.ui.show()
+
+    def __init__(self, argv):
+        BaseApp.__init__(self, argv)
+        
+        if not hasattr(self, 'ui_filename'):
+            self.ui_filename = sibling_path(__file__,"base_microscope_app.ui")
+        # Load Qt UI from .ui file
+        self.ui = load_qt_ui_file(self.ui_filename)
+        
+        self.hardware = OrderedAttrDict()
+        self.measurements = OrderedAttrDict()
+
+        self.setup()
+        
+        self.setup_default_ui()
+
+
+
+
+    
+    def setup_default_ui(self):
+        
+        confirm_on_close(self.ui, title="Close %s?" % self.name, message="Do you wish to shut down %s?" % self.name)
+        
+        self.ui.hardware_treeWidget.setColumnWidth(0,175)
+        self.ui.measurements_treeWidget.setColumnWidth(0,175)
+
+        # Setup the figures         
+        for name, measure in self.measurements.items():
+            print "setting up figures for", name, "measurement", measure.name
+            measure.setup_figure()
         
         if hasattr(self.ui, 'console_pushButton'):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
@@ -109,9 +194,10 @@ class BaseMicroscopeGUI(object):
     def setup(self):
         """ Override to add Hardware and Measurement Components"""
         #raise NotImplementedError()
+        pass
     
         
-    def add_image_display(self,name,widget):
+    """def add_image_display(self,name,widget):
         print "---adding figure", name, widget
         if name in self.figs:
             return self.figs[name]
@@ -119,6 +205,7 @@ class BaseMicroscopeGUI(object):
             disp=ImageDisplay(name,widget)
             self.figs[name]=disp
             return disp
+    """
         
     def add_pg_graphics_layout(self, name, widget):
         print "---adding pg GraphicsLayout figure", name, widget
@@ -158,23 +245,19 @@ class BaseMicroscopeGUI(object):
     def add_figure(self,name,widget):
         return self.add_figure_mpl(name,widget)
     
-    def add_logged_quantity(self, name, **kwargs):
-        lq = LoggedQuantity(name=name, **kwargs)
-        self.logged_quantities[name] = lq
-        return lq
 
     def add_hardware_component(self,hc):
-        self.hardware_components[hc.name] = hc
+        self.hardware.add(hc.name, hc)
         return hc
     
     def add_measurement_component(self, measure):
-        assert not measure.name in self.measurement_components.keys()
-        self.measurement_components[measure.name] = measure
+        assert not measure.name in self.measurements.keys()
+        self.measurements.add(measure.name, measure)
         return measure
     
     def settings_save_h5(self, fname):
         with h5_io.h5_base_file(self, fname) as h5_file:
-            for measurement in self.measurement_components.values():
+            for measurement in self.measurements.values():
                 h5_io.h5_create_measurement_group(measurement, h5_file)
             print "settings saved to", h5_file.filename
             
@@ -183,21 +266,21 @@ class BaseMicroscopeGUI(object):
         config = ConfigParser.ConfigParser()
         config.optionxform = str
         if save_gui:
-            config.add_section('gui')
-            for lqname, lq in self.logged_quantities.items():
-                config.set('gui', lqname, lq.val)
+            config.add_section('app')
+            for lqname, lq in self.settings.items():
+                config.set('app', lqname, lq.val)
         if save_hardware:
-            for hc_name, hc in self.hardware_components.items():
+            for hc_name, hc in self.hardware.items():
                 section_name = 'hardware/'+hc_name            
                 config.add_section(section_name)
-                for lqname, lq in hc.logged_quantities.items():
+                for lqname, lq in hc.settings.items():
                     if not lq.ro or save_ro:
                         config.set(section_name, lqname, lq.val)
         if save_measurements:
-            for meas_name, measurement in self.measurement_components.items():
+            for meas_name, measurement in self.measurements.items():
                 section_name = 'measurement/'+meas_name            
                 config.add_section(section_name)
-                for lqname, lq in measurement.logged_quantities.items():
+                for lqname, lq in measurement.settings.items():
                     if not lq.ro or save_ro:
                         config.set(section_name, lqname, lq.val)
         with open(fname, 'wb') as configfile:
@@ -219,20 +302,20 @@ class BaseMicroscopeGUI(object):
         config.optionxform = str
         config.read(fname)
 
-        if 'gui' in config.sections():
-            for lqname, new_val in config.items('gui'):
-                lq = self.logged_quantities[lqname]
+        if 'app' in config.sections():
+            for lqname, new_val in config.items('app'):
+                lq = self.settings[lqname]
                 if lq.dtype == bool:
                     new_val = str2bool(new_val)
                 lq.update_value(new_val)
         
-        for hc_name, hc in self.hardware_components.items():
+        for hc_name, hc in self.hardware.items():
             section_name = 'hardware/'+hc_name
             print section_name
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
                     try:
-                        lq = hc.logged_quantities[lqname]
+                        lq = hc.settings[lqname]
                         if lq.dtype == bool:
                             new_val = str2bool(new_val)
                         if not lq.ro:
@@ -240,7 +323,7 @@ class BaseMicroscopeGUI(object):
                     except Exception as err:
                         print "-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err))
                         
-        for meas_name, measurement in self.measurement_components.items():
+        for meas_name, measurement in self.measurement.items():
             section_name = 'measurement/'+meas_name            
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
@@ -278,31 +361,22 @@ class BaseMicroscopeGUI(object):
     def settings_load_dialog(self):
         fname, selectedFilter = QtGui.QFileDialog.getOpenFileName(self.ui,"Open Settings file", "", "Settings File (*.ini *.h5)")
         self.settings_load_ini(fname)
-    
-class CloseEventEater(QtCore.QObject):
-    def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.Close:
-            # eat close event
-            print "close"
-            reply = QtGui.QMessageBox.question(None, 
-                                               "Close ScopeFoundry?", 
-                                               "Do you wish to shut down ScopeFoundry?",
-                                               QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
-            if reply == QtGui.QMessageBox.Yes:
-                QtGui.QApplication.quit()
-                event.accept()
-            else:
-                event.ignore()
-            return True
-        else:
-            # standard event processing            
-            return QtCore.QObject.eventFilter(self,obj, event)
+
+    @property
+    def hardware_components(self):
+        warnings.warn("App.hardware_components deprecated, used App.hardware", DeprecationWarning)
+        return self.hardware
+    @property
+    def measurement_components(self):
+        warnings.warn("App.measurement_components deprecated, used App.measurements", DeprecationWarning)
+        return self.measurements
+    @property
+    def logged_quantities(self):
+        warnings.warn('app.logged_quantities deprecated use app.settings', DeprecationWarning)
+        return self.settings.as_dict()
 
 if __name__ == '__main__':
-    app = QtGui.QApplication(sys.argv)
-    app.setApplicationName("Microscope Control Application")
     
-    gui = BaseMicroscopeGUI(app)
-    gui.show()
+    app = BaseMicroscopeApp(sys.argv)
     
     sys.exit(app.exec_())
