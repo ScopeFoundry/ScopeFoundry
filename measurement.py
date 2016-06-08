@@ -126,6 +126,12 @@ class Measurement(QtCore.QObject):
             else:
                 self.measurement_sucessfully_completed.emit()
 
+    def pre_run(self):
+        pass
+    
+    def post_run(self):
+        pass
+
     @property
     def gui(self):
         warnings.warn("Measurement.gui is deprecated use .app", DeprecationWarning)
