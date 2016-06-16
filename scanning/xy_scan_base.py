@@ -141,14 +141,17 @@ class BaseXYSlowScan(Measurement):
             
             # start scan
             self.pixel_i = 0
+            
+            self.move_position_start(self.h_array[0], self.v_array[0])
+            
             for jj, y in enumerate(self.v_array):
                 if self.interrupt_measurement_called: break
-                self.stage.y_position.update_value(y)
+                self.move_position_line(self.h_array[0], y)
                 if self.save_h5:    
                     self.h5_file.flush() # flush data to file every line
                 for ii, x in enumerate(self.h_array):
-                    if self.interrupt_measurement_called: break                    
-                    self.stage.x_position.update_value(x)
+                    if self.interrupt_measurement_called: break
+                    self.move_position_pixel(x, y)                
                     # each pixel:
                     # acquire signal and save to data array
                     self.pixel_i += 1
@@ -158,6 +161,17 @@ class BaseXYSlowScan(Measurement):
             
             if self.save_h5:
                 self.h5_file.close()
+    
+    def move_position_start(self, x,y):
+        self.stage.y_position.update_value(x)
+        self.stage.y_position.update_value(y)
+    
+    def move_position_line(self, x,y):
+        self.stage.yposition.update_value(y)
+        
+    def move_position_pixel(self, x,y):
+        self.stage.x_position.update_value(x)
+    
     
     def post_run(self):
             # set all logged quantities writable
@@ -266,7 +280,6 @@ class BaseXYSlowScan(Measurement):
 
     def scan_specific_setup(self):
         "subclass this function to setup additional logged quantities and gui connections"
-        self.stage = self.gui.hardware.dummy_xy_stage
         
         #self.gui.hardware_components['dummy_xy_stage'].x_position.connect_bidir_to_widget(self.ui.x_doubleSpinBox)
         #self.gui.hardware_components['dummy_xy_stage'].y_position.connect_bidir_to_widget(self.ui.y_doubleSpinBox)
@@ -282,6 +295,7 @@ class BaseXYSlowScan(Measurement):
     def pre_scan_setup(self):
         print self.name, "pre_scan_setup not implemented"
         # hardware
+        self.stage = self.gui.hardware.dummy_xy_stage
         # create data arrays
         # update figure
     
