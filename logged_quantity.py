@@ -33,7 +33,7 @@ class LoggedQuantity(QtCore.QObject):
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
-        self.choices = choices # must be tuple [ ('name', val) ... ]
+        self.choices = self._expand_choices(choices) # should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
         self.ro = ro # Read-Only?
         
         if self.dtype == int:
@@ -56,6 +56,19 @@ class LoggedQuantity(QtCore.QObject):
     def coerce_to_type(self, x):
         return self.dtype(x)
         
+    def _expand_choices(self, choices):
+        if choices is None:
+            return None
+        expanded_choices = []
+        for c in choices:
+            if isinstance(c, tuple):
+                name, val = c
+                expanded_choices.append( ( str(name), self.dtype(val) ) )
+            else:
+                expanded_choices.append( ( str(c), self.dtype(c) ) )
+        return expanded_choices
+
+
     def read_from_hardware(self, send_signal=True):
         if self.hardware_read_func:
             self.oldval = self.val
@@ -247,7 +260,7 @@ class LoggedQuantity(QtCore.QObject):
     
     def change_choice_list(self, choices):
         #widget = self.widget
-        self.choices = choices
+        self.choices = self._expand_choices(choices)
         
         for widget in self.widget_list:
             if type(widget) == QtGui.QComboBox:
