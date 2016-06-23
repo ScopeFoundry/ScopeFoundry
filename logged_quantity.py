@@ -490,19 +490,28 @@ class LQCollection(object):
         self._logged_quantities[name] = lq
         self.__dict__[name] = lq
         return lq
-    
+
+    def get_lq(self, key):
+        return self._logged_quantities[key].val
+
     def as_list(self):
         return self._logged_quantities.values()
     
     def as_dict(self):
         return self._logged_quantities
     
-    """def __getattr__(self, name):
-        return self.logged_quantities[name]
-
+    def items(self):
+        return self._logged_quantities.items()
+    
     def __getitem__(self, key):
-        return self.logged_quantities[key]
+        return self._logged_quantities[key].val
+    
+    def __setitem__(self, key, item):
+        self._logged_quantities[key].update_value(item)
 
+    def __contains__(self, key):
+        return self._logged_quantities.__contains__(key)
+    """
     def __getattribute__(self,name):
         if name in self.logged_quantities.keys():
             return self.logged_quantities[name]
