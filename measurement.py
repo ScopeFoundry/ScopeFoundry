@@ -109,12 +109,13 @@ class Measurement(QtCore.QObject):
         "over-ride this method to enable main-thread initialization prior to measurement thread start"
         pass
     
-    def _run(self):
-        print "warning _run is deprecated, use run"
-        self.run()
-    
+   
     def run(self):
-        raise NotImplementedError("Measurement {}.run() not defined".format(self.name))
+        if hasattr(self, '_run'):
+            print "warning _run is deprecated, use run"
+            self._run()
+        else:
+            raise NotImplementedError("Measurement {}.run() not defined".format(self.name))
     
     
     def post_run(self):
