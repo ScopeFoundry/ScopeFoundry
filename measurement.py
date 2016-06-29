@@ -20,7 +20,7 @@ class MeasurementQThread(QtCore.QThread):
         self.measurement = measurement
     
     def run(self):
-        self.measurement._run()
+        self.measurement.run()
 
 
 
@@ -105,14 +105,28 @@ class Measurement(QtCore.QObject):
         self.t_start = time.time()
         self.display_update_timer.start(self.display_update_period*1000)
 
-    def _run(self):
-        raise NotImplementedError("Measurement {}._run() not defined".format(self.name))
+    def pre_run(self):
+        "over-ride this method to enable main-thread initialization prior to measurement thread start"
+        pass
     
+   
+    def run(self):
+        if hasattr(self, '_run'):
+            print "warning _run is deprecated, use run"
+            self._run()
+        else:
+            raise NotImplementedError("Measurement {}.run() not defined".format(self.name))
+    
+    
+    def post_run(self):
+        "over-ride this method to enable main-thread finalization after to measurement thread completes"
+        pass
+        
     def _thread_run(self):
         #self.progress_updated.emit(50) # set progress bars to default run position at 50%
         self.set_progress(50)
         try:
-            self._run()
+            self.run()
             
         #except Exception as err:
         #    self.interrupt_measurement_called = True
@@ -125,6 +139,8 @@ class Measurement(QtCore.QObject):
                 self.measurement_interrupted.emit()
             else:
                 self.measurement_sucessfully_completed.emit()
+
+
 
     @property
     def gui(self):
