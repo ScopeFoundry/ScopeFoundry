@@ -33,7 +33,7 @@ class LoggedQuantity(QtCore.QObject):
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
-        self.choices = choices # must be tuple [ ('name', val) ... ]
+        self.choices = self._expand_choices(choices) # should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
         self.ro = ro # Read-Only?
         
         if self.dtype == int:
@@ -56,6 +56,19 @@ class LoggedQuantity(QtCore.QObject):
     def coerce_to_type(self, x):
         return self.dtype(x)
         
+    def _expand_choices(self, choices):
+        if choices is None:
+            return None
+        expanded_choices = []
+        for c in choices:
+            if isinstance(c, tuple):
+                name, val = c
+                expanded_choices.append( ( str(name), self.dtype(val) ) )
+            else:
+                expanded_choices.append( ( str(c), self.dtype(c) ) )
+        return expanded_choices
+
+
     def read_from_hardware(self, send_signal=True):
         if self.hardware_read_func:
             self.oldval = self.val
@@ -247,7 +260,7 @@ class LoggedQuantity(QtCore.QObject):
     
     def change_choice_list(self, choices):
         #widget = self.widget
-        self.choices = choices
+        self.choices = self._expand_choices(choices)
         
         for widget in self.widget_list:
             if type(widget) == QtGui.QComboBox:
@@ -477,19 +490,28 @@ class LQCollection(object):
         self._logged_quantities[name] = lq
         self.__dict__[name] = lq
         return lq
-    
+
+    def get_lq(self, key):
+        return self._logged_quantities[key].val
+
     def as_list(self):
         return self._logged_quantities.values()
     
     def as_dict(self):
         return self._logged_quantities
     
-    """def __getattr__(self, name):
-        return self.logged_quantities[name]
-
+    def items(self):
+        return self._logged_quantities.items()
+    
     def __getitem__(self, key):
-        return self.logged_quantities[key]
+        return self._logged_quantities[key].val
+    
+    def __setitem__(self, key, item):
+        self._logged_quantities[key].update_value(item)
 
+    def __contains__(self, key):
+        return self._logged_quantities.__contains__(key)
+    """
     def __getattribute__(self,name):
         if name in self.logged_quantities.keys():
             return self.logged_quantities[name]
