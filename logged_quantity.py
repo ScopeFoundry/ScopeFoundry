@@ -492,8 +492,11 @@ class LQCollection(object):
         return lq
 
     def get_lq(self, key):
+        return self._logged_quantities[key]
+    
+    def get_val(self, key):
         return self._logged_quantities[key].val
-
+    
     def as_list(self):
         return self._logged_quantities.values()
     
@@ -504,9 +507,11 @@ class LQCollection(object):
         return self._logged_quantities.items()
     
     def __getitem__(self, key):
+        "Dictionary-like access reads and sets value of LQ's"
         return self._logged_quantities[key].val
     
     def __setitem__(self, key, item):
+        "Dictionary-like access reads and sets value of LQ's"
         self._logged_quantities[key].update_value(item)
 
     def __contains__(self, key):
