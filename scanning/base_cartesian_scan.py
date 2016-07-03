@@ -218,6 +218,7 @@ class BaseCartesian2DSlowScan(Measurement):
                 self.collect_pixel(self.pixel_i, kk, jj, ii)
                 S['progress'] = 100.0*self.pixel_i / (self.Npixels)
         finally:
+            self.post_scan_cleanup()
             if self.save_h5 and hasattr(self, 'h5_file'):
                 self.h5_file.close()
     
