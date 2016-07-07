@@ -476,6 +476,7 @@ class LQCollection(object):
 
     def __init__(self):
         self._logged_quantities = OrderedDict()
+        self.ranges = OrderedDict()
         
     def New(self, name, dtype=float, **kwargs):
         is_array = kwargs.pop('array', False)
@@ -524,6 +525,19 @@ class LQCollection(object):
             return object.__getattribute__(self, name)
     """
     
+    def New_Range(self, name, **kwargs):
+                
+        lqs = dict()
+        for part in ['min', 'max', 'step', 'num']:
+            lqs[part] = self.New( name + "_" + part, **kwargs ) 
+    
+        lqrange = LQRange(min_lq=lqs['min'],
+                          max_lq=lqs['max'], 
+                          step_lq=lqs['step'],
+                          num_lq=lqs['num'])
+
+        self.ranges[name] = lqrange
+        return lqrange
 
 def print_signals_and_slots(obj):
     for i in xrange(obj.metaObject().methodCount()):
