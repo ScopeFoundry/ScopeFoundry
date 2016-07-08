@@ -90,6 +90,7 @@ class BaseCartesian2DSlowScan(Measurement):
         self.dv.connect_bidir_to_widget(self.ui.dv_doubleSpinBox)
         self.Nh.connect_bidir_to_widget(self.ui.Nh_doubleSpinBox)
         self.Nv.connect_bidir_to_widget(self.ui.Nv_doubleSpinBox)
+        self.scan_type.connect_bidir_to_widget(self.ui.scan_type_comboBox)
         
         self.progress.connect_bidir_to_widget(self.ui.progress_doubleSpinBox)
         #self.progress.updated_value[str].connect(self.ui.xy_scan_progressBar.setValue)
@@ -351,7 +352,8 @@ class BaseCartesian2DSlowScan(Measurement):
 
     def scan_specific_setup(self):
         "subclass this function to setup additional logged quantities and gui connections"
-        self.stage = self.app.hardware.dummy_xy_stage
+        pass
+        #self.stage = self.app.hardware.dummy_xy_stage
         
         #self.app.hardware_components['dummy_xy_stage'].x_position.connect_bidir_to_widget(self.ui.x_doubleSpinBox)
         #self.app.hardware_components['dummy_xy_stage'].y_position.connect_bidir_to_widget(self.ui.y_doubleSpinBox)
