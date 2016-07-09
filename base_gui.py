@@ -22,12 +22,12 @@ else:
     from qtconsole.rich_jupyter_widget import RichJupyterWidget
     from qtconsole.inprocess import QtInProcessKernelManager
 
-import matplotlib
-matplotlib.rcParams['backend.qt4'] = 'PySide'
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
+#import matplotlib
+#matplotlib.rcParams['backend.qt4'] = 'PySide'
+#from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+#from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar2
 
-from matplotlib.figure import Figure
+#from matplotlib.figure import Figure
 
 from logged_quantity import LoggedQuantity, LQCollection
 
