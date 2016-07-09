@@ -98,7 +98,7 @@ class BaseCartesian2DSlowScan(Measurement):
 
 
         self.initial_scan_setup_plotting = False
-        self.display_image_map = np.zeros((10,10), dtype=float)
+        self.display_image_map = np.zeros((1, 10,10), dtype=float)
         self.scan_specific_setup()
 
     def compute_scan_params(self):
