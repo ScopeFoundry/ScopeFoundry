@@ -163,7 +163,7 @@ class BaseCartesian2DSlowScan(Measurement):
             if self.save_h5:
                 self.h5_file = h5_io.h5_base_file(self.app, "%i_%s.h5" % (self.t0, self.name) )
                 self.h5_file.attrs['time_id'] = self.t0
-                H = self.h5_meas_group = self.h5_file.create_group(self.name)        
+                H = self.h5_meas_group  =  h5_io.h5_create_measurement_group(self, self.h5_file)
             
                 #create h5 data arrays
                 H['h_array'] = self.h_array
