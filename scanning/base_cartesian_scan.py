@@ -66,6 +66,9 @@ class BaseCartesian2DSlowScan(Measurement):
         self.scan_type = self.settings.New('scan_type', dtype=str, initial='raster',
                                                   choices=('raster', 'serpentine', 'trace_retrace', 
                                                            'ortho_raster', 'ortho_trace_retrace'))
+        
+        self.settings.New('save_h5', dtype=bool, initial=True, ro=True)
+        
 
         #update Nh, Nv and other scan parameters when changes to inputs are made 
         #for lqname in 'h0 h1 v0 v1 dh dv'.split():
@@ -139,7 +142,6 @@ class BaseCartesian2DSlowScan(Measurement):
     def run(self):
         S = self.settings
         
-        self.save_h5 = True
         
         #Hardware
         # self.apd_counter_hc = self.app.hardware_components['apd_counter']
@@ -159,7 +161,7 @@ class BaseCartesian2DSlowScan(Measurement):
         try:
             # h5 data file setup
             self.t0 = time.time()
-            if self.save_h5:
+            if self.settings['save_h5']:
                 self.h5_file = h5_io.h5_base_file(self.app, "%i_%s.h5" % (self.t0, self.name) )
                 self.h5_file.attrs['time_id'] = self.t0
                 H = self.h5_meas_group = self.h5_file.create_group(self.name)        
@@ -204,7 +206,7 @@ class BaseCartesian2DSlowScan(Measurement):
                 
                 if self.scan_slow_move[i]:
                     self.move_position_slow(h,v, dh, dv)
-                    if self.save_h5:    
+                    if self.settings['save_h5']:    
                         self.h5_file.flush() # flush data to file every slow move
                 else:
                     self.move_position_fast(h,v, dh, dv)
@@ -213,13 +215,13 @@ class BaseCartesian2DSlowScan(Measurement):
                 # acquire signal and save to data array
                 pixel_t0 = time.time()
                 self.pixel_time[kk, jj, ii] = pixel_t0
-                if self.save_h5:
+                if self.settings['save_h5']:
                     self.pixel_time_h5[kk, jj, ii] = pixel_t0
                 self.collect_pixel(self.pixel_i, kk, jj, ii)
                 S['progress'] = 100.0*self.pixel_i / (self.Npixels)
         finally:
             self.post_scan_cleanup()
-            if self.save_h5 and hasattr(self, 'h5_file'):
+            if self.settings['save_h5'] and hasattr(self, 'h5_file'):
                 self.h5_file.close()
     
     def move_position_start(self, x,y):
