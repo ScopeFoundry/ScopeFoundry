@@ -315,7 +315,7 @@ class BaseMicroscopeApp(BaseApp):
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
                     try:
-                        lq = hc.settings[lqname]
+                        lq = hc.settings.get_lq(lqname)
                         if lq.dtype == bool:
                             new_val = str2bool(new_val)
                         if not lq.ro:
@@ -323,11 +323,11 @@ class BaseMicroscopeApp(BaseApp):
                     except Exception as err:
                         print "-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err))
                         
-        for meas_name, measurement in self.measurement.items():
+        for meas_name, measurement in self.measurements.items():
             section_name = 'measurement/'+meas_name            
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
-                    lq = measurement.logged_quantities[lqname]
+                    lq = measurement.settings.get_lq(lqname)
                     if lq.dtype == bool:
                         new_val = str2bool(new_val)                    
                     if not lq.ro:
