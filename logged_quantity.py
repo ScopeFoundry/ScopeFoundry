@@ -408,13 +408,15 @@ class LQRange(QtCore.QObject):
     """
     updated_range = QtCore.Signal((),)# (float,),(int,),(bool,), (), (str,),) # signal sent when value has been updated
     
-    def __init__(self, min_lq,max_lq,step_lq, num_lq):
+    def __init__(self, min_lq,max_lq,step_lq, num_lq, center_lq=None, span_lq=None):
         QtCore.QObject.__init__(self)
 
         self.min = min_lq
         self.max = max_lq
         self.num = num_lq
         self.step = step_lq
+        self.center = center_lq
+        self.span = span_lq
         
         assert self.num.dtype == int
                 
@@ -425,7 +427,11 @@ class LQRange(QtCore.QObject):
         self.num.updated_value[int].connect(self.recalc_with_new_num)
         self.min.updated_value.connect(self.recalc_with_new_min_max)
         self.max.updated_value.connect(self.recalc_with_new_min_max)
-        self.step.updated_value.connect(self.recalc_with_new_step)        
+        self.step.updated_value.connect(self.recalc_with_new_step)
+        
+        if self.center and self.span:
+            self.center.updated_value.connect(self.recalc_with_new_center_span)
+            self.span.updated_value.connect(self.recalc_with_new_center_span)
 
     def recalc_with_new_num(self, new_num):
         print "recalc_with_new_num", new_num
@@ -440,7 +446,11 @@ class LQRange(QtCore.QObject):
     def recalc_with_new_min_max(self, x):
         self.array = np.linspace(self.min.val, self.max.val, self.num.val)
         step = self.array[1]-self.array[0]
-        self.step.update_value(step)#, send_signal=True, update_hardware=False)        
+        self.step.update_value(step)#, send_signal=True, update_hardware=False)
+        if self.center:
+            self.span.update_value(0.5*(self.max.val-self.min.val) + self.min.val)
+        if self.span:
+            self.span.update_value(self.max.val-self.min.val)
         self.updated_range.emit()
         
     def recalc_with_new_step(self,new_step):
@@ -471,6 +481,12 @@ class LQRange(QtCore.QObject):
             #print "sending step display Updates"
             #self.step.send_display_updates(force=True)
             self.updated_range.emit()
+            
+    def recalc_with_new_center_span(self,x):
+        C = self.center.val
+        S = self.span.val
+        self.min.updated_value( C + 0.5*S)
+        self.max.updated_value( C + 0.5*S)
 
 class LQCollection(object):
 
@@ -526,15 +542,15 @@ class LQCollection(object):
     """
     
     def New_Range(self, name, **kwargs):
-                
-        lqs = dict()
-        for part in ['min', 'max', 'step', 'num']:
-            lqs[part] = self.New( name + "_" + part, **kwargs ) 
+                        
+        min_lq  = self.New( name + "_min" , **kwargs ) 
+        max_lq  = self.New( name + "_max" , **kwargs ) 
+        step_lq = self.New( name + "_step", **kwargs)
+        num_lq  = self.New( name + "_num", dtype=int, vmin=1)
+        center_lq = self.New(name + "_center", **kwargs)
+        span_lq = self.New( name + "_span", **kwargs)
     
-        lqrange = LQRange(min_lq=lqs['min'],
-                          max_lq=lqs['max'], 
-                          step_lq=lqs['step'],
-                          num_lq=lqs['num'])
+        lqrange = LQRange(min_lq, max_lq, step_lq, num_lq, center_lq, span_lq)
 
         self.ranges[name] = lqrange
         return lqrange

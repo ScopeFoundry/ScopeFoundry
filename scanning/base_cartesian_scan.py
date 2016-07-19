@@ -93,6 +93,7 @@ class BaseCartesian2DSlowScan(Measurement):
         self.dv.connect_bidir_to_widget(self.ui.dv_doubleSpinBox)
         self.Nh.connect_bidir_to_widget(self.ui.Nh_doubleSpinBox)
         self.Nv.connect_bidir_to_widget(self.ui.Nv_doubleSpinBox)
+        self.scan_type.connect_bidir_to_widget(self.ui.scan_type_comboBox)
         
         self.progress.connect_bidir_to_widget(self.ui.progress_doubleSpinBox)
         #self.progress.updated_value[str].connect(self.ui.xy_scan_progressBar.setValue)
@@ -100,7 +101,7 @@ class BaseCartesian2DSlowScan(Measurement):
 
 
         self.initial_scan_setup_plotting = False
-        self.display_image_map = np.zeros((10,10), dtype=float)
+        self.display_image_map = np.zeros((1, 10,10), dtype=float)
         self.scan_specific_setup()
 
     def compute_scan_params(self):
@@ -164,7 +165,7 @@ class BaseCartesian2DSlowScan(Measurement):
             if self.settings['save_h5']:
                 self.h5_file = h5_io.h5_base_file(self.app, "%i_%s.h5" % (self.t0, self.name) )
                 self.h5_file.attrs['time_id'] = self.t0
-                H = self.h5_meas_group = self.h5_file.create_group(self.name)        
+                H = self.h5_meas_group  =  h5_io.h5_create_measurement_group(self, self.h5_file)
             
                 #create h5 data arrays
                 H['h_array'] = self.h_array
@@ -353,7 +354,8 @@ class BaseCartesian2DSlowScan(Measurement):
 
     def scan_specific_setup(self):
         "subclass this function to setup additional logged quantities and gui connections"
-        self.stage = self.app.hardware.dummy_xy_stage
+        pass
+        #self.stage = self.app.hardware.dummy_xy_stage
         
         #self.app.hardware_components['dummy_xy_stage'].x_position.connect_bidir_to_widget(self.ui.x_doubleSpinBox)
         #self.app.hardware_components['dummy_xy_stage'].y_position.connect_bidir_to_widget(self.ui.y_doubleSpinBox)
