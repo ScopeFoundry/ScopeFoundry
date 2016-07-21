@@ -34,8 +34,8 @@ def ijk_zigzag_generator(dims, axis_order=(0,1,2)):
                 yield tuple(ijk)
     return
 
-class BaseCartesian2DSlowScan(Measurement):
-    name = "base_cartesian_slowscan"
+class BaseCartesian2DScan(Measurement):
+    name = "base_cartesian_2Dscan"
     
     def setup(self):
         self.ui_filename = sibling_path(__file__,"cart_scan_base.ui")
@@ -99,7 +99,6 @@ class BaseCartesian2DSlowScan(Measurement):
         #self.progress.updated_value[str].connect(self.ui.xy_scan_progressBar.setValue)
         #self.progress.updated_value.connect(self.tree_progressBar.setValue)
 
-
         self.initial_scan_setup_plotting = False
         self.display_image_map = np.zeros((1, 10,10), dtype=float)
         self.scan_specific_setup()
@@ -109,25 +108,31 @@ class BaseCartesian2DSlowScan(Measurement):
         if self.is_measuring():
             return # maybe raise error
 
-        self.h_array = self.h_range.array #np.arange(self.h0.val, self.h1.val, self.dh.val, dtype=float)
-        self.v_array = self.v_range.array #np.arange(self.v0.val, self.v1.val, self.dv.val, dtype=float)
+        #self.h_array = self.h_range.array #np.arange(self.h0.val, self.h1.val, self.dh.val, dtype=float)
+        #self.v_array = self.v_range.array #np.arange(self.v0.val, self.v1.val, self.dv.val, dtype=float)
         
         #self.Nh.update_value(len(self.h_array))
         #self.Nv.update_value(len(self.v_array))
         
         self.range_extent = [self.h0.val, self.h1.val, self.v0.val, self.v1.val]
 
-        self.corners =  [self.h_array[0], self.h_array[-1], self.v_array[0], self.v_array[-1]]
+        #self.corners =  [self.h_array[0], self.h_array[-1], self.v_array[0], self.v_array[-1]]
+        self.corners = self.range_extent
         
-        self.imshow_extent = [self.h_array[ 0] - 0.5*self.dh.val,
-                              self.h_array[-1] + 0.5*self.dh.val,
-                              self.v_array[ 0] - 0.5*self.dv.val,
-                              self.v_array[-1] + 0.5*self.dv.val]
+        self.imshow_extent = [self.h0.val - 0.5*self.dh.val,
+                              self.h1.val + 0.5*self.dh.val,
+                              self.v0.val - 0.5*self.dv.val,
+                              self.v1.val + 0.5*self.dv.val]
                 
         
-        # call appropriate scan generator to create 
-        getattr(self, "gen_%s_scan" % self.scan_type.val)()
-        
+        # call appropriate scan generator to determine scan size, don't compute scan arrays yet
+        getattr(self, "gen_%s_scan" % self.scan_type.val)(gen_arrays=False)
+    
+    def compute_scan_arrays(self):
+        print("params")
+        self.compute_scan_params()
+        print("gen_arrays")
+        getattr(self, "gen_%s_scan" % self.scan_type.val)(gen_arrays=True)
     
     def create_empty_scan_arrays(self):
         self.scan_h_positions = np.zeros(self.Npixels, dtype=float)
@@ -140,102 +145,8 @@ class BaseCartesian2DSlowScan(Measurement):
         for lqname in "h0 h1 v0 v1 dh dv Nh Nv".split():
             self.settings.as_dict()[lqname].change_readonly(True)
     
-    def run(self):
-        S = self.settings
-        
-        
-        #Hardware
-        # self.apd_counter_hc = self.app.hardware_components['apd_counter']
-        # self.apd_count_rate = self.apd_counter_hc.apd_count_rate
-        # self.stage = self.app.hardware_components['dummy_xy_stage']
-
-        # Data File
-        # H5
-
-        # Compute data arrays
-        self.compute_scan_params()
-        
-        self.initial_scan_setup_plotting = True
-        
-        self.display_image_map = np.zeros(self.scan_shape, dtype=float)
-
-        try:
-            # h5 data file setup
-            self.t0 = time.time()
-            if self.settings['save_h5']:
-                self.h5_file = h5_io.h5_base_file(self.app, "%i_%s.h5" % (self.t0, self.name) )
-                self.h5_file.attrs['time_id'] = self.t0
-                H = self.h5_meas_group  =  h5_io.h5_create_measurement_group(self, self.h5_file)
-            
-                #create h5 data arrays
-                H['h_array'] = self.h_array
-                H['v_array'] = self.v_array
-                H['range_extent'] = self.range_extent
-                H['corners'] = self.corners
-                H['imshow_extent'] = self.imshow_extent
-                H['scan_h_positions'] = self.scan_h_positions
-                H['scan_v_positions'] = self.scan_v_positions
-                H['scan_slow_move'] = self.scan_slow_move
-                H['scan_index_array'] = self.scan_index_array
-            
-            self.pre_scan_setup()
-            
-            # start scan
-            self.pixel_i = 0
-            
-            self.pixel_time = np.zeros(self.scan_shape, dtype=float)
-            self.pixel_time_h5 = H.create_dataset(name='pixel_time', shape=self.scan_shape, dtype=float)            
-            
-            self.move_position_start(self.scan_h_positions[0], self.scan_v_positions[0])
-            
-            for self.pixel_i in range(self.Npixels):                
-                if self.interrupt_measurement_called: break
-                
-                i = self.pixel_i
-                
-                self.current_scan_index = self.scan_index_array[i]
-                kk, jj, ii = self.current_scan_index
-                
-                h,v = self.scan_h_positions[i], self.scan_v_positions[i]
-                
-                if self.pixel_i == 0:
-                    dh = 0
-                    dv = 0
-                else:
-                    dh = self.scan_h_positions[i] - self.scan_h_positions[i-1] 
-                    dv = self.scan_v_positions[i] - self.scan_v_positions[i-1] 
-                
-                if self.scan_slow_move[i]:
-                    self.move_position_slow(h,v, dh, dv)
-                    if self.settings['save_h5']:    
-                        self.h5_file.flush() # flush data to file every slow move
-                else:
-                    self.move_position_fast(h,v, dh, dv)
-                
-                # each pixel:
-                # acquire signal and save to data array
-                pixel_t0 = time.time()
-                self.pixel_time[kk, jj, ii] = pixel_t0
-                if self.settings['save_h5']:
-                    self.pixel_time_h5[kk, jj, ii] = pixel_t0
-                self.collect_pixel(self.pixel_i, kk, jj, ii)
-                S['progress'] = 100.0*self.pixel_i / (self.Npixels)
-        finally:
-            self.post_scan_cleanup()
-            if self.settings['save_h5'] and hasattr(self, 'h5_file'):
-                self.h5_file.close()
     
-    def move_position_start(self, x,y):
-        self.stage.x_position.update_value(x)
-        self.stage.y_position.update_value(y)
     
-    def move_position_slow(self, x,y, dx, dy):
-        self.stage.x_position.update_value(x)
-        self.stage.y_position.update_value(y)
-        
-    def move_position_fast(self, x,y, dx, dy):
-        self.stage.x_position.update_value(x)
-        self.stage.y_position.update_value(y)
     
     
     def post_run(self):
@@ -273,11 +184,12 @@ class BaseCartesian2DSlowScan(Measurement):
         self.img_plot.addItem(self.current_stage_pos_arrow)
         
         #self.stage = self.app.hardware_components['dummy_xy_stage']
-        self.stage.x_position.updated_value.connect(self.update_arrow_pos, QtCore.Qt.UniqueConnection)
-        self.stage.y_position.updated_value.connect(self.update_arrow_pos, QtCore.Qt.UniqueConnection)
-        
-        self.stage.x_position.connect_bidir_to_widget(self.ui.x_doubleSpinBox)
-        self.stage.y_position.connect_bidir_to_widget(self.ui.y_doubleSpinBox)
+        if hasattr(self, 'stage'):
+            self.stage.x_position.updated_value.connect(self.update_arrow_pos, QtCore.Qt.UniqueConnection)
+            self.stage.y_position.updated_value.connect(self.update_arrow_pos, QtCore.Qt.UniqueConnection)
+            
+            self.stage.x_position.connect_bidir_to_widget(self.ui.x_doubleSpinBox)
+            self.stage.y_position.connect_bidir_to_widget(self.ui.y_doubleSpinBox)
 
         
         self.graph_layout.nextRow()
@@ -374,113 +286,230 @@ class BaseCartesian2DSlowScan(Measurement):
         # create data arrays
         # update figure
     
+    def post_scan_cleanup(self):
+        print self.name, "post_scan_setup not implemented"
+    
+    @property
+    def h_array(self):
+        return self.h_range.array
+
+    @property
+    def v_array(self):
+        return self.v_range.array
+    
+    #### Scan Generators
+    def gen_raster_scan(self, gen_arrays=True):
+        self.Npixels = self.Nh.val*self.Nv.val
+        self.scan_shape = (1, self.Nv.val, self.Nh.val)
+        
+        if gen_arrays:
+            t0 = time.time()
+            #print "t0", time.time() - t0
+            self.create_empty_scan_arrays()            
+            #print "t1", time.time() - t0
+            pixel_i = 0
+            for jj in range(self.Nv.val):
+                #print "tjj", jj, time.time() - t0
+                self.scan_slow_move[pixel_i] = True
+                for ii in range(self.Nh.val):
+                    self.scan_v_positions[pixel_i] = self.v_array[jj]
+                    self.scan_h_positions[pixel_i] = self.h_array[ii]
+                    self.scan_index_array[pixel_i,:] = [0, jj, ii] 
+                    pixel_i += 1
+        
+    def gen_serpentine_scan(self, gen_arrays=True):
+        self.Npixels = self.Nh.val*self.Nv.val
+        self.scan_shape = (1, self.Nv.val, self.Nh.val)
+
+        if gen_arrays:
+            self.create_empty_scan_arrays()
+            pixel_i = 0
+            for jj in range(self.Nv.val):
+                self.scan_slow_move[pixel_i] = True
+                
+                if jj % 2: #odd lines
+                    h_line_indicies = range(self.Nh.val)[::-1]
+                else:       #even lines -- traverse in opposite direction
+                    h_line_indicies = range(self.Nh.val)            
+        
+                for ii in h_line_indicies:            
+                    self.scan_v_positions[pixel_i] = self.v_array[jj]
+                    self.scan_h_positions[pixel_i] = self.h_array[ii]
+                    self.scan_index_array[pixel_i,:] = [0, jj, ii]                 
+                    pixel_i += 1
+                
+    def gen_trace_retrace_scan(self, gen_arrays=True):
+        self.Npixels = 2*self.Nh.val*self.Nv.val
+        self.scan_shape = (2, self.Nv.val, self.Nh.val)
+
+        if gen_arrays:
+            self.create_empty_scan_arrays()
+            pixel_i = 0
+            for jj in range(self.Nv.val):
+                self.scan_slow_move[pixel_i] = True     
+                for kk, step in [(0,1),(1,-1)]: # trace kk =0, retrace kk=1
+                    h_line_indicies = range(self.Nh.val)[::step]
+                    for ii in h_line_indicies:            
+                        self.scan_v_positions[pixel_i] = self.v_array[jj]
+                        self.scan_h_positions[pixel_i] = self.h_array[ii]
+                        self.scan_index_array[pixel_i,:] = [kk, jj, ii]                 
+                        pixel_i += 1
+    
+    def gen_ortho_raster_scan(self, gen_arrays=True):
+        self.Npixels = 2*self.Nh.val*self.Nv.val
+        self.scan_shape = (2, self.Nv.val, self.Nh.val)
+
+        if gen_arrays:
+            self.create_empty_scan_arrays()
+            pixel_i = 0
+            for jj in range(self.Nv.val):
+                self.scan_slow_move[pixel_i] = True
+                for ii in range(self.Nh.val):
+                    self.scan_v_positions[pixel_i] = self.v_array[jj]
+                    self.scan_h_positions[pixel_i] = self.h_array[ii]
+                    self.scan_index_array[pixel_i,:] = [0, jj, ii] 
+                    pixel_i += 1
+            for ii in range(self.Nh.val):
+                self.scan_slow_move[pixel_i] = True
+                for jj in range(self.Nv.val):
+                    self.scan_v_positions[pixel_i] = self.v_array[jj]
+                    self.scan_h_positions[pixel_i] = self.h_array[ii]
+                    self.scan_index_array[pixel_i,:] = [1, jj, ii] 
+                    pixel_i += 1
+    
+    def gen_ortho_trace_retrace_scan(self, gen_arrays=True):
+        print("gen_ortho_trace_retrace_scan")
+        self.Npixels = 4*len(self.h_array)*len(self.v_array) 
+        self.scan_shape = (4, self.Nv.val, self.Nh.val)                        
+        
+        if gen_arrays:
+            self.create_empty_scan_arrays()
+            pixel_i = 0
+            for jj in range(self.Nv.val):
+                self.scan_slow_move[pixel_i] = True     
+                for kk, step in [(0,1),(1,-1)]: # trace kk =0, retrace kk=1
+                    h_line_indicies = range(self.Nh.val)[::step]
+                    for ii in h_line_indicies:            
+                        self.scan_v_positions[pixel_i] = self.v_array[jj]
+                        self.scan_h_positions[pixel_i] = self.h_array[ii]
+                        self.scan_index_array[pixel_i,:] = [kk, jj, ii]                 
+                        pixel_i += 1
+            for ii in range(self.Nh.val):
+                self.scan_slow_move[pixel_i] = True     
+                for kk, step in [(2,1),(3,-1)]: # trace kk =2, retrace kk=3
+                    v_line_indicies = range(self.Nv.val)[::step]
+                    for jj in v_line_indicies:            
+                        self.scan_v_positions[pixel_i] = self.v_array[jj]
+                        self.scan_h_positions[pixel_i] = self.h_array[ii]
+                        self.scan_index_array[pixel_i,:] = [kk, jj, ii]                 
+                        pixel_i += 1
+                    
+class BaseCartesian2DSlowScan(BaseCartesian2DScan):
+
+    name = "base_cartesian_2Dscan"
+
+    def run(self):
+        S = self.settings
+        
+        
+        #Hardware
+        # self.apd_counter_hc = self.app.hardware_components['apd_counter']
+        # self.apd_count_rate = self.apd_counter_hc.apd_count_rate
+        # self.stage = self.app.hardware_components['dummy_xy_stage']
+
+        # Data File
+        # H5
+
+        # Compute data arrays
+        self.compute_scan_arrays()
+        
+        self.initial_scan_setup_plotting = True
+        
+        self.display_image_map = np.zeros(self.scan_shape, dtype=float)
+
+        try:
+            # h5 data file setup
+            self.t0 = time.time()
+            if self.settings['save_h5']:
+                self.h5_file = h5_io.h5_base_file(self.app, "%i_%s.h5" % (self.t0, self.name) )
+                self.h5_file.attrs['time_id'] = self.t0
+                H = self.h5_meas_group  =  h5_io.h5_create_measurement_group(self, self.h5_file)
+            
+                #create h5 data arrays
+                H['h_array'] = self.h_array
+                H['v_array'] = self.v_array
+                H['range_extent'] = self.range_extent
+                H['corners'] = self.corners
+                H['imshow_extent'] = self.imshow_extent
+                H['scan_h_positions'] = self.scan_h_positions
+                H['scan_v_positions'] = self.scan_v_positions
+                H['scan_slow_move'] = self.scan_slow_move
+                H['scan_index_array'] = self.scan_index_array
+            
+            self.pre_scan_setup()
+            
+            # start scan
+            self.pixel_i = 0
+            
+            self.pixel_time = np.zeros(self.scan_shape, dtype=float)
+            self.pixel_time_h5 = H.create_dataset(name='pixel_time', shape=self.scan_shape, dtype=float)            
+            
+            self.move_position_start(self.scan_h_positions[0], self.scan_v_positions[0])
+            
+            for self.pixel_i in range(self.Npixels):                
+                if self.interrupt_measurement_called: break
+                
+                i = self.pixel_i
+                
+                self.current_scan_index = self.scan_index_array[i]
+                kk, jj, ii = self.current_scan_index
+                
+                h,v = self.scan_h_positions[i], self.scan_v_positions[i]
+                
+                if self.pixel_i == 0:
+                    dh = 0
+                    dv = 0
+                else:
+                    dh = self.scan_h_positions[i] - self.scan_h_positions[i-1] 
+                    dv = self.scan_v_positions[i] - self.scan_v_positions[i-1] 
+                
+                if self.scan_slow_move[i]:
+                    self.move_position_slow(h,v, dh, dv)
+                    if self.settings['save_h5']:    
+                        self.h5_file.flush() # flush data to file every slow move
+                else:
+                    self.move_position_fast(h,v, dh, dv)
+                
+                # each pixel:
+                # acquire signal and save to data array
+                pixel_t0 = time.time()
+                self.pixel_time[kk, jj, ii] = pixel_t0
+                if self.settings['save_h5']:
+                    self.pixel_time_h5[kk, jj, ii] = pixel_t0
+                self.collect_pixel(self.pixel_i, kk, jj, ii)
+                S['progress'] = 100.0*self.pixel_i / (self.Npixels)
+        finally:
+            self.post_scan_cleanup()
+            if self.settings['save_h5'] and hasattr(self, 'h5_file'):
+                self.h5_file.close()
+    
+    def move_position_start(self, x,y):
+        self.stage.x_position.update_value(x)
+        self.stage.y_position.update_value(y)
+    
+    def move_position_slow(self, x,y, dx, dy):
+        self.stage.x_position.update_value(x)
+        self.stage.y_position.update_value(y)
+        
+    def move_position_fast(self, x,y, dx, dy):
+        self.stage.x_position.update_value(x)
+        self.stage.y_position.update_value(y)
+
     def collect_pixel(self, pixel_num, k, j, i):
         # collect data
         # store in arrays        
         print self.name, "collect_pixel", pixel_num, k,j,i, "not implemented"
     
-    def post_scan_cleanup(self):
-        print self.name, "post_scan_setup not implemented"
-    
-    
-    
-    #### Scan Generators
-    def gen_raster_scan(self):
-        self.Npixels = len(self.h_array)*len(self.v_array) 
-        self.create_empty_scan_arrays()
-        self.scan_shape = (1, self.Nv.val, self.Nh.val)
-        
-        pixel_i = 0
-        for jj in range(self.Nv.val):
-            self.scan_slow_move[pixel_i] = True
-            for ii in range(self.Nh.val):
-                self.scan_v_positions[pixel_i] = self.v_array[jj]
-                self.scan_h_positions[pixel_i] = self.h_array[ii]
-                self.scan_index_array[pixel_i,:] = [0, jj, ii] 
-                pixel_i += 1
-    
-    def gen_serpentine_scan(self):
-        self.Npixels = len(self.h_array)*len(self.v_array) 
-        self.create_empty_scan_arrays()
-        self.scan_shape = (1, self.Nv.val, self.Nh.val)
-        
-        pixel_i = 0
-        for jj in range(self.Nv.val):
-            self.scan_slow_move[pixel_i] = True
-            
-            if jj % 2: #odd lines
-                h_line_indicies = range(self.Nh.val)[::-1]
-            else:       #even lines -- traverse in opposite direction
-                h_line_indicies = range(self.Nh.val)            
-    
-            for ii in h_line_indicies:            
-                self.scan_v_positions[pixel_i] = self.v_array[jj]
-                self.scan_h_positions[pixel_i] = self.h_array[ii]
-                self.scan_index_array[pixel_i,:] = [0, jj, ii]                 
-                pixel_i += 1
-                
-    def gen_trace_retrace_scan(self):
-        self.Npixels = 2*len(self.h_array)*len(self.v_array) 
-        self.create_empty_scan_arrays()
-        self.scan_shape = (2, self.Nv.val, self.Nh.val)
-
-        pixel_i = 0
-        for jj in range(self.Nv.val):
-            self.scan_slow_move[pixel_i] = True     
-            for kk, step in [(0,1),(1,-1)]: # trace kk =0, retrace kk=1
-                h_line_indicies = range(self.Nh.val)[::step]
-                for ii in h_line_indicies:            
-                    self.scan_v_positions[pixel_i] = self.v_array[jj]
-                    self.scan_h_positions[pixel_i] = self.h_array[ii]
-                    self.scan_index_array[pixel_i,:] = [kk, jj, ii]                 
-                    pixel_i += 1
-    
-    def gen_ortho_raster_scan(self):
-        self.Npixels = 2*len(self.h_array)*len(self.v_array) 
-        self.create_empty_scan_arrays()
-        self.scan_shape = (2, self.Nv.val, self.Nh.val)
-
-        pixel_i = 0
-        for jj in range(self.Nv.val):
-            self.scan_slow_move[pixel_i] = True
-            for ii in range(self.Nh.val):
-                self.scan_v_positions[pixel_i] = self.v_array[jj]
-                self.scan_h_positions[pixel_i] = self.h_array[ii]
-                self.scan_index_array[pixel_i,:] = [0, jj, ii] 
-                pixel_i += 1
-        for ii in range(self.Nh.val):
-            self.scan_slow_move[pixel_i] = True
-            for jj in range(self.Nv.val):
-                self.scan_v_positions[pixel_i] = self.v_array[jj]
-                self.scan_h_positions[pixel_i] = self.h_array[ii]
-                self.scan_index_array[pixel_i,:] = [1, jj, ii] 
-                pixel_i += 1
-    
-    def gen_ortho_trace_retrace_scan(self):
-        print("gen_ortho_trace_retrace_scan")
-        self.Npixels = 4*len(self.h_array)*len(self.v_array) 
-        self.create_empty_scan_arrays()
-        self.scan_shape = (4, self.Nv.val, self.Nh.val)                        
-        
-        pixel_i = 0
-        for jj in range(self.Nv.val):
-            self.scan_slow_move[pixel_i] = True     
-            for kk, step in [(0,1),(1,-1)]: # trace kk =0, retrace kk=1
-                h_line_indicies = range(self.Nh.val)[::step]
-                for ii in h_line_indicies:            
-                    self.scan_v_positions[pixel_i] = self.v_array[jj]
-                    self.scan_h_positions[pixel_i] = self.h_array[ii]
-                    self.scan_index_array[pixel_i,:] = [kk, jj, ii]                 
-                    pixel_i += 1
-        for ii in range(self.Nh.val):
-            self.scan_slow_move[pixel_i] = True     
-            for kk, step in [(2,1),(3,-1)]: # trace kk =2, retrace kk=3
-                v_line_indicies = range(self.Nv.val)[::step]
-                for jj in v_line_indicies:            
-                    self.scan_v_positions[pixel_i] = self.v_array[jj]
-                    self.scan_h_positions[pixel_i] = self.h_array[ii]
-                    self.scan_index_array[pixel_i,:] = [kk, jj, ii]                 
-                    pixel_i += 1
 
 
 
