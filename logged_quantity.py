@@ -419,9 +419,13 @@ class LQRange(QtCore.QObject):
         self.span = span_lq
         
         assert self.num.dtype == int
-                
-        self.array = np.linspace(self.min.val, self.max.val, self.num.val)
-        step = self.array[1]-self.array[0]
+        
+        self._array_valid = False # Internal _array invalid, must be computed on next request
+        
+        self._array = None #np.linspace(self.min.val, self.max.val, self.num.val)
+        
+        #step = self._array[1]-self._array[0]
+        step = self.compute_step(self.min.val, self.max.val, self.num.val)
         self.step.update_value(step)
         
         self.num.updated_value[int].connect(self.recalc_with_new_num)
@@ -433,19 +437,40 @@ class LQRange(QtCore.QObject):
             self.center.updated_value.connect(self.recalc_with_new_center_span)
             self.span.updated_value.connect(self.recalc_with_new_center_span)
 
+
+    @property
+    def array(self):
+        if self._array_valid:
+            return self._array
+        else:
+            self._array = np.linspace(self.min.val, self.max.val, self.num.val)
+            self._array_valid = True
+            return self._array
+
+    def compute_step(self, xmin, xmax, num):
+        delta = xmax - xmin
+        if num > 1:
+            return delta/(num-1)
+        else:
+            return delta
+
     def recalc_with_new_num(self, new_num):
         print "recalc_with_new_num", new_num
-        self.array = np.linspace(self.min.val, self.max.val, int(new_num))
-        if len(self.array) > 1:
-            new_step = self.array[1]-self.array[0]
-            print "    new_step inside new_num", new_step
-            self.step.update_value(new_step)#, send_signal=True, update_hardware=False)
-            self.step.send_display_updates(force=True)
+        self._array_valid = False
+        self._array = None
+        #self._array = np.linspace(self.min.val, self.max.val, int(new_num))
+        new_step = self.compute_step(self.min.val, self.max.val, int(new_num))
+        print "    new_step inside new_num", new_step
+        self.step.update_value(new_step)#, send_signal=True, update_hardware=False)
+        self.step.send_display_updates(force=True)
         self.updated_range.emit()
         
     def recalc_with_new_min_max(self, x):
-        self.array = np.linspace(self.min.val, self.max.val, self.num.val)
-        step = self.array[1]-self.array[0]
+        self._array_valid = False
+        self._array = None
+        #self._array = np.linspace(self.min.val, self.max.val, self.num.val)
+        #step = self._array[1]-self._array[0]
+        step = self.compute_step(self.min.val, self.max.val, self.num.val)
         self.step.update_value(step)#, send_signal=True, update_hardware=False)
         if self.center:
             self.span.update_value(0.5*(self.max.val-self.min.val) + self.min.val)
@@ -454,21 +479,26 @@ class LQRange(QtCore.QObject):
         self.updated_range.emit()
         
     def recalc_with_new_step(self,new_step):
-        print "-->recalc_with_new_step"
-        if len(self.array) > 1:
-            old_step = self.array[1]-self.array[0]    
+        #print "-->recalc_with_new_step"
+        if self.num.val > 1:
+            #old_step = self._array[1]-self._array[0]
+            old_step = self.compute_step(self.min.val, self.max.val, self.num.val)
         else:
             old_step = np.nan
-        diff = np.abs(old_step - new_step)
-        print "step diff", diff
-        if diff < 10**(-self.step.spinbox_decimals):
-            print "steps close enough, no more recalc"
+        sdiff = np.abs(old_step - new_step)
+        #print "step diff", sdiff
+        if sdiff < 10**(-self.step.spinbox_decimals):
+            #print "steps close enough, no more recalc"
             return
         else:
+            self._array_valid = False
+            self._array = None
             new_num = int((((self.max.val - self.min.val)/new_step)+1))
-            self.array = np.linspace(self.min.val, self.max.val, new_num)
-            new_step1 = self.array[1]-self.array[0]
-            print "recalc_with_new_step", new_step, new_num, new_step1
+            #self._array = np.linspace(self.min.val, self.max.val, new_num)
+            #new_step1 = self._array[1]-self._array[0]
+            new_step1 = self.compute_step(self.min.val, self.max.val, new_num)
+            
+            #print "recalc_with_new_step", new_step, new_num, new_step1
             #self.step.val = new_step1
             #self.num.val = new_num
             #self.step.update_value(new_step1, send_signal=False)
@@ -485,7 +515,7 @@ class LQRange(QtCore.QObject):
     def recalc_with_new_center_span(self,x):
         C = self.center.val
         S = self.span.val
-        self.min.updated_value( C + 0.5*S)
+        self.min.updated_value( C - 0.5*S)
         self.max.updated_value( C + 0.5*S)
 
 class LQCollection(object):
