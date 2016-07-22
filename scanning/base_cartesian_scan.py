@@ -37,27 +37,36 @@ def ijk_zigzag_generator(dims, axis_order=(0,1,2)):
 class BaseCartesian2DScan(Measurement):
     name = "base_cartesian_2Dscan"
     
+    def __init__(self, app, h_limits=(-1,1), v_limits=(-1,1), h_unit='', v_unit=''):
+        self.h_limits = h_limits
+        self.v_limits = v_limits
+        self.h_unit = h_unit
+        self.v_unit = v_unit
+        Measurement.__init__(self, app)
+        
     def setup(self):
         self.ui_filename = sibling_path(__file__,"cart_scan_base.ui")
         self.ui = load_qt_ui_file(self.ui_filename)
         self.ui.show()
         self.ui.setWindowTitle(self.name)
 
-        self.display_update_period = 0.001 #seconds
+        self.display_update_period = 0.010 #seconds
 
         #connect events        
 
         # local logged quantities
-        lq_params = dict(dtype=float, vmin=0,vmax=100, ro=False, unit='um' )
-        self.h0 = self.settings.New('h0',  initial=25, **lq_params  )
-        self.h1 = self.settings.New('h1',  initial=45, **lq_params  )
-        self.v0 = self.settings.New('v0',  initial=25, **lq_params  )
-        self.v1 = self.settings.New('v1',  initial=45, **lq_params  )
+        lq_params = dict(dtype=float, vmin=self.h_limits[0],vmax=self.h_limits[1], ro=False, unit=self.h_unit )
+        self.h0 = self.settings.New('h0',  initial=0, **lq_params  )
+        self.h1 = self.settings.New('h1',  initial=1, **lq_params  )
+        lq_params = dict(dtype=float, vmin=self.v_limits[0],vmax=self.v_limits[1], ro=False, unit=self.h_unit )
+        self.v0 = self.settings.New('v0',  initial=0, **lq_params  )
+        self.v1 = self.settings.New('v1',  initial=1, **lq_params  )
 
-        lq_params = dict(dtype=float, vmin=1e-9,vmax=100, ro=False, unit='um' )
-        self.dh = self.settings.New('dh', initial=1, **lq_params)
+        lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(self.h_limits[1]-self.h_limits[0]), ro=False, unit=self.h_unit )
+        self.dh = self.settings.New('dh', initial=0.1, **lq_params)
         self.dh.spinbox_decimals = 3
-        self.dv = self.settings.New('dv', initial=1, **lq_params)
+        lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(self.v_limits[1]-self.v_limits[0]), ro=False, unit=self.v_unit )
+        self.dv = self.settings.New('dv', initial=0.1, **lq_params)
         self.dv.spinbox_decimals = 3
         
         self.Nh = self.settings.New('Nh', initial=11, vmin=1, dtype=int, ro=False)
@@ -69,7 +78,6 @@ class BaseCartesian2DScan(Measurement):
         
         self.settings.New('save_h5', dtype=bool, initial=True, ro=True)
         
-
         #update Nh, Nv and other scan parameters when changes to inputs are made 
         #for lqname in 'h0 h1 v0 v1 dh dv'.split():
         #    self.logged_quantities[lqname].updated_value.connect(self.compute_scan_params)
@@ -100,7 +108,7 @@ class BaseCartesian2DScan(Measurement):
         #self.progress.updated_value.connect(self.tree_progressBar.setValue)
 
         self.initial_scan_setup_plotting = False
-        self.display_image_map = np.zeros((1, 10,10), dtype=float)
+        self.display_image_map = np.zeros(self.scan_shape, dtype=float)
         self.scan_specific_setup()
 
     def compute_scan_params(self):
@@ -212,7 +220,7 @@ class BaseCartesian2DScan(Measurement):
     def mouse_update_scan_roi(self):
         x0,y0 =  self.scan_roi.pos()
         w, h =  self.scan_roi.size()
-        print x0,y0, w, h
+        #print x0,y0, w, h
         self.h0.update_value(x0+self.dh.val)
         self.h1.update_value(x0+w-self.dh.val)
         self.v0.update_value(y0+self.dv.val)
@@ -303,19 +311,34 @@ class BaseCartesian2DScan(Measurement):
         self.scan_shape = (1, self.Nv.val, self.Nh.val)
         
         if gen_arrays:
-            t0 = time.time()
             #print "t0", time.time() - t0
             self.create_empty_scan_arrays()            
             #print "t1", time.time() - t0
-            pixel_i = 0
-            for jj in range(self.Nv.val):
-                #print "tjj", jj, time.time() - t0
-                self.scan_slow_move[pixel_i] = True
-                for ii in range(self.Nh.val):
-                    self.scan_v_positions[pixel_i] = self.v_array[jj]
-                    self.scan_h_positions[pixel_i] = self.h_array[ii]
-                    self.scan_index_array[pixel_i,:] = [0, jj, ii] 
-                    pixel_i += 1
+            
+#             t0 = time.time()
+#             pixel_i = 0
+#             for jj in range(self.Nv.val):
+#                 #print "tjj", jj, time.time() - t0
+#                 self.scan_slow_move[pixel_i] = True
+#                 for ii in range(self.Nh.val):
+#                     self.scan_v_positions[pixel_i] = self.v_array[jj]
+#                     self.scan_h_positions[pixel_i] = self.h_array[ii]
+#                     self.scan_index_array[pixel_i,:] = [0, jj, ii] 
+#                     pixel_i += 1
+#             print "for loop raster gen", time.time() - t0
+             
+            t0 = time.time()
+             
+            H, V = np.meshgrid(self.h_array, self.v_array)
+            self.scan_h_positions[:] = H.flat
+            self.scan_v_positions[:] = V.flat
+            
+            II,JJ = np.meshgrid(np.arange(self.Nh.val), np.arange(self.Nv.val))
+            self.scan_index_array[:,1] = JJ.flat
+            self.scan_index_array[:,2] = II.flat
+            #self.scan_v_positions
+            print "array flatten raster gen", time.time() - t0
+            
         
     def gen_serpentine_scan(self, gen_arrays=True):
         self.Npixels = self.Nh.val*self.Nv.val
@@ -452,7 +475,8 @@ class BaseCartesian2DSlowScan(BaseCartesian2DScan):
             self.pixel_i = 0
             
             self.pixel_time = np.zeros(self.scan_shape, dtype=float)
-            self.pixel_time_h5 = H.create_dataset(name='pixel_time', shape=self.scan_shape, dtype=float)            
+            if self.settings['save_h5']:
+                self.pixel_time_h5 = H.create_dataset(name='pixel_time', shape=self.scan_shape, dtype=float)            
             
             self.move_position_start(self.scan_h_positions[0], self.scan_v_positions[0])
             
@@ -477,6 +501,8 @@ class BaseCartesian2DSlowScan(BaseCartesian2DScan):
                     self.move_position_slow(h,v, dh, dv)
                     if self.settings['save_h5']:    
                         self.h5_file.flush() # flush data to file every slow move
+                    #self.app.qtapp.ProcessEvents()
+                    time.sleep(0.01)
                 else:
                     self.move_position_fast(h,v, dh, dv)
                 
@@ -516,12 +542,30 @@ class BaseCartesian2DSlowScan(BaseCartesian2DScan):
 class TestCartesian2DSlowScan(BaseCartesian2DSlowScan):
     name='test_cart_2d_slow_scan'
     
+    def setup(self):
+        BaseCartesian2DSlowScan.setup(self)
+        self.settings.New('pixel_time', initial=0.01, unit='s')
+        
+    
     def pre_scan_setup(self):
-        self.test_data = self.h5_meas_group.create_dataset('test_data', self.scan_shape, dtype=float)
+        self.display_update_period = 0.050 #seconds
+        
+        self.stage = self.app.hardware['dummy_xy_stage']
+        if self.settings['save_h5']:
+            self.test_data = self.h5_meas_group.create_dataset('test_data', self.scan_shape, dtype=float)
+        
+        self.prev_px = time.time()
          
+    def post_scan_cleanup(self):
+        print "post_scan_cleanup"
+        
     def collect_pixel(self, pixel_i, k,j,i):
-        print pixel_i, k,j,i
-        px_data = np.random.rand()
+        #print pixel_i, k,j,i
+        t0 = time.time()
+        #px_data = np.random.rand()
+        px_data = t0 - self.prev_px
         self.display_image_map[k,j,i] = px_data
-        self.test_data[k,j,i] = px_data 
-        time.sleep(0.01)
+        if self.settings['save_h5']:
+            self.test_data[k,j,i] = px_data 
+        time.sleep(self.settings['pixel_time'])
+        self.prev_px = t0

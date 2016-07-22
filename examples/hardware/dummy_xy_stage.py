@@ -58,7 +58,7 @@ class DummyXYStage(HardwareComponent):
         if self.debug_mode.val: print "connecting to dummy_xy_stage"
 
         # Open connection to hardware
-        self.stage_equip = DummmyXYStageEquipment(debug=True)
+        self.stage_equip = DummmyXYStageEquipment(debug=self.debug_mode.val)
 
         # connect logged quantities
         self.x_position.hardware_read_func = self.stage_equip.read_x
