@@ -20,7 +20,7 @@ class MeasurementQThread(QtCore.QThread):
         self.measurement = measurement
     
     def run(self):
-        self.measurement.run()
+        self.measurement._thread_run()
 
 
 
@@ -123,23 +123,21 @@ class Measurement(QtCore.QObject):
         pass
         
     def _thread_run(self):
-        #self.progress_updated.emit(50) # set progress bars to default run position at 50%
-        self.set_progress(50)
+        self.set_progress(50.) # set progress bars to default run position at 50%
         try:
             self.run()
-            
         #except Exception as err:
         #    self.interrupt_measurement_called = True
         #    raise err
         finally:
             self.running.update_value(False)
-            self.set_progress(0)  # set progress bars back to zero
+            self.activation.update_value(False)
+            self.set_progress(0.) # set progress bars back to zero
             #self.measurement_state_changed.emit(False)
             if self.interrupt_measurement_called:
                 self.measurement_interrupted.emit()
             else:
                 self.measurement_sucessfully_completed.emit()
-
 
 
     @property
@@ -170,11 +168,13 @@ class Measurement(QtCore.QObject):
     def is_measuring(self):
         if self.acq_thread is None:
             self.running.update_value(False)
+            self.activation.update_value(False)
+            self.settings['progress'] = 0.0
             return False
         else:
             #resp =  self.acq_thread.is_alive()
             resp = self.acq_thread.isRunning()
-            self.running.update_value(resp)
+            self.running.update_value(resp)            
             return resp
     
     def update_display(self):
