@@ -78,6 +78,8 @@ class BaseCartesian2DScan(Measurement):
         
         self.settings.New('save_h5', dtype=bool, initial=True, ro=True)
         
+        self.settings.New('show_previous_scans', dtype=bool, initial=True)
+        
         #update Nh, Nv and other scan parameters when changes to inputs are made 
         #for lqname in 'h0 h1 v0 v1 dh dv'.split():
         #    self.logged_quantities[lqname].updated_value.connect(self.compute_scan_params)
@@ -110,6 +112,9 @@ class BaseCartesian2DScan(Measurement):
         self.initial_scan_setup_plotting = False
         self.display_image_map = np.zeros(self.scan_shape, dtype=float)
         self.scan_specific_setup()
+        
+
+        self.add_operation('clear_previous_scans', self.clear_previous_scans)
 
     def compute_scan_params(self):
         # Don't recompute if a scan is running!
@@ -177,7 +182,13 @@ class BaseCartesian2DScan(Measurement):
         
         self.clear_qt_attr('img_plot')
         self.img_plot = self.graph_layout.addPlot()
+
+        self.img_items = []
+        
+        
         self.img_item = pg.ImageItem()
+        self.img_items.append(self.img_item)
+        
         self.img_plot.addItem(self.img_item)
         self.img_plot.showGrid(x=True, y=True)
         self.img_plot.setAspectLocked(lock=True, ratio=1)
@@ -242,9 +253,11 @@ class BaseCartesian2DScan(Measurement):
     
     def update_display(self):
         if self.initial_scan_setup_plotting:
-            self.img_item = pg.ImageItem()
-            self.img_plot.addItem(self.img_item)
-            self.hist_lut.setImageItem(self.img_item)
+            if self.settings['show_previous_scans']:
+                self.img_item = pg.ImageItem()
+                self.img_items.append(self.img_item)
+                self.img_plot.addItem(self.img_item)
+                self.hist_lut.setImageItem(self.img_item)
     
             self.img_item.setImage(self.display_image_map[0,:,:].T)
             x0, x1, y0, y1 = self.imshow_extent
@@ -256,7 +269,16 @@ class BaseCartesian2DScan(Measurement):
             #if self.settings.scan_type.val in ['raster']
             kk, jj, ii = self.current_scan_index
             self.img_item.setImage(self.display_image_map[kk,:,:].T, autoRange=False, autoLevels=False)
-            self.hist_lut.imageChanged(autoLevel=True)        
+            self.hist_lut.imageChanged(autoLevel=True)
+            
+    def clear_previous_scans(self):
+        #current_img = img_items.pop()
+        for img_item in self.img_items[:-1]:
+            print('removing', img_item)
+            self.img_plot.removeItem(img_item)  
+            img_item.deleteLater()
+    
+        self.img_items = [self.img_item,]
     
     def mouseMoved(self,evt):
         mousePoint = self.img_plot.vb.mapSceneToView(evt)
