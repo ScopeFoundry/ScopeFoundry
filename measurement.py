@@ -25,13 +25,23 @@ class MeasurementQThread(QtCore.QThread):
 
 
 class Measurement(QtCore.QObject):
+    """
+    Base class for ScopeFoundry Hardware objects
+    
+    to subclass, implement :meth:`setup`, :meth:`run` 
+    
+    for measurements with graphical interfaces, 
+    subclass and additionally implement :meth:`setup_figure`, :meth:`update_display` 
+    """
     
     measurement_sucessfully_completed = QtCore.Signal(()) # signal sent when full measurement is complete
     measurement_interrupted = QtCore.Signal(()) # signal sent when  measurement is complete due to an interruption
     #measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
     
     def __init__(self, app):
-        """type app: BaseMicroscopeApp
+        """
+        :type app: BaseMicroscopeApp
+                
         """
         
         QtCore.QObject.__init__(self)
@@ -40,7 +50,7 @@ class Measurement(QtCore.QObject):
         
         self.display_update_period = 0.1 # seconds
         self.display_update_timer = QtCore.QTimer(self)
-        self.display_update_timer.timeout.connect(self.on_display_update_timer)
+        self.display_update_timer.timeout.connect(self._on_display_update_timer)
         self.acq_thread = None
         
         self.interrupt_measurement_called = False
@@ -86,11 +96,22 @@ class Measurement(QtCore.QObject):
         #raise NotImplementedError()
         
     def setup_figure(self):
+        """
+        Overide setup_figure to build graphical interfaces. 
+        This function is run on ScopeFoundry startup.
+        """
         print "Empty setup_figure called"
         pass
     
     @QtCore.Slot()
     def start(self):
+        """
+        Starts the measurement
+        
+        calls *pre_run*
+        creates acquisition thread 
+        runs thread
+        """ 
         print "measurement", self.name, "start"
         self.interrupt_measurement_called = False
         if (self.acq_thread is not None) and self.is_measuring():
@@ -111,6 +132,13 @@ class Measurement(QtCore.QObject):
     
    
     def run(self):
+        """
+        *run* method runs in an separate thread and is used for data acquisition
+        
+        No GUI updates should occur within the *run* function, any Qt related GUI work 
+        should occur in :meth:`update_display` 
+        """
+        
         if hasattr(self, '_run'):
             print "warning _run is deprecated, use run"
             self._run()
@@ -142,7 +170,7 @@ class Measurement(QtCore.QObject):
 
     @property
     def gui(self):
-        warnings.warn("Measurement.gui is deprecated use .app", DeprecationWarning)
+        warnings.warn("Measurement.gui is deprecated, use Measurement.app", DeprecationWarning)
         return self.app
     
     def set_progress(self, pct):
@@ -150,14 +178,25 @@ class Measurement(QtCore.QObject):
                 
     @QtCore.Slot()
     def interrupt(self):
+        """
+        Kindly ask the measurement to stop.
+        
+        This raises the :attr:`interrupt_measurement_called` flag
+        To actually stop, the threaded :meth:`run` method must check
+        for this flag and exit
+        """
         print "measurement", self.name, "interrupt"
         self.interrupt_measurement_called = True
         self.activation.update_value(False)
         #Make sure display is up to date        
-        #self.on_display_update_timer()
+        #self._on_display_update_timer()
 
 
     def start_stop(self, start):
+        """
+        Use boolean *start* to either start (True) or
+        interrupt (False) measurement
+        """
         print self.name, "start_stop", start
         if start:
             self.start()
@@ -166,6 +205,10 @@ class Measurement(QtCore.QObject):
 
         
     def is_measuring(self):
+        """
+        Returns whether the acquisition thread is running
+        """
+        
         if self.acq_thread is None:
             self.running.update_value(False)
             self.activation.update_value(False)
@@ -183,7 +226,7 @@ class Measurement(QtCore.QObject):
     
     
     @QtCore.Slot()
-    def on_display_update_timer(self):
+    def _on_display_update_timer(self):
         try:
             self.update_display()
         except Exception as err:
@@ -194,6 +237,10 @@ class Measurement(QtCore.QObject):
                 self.display_update_timer.stop()
 
     def add_logged_quantity(self, name, **kwargs):
+        """
+        Create a new :class:`LoggedQuantity` and adds it to the measurement's
+        :attr:`settings` (:class:`LQCollection`)
+        """
         lq = self.settings.New(name=name, **kwargs)
         return lq
     
@@ -212,6 +259,9 @@ class Measurement(QtCore.QObject):
         self.show_ui()
         
     def show_ui(self):
+        """
+        Shows the graphical user interface of this measurement. :attr:`ui`
+        """
         self.ui.show()
         self.ui.activateWindow()
         #self.ui.raise() #just to be sure it's on top

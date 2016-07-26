@@ -5,6 +5,14 @@ import pyqtgraph as pg
 import warnings
 
 class HardwareComponent(QtCore.QObject):
+    """
+    HardwareComponent
+    
+    Base class for ScopeFoundry Hardware objects
+    
+    to subclass, implement :meth:`setup`, :meth:`connect` and :meth:`disconnect`
+    
+    """
 
     def add_logged_quantity(self, name, **kwargs):
         #lq = LoggedQuantity(name=name, **kwargs)
@@ -13,12 +21,24 @@ class HardwareComponent(QtCore.QObject):
         return self.settings.New(name, **kwargs)
 
     def add_operation(self, name, op_func):
-        """type name: str
-           type op_func: QtCore.Slot
         """
+        Create an operation for the HardwareComponent.
+        
+        *op_func* is a function that will be called upon operation activation
+        
+        operations are typically exposed in the default ScopeFoundry gui via a pushButton
+        
+        :type name: str
+        :type op_func: QtCore.Slot
+        """
+        
         self.operations[name] = op_func   
             
     def __init__(self, app, debug=False):
+        """
+        create new HardwareComponent attached to *app*
+        """
+        
         QtCore.QObject.__init__(self)
 
         self.app = app
@@ -150,6 +170,9 @@ class HardwareComponent(QtCore.QObject):
 
     @QtCore.Slot()    
     def read_from_hardware(self):
+        """
+        Read all settings (:class:`LoggedQuantity`) connected to hardware states
+        """
         for name, lq in self.settings.as_dict().items():
             if self.debug_mode.val: print "read_from_hardware", name
             lq.read_from_hardware()
@@ -158,14 +181,15 @@ class HardwareComponent(QtCore.QObject):
     def connect(self):
         """
         Opens a connection to hardware
-        and connects hardware to associated LoggedQuantities
+        and connects :class:`LoggedQuantity` settings to related hardware 
+        functions and parameters 
         """
         raise NotImplementedError()
         
         
     def disconnect(self):
         """
-        Disconnects the hardware and severs hardware--LoggedQuantities link
+        Disconnects the hardware and severs hardware--:class:`LoggedQuantity` links
         """
         
         raise NotImplementedError()
@@ -180,5 +204,5 @@ class HardwareComponent(QtCore.QObject):
             
     @property
     def gui(self):
-        warnings.warn("Hardware.gui is deprecated use .app", DeprecationWarning)
+        warnings.warn("Hardware.gui is deprecated, use Hardware.app", DeprecationWarning)
         return self.app
