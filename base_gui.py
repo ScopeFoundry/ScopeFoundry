@@ -166,7 +166,7 @@ class BaseMicroscopeApp(BaseApp):
     
     def setup_default_ui(self):
         
-        confirm_on_close(self.ui, title="Close %s?" % self.name, message="Do you wish to shut down %s?" % self.name)
+        confirm_on_close(self.ui, title="Close %s?" % self.name, message="Do you wish to shut down %s?" % self.name, func_on_close=self.on_close)
         
         self.ui.hardware_treeWidget.setColumnWidth(0,175)
         self.ui.measurements_treeWidget.setColumnWidth(0,175)
@@ -190,6 +190,16 @@ class BaseMicroscopeApp(BaseApp):
         if hasattr(self.ui, "settings_load_pushButton"):
             self.ui.settings_load_pushButton.clicked.connect(self.settings_load_dialog)
         
+    def on_close(self):
+        print("on_close")
+        # disconnect all hardware objects
+        for hw in self.hardware.values():
+            print("disconnecting", hw.name)
+            if hw.settings['connected']:
+                try:
+                    hw.disconnect()
+                except Exception as err:
+                    print("tried to disconnect", hw.name, err)
 
     def setup(self):
         """ Override to add Hardware and Measurement Components"""
