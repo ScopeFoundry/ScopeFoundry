@@ -38,16 +38,17 @@ def load_qt_ui_file(ui_filename):
     ui_file.close()
     return ui
 
-def confirm_on_close(widget, title="Close ScopeFoundry?", message="Do you wish to shut down ScopeFoundry?"):
-    widget.closeEventEater = CloseEventEater(title, message)
+def confirm_on_close(widget, title="Close ScopeFoundry?", message="Do you wish to shut down ScopeFoundry?", func_on_close=None):
+    widget.closeEventEater = CloseEventEater(title, message, func_on_close)
     widget.installEventFilter(widget.closeEventEater)
     
 class CloseEventEater(QtCore.QObject):
     
-    def __init__(self, title="Close ScopeFoundry?", message="Do you wish to shut down ScopeFoundry?"):
+    def __init__(self, title="Close ScopeFoundry?", message="Do you wish to shut down ScopeFoundry?", func_on_close=None):
         QtCore.QObject.__init__(self)
         self.title = title
         self.message = message
+        self.func_on_close = func_on_close
     
     def eventFilter(self, obj, event):
         if event.type() == QtCore.QEvent.Close:
@@ -58,6 +59,9 @@ class CloseEventEater(QtCore.QObject):
                                                self.message,
                                                QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
             if reply == QtGui.QMessageBox.Yes:
+                print "closing"
+                if self.func_on_close:
+                    self.func_on_close()
                 QtGui.QApplication.quit()
                 event.accept()
             else:
