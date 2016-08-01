@@ -5,18 +5,25 @@ from collections import OrderedDict
 import json
 
 class LoggedQuantity(QtCore.QObject):
+    """
+    LoggedQuantity objects are containers that wrap settings. These settings may be a number (integer or float) 
+    or a string and occasionally small arrays of them. 
+    
+    These objects emit signals when changed and can be connected bidirectionally to Qt Widgets. 
+    
+    """
 
     updated_value = QtCore.Signal((float,),(int,),(bool,), (), (str,),) # signal sent when value has been updated
-    updated_text_value = QtCore.Signal(str)
+    updated_text_value = QtCore.Signal(str) # signal sent when value has been updated, sends text representation
     updated_choice_index_value = QtCore.Signal(int) # emits the index of the value in self.choices
     
     updated_min_max = QtCore.Signal((float,float),(int,int), (),) # signal sent when min max range updated
-    updated_readonly = QtCore.Signal((bool,), (),)
+    updated_readonly = QtCore.Signal((bool,), (),) # signal sent when read only (ro) status has changed
     
     def __init__(self, name, dtype=float, 
                  hardware_read_func=None, hardware_set_func=None, 
-                 initial=0, fmt="%g", si=True,
-                 ro = False,
+                 initial=0, fmt="%g", si=False,
+                 ro = False, # read only flag
                  unit = None,
                  spinbox_decimals = 2,
                  spinbox_step=0.1,
@@ -34,7 +41,7 @@ class LoggedQuantity(QtCore.QObject):
         self.vmin = vmin
         self.vmax = vmax
         self.choices = self._expand_choices(choices) # should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
-        self.ro = ro # Read-Only?
+        self.ro = ro # Read-Only
         
         if self.dtype == int:
             self.spinbox_decimals = 0
@@ -85,6 +92,12 @@ class LoggedQuantity(QtCore.QObject):
     @QtCore.Slot(bool)
     @QtCore.Slot()
     def update_value(self, new_val=None, update_hardware=True, send_signal=True, reread_hardware=None):
+        """
+        Change value of LQ and emit signals to inform listeners of change 
+        
+        if *update_hardware* is true: call connected hardware_set_func
+        
+        """
         #print "LQ update_value", self.name, self.val, "-->",  new_val
         if new_val is None:
             #print "update_value {} new_val is None. From Sender {}".format(self.name, self.sender())
@@ -121,6 +134,11 @@ class LoggedQuantity(QtCore.QObject):
             self.send_display_updates()
             
     def send_display_updates(self, force=False):
+        """
+        emit updated_value signals if value has changed.
+        
+        *force* will emit signals regardless of value change. 
+        """
         #print "send_display_updates: {} force={}".format(self.name, force)
         if (not self.same_values(self.oldval, self.val)) or (force):
             
@@ -162,6 +180,13 @@ class LoggedQuantity(QtCore.QObject):
         
 
     def connect_bidir_to_widget(self, widget):
+        """
+        Creates Qt signal-slot connections between LQ and the QtWidget *widget*
+        
+        connects updated_value signal to the appropriate slot depending on 
+        the type of widget 
+        
+        """
         print type(widget)
         if type(widget) == QtGui.QDoubleSpinBox:
             #self.updated_value[float].connect(widget.setValue )
@@ -291,7 +316,12 @@ class LoggedQuantity(QtCore.QObject):
             
 
 class FileLQ(LoggedQuantity):
+    """
+    Specialized str type :class:`LoggedQuantity` that handles
     
+    
+    """
+     
     def __init__(self, name, default_dir=None, **kwargs):
         kwargs.pop('dtype', None)
         
@@ -519,6 +549,20 @@ class LQRange(QtCore.QObject):
         self.max.updated_value( C + 0.5*S)
 
 class LQCollection(object):
+    """
+    LQCollection is a smart dictionary of LoggedQuantity objects.
+    
+    attribute access such as lqcoll.x1 will return full LoggedQuantity object
+    
+    dictionary-style access lqcoll['x1'] allows direct reading and writing of 
+    the LQ's value, while handling the signals
+    
+    New LQ's can be created with :meth:`New`
+    
+    LQRange objects can be created with :meth:`New_Range` and will be stored
+    in :attr:ranges
+    
+    """
 
     def __init__(self):
         self._logged_quantities = OrderedDict()
