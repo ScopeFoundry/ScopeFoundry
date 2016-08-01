@@ -68,6 +68,7 @@ class Measurement(QtCore.QObject):
 
         self.add_operation("start", self.start)
         self.add_operation("interrupt", self.interrupt)
+        self.add_operation('terminate', self.terminate)
         self.add_operation("setup", self.setup)
         self.add_operation("setup_figure", self.setup_figure)
         self.add_operation("update_display", self.update_display)
@@ -191,7 +192,9 @@ class Measurement(QtCore.QObject):
         #Make sure display is up to date        
         #self._on_display_update_timer()
 
-
+    def terminate(self):
+        self.acq_thread.terminate()
+        
     def start_stop(self, start):
         """
         Use boolean *start* to either start (True) or
