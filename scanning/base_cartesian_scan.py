@@ -47,7 +47,7 @@ class BaseCartesian2DScan(Measurement):
     def setup(self):
         self.ui_filename = sibling_path(__file__,"cart_scan_base.ui")
         self.ui = load_qt_ui_file(self.ui_filename)
-        self.ui.show()
+        #self.ui.show()
         self.ui.setWindowTitle(self.name)
 
         self.display_update_period = 0.010 #seconds

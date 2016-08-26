@@ -265,9 +265,14 @@ class Measurement(QtCore.QObject):
         """
         Shows the graphical user interface of this measurement. :attr:`ui`
         """
+        if self.app.mdi and self.ui.parent():
+            self.ui.parent().raise_()
+            return
         self.ui.show()
         self.ui.activateWindow()
-        #self.ui.raise() #just to be sure it's on top
+        self.ui.raise_() #just to be sure it's on top
+        if self.app.mdi and self.ui.parent():
+            self.ui.parent().raise_()
     
     def _add_control_widgets_to_measurements_tab(self):
         cwidget = self.app.ui.measurements_tab_scrollArea_content_widget
