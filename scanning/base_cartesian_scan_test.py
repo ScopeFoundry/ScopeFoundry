@@ -10,9 +10,14 @@ class TestCartesian2DSlowScanApp(BaseMicroscopeApp):
         
         stage = self.add_hardware_component(DummyXYStage(self))
         stage.connect()
-        self.add_measurement_component(TestCartesian2DSlowScan(self))
+        self.test_cart_2d_slow_scan = self.add_measurement_component(TestCartesian2DSlowScan(self))
         
         self.ui.show()
+        
+        self.ui.mdiArea.addSubWindow(self.test_cart_2d_slow_scan.ui)
+        
+        
+
 
 if __name__ == '__main__':
     import sys
