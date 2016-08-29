@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1037</width>
-    <height>600</height>
+    <width>855</width>
+    <height>797</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,92 +17,111 @@
    <bool>false</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0">
-    <item>
-     <widget class="QGroupBox" name="lq_trees_groupBox">
-      <property name="title">
-       <string>Logged Quantities</string>
+   <layout class="QGridLayout" name="gridLayout_2">
+    <item row="0" column="0">
+     <widget class="QSplitter" name="splitter_2">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <widget class="QSplitter" name="splitter">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <widget class="QTreeWidget" name="hardware_treeWidget">
-          <column>
-           <property name="text">
-            <string>Hardware</string>
-           </property>
-          </column>
+      <widget class="QScrollArea" name="quickaccess_scrollArea">
+       <property name="widgetResizable">
+        <bool>true</bool>
+       </property>
+       <widget class="QWidget" name="scrollAreaWidgetContents">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>77</width>
+          <height>728</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_2"/>
+       </widget>
+      </widget>
+      <widget class="QGroupBox" name="lq_trees_groupBox">
+       <property name="title">
+        <string>Logged Quantities</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="2" column="1">
+         <widget class="QGroupBox" name="settings_groupBox">
+          <property name="title">
+           <string>Settings</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_7">
+           <item row="1" column="0">
+            <widget class="QPushButton" name="settings_load_last_pushButton">
+             <property name="text">
+              <string>Load Last</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QPushButton" name="settings_autosave_pushButton">
+             <property name="text">
+              <string>Auto Save</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QPushButton" name="settings_save_pushButton">
+             <property name="text">
+              <string>Save...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QPushButton" name="settings_load_pushButton">
+             <property name="text">
+              <string>Load...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QPushButton" name="console_pushButton">
+             <property name="text">
+              <string>Console...</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </widget>
-         <widget class="QTreeWidget" name="measurements_treeWidget">
-          <column>
-           <property name="text">
-            <string>Measurements</string>
-           </property>
-          </column>
+        </item>
+        <item row="1" column="1">
+         <widget class="QSplitter" name="splitter">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <widget class="QTreeWidget" name="hardware_treeWidget">
+           <column>
+            <property name="text">
+             <string>Hardware</string>
+            </property>
+           </column>
+          </widget>
+          <widget class="QTreeWidget" name="measurements_treeWidget">
+           <column>
+            <property name="text">
+             <string>Measurements</string>
+            </property>
+           </column>
+          </widget>
          </widget>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="settings_groupBox">
-         <property name="title">
-          <string>Settings</string>
-         </property>
-         <layout class="QGridLayout" name="gridLayout_7">
-          <item row="1" column="0">
-           <widget class="QPushButton" name="settings_load_last_pushButton">
-            <property name="text">
-             <string>Load Last</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QPushButton" name="settings_autosave_pushButton">
-            <property name="text">
-             <string>Auto Save</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QPushButton" name="settings_save_pushButton">
-            <property name="text">
-             <string>Save...</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QPushButton" name="settings_load_pushButton">
-            <property name="text">
-             <string>Load...</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QPushButton" name="console_pushButton">
-            <property name="text">
-             <string>Console...</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item>
-     <widget class="QMdiArea" name="mdiArea">
-      <property name="viewMode">
-       <enum>QMdiArea::TabbedView</enum>
-      </property>
-      <property name="documentMode">
-       <bool>false</bool>
-      </property>
-      <property name="tabsMovable">
-       <bool>true</bool>
-      </property>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QMdiArea" name="mdiArea">
+       <property name="viewMode">
+        <enum>QMdiArea::TabbedView</enum>
+       </property>
+       <property name="documentMode">
+        <bool>false</bool>
+       </property>
+       <property name="tabsMovable">
+        <bool>true</bool>
+       </property>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -112,7 +131,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1037</width>
+     <width>855</width>
      <height>22</height>
     </rect>
    </property>
