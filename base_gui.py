@@ -197,6 +197,12 @@ class BaseMicroscopeApp(BaseApp):
         if hasattr(self.ui, "settings_load_pushButton"):
             self.ui.settings_load_pushButton.clicked.connect(self.settings_load_dialog)
         
+        
+    def add_quickbar(self, widget):
+        self.ui.scrollAreaWidgetContents.layout().addWidget(widget)
+        self.quickbar = widget
+        return self.quickbar
+        
     def on_close(self):
         print("on_close")
         # disconnect all hardware objects
