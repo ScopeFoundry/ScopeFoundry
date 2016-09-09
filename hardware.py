@@ -125,9 +125,11 @@ class HardwareComponent(QtCore.QObject):
         tree.setColumnCount(2)
         tree.setHeaderLabels(["Hardware", "Value"])
 
-        self.tree_item = QtGui.QTreeWidgetItem(tree, [self.name, "="*10])
+        self.tree_item = QtGui.QTreeWidgetItem(tree, [self.name, "o"])
         tree.insertTopLevelItem(0, self.tree_item)
-        self.tree_item.setFirstColumnSpanned(True)
+        self.tree_item.setFirstColumnSpanned(False)
+        self.tree_item.setForeground(1, QtGui.QColor('red'))
+
         
         for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
@@ -198,7 +200,9 @@ class HardwareComponent(QtCore.QObject):
     def enable_connection(self, enable=True):
         if enable:
             self.connect()
+            self.tree_item.setForeground(1, QtGui.QColor('green'))
         else:
+            self.tree_item.setForeground(1, QtGui.QColor('red'))
             self.disconnect()
             
             
