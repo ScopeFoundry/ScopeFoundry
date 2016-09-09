@@ -14,7 +14,7 @@ class TestCartesian2DSlowScanApp(BaseMicroscopeApp):
         
         self.ui.show()
         
-        self.ui.mdiArea.addSubWindow(self.test_cart_2d_slow_scan.ui)
+        #self.ui.mdiArea.addSubWindow(self.test_cart_2d_slow_scan.ui)
         
         
 
