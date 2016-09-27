@@ -276,6 +276,11 @@ class LoggedQuantity(QtCore.QObject):
             widget.valueChanged.connect(self.update_value)
         elif type(widget) == QtGui.QLabel:
             self.updated_text_value.connect(widget.setText)
+        elif type(widget) == QtGui.QProgressBar:
+            def set_progressbar(x, widget=widget):
+                print "set_progressbar", x
+                widget.setValue(int(x))
+            self.updated_value.connect(set_progressbar)
         else:
             raise ValueError("Unknown widget type")
         
