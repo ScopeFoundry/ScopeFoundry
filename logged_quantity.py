@@ -148,8 +148,9 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_text_value.emit(str_val)
                 
             self.updated_value[float].emit(self.val)
-            if self.dtype != float:
-                self.updated_value[int].emit(self.val)
+            if self.dtype in [float, int]:
+                #print 'emit', self.name, "updated_value[int]"
+                self.updated_value[int].emit(int(self.val))
             self.updated_value[bool].emit(self.val)
             self.updated_value[()].emit()
             
