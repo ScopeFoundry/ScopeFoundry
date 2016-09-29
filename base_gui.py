@@ -156,6 +156,9 @@ class BaseMicroscopeApp(BaseApp):
                 self.ui_filename = sibling_path(__file__,"base_microscope_app.ui")
         # Load Qt UI from .ui file
         self.ui = load_qt_ui_file(self.ui_filename)
+        if self.mdi:
+            self.ui.col_splitter.setStretchFactor(0,0)
+            self.ui.col_splitter.setStretchFactor(1,1)
         
         self.hardware = OrderedAttrDict()
         self.measurements = OrderedAttrDict()
