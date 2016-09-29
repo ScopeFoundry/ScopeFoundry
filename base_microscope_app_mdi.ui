@@ -46,6 +46,12 @@
        </widget>
       </widget>
       <widget class="QGroupBox" name="lq_trees_groupBox">
+       <property name="minimumSize">
+        <size>
+         <width>325</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="title">
         <string>Logged Quantities</string>
        </property>
