@@ -70,3 +70,46 @@ class CloseEventEater(QtCore.QObject):
         else:
             # standard event processing            
             return QtCore.QObject.eventFilter(self,obj, event)
+        
+def replace_widget_in_layout(old_widget, new_widget, retain_font=True, retain_sizePolicy=True, retain_size=True):
+    """
+    Replace a widget with a new widget instance in an existing layout.
+    
+    returns new_widget
+    
+    Useful for replacing placeholder widgets created with QtCreator 
+    with custom widgets
+    Note: currently works for widgets in  QGridLayouts only
+    
+    inspiration from:
+    -- http://stackoverflow.com/questions/4625102/how-to-replace-a-widget-with-another-using-qt
+    -- http://stackoverflow.com/questions/24189202/how-to-get-the-row-column-location-of-a-widget-in-a-qgridlayout
+    """
+    
+    # find position of old_widget
+    layout = old_widget.parentWidget().layout()
+    index = layout.indexOf(old_widget)
+    row, column, rowSpan, colSpan = layout.getItemPosition(index)
+    
+
+    # transfer retained attributes of old_widget to  new_widget
+    if retain_font:
+        new_widget.setFont(old_widget.font())
+    if retain_sizePolicy:
+        new_widget.setSizePolicy(old_widget.sizePolicy())
+    if retain_size:
+        new_widget.setMinimumSize(old_widget.minimumSize())
+        new_widget.setMaximumSize(old_widget.maximumSize())
+    
+    # remove old widget
+    layout.removeWidget(old_widget)
+    old_widget.close()
+
+
+    # add new widget
+    layout.addWidget(new_widget, row, column, rowSpan, colSpan)
+    layout.update()
+    
+    
+    
+    return new_widget
