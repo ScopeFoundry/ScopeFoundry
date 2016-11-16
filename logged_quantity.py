@@ -11,6 +11,14 @@ class LoggedQuantity(QtCore.QObject):
     
     These objects emit signals when changed and can be connected bidirectionally to Qt Widgets. 
     
+    In ScopeFoundry we represent the values in an object called a `LoggedQuantity`. 
+    A `LoggedQuantity` is a class that contains a value, a `bool`, `float`, `int`, `str` etc 
+    that is part of an application's state. In the case of microscope and equipment control, 
+    these also can represent the state of a piece of hardware. These are very useful objects 
+    because the are the central location of the value contained within. All graphical interface views 
+    will be guaranteed to be consistent with the `LQ` state. The data of these quantities will also 
+    be saved in datafiles created by ScopeFoundry.
+    
     """
 
     updated_value = QtCore.Signal((float,),(int,),(bool,), (), (str,),) # signal sent when value has been updated
@@ -61,6 +69,7 @@ class LoggedQuantity(QtCore.QObject):
         self.widget_list = []
         
     def coerce_to_type(self, x):
+        """force x to dtype of the LQ"""        
         return self.dtype(x)
         
     def _expand_choices(self, choices):
@@ -86,6 +95,10 @@ class LoggedQuantity(QtCore.QObject):
                 self.send_display_updates()
         return self.val
 
+    def value(self):
+        "return stored value"
+        return self.val
+
     @QtCore.Slot(str)
     @QtCore.Slot(float)
     @QtCore.Slot(int)
@@ -93,9 +106,16 @@ class LoggedQuantity(QtCore.QObject):
     @QtCore.Slot()
     def update_value(self, new_val=None, update_hardware=True, send_signal=True, reread_hardware=None):
         """
+        Update stored value with new_val
+         
         Change value of LQ and emit signals to inform listeners of change 
         
         if *update_hardware* is true: call connected hardware_set_func
+        
+        Options:
+        update_hardware (default True): calls hardware_set_func if defined
+        send_signal (default True): sends out QT signals on change
+        reread_hardware: read from hardware after writing to hardware to ensure change         
         
         """
         #print "LQ update_value", self.name, self.val, "-->",  new_val
@@ -186,6 +206,17 @@ class LoggedQuantity(QtCore.QObject):
         
         connects updated_value signal to the appropriate slot depending on 
         the type of widget 
+        
+        Makes a bidirectional connection to a QT widget, ie when LQ is updated, 
+        widget gets a signal and when widget is updated, the LQ receives a signal
+        and update_value() slot is called.
+        
+        Handles many types of widgets:
+         * QDoubleSpinBox
+         * QCheckBox
+         * QLineEdit
+         * QComboBox
+         * pyqtgraph.widgets.SpinBox.SpinBox        
         
         """
         print type(widget)
@@ -323,9 +354,8 @@ class LoggedQuantity(QtCore.QObject):
 
 class FileLQ(LoggedQuantity):
     """
-    Specialized str type :class:`LoggedQuantity` that handles
-    
-    
+    Specialized str type :class:`LoggedQuantity` that handles 
+    a filename and associated file.
     """
      
     def __init__(self, name, default_dir=None, **kwargs):
