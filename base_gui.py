@@ -52,7 +52,8 @@ class BaseApp(QtCore.QObject):
         self.settings = LQCollection()
         
         self.setup_console_widget()
-        #self.setup()
+        if hasattr(self, "setup"):
+            self.setup()
 
         if not hasattr(self, 'name'):
             self.name = "ScopeFoundry"
