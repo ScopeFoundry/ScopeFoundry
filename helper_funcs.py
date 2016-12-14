@@ -25,6 +25,9 @@ class OrderedAttrDict(object):
     
     def __getitem__(self, key):
         return self._odict[key]
+    
+    def __contains__(self, k):
+        return self._odict.__contains__(k)
 
 def sibling_path(a, b):
     return os.path.join(os.path.dirname(a), b)
