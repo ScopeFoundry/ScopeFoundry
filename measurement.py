@@ -165,6 +165,7 @@ class Measurement(QtCore.QObject):
             #self.measurement_state_changed.emit(False)
             if self.interrupt_measurement_called:
                 self.measurement_interrupted.emit()
+                self.interrupt_measurement_called = False
             else:
                 self.measurement_sucessfully_completed.emit()
 
