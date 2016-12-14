@@ -355,15 +355,16 @@ class LoggedQuantity(QtCore.QObject):
 class FileLQ(LoggedQuantity):
     """
     Specialized str type :class:`LoggedQuantity` that handles 
-    a filename and associated file.
+    a filename (or directory) and associated file.
     """
      
-    def __init__(self, name, default_dir=None, **kwargs):
+    def __init__(self, name, default_dir=None, is_dir=False, **kwargs):
         kwargs.pop('dtype', None)
         
         LoggedQuantity.__init__(self, name, dtype=str, **kwargs)
         
         self.default_dir = default_dir
+        self.is_dir = is_dir
         
     def connect_to_browse_widgets(self, lineEdit, pushButton):
         assert type(lineEdit) == QtGui.QLineEdit
@@ -374,10 +375,14 @@ class FileLQ(LoggedQuantity):
     
     def file_browser(self):
         # TODO add default directory, etc
-        fname, _ = QtGui.QFileDialog.getOpenFileName(None)
+        if self.is_dir:
+            fname = QtGui.QFileDialog.getExistingDirectory(None)
+        else:
+            fname, _ = QtGui.QFileDialog.getOpenFileName(None)
         print repr(fname)
         if fname:
             self.update_value(fname)
+            
 
 class ArrayLQ(LoggedQuantity):
     updated_shape = QtCore.Signal(str)
