@@ -669,6 +669,41 @@ class LQCollection(object):
 
         self.ranges[name] = lqrange
         return lqrange
+    
+    def New_UI(self):
+        """create a default Qt Widget that contains 
+        widgets for all settings in the LQCollection
+        """
+        import pyqtgraph as pg
+        
+        
+        ui_widget =  QtGui.QWidget()
+        formLayout = QtGui.QFormLayout()
+        ui_widget.setLayout(formLayout)
+        
+        for lqname, lq in self.as_dict().items():
+            #: :type lq: LoggedQuantity
+            if lq.choices is not None:
+                widget = QtGui.QComboBox()
+            elif lq.dtype in [int, float]:
+                if lq.si:
+                    widget = pg.SpinBox()
+                else:
+                    widget = QtGui.QDoubleSpinBox()
+            elif lq.dtype in [bool]:
+                widget = QtGui.QCheckBox()  
+            elif lq.dtype in [str]:
+                widget = QtGui.QLineEdit()
+            lq.connect_bidir_to_widget(widget)
+
+            # Add to formlayout
+            formLayout.addRow(lqname, widget)
+            #lq_tree_item = QtGui.QTreeWidgetItem(self.tree_item, [lqname, ""])
+            #self.tree_item.addChild(lq_tree_item)
+            #lq.hardware_tree_widget = widget
+            #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
+            #self.control_widgets[lqname] = widget  
+        return ui_widget
 
 def print_signals_and_slots(obj):
     for i in xrange(obj.metaObject().methodCount()):
