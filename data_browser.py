@@ -20,23 +20,31 @@ class DataBrowser(BaseApp):
 
         
         self.settings.New('data_filename', dtype='file')
+        self.settings.New('browse_dir', dtype='file', is_dir=True, initial='/')
+        self.settings.New('file_filter', dtype=str, initial='*.*,')
+        
+        self.settings.data_filename.updated_value.connect(self.on_change_data_filename)
+        self.settings.browse_dir.updated_value.connect(self.on_change_browse_dir)
+        self.settings.file_filter.updated_value.connect(self.on_change_file_filter)
+
+        self.settings.New('auto_select_view',dtype=bool, initial=True)
+
         self.settings.New('view_name', dtype=str, initial='0', choices=('0',))
         self.settings.view_name.updated_value.connect(self.on_change_view_name)
-        self.settings.data_filename.updated_value.connect(self.on_change_data_filename)
-        
-        self.settings.New('auto_select_view',dtype=bool, initial=True)
         
         # UI Connections
         self.settings.data_filename.connect_to_browse_widgets(self.ui.data_filename_lineEdit, 
                                                               self.ui.data_filename_browse_pushButton)
+        self.settings.browse_dir.connect_to_browse_widgets(self.ui.browse_dir_lineEdit, 
+                                                              self.ui.browse_dir_browse_pushButton)
         self.settings.view_name.connect_bidir_to_widget(self.ui.view_name_comboBox)
+        self.settings.file_filter.connect_bidir_to_widget(self.ui.file_filter_lineEdit)
         
         # file system tree
         self.fs_model = QtGui.QFileSystemModel()
-        #self.fs_model.setRootPath(QtCore.QDir.currentPath()) 
         self.fs_model.setRootPath(QtCore.QDir.currentPath())
         self.ui.treeView.setModel(self.fs_model)
-        self.ui.treeView.setRootIndex(self.fs_model.index("/Users/esbarnard/"))
+        self.settings['browse_dir'] = os.getcwd()
         self.ui.treeView.setIconSize(QtCore.QSize(16,16))
         for i in (1,2,3):
             self.ui.treeView.hideColumn(i)
@@ -83,9 +91,22 @@ class DataBrowser(BaseApp):
             else:
                 # update view (automatically calls on_change_data_filename)
                 self.settings['view_name'] = view_name
-            
+
+    def on_change_browse_dir(self):
+        #print("on_change_browse_dir")
+        self.ui.treeView.setRootIndex(self.fs_model.index(self.settings['browse_dir']))
+    
+    def on_change_file_filter(self):
+        filter_str = self.settings['file_filter']
+        if filter_str == "":
+            filter_str = "*"
+            self.settings['file_filter'] = "*"
+        filter_str_list = [x.strip() for x in filter_str.split(',')]
+        print(filter_str_list)
+        self.fs_model.setNameFilters(filter_str_list)
+                    
     def on_change_view_name(self):
-        print('on_change_view_name')
+        #print('on_change_view_name')
         previous_view = self.current_view
         
         self.current_view = self.views[self.settings['view_name']]
