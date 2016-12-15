@@ -25,8 +25,21 @@
         <string>File System</string>
        </property>
        <layout class="QGridLayout" name="gridLayout">
+        <item row="1" column="0">
+         <widget class="QPushButton" name="browse_dir_browse_pushButton">
+          <property name="text">
+           <string>Browse...</string>
+          </property>
+         </widget>
+        </item>
         <item row="0" column="0">
+         <widget class="QLineEdit" name="browse_dir_lineEdit"/>
+        </item>
+        <item row="2" column="0">
          <widget class="QTreeView" name="treeView"/>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLineEdit" name="file_filter_lineEdit"/>
         </item>
        </layout>
       </widget>
