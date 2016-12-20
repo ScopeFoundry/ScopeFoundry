@@ -260,7 +260,7 @@ class BaseCartesian2DScan(Measurement):
                 self.img_plot.addItem(self.img_item)
                 self.hist_lut.setImageItem(self.img_item)
     
-            self.img_item.setImage(self.display_image_map[0,:,:].T)
+            self.img_item.setImage(self.display_image_map[0,:,:])
             x0, x1, y0, y1 = self.imshow_extent
             print x0, x1, y0, y1
             self.img_item.setRect(QtCore.QRectF(x0, y0, x1-x0, y1-y0))
