@@ -52,8 +52,9 @@ class BaseApp(QtCore.QObject):
         self.settings = LQCollection()
         
         self.setup_console_widget()
-        if hasattr(self, "setup"):
-            self.setup()
+        # FIXME Breaks things for microscopes, but necessary for stand alone apps!
+        #if hasattr(self, "setup"):
+        #    self.setup() 
 
         if not hasattr(self, 'name'):
             self.name = "ScopeFoundry"
