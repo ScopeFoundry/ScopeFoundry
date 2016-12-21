@@ -12,6 +12,10 @@ class DataBrowser(BaseApp):
     
     name = "DataBrowser"
     
+    def __init__(self, argv):
+        BaseApp.__init__(self, argv)
+        self.setup()
+    
     def setup(self):
 
         self.ui = load_qt_ui_file(sibling_path(__file__, "data_browser.ui"))
@@ -289,8 +293,8 @@ class HyperSpectralBaseView(DataBrowserView):
             * self.display_image (shape Ny, Nx)
             * self.spec_x_array (shape Nspec)
         """
-        self.hyperspec_data = np.random.rand(10,10,34)
-        self.display_image = np.random.rand(10,10)
+        self.hyperspec_data = np.zeros((10,10,34))#np.random.rand(10,10,34)
+        self.display_image =np.zeros((10,10,34))# np.random.rand(10,10)
         self.spec_x_array = 3*np.arange(34)
         
     def on_change_rect_roi(self):
