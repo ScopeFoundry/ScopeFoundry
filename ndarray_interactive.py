@@ -1,5 +1,5 @@
-from PySide import QtCore, QtGui
-from PySide.QtCore import Qt
+from qtpy import QtCore, QtWidgets
+from qtpy.QtCore import Qt
 import numpy as np
 
 
@@ -87,14 +87,14 @@ class ArrayLQ_QTableModel(NumpyQTableModel):
     
     
 if __name__ == '__main__':
-    qtapp = QtGui.QApplication([])
+    qtapp = QtWidgets.QApplication([])
     
     import numpy as np
     
     A = np.random.rand(10,5)
     B = np.random.rand(12,4)
     
-    table_view = QtGui.QTableView()
+    table_view = QtWidgets.QTableView()
     table_view_model = NumpyQTableModel(narray=A, col_names=['Peak', 'FWHM','center', 'asdf', '!__!'])
     table_view.setModel(table_view_model)
     table_view.show()

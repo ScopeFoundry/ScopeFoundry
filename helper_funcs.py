@@ -1,4 +1,5 @@
-from PySide import QtCore, QtGui, QtUiTools
+#from PySide import QtCore, QtGui, QtUiTools
+from qtpy import QtCore, QtWidgets, uic
 from collections import OrderedDict
 import os
 
@@ -34,11 +35,14 @@ def sibling_path(a, b):
 
 
 def load_qt_ui_file(ui_filename):
-    ui_loader = QtUiTools.QUiLoader()
-    ui_file = QtCore.QFile(ui_filename)
-    ui_file.open(QtCore.QFile.ReadOnly)
-    ui = ui_loader.load(ui_file)
-    ui_file.close()
+    ### PySide version
+    #ui_loader = QtUiTools.QUiLoader()
+    #ui_file = QtCore.QFile(ui_filename)
+    #ui_file.open(QtCore.QFile.ReadOnly)
+    #ui = ui_loader.load(ui_file)
+    #ui_file.close()
+    ### qtpy / PyQt version
+    ui = uic.loadUi(ui_filename)
     return ui
 
 def confirm_on_close(widget, title="Close ScopeFoundry?", message="Do you wish to shut down ScopeFoundry?", func_on_close=None):
@@ -57,15 +61,15 @@ class CloseEventEater(QtCore.QObject):
         if event.type() == QtCore.QEvent.Close:
             # eat close event
             print "close"
-            reply = QtGui.QMessageBox.question(None, 
+            reply = QtWidgets.QMessageBox.question(None, 
                                                self.title, 
                                                self.message,
-                                               QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
-            if reply == QtGui.QMessageBox.Yes:
+                                               QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+            if reply == QtWidgets.QMessageBox.Yes:
                 print "closing"
                 if self.func_on_close:
                     self.func_on_close()
-                QtGui.QApplication.quit()
+                QtWidgets.QApplication.quit()
                 event.accept()
             else:
                 event.ignore()
@@ -116,3 +120,12 @@ def replace_widget_in_layout(old_widget, new_widget, retain_font=True, retain_si
     
     
     return new_widget
+
+def print_all_connected(qobject, signal=None):
+    if signal is None:
+        signals = qobject.signals()
+    else:
+        signals = [signal]
+    for signal in qobject.signals():
+        for slot in qobject.connectedSlots():
+            print slot

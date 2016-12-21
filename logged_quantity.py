@@ -1,4 +1,4 @@
-from PySide import  QtCore, QtGui
+from qtpy import  QtCore, QtWidgets
 import pyqtgraph
 import numpy as np
 from collections import OrderedDict
@@ -67,6 +67,7 @@ class LoggedQuantity(QtCore.QObject):
         self._in_reread_loop = False # flag to prevent reread from hardware loops
         
         self.widget_list = []
+        self.listeners = []
         
     def coerce_to_type(self, x):
         """force x to dtype of the LQ"""        
@@ -159,20 +160,21 @@ class LoggedQuantity(QtCore.QObject):
         
         *force* will emit signals regardless of value change. 
         """
-        #print "send_display_updates: {} force={}".format(self.name, force)
+        print "send_display_updates: {} force={}".format(self.name, force)
         if (not self.same_values(self.oldval, self.val)) or (force):
+            print "\tsend away: {} force={}".format(self.name, force)
+            self.updated_value[()].emit()
             
             #print "send display updates", self.name, self.val, self.oldval
             str_val = self.string_value()
             self.updated_value[str].emit(str_val)
             self.updated_text_value.emit(str_val)
                 
-            self.updated_value[float].emit(self.val)
             if self.dtype in [float, int]:
                 #print 'emit', self.name, "updated_value[int]"
+                self.updated_value[float].emit(self.val)
                 self.updated_value[int].emit(int(self.val))
-            self.updated_value[bool].emit(self.val)
-            self.updated_value[()].emit()
+            self.updated_value[bool].emit(bool(self.val))
             
             if self.choices is not None:
                 choice_vals = [c[1] for c in self.choices]
@@ -198,7 +200,28 @@ class LoggedQuantity(QtCore.QObject):
     
     def update_choice_index_value(self, new_choice_index, **kwargs):
         self.update_value(self.choices[new_choice_index][1], **kwargs)
+    
+    def add_listener(self, func, argtype=(), **kwargs):
+        """ Connect 'func' as a listener (Qt Slot) for the 
+        updated_value signal.
+        By default 'func' should take no arguments,
+        but argtype can define the data type that it should accept.
+        but should be limited to those supported by LoggedQuantity 
+        (i.e. int, float, str)
+        **kwargs are passed to the connect function
+        appends the 'func' to the 'listeners' list
         
+        # Wraps func in a try block to absorb the Exception to avoid crashing PyQt5 >5.5
+        # see https://riverbankcomputing.com/pipermail/pyqt/2016-March/037134.html
+        """
+#         def wrapped_func(func):
+#             def f(*args):
+#                 try:
+#                     func(*args)
+#                 except Exception as err:
+#                     print "Exception on listener:"
+        self.updated_value[argtype].connect(func, **kwargs)
+        self.listeners.append(func)
 
     def connect_bidir_to_widget(self, widget):
         """
@@ -220,7 +243,7 @@ class LoggedQuantity(QtCore.QObject):
         
         """
         print type(widget)
-        if type(widget) == QtGui.QDoubleSpinBox:
+        if type(widget) == QtWidgets.QDoubleSpinBox:
             #self.updated_value[float].connect(widget.setValue )
             #widget.valueChanged[float].connect(self.update_value)
             widget.setKeyboardTracking(False)
@@ -238,7 +261,7 @@ class LoggedQuantity(QtCore.QObject):
             #if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
                 
-        elif type(widget) == QtGui.QCheckBox:
+        elif type(widget) == QtWidgets.QCheckBox:
             print self.name
             #self.updated_value[bool].connect(widget.checkStateSet)
             #widget.stateChanged[int].connect(self.update_value)
@@ -249,7 +272,7 @@ class LoggedQuantity(QtCore.QObject):
             if self.ro:
                 #widget.setReadOnly(True)
                 widget.setEnabled(False)
-        elif type(widget) == QtGui.QLineEdit:
+        elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
@@ -257,7 +280,7 @@ class LoggedQuantity(QtCore.QObject):
                 print "on_edit_finished", self.name
                 self.update_value(widget.text())     
             widget.editingFinished.connect(on_edit_finished)
-        elif type(widget) == QtGui.QPlainTextEdit:
+        elif type(widget) == QtWidgets.QPlainTextEdit:
             # FIXME doesn't quite work right: a signal character resets cursor position
             self.updated_text_value[str].connect(widget.setPlainText)
             # TODO Read only
@@ -265,7 +288,7 @@ class LoggedQuantity(QtCore.QObject):
                 self.update_value(widget.toPlainText())
             widget.textChanged.connect(set_from_plaintext)
             
-        elif type(widget) == QtGui.QComboBox:
+        elif type(widget) == QtWidgets.QComboBox:
             # need to have a choice list to connect to a QComboBox
             assert self.choices is not None 
             widget.clear() # removes all old choices
@@ -297,7 +320,7 @@ class LoggedQuantity(QtCore.QObject):
                         int=integer)            
             if self.ro:
                 widget.setEnabled(False)
-                widget.setButtonSymbols(QtGui.QAbstractSpinBox.NoButtons)
+                widget.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
                 widget.setReadOnly(True)
             widget.setDecimals(self.spinbox_decimals)
             widget.setSingleStep(self.spinbox_step)
@@ -305,9 +328,9 @@ class LoggedQuantity(QtCore.QObject):
             #if not self.ro:
                 #widget.valueChanged[float].connect(self.update_value)
             widget.valueChanged.connect(self.update_value)
-        elif type(widget) == QtGui.QLabel:
+        elif type(widget) == QtWidgets.QLabel:
             self.updated_text_value.connect(widget.setText)
-        elif type(widget) == QtGui.QProgressBar:
+        elif type(widget) == QtWidgets.QProgressBar:
             def set_progressbar(x, widget=widget):
                 print "set_progressbar", x
                 widget.setValue(int(x))
@@ -325,7 +348,7 @@ class LoggedQuantity(QtCore.QObject):
         self.choices = self._expand_choices(choices)
         
         for widget in self.widget_list:
-            if type(widget) == QtGui.QComboBox:
+            if type(widget) == QtWidgets.QComboBox:
                 # need to have a choice list to connect to a QComboBox
                 assert self.choices is not None 
                 widget.clear() # removes all old choices
@@ -344,7 +367,7 @@ class LoggedQuantity(QtCore.QObject):
     def change_readonly(self, ro=True):
         self.ro = ro
         for widget in self.widget_list:
-            if type(widget) in [QtGui.QDoubleSpinBox, pyqtgraph.widgets.SpinBox.SpinBox]:
+            if type(widget) in [QtWidgets.QDoubleSpinBox, pyqtgraph.widgets.SpinBox.SpinBox]:
                 widget.setReadOnly(self.ro)    
             #elif
         self.updated_readonly.emit(self.ro)
@@ -367,18 +390,18 @@ class FileLQ(LoggedQuantity):
         self.is_dir = is_dir
         
     def connect_to_browse_widgets(self, lineEdit, pushButton):
-        assert type(lineEdit) == QtGui.QLineEdit
+        assert type(lineEdit) == QtWidgets.QLineEdit
         self.connect_bidir_to_widget(lineEdit)
     
-        assert type(pushButton) == QtGui.QPushButton
+        assert type(pushButton) == QtWidgets.QPushButton
         pushButton.clicked.connect(self.file_browser)
     
     def file_browser(self):
         # TODO add default directory, etc
         if self.is_dir:
-            fname = QtGui.QFileDialog.getExistingDirectory(None)
+            fname = QtWidgets.QFileDialog.getExistingDirectory(None)
         else:
-            fname, _ = QtGui.QFileDialog.getOpenFileName(None)
+            fname, _ = QtWidgets.QFileDialog.getOpenFileName(None)
         print repr(fname)
         if fname:
             self.update_value(fname)
@@ -677,28 +700,28 @@ class LQCollection(object):
         import pyqtgraph as pg
         
         
-        ui_widget =  QtGui.QWidget()
-        formLayout = QtGui.QFormLayout()
+        ui_widget =  QtWidgets.QWidget()
+        formLayout = QtWidgets.QFormLayout()
         ui_widget.setLayout(formLayout)
         
         for lqname, lq in self.as_dict().items():
             #: :type lq: LoggedQuantity
             if lq.choices is not None:
-                widget = QtGui.QComboBox()
+                widget = QtWidgets.QComboBox()
             elif lq.dtype in [int, float]:
                 if lq.si:
                     widget = pg.SpinBox()
                 else:
-                    widget = QtGui.QDoubleSpinBox()
+                    widget = QtWidgets.QDoubleSpinBox()
             elif lq.dtype in [bool]:
-                widget = QtGui.QCheckBox()  
+                widget = QtWidgets.QCheckBox()  
             elif lq.dtype in [str]:
-                widget = QtGui.QLineEdit()
+                widget = QtWidgets.QLineEdit()
             lq.connect_bidir_to_widget(widget)
 
             # Add to formlayout
             formLayout.addRow(lqname, widget)
-            #lq_tree_item = QtGui.QTreeWidgetItem(self.tree_item, [lqname, ""])
+            #lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
             #self.tree_item.addChild(lq_tree_item)
             #lq.hardware_tree_widget = widget
             #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
@@ -706,6 +729,7 @@ class LQCollection(object):
         return ui_widget
 
 def print_signals_and_slots(obj):
+    # http://visitusers.org/index.php?title=PySide_Recipes
     for i in xrange(obj.metaObject().methodCount()):
         m = obj.metaObject().method(i)
         if m.methodType() == QtCore.QMetaMethod.MethodType.Signal:

@@ -11,7 +11,8 @@ import collections
 from collections import OrderedDict
 import ConfigParser
 
-from PySide import QtCore, QtGui, QtUiTools
+
+from qtpy import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
 #import pyqtgraph.console
 import IPython
@@ -37,17 +38,22 @@ from helper_funcs import confirm_on_close, load_qt_ui_file, OrderedAttrDict, sib
 
 import h5_io
 import warnings
+import traceback
 
+# See https://riverbankcomputing.com/pipermail/pyqt/2016-March/037136.html
+# makes sure that exceptions in slots don't crash the whole app with PyQt 5.5 and higher
+sys.excepthook = traceback.print_exception
 
 class BaseApp(QtCore.QObject):
     
     def __init__(self, argv):
+        QtCore.QObject.__init__(self)
         
         self.this_dir, self.this_filename = os.path.split(__file__)
 
-        self.qtapp = QtGui.QApplication.instance()
+        self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
-            self.qtapp = QtGui.QApplication(argv)
+            self.qtapp = QtWidgets.QApplication(argv)
         
         self.settings = LQCollection()
         
@@ -123,7 +129,7 @@ class BaseApp(QtCore.QObject):
 
     def settings_save_ini_ask(self, dir=None, save_ro=True):
         # TODO add default directory, etc
-        fname, _ = QtGui.QFileDialog.getSaveFileName(self.ui, caption=u'Save Settings', dir=u"", filter=u"Settings (*.ini)")
+        fname, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, caption=u'Save Settings', dir=u"", filter=u"Settings (*.ini)")
         print repr(fname)
         if fname:
             self.settings_save_ini(fname, save_ro=save_ro)
@@ -131,7 +137,7 @@ class BaseApp(QtCore.QObject):
 
     def settings_load_ini_ask(self, dir=None):
         # TODO add default directory, etc
-        fname, _ = QtGui.QFileDialog.getOpenFileName(None, "Settings (*.ini)")
+        fname, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Settings (*.ini)")
         print repr(fname)
         if fname:
             self.settings_load_ini(fname)
@@ -251,24 +257,24 @@ class BaseMicroscopeApp(BaseApp):
             
             
     
-    def add_figure_mpl(self,name, widget):
-        """creates a matplotlib figure attaches it to the qwidget specified
-        (widget needs to have a layout set (preferably verticalLayout) 
-        adds a figure to self.figs"""
-        print "---adding figure", name, widget
-        if name in self.figs:
-            return self.figs[name]
-        else:
-            fig = Figure()
-            fig.patch.set_facecolor('w')
-            canvas = FigureCanvas(fig)
-            nav    = NavigationToolbar2(canvas, self.ui)
-            widget.layout().addWidget(canvas)
-            widget.layout().addWidget(nav)
-            canvas.setFocusPolicy( QtCore.Qt.ClickFocus )
-            canvas.setFocus()
-            self.figs[name] = fig
-            return fig
+#     def add_figure_mpl(self,name, widget):
+#         """creates a matplotlib figure attaches it to the qwidget specified
+#         (widget needs to have a layout set (preferably verticalLayout) 
+#         adds a figure to self.figs"""
+#         print "---adding figure", name, widget
+#         if name in self.figs:
+#             return self.figs[name]
+#         else:
+#             fig = Figure()
+#             fig.patch.set_facecolor('w')
+#             canvas = FigureCanvas(fig)
+#             nav    = NavigationToolbar2(canvas, self.ui)
+#             widget.layout().addWidget(canvas)
+#             widget.layout().addWidget(nav)
+#             canvas.setFocusPolicy( QtCore.Qt.ClickFocus )
+#             canvas.setFocus()
+#             self.figs[name] = fig
+#             return fig
     
     def add_figure(self,name,widget):
         return self.add_figure_mpl(name,widget)
@@ -383,12 +389,12 @@ class BaseMicroscopeApp(BaseApp):
     
     
     def settings_save_dialog(self):
-        fname, selectedFilter = QtGui.QFileDialog.getSaveFileName(self.ui, "Save Settings file", "", "Settings File (*.ini)")
+        fname, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Settings file", "", "Settings File (*.ini)")
         if fname:
             self.settings_save_ini(fname)
     
     def settings_load_dialog(self):
-        fname, selectedFilter = QtGui.QFileDialog.getOpenFileName(self.ui,"Open Settings file", "", "Settings File (*.ini *.h5)")
+        fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Settings file", "", "Settings File (*.ini *.h5)")
         self.settings_load_ini(fname)
 
     @property

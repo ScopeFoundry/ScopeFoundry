@@ -1,4 +1,4 @@
-from PySide import QtCore, QtGui
+from qtpy import QtCore, QtWidgets
 from logged_quantity import LQCollection#, LoggedQuantity
 from collections import OrderedDict
 import pyqtgraph as pg
@@ -77,13 +77,13 @@ class HardwareComponent(QtCore.QObject):
     def _add_control_widgets_to_hardware_tab(self):
         cwidget = self.app.ui.hardware_tab_scrollArea_content_widget
         
-        self.controls_groupBox = QtGui.QGroupBox(self.name)
-        self.controls_formLayout = QtGui.QFormLayout()
+        self.controls_groupBox = QtWidgets.QGroupBox(self.name)
+        self.controls_formLayout = QtWidgets.QFormLayout()
         self.controls_groupBox.setLayout(self.controls_formLayout)
         
         cwidget.layout().addWidget(self.controls_groupBox)
         
-        #self.connect_hardware_checkBox = QtGui.QCheckBox("Connect to Hardware")
+        #self.connect_hardware_checkBox = QtWidgets.QCheckBox("Connect to Hardware")
         #self.controls_formLayout.addRow("Connect", self.connect_hardware_checkBox)
         #self.connect_hardware_checkBox.stateChanged.connect(self.enable_connection)
 
@@ -92,16 +92,16 @@ class HardwareComponent(QtCore.QObject):
         for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
             if lq.choices is not None:
-                widget = QtGui.QComboBox()
+                widget = QtWidgets.QComboBox()
             elif lq.dtype in [int, float]:
                 if lq.si:
                     widget = pg.SpinBox()
                 else:
-                    widget = QtGui.QDoubleSpinBox()
+                    widget = QtWidgets.QDoubleSpinBox()
             elif lq.dtype in [bool]:
-                widget = QtGui.QCheckBox()  
+                widget = QtWidgets.QCheckBox()  
             elif lq.dtype in [str]:
-                widget = QtGui.QLineEdit()
+                widget = QtWidgets.QLineEdit()
             lq.connect_bidir_to_widget(widget)
 
             # Add to formlayout
@@ -111,11 +111,11 @@ class HardwareComponent(QtCore.QObject):
         
         self.op_buttons = OrderedDict()
         for op_name, op_func in self.operations.items(): 
-            op_button = QtGui.QPushButton(op_name)
+            op_button = QtWidgets.QPushButton(op_name)
             op_button.clicked.connect(op_func)
             self.controls_formLayout.addRow(op_name, op_button)
         
-        self.read_from_hardware_button = QtGui.QPushButton("Read From Hardware")
+        self.read_from_hardware_button = QtWidgets.QPushButton("Read From Hardware")
         self.read_from_hardware_button.clicked.connect(self.read_from_hardware)
         self.controls_formLayout.addRow("Logged Quantities:", self.read_from_hardware_button)
     
@@ -125,30 +125,30 @@ class HardwareComponent(QtCore.QObject):
         tree.setColumnCount(2)
         tree.setHeaderLabels(["Hardware", "Value"])
 
-        self.tree_item = QtGui.QTreeWidgetItem(tree, [self.name, "o"])
+        self.tree_item = QtWidgets.QTreeWidgetItem(tree, [self.name, "o"])
         tree.insertTopLevelItem(0, self.tree_item)
         self.tree_item.setFirstColumnSpanned(False)
-        self.tree_item.setForeground(1, QtGui.QColor('red'))
+        self.tree_item.setForeground(1, QtWidgets.QColor('red'))
 
         
         for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
             if lq.choices is not None:
-                widget = QtGui.QComboBox()
+                widget = QtWidgets.QComboBox()
             elif lq.dtype in [int, float]:
                 if lq.si:
                     widget = pg.SpinBox()
                 else:
-                    widget = QtGui.QDoubleSpinBox()
+                    widget = QtWidgets.QDoubleSpinBox()
             elif lq.dtype in [bool]:
-                widget = QtGui.QCheckBox()  
+                widget = QtWidgets.QCheckBox()  
             elif lq.dtype in [str]:
-                widget = QtGui.QLineEdit()
+                widget = QtWidgets.QLineEdit()
             lq.connect_bidir_to_widget(widget)
 
             # Add to formlayout
             #self.controls_formLayout.addRow(lqname, widget)
-            lq_tree_item = QtGui.QTreeWidgetItem(self.tree_item, [lqname, ""])
+            lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
             self.tree_item.addChild(lq_tree_item)
             lq.hardware_tree_widget = widget
             tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
@@ -156,17 +156,17 @@ class HardwareComponent(QtCore.QObject):
                 
         self.op_buttons = OrderedDict()
         for op_name, op_func in self.operations.items(): 
-            op_button = QtGui.QPushButton(op_name)
+            op_button = QtWidgets.QPushButton(op_name)
             op_button.clicked.connect(op_func)
             self.op_buttons[op_name] = op_button
             #self.controls_formLayout.addRow(op_name, op_button)
-            op_tree_item = QtGui.QTreeWidgetItem(self.tree_item, [op_name, ""])
+            op_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [op_name, ""])
             tree.setItemWidget(op_tree_item, 1, op_button)
 
-        self.tree_read_from_hardware_button = QtGui.QPushButton("Read From\nHardware")
+        self.tree_read_from_hardware_button = QtWidgets.QPushButton("Read From\nHardware")
         self.tree_read_from_hardware_button.clicked.connect(self.read_from_hardware)
         #self.controls_formLayout.addRow("Logged Quantities:", self.read_from_hardware_button)
-        self.read_from_hardware_button_tree_item = QtGui.QTreeWidgetItem(self.tree_item, ["Logged Quantities:", ""])
+        self.read_from_hardware_button_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, ["Logged Quantities:", ""])
         self.tree_item.addChild(self.read_from_hardware_button_tree_item)
         tree.setItemWidget(self.read_from_hardware_button_tree_item, 1, self.tree_read_from_hardware_button)
 
@@ -200,9 +200,9 @@ class HardwareComponent(QtCore.QObject):
     def enable_connection(self, enable=True):
         if enable:
             self.connect()
-            self.tree_item.setForeground(1, QtGui.QColor('green'))
+            self.tree_item.setForeground(1, QtWidgets.QColor('green'))
         else:
-            self.tree_item.setForeground(1, QtGui.QColor('red'))
+            self.tree_item.setForeground(1, QtWidgets.QColor('red'))
             self.disconnect()
             
             

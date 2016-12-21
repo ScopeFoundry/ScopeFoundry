@@ -5,7 +5,7 @@ Created on Tue Apr  1 09:25:48 2014
 @author: esbarnard
 """
 
-from PySide import QtCore, QtGui
+from qtpy import QtCore, QtWidgets
 import threading
 import time
 from ScopeFoundry.logged_quantity import LQCollection
@@ -278,8 +278,8 @@ class Measurement(QtCore.QObject):
     def _add_control_widgets_to_measurements_tab(self):
         cwidget = self.app.ui.measurements_tab_scrollArea_content_widget
         
-        self.controls_groupBox = QtGui.QGroupBox(self.name)
-        self.controls_formLayout = QtGui.QFormLayout()
+        self.controls_groupBox = QtWidgets.QGroupBox(self.name)
+        self.controls_formLayout = QtWidgets.QFormLayout()
         self.controls_groupBox.setLayout(self.controls_formLayout)
         
         cwidget.layout().addWidget(self.controls_groupBox)
@@ -288,16 +288,16 @@ class Measurement(QtCore.QObject):
         for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
             if lq.choices is not None:
-                widget = QtGui.QComboBox()
+                widget = QtWidgets.QComboBox()
             elif lq.dtype in [int, float]:
                 if lq.si:
                     widget = pg.SpinBox()
                 else:
-                    widget = QtGui.QDoubleSpinBox()
+                    widget = QtWidgets.QDoubleSpinBox()
             elif lq.dtype in [bool]:
-                widget = QtGui.QCheckBox()  
+                widget = QtWidgets.QCheckBox()  
             elif lq.dtype in [str]:
-                widget = QtGui.QLineEdit()
+                widget = QtWidgets.QLineEdit()
             lq.connect_bidir_to_widget(widget)
 
             # Add to formlayout
@@ -307,7 +307,7 @@ class Measurement(QtCore.QObject):
             
         self.op_buttons = OrderedDict()
         for op_name, op_func in self.operations.items(): 
-            op_button = QtGui.QPushButton(op_name)
+            op_button = QtWidgets.QPushButton(op_name)
             op_button.clicked.connect(op_func)
             self.controls_formLayout.addRow(op_name, op_button)
             
@@ -319,10 +319,10 @@ class Measurement(QtCore.QObject):
         tree.setColumnCount(2)
         tree.setHeaderLabels(["Measurements", "Value"])
 
-        self.tree_item = QtGui.QTreeWidgetItem(tree, [self.name, ""])
+        self.tree_item = QtWidgets.QTreeWidgetItem(tree, [self.name, ""])
         tree.insertTopLevelItem(0, self.tree_item)
         #self.tree_item.setFirstColumnSpanned(True)
-        self.tree_progressBar = QtGui.QProgressBar()
+        self.tree_progressBar = QtWidgets.QProgressBar()
         tree.setItemWidget(self.tree_item, 1, self.tree_progressBar)
         self.progress.updated_value.connect(self.tree_progressBar.setValue)
 
@@ -330,19 +330,19 @@ class Measurement(QtCore.QObject):
         for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
             if lq.choices is not None:
-                widget = QtGui.QComboBox()
+                widget = QtWidgets.QComboBox()
             elif lq.dtype in [int, float]:
                 if lq.si:
                     widget = pg.SpinBox()
                 else:
-                    widget = QtGui.QDoubleSpinBox()
+                    widget = QtWidgets.QDoubleSpinBox()
             elif lq.dtype in [bool]:
-                widget = QtGui.QCheckBox()  
+                widget = QtWidgets.QCheckBox()  
             elif lq.dtype in [str]:
-                widget = QtGui.QLineEdit()
+                widget = QtWidgets.QLineEdit()
             lq.connect_bidir_to_widget(widget)
 
-            lq_tree_item = QtGui.QTreeWidgetItem(self.tree_item, [lqname, ""])
+            lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
             self.tree_item.addChild(lq_tree_item)
             lq.hardware_tree_widget = widget
             tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
@@ -351,9 +351,9 @@ class Measurement(QtCore.QObject):
         # Add operation buttons to tree
         self.op_buttons = OrderedDict()
         for op_name, op_func in self.operations.items(): 
-            op_button = QtGui.QPushButton(op_name)
+            op_button = QtWidgets.QPushButton(op_name)
             op_button.clicked.connect(op_func)
             self.op_buttons[op_name] = op_button
             #self.controls_formLayout.addRow(op_name, op_button)
-            op_tree_item = QtGui.QTreeWidgetItem(self.tree_item, [op_name, ""])
+            op_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [op_name, ""])
             tree.setItemWidget(op_tree_item, 1, op_button)
