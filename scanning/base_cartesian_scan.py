@@ -11,7 +11,7 @@ import pyqtgraph as pg
 import time
 from ScopeFoundry import h5_io
 from hardware_components import apd_counter
-from PySide import QtCore
+from qtpy import QtCore
 from ScopeFoundry import LQRange
 import warnings
 

@@ -3,9 +3,10 @@ from ScopeFoundry import BaseApp
 from ScopeFoundry.helper_funcs import load_qt_ui_file, sibling_path
 from collections import OrderedDict
 import os
-from PySide import QtCore, QtGui
+from qtpy import QtCore, QtWidgets
 import pyqtgraph as pg
 import numpy as np
+
 
 
 class DataBrowser(BaseApp):
@@ -22,22 +23,20 @@ class DataBrowser(BaseApp):
         self.ui.show()
         self.ui.raise_()
         
-        
         self.views = OrderedDict()        
+        self.current_view = None        
 
-        
         self.settings.New('data_filename', dtype='file')
         self.settings.New('browse_dir', dtype='file', is_dir=True, initial='/')
         self.settings.New('file_filter', dtype=str, initial='*.*,')
         
-        self.settings.data_filename.updated_value.connect(self.on_change_data_filename)
-        self.settings.browse_dir.updated_value.connect(self.on_change_browse_dir)
-        self.settings.file_filter.updated_value.connect(self.on_change_file_filter)
+        self.settings.data_filename.add_listener(self.on_change_data_filename)
+        self.settings.file_filter.add_listener(self.on_change_file_filter)
 
         self.settings.New('auto_select_view',dtype=bool, initial=True)
 
         self.settings.New('view_name', dtype=str, initial='0', choices=('0',))
-        self.settings.view_name.updated_value.connect(self.on_change_view_name)
+        self.settings.view_name.add_listener(self.on_change_view_name)
         
         # UI Connections
         self.settings.data_filename.connect_to_browse_widgets(self.ui.data_filename_lineEdit, 
@@ -48,10 +47,9 @@ class DataBrowser(BaseApp):
         self.settings.file_filter.connect_bidir_to_widget(self.ui.file_filter_lineEdit)
         
         # file system tree
-        self.fs_model = QtGui.QFileSystemModel()
+        self.fs_model = QtWidgets.QFileSystemModel()
         self.fs_model.setRootPath(QtCore.QDir.currentPath())
         self.ui.treeView.setModel(self.fs_model)
-        self.settings['browse_dir'] = os.getcwd()
         self.ui.treeView.setIconSize(QtCore.QSize(16,16))
         for i in (1,2,3):
             self.ui.treeView.hideColumn(i)
@@ -59,8 +57,11 @@ class DataBrowser(BaseApp):
         self.tree_selectionModel = self.ui.treeView.selectionModel()
         self.tree_selectionModel.selectionChanged.connect(self.on_treeview_selection_change)
 
+        self.settings.browse_dir.add_listener(self.on_change_browse_dir)
+        self.settings['browse_dir'] = os.getcwd()
+
+
         # set views
-        self.current_view = None
         
         self.load_view(FileInfoView(self))
         self.load_view(TestNPZView(self))
@@ -70,7 +71,8 @@ class DataBrowser(BaseApp):
         self.console_widget.show()
         self.ui.show()
 
-        
+    def on_change_test(self):
+        print("on_change_test")
         
     def load_view(self, new_view):
         
@@ -93,17 +95,20 @@ class DataBrowser(BaseApp):
             self.current_view.on_change_data_filename(fname)
         else:
             view_name = self.auto_select_view(fname)
-            if view_name == self.current_view.name:
-                self.current_view.on_change_data_filename(fname)
-            else:
+            if self.current_view is None or view_name != self.current_view.name:
                 # update view (automatically calls on_change_data_filename)
                 self.settings['view_name'] = view_name
+            else:
+                # force update
+                self.current_view.on_change_data_filename(fname)
 
+    @QtCore.Slot()
     def on_change_browse_dir(self):
-        #print("on_change_browse_dir")
+        print("on_change_browse_dir")
         self.ui.treeView.setRootIndex(self.fs_model.index(self.settings['browse_dir']))
     
     def on_change_file_filter(self):
+        print("on_change_file_filter")
         filter_str = self.settings['file_filter']
         if filter_str == "":
             filter_str = "*"
@@ -148,6 +153,7 @@ class DataBrowserView(QtCore.QObject):
     """ Abstract class for DataBrowser Views"""
     
     def __init__(self, databrowser):
+        QtCore.QObject.__init__(self)
         self.databrowser =  databrowser
         self.setup()
         
@@ -171,7 +177,7 @@ class FileInfoView(DataBrowserView):
     name = 'file_info'
     
     def setup(self):
-        self.ui = QtGui.QTextEdit("file_info")
+        self.ui = QtWidgets.QTextEdit("file_info")
         
     def on_change_data_filename(self, fname=None):
         if fname is None:
@@ -191,7 +197,7 @@ class TestNPZView(DataBrowserView):
         
         #self.ui = QtGui.QScrollArea()
         #self.display_label = QtGui.QLabel("TestNPZView")
-        self.ui = self.display_textEdit = QtGui.QTextEdit()
+        self.ui = self.display_textEdit = QtWidgets.QTextEdit()
         
         #self.ui.setLayout(QtGui.QVBoxLayout())
         #self.ui.layout().addWidget(self.display_label)
@@ -224,8 +230,8 @@ class HyperSpectralBaseView(DataBrowserView):
     
     def setup(self):
         
-        self.ui = QtGui.QWidget()
-        self.ui.setLayout(QtGui.QVBoxLayout())
+        self.ui = QtWidgets.QWidget()
+        self.ui.setLayout(QtWidgets.QVBoxLayout())
         self.imview = pg.ImageView()
         self.imview.getView().invertY(False) # lower left origin
         self.ui.layout().addWidget(self.imview)
@@ -241,7 +247,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.rect_roi = pg.RectROI([20, 20], [20, 20], pen=(0,9))
         self.rect_roi.addTranslateHandle((0.5,0.5))        
         self.imview.getView().addItem(self.rect_roi)        
-        self.rect_roi.sigRegionChanged.connect(self.on_change_rect_roi)
+        self.rect_roi.sigRegionChanged[object].connect(self.on_change_rect_roi)
         
         # Point ROI
         self.circ_roi = pg.CircleROI( (0,0), (2,2) , movable=True, pen=(0,9))
@@ -253,7 +259,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.circ_roi.removeHandle(0)
         self.circ_roi_plotline = pg.PlotCurveItem([0], pen=(0,9))
         self.imview.getView().addItem(self.circ_roi_plotline) 
-        self.circ_roi.sigRegionChanged.connect(self.on_update_circ_roi)
+        self.circ_roi.sigRegionChanged[object].connect(self.on_update_circ_roi)
         
         self.hyperspec_data = None
         self.display_image = None
@@ -296,15 +302,16 @@ class HyperSpectralBaseView(DataBrowserView):
         self.hyperspec_data = np.zeros((10,10,34))#np.random.rand(10,10,34)
         self.display_image =np.zeros((10,10,34))# np.random.rand(10,10)
         self.spec_x_array = 3*np.arange(34)
-        
-    def on_change_rect_roi(self):
+    
+    @QtCore.Slot(object)
+    def on_change_rect_roi(self, roi=None):
         # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time)
         roi_slice, roi_tr = self.rect_roi.getArraySlice(self.hyperspec_data, self.imview.getImageItem(), axes=(1,0)) 
         
         #print("roi_slice", roi_slice)
         self.rect_plotdata.setData(self.spec_x_array, self.hyperspec_data[roi_slice].mean(axis=(0,1))+1)
         
-        
+    @QtCore.Slot(object)        
     def on_update_circ_roi(self, roi=None):
         if roi is None:
             roi = self.circ_roi
