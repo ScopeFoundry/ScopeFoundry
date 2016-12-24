@@ -1,4 +1,4 @@
-#from PySide import QtCore, QtGui, QtUiTools
+from __future__ import absolute_import, print_function
 from qtpy import QtCore, QtWidgets, uic
 from collections import OrderedDict
 import os
@@ -60,13 +60,13 @@ class CloseEventEater(QtCore.QObject):
     def eventFilter(self, obj, event):
         if event.type() == QtCore.QEvent.Close:
             # eat close event
-            print "close"
+            print("close")
             reply = QtWidgets.QMessageBox.question(None, 
                                                self.title, 
                                                self.message,
                                                QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
             if reply == QtWidgets.QMessageBox.Yes:
-                print "closing"
+                print("closing")
                 if self.func_on_close:
                     self.func_on_close()
                 QtWidgets.QApplication.quit()
@@ -128,4 +128,4 @@ def print_all_connected(qobject, signal=None):
         signals = [signal]
     for signal in qobject.signals():
         for slot in qobject.connectedSlots():
-            print slot
+            print(slot)

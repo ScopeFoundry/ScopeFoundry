@@ -1,3 +1,4 @@
+from __future__ import absolute_import, print_function
 from qtpy import  QtCore, QtWidgets
 import pyqtgraph
 import numpy as np
@@ -160,9 +161,9 @@ class LoggedQuantity(QtCore.QObject):
         
         *force* will emit signals regardless of value change. 
         """
-        print "send_display_updates: {} force={}".format(self.name, force)
+        print("send_display_updates: {} force={}".format(self.name, force))
         if (not self.same_values(self.oldval, self.val)) or (force):
-            print "\tsend away: {} force={}".format(self.name, force)
+            print("\tsend away: {} force={}".format(self.name, force))
             self.updated_value[()].emit()
             
             #print "send display updates", self.name, self.val, self.oldval
@@ -242,7 +243,7 @@ class LoggedQuantity(QtCore.QObject):
          * pyqtgraph.widgets.SpinBox.SpinBox        
         
         """
-        print type(widget)
+        #print( type(widget) )
         if type(widget) == QtWidgets.QDoubleSpinBox:
             #self.updated_value[float].connect(widget.setValue )
             #widget.valueChanged[float].connect(self.update_value)
@@ -262,11 +263,11 @@ class LoggedQuantity(QtCore.QObject):
             widget.valueChanged[float].connect(self.update_value)
                 
         elif type(widget) == QtWidgets.QCheckBox:
-            print self.name
+            #print(self.name)
             #self.updated_value[bool].connect(widget.checkStateSet)
             #widget.stateChanged[int].connect(self.update_value)
             # Ed's version
-            print "connecting checkbox widget"
+            print("connecting checkbox widget")
             self.updated_value[bool].connect(widget.setChecked)
             widget.toggled[bool].connect(self.update_value)
             if self.ro:
@@ -277,7 +278,7 @@ class LoggedQuantity(QtCore.QObject):
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
             def on_edit_finished():
-                print "on_edit_finished", self.name
+                print("on_edit_finished", self.name)
                 self.update_value(widget.text())     
             widget.editingFinished.connect(on_edit_finished)
         elif type(widget) == QtWidgets.QPlainTextEdit:
@@ -332,7 +333,7 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_text_value.connect(widget.setText)
         elif type(widget) == QtWidgets.QProgressBar:
             def set_progressbar(x, widget=widget):
-                print "set_progressbar", x
+                print("set_progressbar", x)
                 widget.setValue(int(x))
             self.updated_value.connect(set_progressbar)
         else:
@@ -402,7 +403,7 @@ class FileLQ(LoggedQuantity):
             fname = QtWidgets.QFileDialog.getExistingDirectory(None)
         else:
             fname, _ = QtWidgets.QFileDialog.getOpenFileName(None)
-        print repr(fname)
+        print(repr(fname))
         if fname:
             self.update_value(fname)
             
@@ -444,7 +445,7 @@ class ArrayLQ(LoggedQuantity):
     def same_values(self, v1, v2):
         if v1.shape == v2.shape:
             return np.all(v1 == v2)
-            print "same_values", v2-v1, np.all(v1 == v2)        
+            print("same_values", v2-v1, np.all(v1 == v2))        
         else:
             return False
             
@@ -469,7 +470,7 @@ class ArrayLQ(LoggedQuantity):
         return np.array(x, dtype=self.dtype)
     
     def send_display_updates(self, force=False):
-        print self.name, 'send_display_updates'
+        print(self.name, 'send_display_updates')
         #print "send_display_updates: {} force={}".format(self.name, force)
         if force or np.any(self.oldval != self.val):
             
@@ -549,12 +550,12 @@ class LQRange(QtCore.QObject):
             return delta
 
     def recalc_with_new_num(self, new_num):
-        print "recalc_with_new_num", new_num
+        print("recalc_with_new_num", new_num)
         self._array_valid = False
         self._array = None
         #self._array = np.linspace(self.min.val, self.max.val, int(new_num))
         new_step = self.compute_step(self.min.val, self.max.val, int(new_num))
-        print "    new_step inside new_num", new_step
+        print( "    new_step inside new_num", new_step)
         self.step.update_value(new_step)#, send_signal=True, update_hardware=False)
         self.step.send_display_updates(force=True)
         self.updated_range.emit()
@@ -634,7 +635,7 @@ class LQCollection(object):
         
     def New(self, name, dtype=float, **kwargs):
         is_array = kwargs.pop('array', False)
-        print name, 'is_array', is_array
+        print(name, 'is_array', is_array)
         if is_array:
             lq = ArrayLQ(name=name, dtype=dtype, **kwargs)
         else:
@@ -730,9 +731,9 @@ class LQCollection(object):
 
 def print_signals_and_slots(obj):
     # http://visitusers.org/index.php?title=PySide_Recipes
-    for i in xrange(obj.metaObject().methodCount()):
+    for i in range(obj.metaObject().methodCount()):
         m = obj.metaObject().method(i)
         if m.methodType() == QtCore.QMetaMethod.MethodType.Signal:
-            print "SIGNAL: sig=", m.signature(), "hooked to nslots=",obj.receivers(QtCore.SIGNAL(m.signature()))
+            print("SIGNAL: sig=", m.signature(), "hooked to nslots=",obj.receivers(QtCore.SIGNAL(m.signature())))
         elif m.methodType() == QtCore.QMetaMethod.MethodType.Slot:
-            print "SLOT: sig=", m.signature()
+            print("SLOT: sig=", m.signature())
