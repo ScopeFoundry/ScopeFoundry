@@ -1,4 +1,4 @@
-from __future__ import division, print_function
+from __future__ import division, print_function, absolute_import
 from ScopeFoundry import BaseApp
 from ScopeFoundry.helper_funcs import load_qt_ui_file, sibling_path
 from collections import OrderedDict
@@ -86,7 +86,7 @@ class DataBrowser(BaseApp):
         new_view.ui.hide()
         
         # update choices for view_name
-        self.settings.view_name.change_choice_list(self.views.keys())
+        self.settings.view_name.change_choice_list(list(self.views.keys()))
         
 
     def on_change_data_filename(self):
@@ -142,7 +142,7 @@ class DataBrowser(BaseApp):
 
     def auto_select_view(self, fname):
         "return the name of the last supported view for the given fname"
-        for view_name, view in self.views.items()[::-1]:
+        for view_name, view in list(self.views.items())[::-1]:
             if view.is_file_supported(fname):
                 return view_name
         # return default file_info view if no others work
