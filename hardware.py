@@ -1,5 +1,5 @@
 from __future__ import absolute_import, print_function
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets, QtGui
 from .logged_quantity import LQCollection#, LoggedQuantity
 from collections import OrderedDict
 import pyqtgraph as pg
@@ -129,8 +129,8 @@ class HardwareComponent(QtCore.QObject):
         self.tree_item = QtWidgets.QTreeWidgetItem(tree, [self.name, "o"])
         tree.insertTopLevelItem(0, self.tree_item)
         self.tree_item.setFirstColumnSpanned(False)
-        self.tree_item.setForeground(1, QtWidgets.QColor('red'))
-
+        self.tree_item.setForeground(1, QtGui.QColor('red'))
+        print("#"*80)
         
         for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
@@ -201,9 +201,9 @@ class HardwareComponent(QtCore.QObject):
     def enable_connection(self, enable=True):
         if enable:
             self.connect()
-            self.tree_item.setForeground(1, QtWidgets.QColor('green'))
+            self.tree_item.setForeground(1, QtGui.QColor('green'))
         else:
-            self.tree_item.setForeground(1, QtWidgets.QColor('red'))
+            self.tree_item.setForeground(1, QtGui.QColor('red'))
             self.disconnect()
             
             
