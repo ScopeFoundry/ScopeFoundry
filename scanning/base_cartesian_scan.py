@@ -262,7 +262,7 @@ class BaseCartesian2DScan(Measurement):
     
             self.img_item.setImage(self.display_image_map[0,:,:])
             x0, x1, y0, y1 = self.imshow_extent
-            print x0, x1, y0, y1
+            print(x0, x1, y0, y1)
             self.img_item.setRect(QtCore.QRectF(x0, y0, x1-x0, y1-y0))
             
             self.initial_scan_setup_plotting = False
@@ -312,13 +312,13 @@ class BaseCartesian2DScan(Measurement):
         
     
     def pre_scan_setup(self):
-        print self.name, "pre_scan_setup not implemented"
+        print(self.name, "pre_scan_setup not implemented")
         # hardware
         # create data arrays
         # update figure
     
     def post_scan_cleanup(self):
-        print self.name, "post_scan_setup not implemented"
+        print(self.name, "post_scan_setup not implemented")
     
     @property
     def h_array(self):
@@ -360,7 +360,7 @@ class BaseCartesian2DScan(Measurement):
             self.scan_index_array[:,1] = JJ.flat
             self.scan_index_array[:,2] = II.flat
             #self.scan_v_positions
-            print "array flatten raster gen", time.time() - t0
+            print("array flatten raster gen", time.time() - t0)
             
         
     def gen_serpentine_scan(self, gen_arrays=True):
@@ -561,7 +561,7 @@ class BaseCartesian2DSlowScan(BaseCartesian2DScan):
     def collect_pixel(self, pixel_num, k, j, i):
         # collect data
         # store in arrays        
-        print self.name, "collect_pixel", pixel_num, k,j,i, "not implemented"
+        print(self.name, "collect_pixel", pixel_num, k,j,i, "not implemented")
     
 
 
@@ -584,7 +584,7 @@ class TestCartesian2DSlowScan(BaseCartesian2DSlowScan):
         self.prev_px = time.time()
          
     def post_scan_cleanup(self):
-        print "post_scan_cleanup"
+        print("post_scan_cleanup")
         
     def collect_pixel(self, pixel_i, k,j,i):
         #print pixel_i, k,j,i
