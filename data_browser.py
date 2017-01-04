@@ -68,7 +68,8 @@ class DataBrowser(BaseApp):
 
         self.settings['view_name'] = "file_info"
         
-        self.console_widget.show()
+        #self.console_widget.show()
+        self.ui.console_pushButton.clicked.connect(self.console_widget.show)
         self.ui.show()
 
     def on_change_test(self):
