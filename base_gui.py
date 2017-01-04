@@ -10,6 +10,7 @@ import datetime
 import numpy as np
 import collections
 from collections import OrderedDict
+
 try:
     import configparser
 except: # python 2
@@ -19,14 +20,21 @@ except: # python 2
 from qtpy import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
 #import pyqtgraph.console
-import IPython
-if IPython.version_info[0] < 4:
-    from IPython.qt.console.rich_ipython_widget import RichIPythonWidget as RichJupyterWidget
-    from IPython.qt.inprocess import QtInProcessKernelManager
-else:
-    from qtconsole.rich_jupyter_widget import RichJupyterWidget
-    from qtconsole.inprocess import QtInProcessKernelManager
 
+try:
+    import IPython
+    if IPython.version_info[0] < 4: #compatibility for IPython < 4.0 (pre Jupyter split)
+        from IPython.qt.console.rich_ipython_widget import RichIPythonWidget as RichJupyterWidget
+        from IPython.qt.inprocess import QtInProcessKernelManager
+    else:
+        from qtconsole.rich_jupyter_widget import RichJupyterWidget
+        from qtconsole.inprocess import QtInProcessKernelManager
+    CONSOLE_TYPE = 'qtconsole'
+except Exception as err:
+    print("unable to import ipython console, using pyqtgraph.console", err)
+    import pyqtgraph.console
+    CONSOLE_TYPE = 'pyqtgraph.console'
+    
 #import matplotlib
 #matplotlib.rcParams['backend.qt4'] = 'PySide'
 #from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
@@ -75,22 +83,26 @@ class BaseApp(QtCore.QObject):
         return self.qtapp.exec_()
         
     def setup_console_widget(self):
-        # Console 
-        #self.console_widget = pyqtgraph.console.ConsoleWidget(namespace={'gui':self, 'pg':pg, 'np':np}, text="ScopeFoundry GUI console")
-        # https://github.com/ipython/ipython-in-depth/blob/master/examples/Embedding/inprocess_qtconsole.py
-        self.kernel_manager = QtInProcessKernelManager()
-        self.kernel_manager.start_kernel()
-        self.kernel = self.kernel_manager.kernel
-        self.kernel.gui = 'qt4'
-        self.kernel.shell.push({'np': np, 'app': self})
-        self.kernel_client = self.kernel_manager.client()
-        self.kernel_client.start_channels()
-
-        #self.console_widget = RichIPythonWidget()
-        self.console_widget = RichJupyterWidget()
-        self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
-        self.console_widget.kernel_manager = self.kernel_manager
-        self.console_widget.kernel_client = self.kernel_client
+        # Console
+        if CONSOLE_TYPE == 'pyqtgraph.console':
+            self.console_widget = pyqtgraph.console.ConsoleWidget(namespace={'app':self, 'pg':pg, 'np':np}, text="ScopeFoundry Console")
+        elif CONSOLE_TYPE == 'qtconsole':
+            # https://github.com/ipython/ipython-in-depth/blob/master/examples/Embedding/inprocess_qtconsole.py
+            self.kernel_manager = QtInProcessKernelManager()
+            self.kernel_manager.start_kernel()
+            self.kernel = self.kernel_manager.kernel
+            self.kernel.gui = 'qt4'
+            self.kernel.shell.push({'np': np, 'app': self})
+            self.kernel_client = self.kernel_manager.client()
+            self.kernel_client.start_channels()
+    
+            #self.console_widget = RichIPythonWidget()
+            self.console_widget = RichJupyterWidget()
+            self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
+            self.console_widget.kernel_manager = self.kernel_manager
+            self.console_widget.kernel_client = self.kernel_client
+        else:
+            raise ValueError("CONSOLE_TYPE undefined")
         
         return self.console_widget         
 
