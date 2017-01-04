@@ -4,6 +4,10 @@ import pyqtgraph
 import numpy as np
 from collections import OrderedDict
 import json
+import sys
+
+if sys.version_info[0] == 3:
+    unicode = str
 
 class LoggedQuantity(QtCore.QObject):
     """
