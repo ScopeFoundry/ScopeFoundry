@@ -10,6 +10,8 @@ import datetime
 import numpy as np
 import collections
 from collections import OrderedDict
+import logging
+from ScopeFoundry.helper_funcs import get_logger_from_class
 
 try:
     import configparser
@@ -31,7 +33,7 @@ try:
         from qtconsole.inprocess import QtInProcessKernelManager
     CONSOLE_TYPE = 'qtconsole'
 except Exception as err:
-    print("unable to import ipython console, using pyqtgraph.console", err)
+    logging.warning("unable to import ipython console, using pyqtgraph.console", err)
     import pyqtgraph.console
     CONSOLE_TYPE = 'pyqtgraph.console'
     
@@ -53,13 +55,20 @@ import warnings
 import traceback
 
 # See https://riverbankcomputing.com/pipermail/pyqt/2016-March/037136.html
-# makes sure that exceptions in slots don't crash the whole app with PyQt 5.5 and higher
-sys.excepthook = traceback.print_exception
+# makes sure that unhandled exceptions in slots don't crash the whole app with PyQt 5.5 and higher
+# old version:
+## sys.excepthook = traceback.print_exception
+# new version to send to logger
+def log_unhandled_exception(*exc_info):
+    text = "".join(traceback.format_exception(*exc_info))
+    logging.critical("Unhandled exception:" + text)
+sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
     
     def __init__(self, argv):
         QtCore.QObject.__init__(self)
+        self.log = get_logger_from_class(self)
         
         self.this_dir, self.this_filename = os.path.split(__file__)
 
@@ -122,10 +131,10 @@ class BaseApp(QtCore.QObject):
         with open(fname, 'wb') as configfile:
             config.write(configfile)
         
-        print("ini settings saved to", fname, config.optionxform)    
+        self.logger.info("ini settings saved to", fname, config.optionxform)    
 
     def settings_load_ini(self, fname):
-        print("ini settings loading from", fname)
+        self.logger.info("ini settings loading from", fname)
         
         def str2bool(v):
             return v.lower() in ("yes", "true", "t", "1")
@@ -136,7 +145,7 @@ class BaseApp(QtCore.QObject):
 
         if 'app' in config.sections():
             for lqname, new_val in config.items('app'):
-                print(lqname)
+                #print(lqname)
                 lq = self.settings.as_dict().get(lqname)
                 if lq:
                     if lq.dtype == bool:
@@ -146,7 +155,7 @@ class BaseApp(QtCore.QObject):
     def settings_save_ini_ask(self, dir=None, save_ro=True):
         # TODO add default directory, etc
         fname, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, caption=u'Save Settings', dir=u"", filter=u"Settings (*.ini)")
-        print(repr(fname))
+        #print(repr(fname))
         if fname:
             self.settings_save_ini(fname, save_ro=save_ro)
         return fname
@@ -154,7 +163,7 @@ class BaseApp(QtCore.QObject):
     def settings_load_ini_ask(self, dir=None):
         # TODO add default directory, etc
         fname, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Settings (*.ini)")
-        print(repr(fname))
+        #print(repr(fname))
         if fname:
             self.settings_load_ini(fname)
         return fname  
@@ -189,6 +198,7 @@ class BaseMicroscopeApp(BaseApp):
 
         self.setup()
         
+        
         self.setup_default_ui()
 
 
@@ -204,7 +214,7 @@ class BaseMicroscopeApp(BaseApp):
 
         # Setup the figures         
         for name, measure in self.measurements.items():
-            print("setting up figures for", name, "measurement", measure.name)            
+            self.logger.info("setting up figures for", name, "measurement", measure.name)            
             measure.setup_figure()
             if self.mdi and hasattr(measure, 'ui'):
                 self.ui.mdiArea.addSubWindow(measure.ui)
@@ -231,15 +241,15 @@ class BaseMicroscopeApp(BaseApp):
         return self.quickbar
         
     def on_close(self):
-        print("on_close")
+        self.logger.info("on_close")
         # disconnect all hardware objects
         for hw in self.hardware.values():
-            print("disconnecting", hw.name)
+            self.logger.info("disconnecting", hw.name)
             if hw.settings['connected']:
                 try:
                     hw.disconnect()
                 except Exception as err:
-                    print("tried to disconnect", hw.name, err)
+                    self.logger.error("tried to disconnect", hw.name, err)
 
     def setup(self):
         """ Override to add Hardware and Measurement Components"""
@@ -258,7 +268,7 @@ class BaseMicroscopeApp(BaseApp):
     """
         
     def add_pg_graphics_layout(self, name, widget):
-        print("---adding pg GraphicsLayout figure", name, widget)
+        self.logger.info("---adding pg GraphicsLayout figure", name, widget)
         if name in self.figs:
             return self.figs[name]
         else:
@@ -311,7 +321,7 @@ class BaseMicroscopeApp(BaseApp):
         with h5_io.h5_base_file(self, fname) as h5_file:
             for measurement in self.measurements.values():
                 h5_io.h5_create_measurement_group(measurement, h5_file)
-            print("settings saved to", h5_file.filename)
+            self.logger.info("settings saved to", h5_file.filename)
             
     def settings_save_ini(self, fname, save_ro=True, save_gui=True, save_hardware=True, save_measurements=True):
         config = configparser.ConfigParser()
@@ -337,12 +347,12 @@ class BaseMicroscopeApp(BaseApp):
         with open(fname, 'wb') as configfile:
             config.write(configfile)
         
-        print("ini settings saved to", fname, config.optionxform)
+        self.logger.info("ini settings saved to", fname, config.optionxform)
 
 
         
     def settings_load_ini(self, fname):
-        print("ini settings loading from", fname)
+        self.logger.info("ini settings loading from", fname)
         
         def str2bool(v):
             return v.lower() in ("yes", "true", "t", "1")
@@ -361,7 +371,7 @@ class BaseMicroscopeApp(BaseApp):
         
         for hc_name, hc in self.hardware.items():
             section_name = 'hardware/'+hc_name
-            print(section_name)
+            self.logger.info(section_name)
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
                     try:
@@ -371,7 +381,7 @@ class BaseMicroscopeApp(BaseApp):
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
-                        print("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                        self.logger.error("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                         
         for meas_name, measurement in self.measurements.items():
             section_name = 'measurement/'+meas_name            
@@ -383,7 +393,7 @@ class BaseMicroscopeApp(BaseApp):
                     if not lq.ro:
                         lq.update_value(new_val)
         
-        print("ini settings loaded from", fname)
+        self.logger.info("ini settings loaded from", fname)
         
     def settings_load_h5(self, fname):
         import h5py

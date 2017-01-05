@@ -13,7 +13,7 @@ from .logged_quantity import LQCollection
 from .helper_funcs import load_qt_ui_file
 from collections import OrderedDict
 import pyqtgraph as pg
-import warnings
+from ScopeFoundry.helper_funcs import get_logger_from_class
 
 class MeasurementQThread(QtCore.QThread):
     def __init__(self, measurement, parent=None):
@@ -46,6 +46,7 @@ class Measurement(QtCore.QObject):
         """
         
         QtCore.QObject.__init__(self)
+        self.log = get_logger_from_class(self)
 
         self.app = app
         
@@ -80,14 +81,16 @@ class Measurement(QtCore.QObject):
         
         self.setup()
         
+        
+        
         try:
             self._add_control_widgets_to_measurements_tab()
         except Exception as err:
-            print("MeasurementComponent: could not add to measurement tab", self.name,  err)
+            self.log.warning("MeasurementComponent: could not add to measurement tab", self.name,  err)
         try:
             self._add_control_widgets_to_measurements_tree()
         except Exception as err:
-            print("MeasurementComponent: could not add to measurement tree", self.name,  err)
+            self.log.warning("MeasurementComponent: could not add to measurement tree", self.name,  err)
 
 
     def setup(self):
@@ -102,7 +105,7 @@ class Measurement(QtCore.QObject):
         Overide setup_figure to build graphical interfaces. 
         This function is run on ScopeFoundry startup.
         """
-        print("Empty setup_figure called")
+        self.log.info("Empty setup_figure called")
         pass
     
     @QtCore.Slot()
@@ -114,7 +117,7 @@ class Measurement(QtCore.QObject):
         creates acquisition thread 
         runs thread
         """ 
-        print("measurement", self.name, "start")
+        self.log.info("measurement", self.name, "start")
         self.interrupt_measurement_called = False
         if (self.acq_thread is not None) and self.is_measuring():
             raise RuntimeError("Cannot start a new measurement while still measuring")
@@ -142,7 +145,7 @@ class Measurement(QtCore.QObject):
         """
         
         if hasattr(self, '_run'):
-            print("warning _run is deprecated, use run")
+            self.log.warning("warning _run is deprecated, use run")
             self._run()
         else:
             raise NotImplementedError("Measurement {}.run() not defined".format(self.name))
@@ -173,7 +176,7 @@ class Measurement(QtCore.QObject):
 
     @property
     def gui(self):
-        warnings.warn("Measurement.gui is deprecated, use Measurement.app", DeprecationWarning)
+        self.log.warning("Measurement.gui is deprecated, use Measurement.app", DeprecationWarning)
         return self.app
     
     def set_progress(self, pct):
@@ -188,7 +191,7 @@ class Measurement(QtCore.QObject):
         To actually stop, the threaded :meth:`run` method must check
         for this flag and exit
         """
-        print("measurement", self.name, "interrupt")
+        self.log.info("measurement", self.name, "interrupt")
         self.interrupt_measurement_called = True
         self.activation.update_value(False)
         #Make sure display is up to date        
@@ -202,7 +205,7 @@ class Measurement(QtCore.QObject):
         Use boolean *start* to either start (True) or
         interrupt (False) measurement
         """
-        print(self.name, "start_stop", start)
+        self.log.info(self.name, "start_stop", start)
         if start:
             self.start()
         else:
@@ -236,7 +239,7 @@ class Measurement(QtCore.QObject):
             self.update_display()
         except Exception as err:
             pass
-            print( self.name, "Failed to update figure:", err)            
+            self.log.error( self.name, "Failed to update figure:", err)            
         finally:
             if not self.is_measuring():
                 self.display_update_timer.stop()

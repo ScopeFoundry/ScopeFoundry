@@ -72,8 +72,6 @@ class DataBrowser(BaseApp):
         self.ui.console_pushButton.clicked.connect(self.console_widget.show)
         self.ui.show()
 
-    def on_change_test(self):
-        print("on_change_test")
         
     def load_view(self, new_view):
         
@@ -101,21 +99,22 @@ class DataBrowser(BaseApp):
                 self.settings['view_name'] = view_name
             else:
                 # force update
-                self.current_view.on_change_data_filename(fname)
+                if  os.path.isfile(fname):
+                    self.current_view.on_change_data_filename(fname)
 
     @QtCore.Slot()
     def on_change_browse_dir(self):
-        print("on_change_browse_dir")
+        self.log.debug("on_change_browse_dir")
         self.ui.treeView.setRootIndex(self.fs_model.index(self.settings['browse_dir']))
     
     def on_change_file_filter(self):
-        print("on_change_file_filter")
+        self.log.debug("on_change_file_filter")
         filter_str = self.settings['file_filter']
         if filter_str == "":
             filter_str = "*"
             self.settings['file_filter'] = "*"
         filter_str_list = [x.strip() for x in filter_str.split(',')]
-        print(filter_str_list)
+        self.log.debug(filter_str_list)
         self.fs_model.setNameFilters(filter_str_list)
                     
     def on_change_view_name(self):
@@ -134,7 +133,9 @@ class DataBrowser(BaseApp):
         self.current_view.ui.show()
         
         # set datafile for new (current) view
-        self.current_view.on_change_data_filename(self.settings['data_filename'])
+        fname = self.settings['data_filename']
+        if  os.path.isfile(fname):
+            self.current_view.on_change_data_filename(self.settings['data_filename'])
 
     def on_treeview_selection_change(self, sel, desel):
         fname = self.fs_model.filePath(self.tree_selectionModel.currentIndex())

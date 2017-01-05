@@ -5,6 +5,8 @@ import numpy as np
 from collections import OrderedDict
 import json
 import sys
+import logging
+from ScopeFoundry.helper_funcs import get_logger_from_class
 
 if sys.version_info[0] == 3:
     unicode = str
@@ -55,6 +57,8 @@ class LoggedQuantity(QtCore.QObject):
         self.vmax = vmax
         self.choices = self._expand_choices(choices) # should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
         self.ro = ro # Read-Only
+        
+        self.log = get_logger_from_class(self)
         
         if self.dtype == int:
             self.spinbox_decimals = 0
@@ -165,9 +169,9 @@ class LoggedQuantity(QtCore.QObject):
         
         *force* will emit signals regardless of value change. 
         """
-        print("send_display_updates: {} force={}".format(self.name, force))
+        self.log.debug("send_display_updates: {} force={}".format(self.name, force))
         if (not self.same_values(self.oldval, self.val)) or (force):
-            print("\tsend away: {} force={}".format(self.name, force))
+            self.log.debug("\tsend away: {} force={}".format(self.name, force))
             self.updated_value[()].emit()
             
             #print "send display updates", self.name, self.val, self.oldval
@@ -282,7 +286,7 @@ class LoggedQuantity(QtCore.QObject):
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
             def on_edit_finished():
-                print("on_edit_finished", self.name)
+                self.log.debug("on_edit_finished", self.name)
                 self.update_value(widget.text())     
             widget.editingFinished.connect(on_edit_finished)
         elif type(widget) == QtWidgets.QPlainTextEdit:
@@ -337,7 +341,7 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_text_value.connect(widget.setText)
         elif type(widget) == QtWidgets.QProgressBar:
             def set_progressbar(x, widget=widget):
-                print("set_progressbar", x)
+                self.log.debug("set_progressbar", x)
                 widget.setValue(int(x))
             self.updated_value.connect(set_progressbar)
         else:
@@ -407,7 +411,7 @@ class FileLQ(LoggedQuantity):
             fname = QtWidgets.QFileDialog.getExistingDirectory(None)
         else:
             fname, _ = QtWidgets.QFileDialog.getOpenFileName(None)
-        print(repr(fname))
+        self.log.debug(repr(fname))
         if fname:
             self.update_value(fname)
             
@@ -449,7 +453,7 @@ class ArrayLQ(LoggedQuantity):
     def same_values(self, v1, v2):
         if v1.shape == v2.shape:
             return np.all(v1 == v2)
-            print("same_values", v2-v1, np.all(v1 == v2))        
+            self.log.debug("same_values %s %s" % (v2-v1, np.all(v1 == v2)))        
         else:
             return False
             
@@ -474,7 +478,7 @@ class ArrayLQ(LoggedQuantity):
         return np.array(x, dtype=self.dtype)
     
     def send_display_updates(self, force=False):
-        print(self.name, 'send_display_updates')
+        self.log.debug(self.name + ' send_display_updates')
         #print "send_display_updates: {} force={}".format(self.name, force)
         if force or np.any(self.oldval != self.val):
             
@@ -554,12 +558,12 @@ class LQRange(QtCore.QObject):
             return delta
 
     def recalc_with_new_num(self, new_num):
-        print("recalc_with_new_num", new_num)
+        self.log.debug("recalc_with_new_num", new_num)
         self._array_valid = False
         self._array = None
         #self._array = np.linspace(self.min.val, self.max.val, int(new_num))
         new_step = self.compute_step(self.min.val, self.max.val, int(new_num))
-        print( "    new_step inside new_num", new_step)
+        self.log.debug( "    new_step inside new_num", new_step)
         self.step.update_value(new_step)#, send_signal=True, update_hardware=False)
         self.step.send_display_updates(force=True)
         self.updated_range.emit()
@@ -637,9 +641,11 @@ class LQCollection(object):
         self._logged_quantities = OrderedDict()
         self.ranges = OrderedDict()
         
+        self.log = get_logger_from_class(self)
+        
     def New(self, name, dtype=float, **kwargs):
         is_array = kwargs.pop('array', False)
-        print(name, 'is_array', is_array)
+        #self.log.debug("{} is_array? {}".format(name, is_array))
         if is_array:
             lq = ArrayLQ(name=name, dtype=dtype, **kwargs)
         else:
