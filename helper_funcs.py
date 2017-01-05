@@ -2,6 +2,7 @@ from __future__ import absolute_import, print_function
 from qtpy import QtCore, QtWidgets, uic
 from collections import OrderedDict
 import os
+import logging
 
 class OrderedAttrDict(object):
 
@@ -60,13 +61,13 @@ class CloseEventEater(QtCore.QObject):
     def eventFilter(self, obj, event):
         if event.type() == QtCore.QEvent.Close:
             # eat close event
-            print("close")
+            logging.debug("close")
             reply = QtWidgets.QMessageBox.question(None, 
                                                self.title, 
                                                self.message,
                                                QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
             if reply == QtWidgets.QMessageBox.Yes:
-                print("closing")
+                logging.debug("closing")
                 if self.func_on_close:
                     self.func_on_close()
                 QtWidgets.QApplication.quit()
@@ -129,3 +130,10 @@ def print_all_connected(qobject, signal=None):
     for signal in qobject.signals():
         for slot in qobject.connectedSlots():
             print(slot)
+            
+            
+def get_logger_from_class(obj):
+    """ returns a named Logger from the logging package using the
+    full name of the class of the object (obj) as the log name
+    """ 
+    return logging.getLogger(obj.__module__ + "." + obj.__class__.__name__)

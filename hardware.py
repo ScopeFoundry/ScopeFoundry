@@ -4,6 +4,7 @@ from .logged_quantity import LQCollection#, LoggedQuantity
 from collections import OrderedDict
 import pyqtgraph as pg
 import warnings
+from ScopeFoundry.helper_funcs import get_logger_from_class
 
 class HardwareComponent(QtCore.QObject):
     """
@@ -41,6 +42,7 @@ class HardwareComponent(QtCore.QObject):
         """
         
         QtCore.QObject.__init__(self)
+        self.log = get_logger_from_class(self)
 
         self.app = app
 
@@ -54,15 +56,16 @@ class HardwareComponent(QtCore.QObject):
         self.debug_mode = self.add_logged_quantity("debug_mode", dtype=bool, initial=debug)
         
         self.setup()
+        
 
         try:
             self._add_control_widgets_to_hardware_tab()
         except Exception as err:
-            print("HardwareComponent: could not add to hardware tab", self.name,  err )
+            self.log.error("HardwareComponent: could not add to hardware tab", self.name,  err )
         try:
             self._add_control_widgets_to_hardware_tree()
         except Exception as err:
-            print("HardwareComponent: could not add to hardware tree", self.name,  err )
+            self.log.error("HardwareComponent: could not add to hardware tree", self.name,  err )
 
         self.has_been_connected_once = False
         
@@ -130,7 +133,6 @@ class HardwareComponent(QtCore.QObject):
         tree.insertTopLevelItem(0, self.tree_item)
         self.tree_item.setFirstColumnSpanned(False)
         self.tree_item.setForeground(1, QtGui.QColor('red'))
-        print("#"*80)
         
         for lqname, lq in self.settings.as_dict().items():
             #: :type lq: LoggedQuantity
@@ -177,7 +179,7 @@ class HardwareComponent(QtCore.QObject):
         Read all settings (:class:`LoggedQuantity`) connected to hardware states
         """
         for name, lq in self.settings.as_dict().items():
-            if self.debug_mode.val: print("read_from_hardware", name)
+            if self.debug_mode.val: self.log.debug("read_from_hardware", name)
             lq.read_from_hardware()
         
     
