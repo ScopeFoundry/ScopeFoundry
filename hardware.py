@@ -51,7 +51,7 @@ class HardwareComponent(QtCore.QObject):
         self.operations = OrderedDict()
 
         self.connected = self.add_logged_quantity("connected", dtype=bool)
-        self.connected.updated_value.connect(self.enable_connection)
+        self.connected.updated_value[bool].connect(self.enable_connection)
         
         self.debug_mode = self.add_logged_quantity("debug_mode", dtype=bool, initial=debug)
         
