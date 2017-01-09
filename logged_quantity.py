@@ -275,7 +275,7 @@ class LoggedQuantity(QtCore.QObject):
             #self.updated_value[bool].connect(widget.checkStateSet)
             #widget.stateChanged[int].connect(self.update_value)
             # Ed's version
-            print("connecting checkbox widget")
+            self.log.debug("connecting checkbox widget")
             self.updated_value[bool].connect(widget.setChecked)
             widget.toggled[bool].connect(self.update_value)
             if self.ro:
@@ -286,7 +286,7 @@ class LoggedQuantity(QtCore.QObject):
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
             def on_edit_finished():
-                self.log.debug("on_edit_finished", self.name)
+                self.log.debug("on_edit_finished")
                 self.update_value(widget.text())     
             widget.editingFinished.connect(on_edit_finished)
         elif type(widget) == QtWidgets.QPlainTextEdit:
@@ -341,7 +341,7 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_text_value.connect(widget.setText)
         elif type(widget) == QtWidgets.QProgressBar:
             def set_progressbar(x, widget=widget):
-                self.log.debug("set_progressbar", x)
+                self.log.debug("set_progressbar {}".format(x))
                 widget.setValue(int(x))
             self.updated_value.connect(set_progressbar)
         else:
@@ -513,6 +513,7 @@ class LQRange(QtCore.QObject):
     
     def __init__(self, min_lq,max_lq,step_lq, num_lq, center_lq=None, span_lq=None):
         QtCore.QObject.__init__(self)
+        self.log = get_logger_from_class(self)
 
         self.min = min_lq
         self.max = max_lq
@@ -558,12 +559,12 @@ class LQRange(QtCore.QObject):
             return delta
 
     def recalc_with_new_num(self, new_num):
-        self.log.debug("recalc_with_new_num", new_num)
+        self.log.debug("recalc_with_new_num {}".format( new_num))
         self._array_valid = False
         self._array = None
         #self._array = np.linspace(self.min.val, self.max.val, int(new_num))
         new_step = self.compute_step(self.min.val, self.max.val, int(new_num))
-        self.log.debug( "    new_step inside new_num", new_step)
+        self.log.debug( "    new_step inside new_num {}".format( new_step))
         self.step.update_value(new_step)#, send_signal=True, update_hardware=False)
         self.step.send_display_updates(force=True)
         self.updated_range.emit()
