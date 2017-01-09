@@ -61,11 +61,11 @@ class HardwareComponent(QtCore.QObject):
         try:
             self._add_control_widgets_to_hardware_tab()
         except Exception as err:
-            self.log.error("HardwareComponent: could not add to hardware tab", self.name,  err )
+            self.log.info("HardwareComponent: could not add to hardware tab {} {}".format( self.name,  err ))
         try:
             self._add_control_widgets_to_hardware_tree()
         except Exception as err:
-            self.log.error("HardwareComponent: could not add to hardware tree", self.name,  err )
+            self.log.info("HardwareComponent: could not add to hardware tree {} {}".format( self.name,  err ))
 
         self.has_been_connected_once = False
         

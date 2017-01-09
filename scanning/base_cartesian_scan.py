@@ -10,10 +10,8 @@ import numpy as np
 import pyqtgraph as pg
 import time
 from ScopeFoundry import h5_io
-from hardware_components import apd_counter
 from qtpy import QtCore
 from ScopeFoundry import LQRange
-import warnings
 
 def ijk_zigzag_generator(dims, axis_order=(0,1,2)):
     """3D zig-zag scan pattern generator with arbitrary fast axis order"""
