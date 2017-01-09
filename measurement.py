@@ -86,11 +86,11 @@ class Measurement(QtCore.QObject):
         try:
             self._add_control_widgets_to_measurements_tab()
         except Exception as err:
-            self.log.warning("MeasurementComponent: could not add to measurement tab", self.name,  err)
+            self.log.warning("MeasurementComponent: could not add to measurement tab: {}, {}".format(self.name,  err))
         try:
             self._add_control_widgets_to_measurements_tree()
         except Exception as err:
-            self.log.warning("MeasurementComponent: could not add to measurement tree", self.name,  err)
+            self.log.warning("MeasurementComponent: could not add to measurement tree: {}, {}".format(self.name,  err))
 
 
     def setup(self):
@@ -117,7 +117,7 @@ class Measurement(QtCore.QObject):
         creates acquisition thread 
         runs thread
         """ 
-        self.log.info("measurement", self.name, "start")
+        self.log.info("measurement {} start".format(self.name))
         self.interrupt_measurement_called = False
         if (self.acq_thread is not None) and self.is_measuring():
             raise RuntimeError("Cannot start a new measurement while still measuring")
@@ -176,7 +176,7 @@ class Measurement(QtCore.QObject):
 
     @property
     def gui(self):
-        self.log.warning("Measurement.gui is deprecated, use Measurement.app", DeprecationWarning)
+        self.log.warning("Measurement.gui is deprecated, use Measurement.app " + repr(DeprecationWarning))
         return self.app
     
     def set_progress(self, pct):
@@ -191,7 +191,7 @@ class Measurement(QtCore.QObject):
         To actually stop, the threaded :meth:`run` method must check
         for this flag and exit
         """
-        self.log.info("measurement", self.name, "interrupt")
+        self.log.info("measurement {} interrupt".format(self.name))
         self.interrupt_measurement_called = True
         self.activation.update_value(False)
         #Make sure display is up to date        
@@ -205,7 +205,7 @@ class Measurement(QtCore.QObject):
         Use boolean *start* to either start (True) or
         interrupt (False) measurement
         """
-        self.log.info(self.name, "start_stop", start)
+        self.log.info("{} start_stop {}".format(self.name, start))
         if start:
             self.start()
         else:
@@ -239,7 +239,7 @@ class Measurement(QtCore.QObject):
             self.update_display()
         except Exception as err:
             pass
-            self.log.error( self.name, "Failed to update figure:", err)            
+            self.log.error("{} Failed to update figure: {}".format(self.name, err))          
         finally:
             if not self.is_measuring():
                 self.display_update_timer.stop()
