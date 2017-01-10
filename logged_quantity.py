@@ -5,9 +5,9 @@ import numpy as np
 from collections import OrderedDict
 import json
 import sys
-import logging
 from ScopeFoundry.helper_funcs import get_logger_from_class
 
+# python 2/3 compatibility
 if sys.version_info[0] == 3:
     unicode = str
 
