@@ -260,14 +260,17 @@ class BaseCartesian2DScan(Measurement):
     
             self.img_item.setImage(self.display_image_map[0,:,:])
             x0, x1, y0, y1 = self.imshow_extent
-            print(x0, x1, y0, y1)
-            self.img_item.setRect(QtCore.QRectF(x0, y0, x1-x0, y1-y0))
+            self.log.debug('update_display set bounds {} {} {} {}'.format(x0, x1, y0, y1))
+            self.img_item_rect = QtCore.QRectF(x0, y0, x1-x0, y1-y0)
+            self.img_item.setRect(self.img_item_rect)
+            self.log.debug('update_display set bounds {}'.format(self.img_item_rect))
             
             self.initial_scan_setup_plotting = False
         else:
             #if self.settings.scan_type.val in ['raster']
             kk, jj, ii = self.current_scan_index
             self.img_item.setImage(self.display_image_map[kk,:,:].T, autoRange=False, autoLevels=False)
+            self.img_item.setRect(self.img_item_rect) # Important to set rectangle after setImage for non-square pixels
             self.hist_lut.imageChanged(autoLevel=True)
             
     def clear_previous_scans(self):
