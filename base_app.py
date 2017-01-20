@@ -33,7 +33,7 @@ try:
         from qtconsole.inprocess import QtInProcessKernelManager
     CONSOLE_TYPE = 'qtconsole'
 except Exception as err:
-    logging.warning("unable to import ipython console, using pyqtgraph.console {}".format( err))
+    logging.warning("Unable to import iPython console, using pyqtgraph.console instead. Error: {}".format( err))
     import pyqtgraph.console
     CONSOLE_TYPE = 'pyqtgraph.console'
     
@@ -62,7 +62,7 @@ import traceback
 def log_unhandled_exception(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     logging.critical("Unhandled exception:" + text)
-sys.excepthook = log_unhandled_exception
+#sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
     
@@ -244,7 +244,7 @@ class BaseMicroscopeApp(BaseApp):
         self.log.info("on_close")
         # disconnect all hardware objects
         for hw in self.hardware.values():
-            self.log.info("disconnecting", hw.name)
+            self.log.info("disconnecting {}".format( hw.name))
             if hw.settings['connected']:
                 try:
                     hw.disconnect()
