@@ -234,6 +234,16 @@ class BaseMicroscopeApp(BaseApp):
         if hasattr(self.ui, "settings_load_pushButton"):
             self.ui.settings_load_pushButton.clicked.connect(self.settings_load_dialog)
         
+        #Menu bar entries:
+        # To do: connect self.ui.action_set_data_dir to save data directory function 
+            # (Function has yet to be created)
+        # To do: connect self.ui.action_log_viewer to log viewer function
+            # (Function has yet to be created)
+        self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)
+        self.ui.action_save_ini.triggered.connect(self.settings_save_dialog)
+        self.ui.action_console.triggered.connect(self.console_widget.show)
+        self.ui.action_console.triggered.connect(self.console_widget.activateWindow)
+        
         
     def add_quickbar(self, widget):
         self.ui.scrollAreaWidgetContents.layout().addWidget(widget)
