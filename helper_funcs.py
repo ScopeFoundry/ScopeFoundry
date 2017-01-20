@@ -130,7 +130,15 @@ def print_all_connected(qobject, signal=None):
     for signal in qobject.signals():
         for slot in qobject.connectedSlots():
             print(slot)
-            
+
+def print_signals_and_slots(obj):
+    # http://visitusers.org/index.php?title=PySide_Recipes
+    for i in range(obj.metaObject().methodCount()):
+        m = obj.metaObject().method(i)
+        if m.methodType() == QtCore.QMetaMethod.MethodType.Signal:
+            print("SIGNAL: sig=", m.signature(), "hooked to nslots=",obj.receivers(QtCore.SIGNAL(m.signature())))
+        elif m.methodType() == QtCore.QMetaMethod.MethodType.Slot:
+            print("SLOT: sig=", m.signature())
             
 def get_logger_from_class(obj):
     """ returns a named Logger from the logging package using the

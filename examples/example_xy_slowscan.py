@@ -5,7 +5,7 @@ from ScopeFoundry import BaseMicroscopeApp
 
 # Import Hardware Components
 from hardware_components.apd_counter import  APDCounterHardwareComponent
-from ScopeFoundry.examples.hardware.dummy_xy_stage import DummyXYStage
+from ScopeFoundry.examples.hardware.dummy_xy_stage import DummyXYStageHW
 
 # Import Measurement Components
 from measurement_components.apd_optimizer_simple import APDOptimizerMeasurement
@@ -20,7 +20,7 @@ class ExampleXYSlowscanApp(BaseMicroscopeApp):
         #Add hardware components
         print "Adding Hardware Components"
         self.add_hardware_component(APDCounterHardwareComponent(self))
-        self.add_hardware_component(DummyXYStage(self))
+        self.add_hardware_component(DummyXYStageHW(self))
 
         #Add measurement components
         print "Create Measurement objects"

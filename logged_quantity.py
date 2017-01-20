@@ -6,10 +6,34 @@ from collections import OrderedDict
 import json
 import sys
 from ScopeFoundry.helper_funcs import get_logger_from_class
+#import threading
 
 # python 2/3 compatibility
 if sys.version_info[0] == 3:
     unicode = str
+    
+class DummyLock(object):
+    def acquire(self):
+        pass
+    def release(self):
+        pass
+    def __enter__(self):
+        return self
+    def __exit__(self, *args):
+        pass
+
+
+class QLock(QtCore.QMutex):
+    def acquire(self):
+        self.lock()
+    def release(self):
+        self.unlock()
+    def __enter__(self):
+        self.acquire()
+        return self
+    def __exit__(self, *args):
+        self.release()
+
 
 class LoggedQuantity(QtCore.QObject):
     """
@@ -78,6 +102,11 @@ class LoggedQuantity(QtCore.QObject):
         self.widget_list = []
         self.listeners = []
         
+        # threading lock
+        #self.lock = threading.Lock()
+        #self.lock = DummyLock()
+        self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
+        
     def coerce_to_type(self, x):
         """force x to dtype of the LQ"""        
         return self.dtype(x)
@@ -93,16 +122,14 @@ class LoggedQuantity(QtCore.QObject):
             else:
                 expanded_choices.append( ( str(c), self.dtype(c) ) )
         return expanded_choices
-
-
+    
     def read_from_hardware(self, send_signal=True):
-        if self.hardware_read_func:
-            self.oldval = self.val
-            val = self.hardware_read_func()
-            #print "read_from_hardware", self.name, val
-            self.val = self.coerce_to_type(val)
-            if send_signal:
-                self.send_display_updates()
+        self.log.debug("{}: read_from_hardware send_signal={}".format(self.name, send_signal))
+        if self.hardware_read_func:        
+            with self.lock:
+                self.oldval = self.val
+                val = self.hardware_read_func()
+            self.update_value(new_val=val, update_hardware=False, send_signal=send_signal)
         return self.val
 
     def value(self):
@@ -125,41 +152,45 @@ class LoggedQuantity(QtCore.QObject):
         Options:
         update_hardware (default True): calls hardware_set_func if defined
         send_signal (default True): sends out QT signals on change
-        reread_hardware: read from hardware after writing to hardware to ensure change         
-        
+        reread_hardware: read from hardware after writing to hardware to ensure change
+                         (defaults to self.reread_from_hardware_after_write)
         """
-        #print "LQ update_value", self.name, self.val, "-->",  new_val
-        if new_val is None:
-            #print "update_value {} new_val is None. From Sender {}".format(self.name, self.sender())
-            new_val = self.sender().text()
-
-        self.oldval = self.coerce_to_type(self.val)
-        new_val = self.coerce_to_type(new_val)
-        
-        #print "LQ update_value1", self.name
-
-        if self.same_values(self.oldval, new_val):
-            #print "same_value so returning", self.oldval, new_val
-            self._in_reread_loop = False #once value has settled in the event loop, re-enable reading from hardware
-            return
-        
-        self.val = new_val
-
-        #print "LQ update_value2", self.name
+        # use a thread lock during update_value to avoid another thread
+        # calling update_value during the update_value
         
         if reread_hardware is None:
+            # if undefined, default to stored reread_from_hardware_after_write bool
             reread_hardware = self.reread_from_hardware_after_write
         
-        #print "called update_value", self.name, new_val, reread_hardware
-        if update_hardware and self.hardware_set_func and not self._in_reread_loop:
+        with self.lock:
+            
+            # sometimes a the sender is a textbox that does not send its new value,
+            # grab the text() from it instead
+            if new_val is None:
+                new_val = self.sender().text()
+    
+            self.oldval = self.coerce_to_type(self.val)
+            new_val = self.coerce_to_type(new_val)
+            
+            self.log.debug("{}: update_value {} --> {}    sender={}".format(self.name, self.oldval, new_val, self.sender()))
+    
+            # check for equality of new vs old, do not proceed if they are same
+            if self.same_values(self.oldval, new_val):
+                self.log.debug("{}: same_value so returning {} {}".format(self.name, self.oldval, new_val))
+                return
+            else:
+                pass
+                
+            # actually change internal state value
+            self.val = new_val
+        
+        
+        # Read from Hardware
+        if update_hardware and self.hardware_set_func:
             self.hardware_set_func(self.val)
             if reread_hardware:
-                # re-reading from hardware can set off a loop of setting 
-                # and re-reading from hardware if hardware readout is not
-                # exactly the requested value. temporarily disable rereading
-                # from hardware until value in LoggedQuantity has settled
-                self._in_reread_loop = True 
-                self.read_from_hardware(send_signal=False) # changed send_signal to false (ESB 2015-08-05)
+                self.read_from_hardware(send_signal=False)
+        # Send Qt Signals
         if send_signal:
             self.send_display_updates()
             
@@ -169,18 +200,15 @@ class LoggedQuantity(QtCore.QObject):
         
         *force* will emit signals regardless of value change. 
         """
-        self.log.debug("send_display_updates: {} force={}".format(self.name, force))
+        #self.log.debug("send_display_updates: {} force={}".format(self.name, force))
         if (not self.same_values(self.oldval, self.val)) or (force):
-            self.log.debug("\tsend away: {} force={}".format(self.name, force))
             self.updated_value[()].emit()
             
-            #print "send display updates", self.name, self.val, self.oldval
             str_val = self.string_value()
             self.updated_value[str].emit(str_val)
             self.updated_text_value.emit(str_val)
                 
             if self.dtype in [float, int]:
-                #print 'emit', self.name, "updated_value[int]"
                 self.updated_value[float].emit(self.val)
                 self.updated_value[int].emit(int(self.val))
             self.updated_value[bool].emit(bool(self.val))
@@ -191,10 +219,13 @@ class LoggedQuantity(QtCore.QObject):
                     self.updated_choice_index_value.emit(choice_vals.index(self.val) )
             self.oldval = self.val
         else:
+            # no updates sent
             pass
-            #print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
     
     def same_values(self, v1, v2):
+        """ compare two values of the LQ type
+            used in update_value
+        """
         return v1 == v2
     
     def string_value(self):
@@ -219,16 +250,17 @@ class LoggedQuantity(QtCore.QObject):
         (i.e. int, float, str)
         **kwargs are passed to the connect function
         appends the 'func' to the 'listeners' list
-        
+        """
+        #    --> This is now handled by redefining sys.excepthook handle in ScopeFoundry.base_app
         # Wraps func in a try block to absorb the Exception to avoid crashing PyQt5 >5.5
         # see https://riverbankcomputing.com/pipermail/pyqt/2016-March/037134.html
-        """
-#         def wrapped_func(func):
-#             def f(*args):
-#                 try:
-#                     func(*args)
-#                 except Exception as err:
-#                     print "Exception on listener:"
+        #         def wrapped_func(func):
+        #             def f(*args):
+        #                 try:
+        #                     func(*args)
+        #                 except Exception as err:
+        #                     print "Exception on listener:"
+        
         self.updated_value[argtype].connect(func, **kwargs)
         self.listeners.append(func)
 
@@ -251,10 +283,9 @@ class LoggedQuantity(QtCore.QObject):
          * pyqtgraph.widgets.SpinBox.SpinBox        
         
         """
-        #print( type(widget) )
+
         if type(widget) == QtWidgets.QDoubleSpinBox:
-            #self.updated_value[float].connect(widget.setValue )
-            #widget.valueChanged[float].connect(self.update_value)
+
             widget.setKeyboardTracking(False)
             if self.vmin is not None:
                 widget.setMinimum(self.vmin)
@@ -266,29 +297,49 @@ class LoggedQuantity(QtCore.QObject):
             widget.setSingleStep(self.spinbox_step)
             widget.setValue(self.val)
             #events
-            self.updated_value[float].connect(widget.setValue)
+            def update_widget_value(x):
+                """
+                block signals from widget when value is set via lq.update_value.
+                This prevents signal-slot loops between widget and lq
+                """
+                try:
+                    widget.blockSignals(True)
+                    widget.setValue(x)
+                finally:
+                    widget.blockSignals(False)                    
+            #self.updated_value[float].connect(widget.setValue)
+            self.updated_value[float].connect(update_widget_value)
             #if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
                 
         elif type(widget) == QtWidgets.QCheckBox:
-            #print(self.name)
-            #self.updated_value[bool].connect(widget.checkStateSet)
-            #widget.stateChanged[int].connect(self.update_value)
-            # Ed's version
-            self.log.debug("connecting checkbox widget")
-            self.updated_value[bool].connect(widget.setChecked)
-            widget.toggled[bool].connect(self.update_value)
+
+            def update_widget_value(x):
+                try:
+                    widget.blockSignals(True)
+                    widget.setChecked(x)
+                finally:
+                    widget.blockSignals(False)                    
+
+            self.updated_value[bool].connect(update_widget_value)
+            widget.toggled[bool].connect(self.update_value) # another option is stateChanged signal
             if self.ro:
                 #widget.setReadOnly(True)
                 widget.setEnabled(False)
+                
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
             def on_edit_finished():
                 self.log.debug("on_edit_finished")
-                self.update_value(widget.text())     
+                try:
+                    widget.blockSignals(True)
+                    self.update_value(widget.text())
+                finally:
+                    widget.blockSignals(False)
             widget.editingFinished.connect(on_edit_finished)
+            
         elif type(widget) == QtWidgets.QPlainTextEdit:
             # FIXME doesn't quite work right: a signal character resets cursor position
             self.updated_text_value[str].connect(widget.setPlainText)
@@ -336,7 +387,18 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_value[float].connect(widget.setValue)
             #if not self.ro:
                 #widget.valueChanged[float].connect(self.update_value)
-            widget.valueChanged.connect(self.update_value)
+            def update_widget_value(x):
+                """
+                block signals from widget when value is set via lq.update_value.
+                This prevents signal loops
+                """
+                try:
+                    widget.blockSignals(True)
+                    widget.setValue(x)
+                finally:
+                    widget.blockSignals(False)                    
+            self.updated_value[float].connect(update_widget_value)
+            
         elif type(widget) == QtWidgets.QLabel:
             self.updated_text_value.connect(widget.setText)
         elif type(widget) == QtWidgets.QProgressBar:
@@ -354,32 +416,35 @@ class LoggedQuantity(QtCore.QObject):
     
     def change_choice_list(self, choices):
         #widget = self.widget
-        self.choices = self._expand_choices(choices)
-        
-        for widget in self.widget_list:
-            if type(widget) == QtWidgets.QComboBox:
-                # need to have a choice list to connect to a QComboBox
-                assert self.choices is not None 
-                widget.clear() # removes all old choices
-                for choice_name, choice_value in self.choices:
-                    widget.addItem(choice_name, choice_value)
-            else:
-                raise RuntimeError("Invalid widget type.")
+        with self.lock:
+            self.choices = self._expand_choices(choices)
+            
+            for widget in self.widget_list:
+                if type(widget) == QtWidgets.QComboBox:
+                    # need to have a choice list to connect to a QComboBox
+                    assert self.choices is not None 
+                    widget.clear() # removes all old choices
+                    for choice_name, choice_value in self.choices:
+                        widget.addItem(choice_name, choice_value)
+                else:
+                    raise RuntimeError("Invalid widget type.")
     
     def change_min_max(self, vmin=-1e12, vmax=+1e12):
-        self.vmin = vmin
-        self.vmax = vmax
-        for widget in self.widget_list: # may not work for certain widget types
-            widget.setRange(vmin, vmax)
-        self.updated_min_max.emit(vmin,vmax)
+        with self.lock:
+            self.vmin = vmin
+            self.vmax = vmax
+            for widget in self.widget_list: # may not work for certain widget types
+                widget.setRange(vmin, vmax)
+            self.updated_min_max.emit(vmin,vmax)
         
     def change_readonly(self, ro=True):
-        self.ro = ro
-        for widget in self.widget_list:
-            if type(widget) in [QtWidgets.QDoubleSpinBox, pyqtgraph.widgets.SpinBox.SpinBox]:
-                widget.setReadOnly(self.ro)    
-            #elif
-        self.updated_readonly.emit(self.ro)
+        with self.lock:
+            self.ro = ro
+            for widget in self.widget_list:
+                if type(widget) in [QtWidgets.QDoubleSpinBox, pyqtgraph.widgets.SpinBox.SpinBox]:
+                    widget.setReadOnly(self.ro)    
+                #TODO other widget types
+            self.updated_readonly.emit(self.ro)
         
 
             
@@ -449,6 +514,10 @@ class ArrayLQ(LoggedQuantity):
         self._in_reread_loop = False # flag to prevent reread from hardware loops
         
         self.widget_list = []
+        
+        # threading lock
+        self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
+        
 
     def same_values(self, v1, v2):
         if v1.shape == v2.shape:
@@ -478,25 +547,26 @@ class ArrayLQ(LoggedQuantity):
         return np.array(x, dtype=self.dtype)
     
     def send_display_updates(self, force=False):
-        self.log.debug(self.name + ' send_display_updates')
-        #print "send_display_updates: {} force={}".format(self.name, force)
-        if force or np.any(self.oldval != self.val):
-            
-            #print "send display updates", self.name, self.val, self.oldval
-            str_val = self.string_value()
-            self.updated_value[str].emit(str_val)
-            self.updated_text_value.emit(str_val)
+        with self.lock:            
+            self.log.debug(self.name + ' send_display_updates')
+            #print "send_display_updates: {} force={}".format(self.name, force)
+            if force or np.any(self.oldval != self.val):
                 
-            #self.updated_value[float].emit(self.val)
-            #if self.dtype != float:
-            #    self.updated_value[int].emit(self.val)
-            #self.updated_value[bool].emit(self.val)
-            self.updated_value[()].emit()
-            
-            self.oldval = self.val
-        else:
-            pass
-            #print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
+                #print "send display updates", self.name, self.val, self.oldval
+                str_val = self.string_value()
+                self.updated_value[str].emit(str_val)
+                self.updated_text_value.emit(str_val)
+                    
+                #self.updated_value[float].emit(self.val)
+                #if self.dtype != float:
+                #    self.updated_value[int].emit(self.val)
+                #self.updated_value[bool].emit(self.val)
+                self.updated_value[()].emit()
+                
+                self.oldval = self.val
+            else:
+                pass
+                #print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
     
 
 class LQRange(QtCore.QObject):
@@ -711,7 +781,7 @@ class LQCollection(object):
         """
         import pyqtgraph as pg
         
-        
+
         ui_widget =  QtWidgets.QWidget()
         formLayout = QtWidgets.QFormLayout()
         ui_widget.setLayout(formLayout)
@@ -739,12 +809,3 @@ class LQCollection(object):
             #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
             #self.control_widgets[lqname] = widget  
         return ui_widget
-
-def print_signals_and_slots(obj):
-    # http://visitusers.org/index.php?title=PySide_Recipes
-    for i in range(obj.metaObject().methodCount()):
-        m = obj.metaObject().method(i)
-        if m.methodType() == QtCore.QMetaMethod.MethodType.Signal:
-            print("SIGNAL: sig=", m.signature(), "hooked to nslots=",obj.receivers(QtCore.SIGNAL(m.signature())))
-        elif m.methodType() == QtCore.QMetaMethod.MethodType.Slot:
-            print("SLOT: sig=", m.signature())
