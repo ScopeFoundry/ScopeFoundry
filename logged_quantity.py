@@ -105,7 +105,7 @@ class LoggedQuantity(QtCore.QObject):
         # threading lock
         #self.lock = threading.Lock()
         #self.lock = DummyLock()
-        self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
+        self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
         
     def coerce_to_type(self, x):
         """force x to dtype of the LQ"""        
@@ -430,6 +430,7 @@ class LoggedQuantity(QtCore.QObject):
                     raise RuntimeError("Invalid widget type.")
     
     def change_min_max(self, vmin=-1e12, vmax=+1e12):
+        # TODO  setRange should be a slot for the updated_min_max signal
         with self.lock:
             self.vmin = vmin
             self.vmax = vmax
