@@ -64,7 +64,7 @@ import traceback
 def log_unhandled_exception(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     logging.critical("Unhandled exception:" + text)
-#sys.excepthook = log_unhandled_exception
+sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
     
