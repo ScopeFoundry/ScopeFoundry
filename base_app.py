@@ -1,6 +1,8 @@
 '''
 Created on Jul 23, 2014
 
+modified by Ed Barnard
+ui enhancements by Alan Buckley
 '''
 from __future__ import print_function, division, absolute_import
 
@@ -196,6 +198,7 @@ class BaseMicroscopeApp(BaseApp):
         self.hardware = OrderedAttrDict()
         self.measurements = OrderedAttrDict()
 
+
         self.setup()
         
         
@@ -217,7 +220,8 @@ class BaseMicroscopeApp(BaseApp):
             self.log.info("setting up figures for", name, "measurement", measure.name)            
             measure.setup_figure()
             if self.mdi and hasattr(measure, 'ui'):
-                self.ui.mdiArea.addSubWindow(measure.ui)
+                self.ui.mdiArea.addSubWindow(measure.ui, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
+                #measure.ui.setWindowFlags()
                 measure.ui.show()            
         
         if hasattr(self.ui, 'console_pushButton'):
@@ -245,6 +249,45 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.action_console.triggered.connect(self.console_widget.activateWindow)
         
         
+        #Refer to existing ui object:
+        self.menubar = self.ui.menuWindow
+
+        #Create new action group: 
+        self.action_group = QtWidgets.QActionGroup(self)
+        
+        #Generate actions:
+        #self.windowAction = QtWidgets.QAction("Sub&window Mode", self, checkable=True, shortcut="Alt+W")
+        #self.tabAction = QtWidgets.QAction("&Tab Mode", self, checkable=True, shortcut="Alt+T")       
+        
+        #Add actions to group:
+        self.action_group.addAction(self.ui.windowAction)
+        self.action_group.addAction(self.ui.tabAction)
+        
+        #Add actions to "Window Menu Bar"
+        #self.menubar.addAction(self.windowAction)
+        #self.menubar.addAction(self.tabAction)
+        
+        self.ui.mdiArea.setTabsClosable(False)
+        self.ui.mdiArea.setTabsMovable(True)
+        
+        
+        self.ui.tabAction.triggered.connect(self.set_tab_mode)
+        self.ui.windowAction.triggered.connect(self.set_subwindow_mode)
+        self.ui.actionCascade.triggered.connect(self.cascade_layout)
+        self.ui.actionTile.triggered.connect(self.tile_layout)
+            
+    def set_subwindow_mode(self):
+        self.ui.mdiArea.setViewMode(self.ui.mdiArea.SubWindowView)
+    
+    def set_tab_mode(self):
+        self.ui.mdiArea.setViewMode(self.ui.mdiArea.TabbedView)
+        
+    def cascade_layout(self):
+        self.ui.mdiArea.tileSubWindows()
+        
+    def tile_layout(self):
+        self.ui.mdiArea.cascadeSubWindows()
+    
     def add_quickbar(self, widget):
         self.ui.scrollAreaWidgetContents.layout().addWidget(widget)
         self.quickbar = widget
