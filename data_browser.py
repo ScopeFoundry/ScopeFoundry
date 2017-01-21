@@ -31,12 +31,11 @@ class DataBrowser(BaseApp):
         self.settings.New('file_filter', dtype=str, initial='*.*,')
         
         self.settings.data_filename.add_listener(self.on_change_data_filename)
-        self.settings.file_filter.add_listener(self.on_change_file_filter)
 
         self.settings.New('auto_select_view',dtype=bool, initial=True)
 
         self.settings.New('view_name', dtype=str, initial='0', choices=('0',))
-        self.settings.view_name.add_listener(self.on_change_view_name)
+        
         
         # UI Connections
         self.settings.data_filename.connect_to_browse_widgets(self.ui.data_filename_lineEdit, 
@@ -57,16 +56,19 @@ class DataBrowser(BaseApp):
         self.tree_selectionModel = self.ui.treeView.selectionModel()
         self.tree_selectionModel.selectionChanged.connect(self.on_treeview_selection_change)
 
+
         self.settings.browse_dir.add_listener(self.on_change_browse_dir)
         self.settings['browse_dir'] = os.getcwd()
-
 
         # set views
         
         self.load_view(FileInfoView(self))
         self.load_view(TestNPZView(self))
 
+        self.settings.view_name.add_listener(self.on_change_view_name)
         self.settings['view_name'] = "file_info"
+        
+        self.settings.file_filter.add_listener(self.on_change_file_filter)
         
         #self.console_widget.show()
         self.ui.console_pushButton.clicked.connect(self.console_widget.show)
@@ -78,6 +80,7 @@ class DataBrowser(BaseApp):
         #instantiate view
         #new_view = ViewClass(self)
         
+        self.log.debug('load_view called {}'.format(new_view))
         # add to views dict
         self.views[new_view.name] = new_view
         
@@ -86,7 +89,7 @@ class DataBrowser(BaseApp):
         
         # update choices for view_name
         self.settings.view_name.change_choice_list(list(self.views.keys()))
-        
+        self.log.debug('load_view done {}'.format(new_view))
 
     def on_change_data_filename(self):
         fname = self.settings.data_filename.val 
