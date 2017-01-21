@@ -1,7 +1,8 @@
+from __future__ import division, print_function, absolute_import
 from ScopeFoundry import HardwareComponent
 import random
 
-class DummmyXYStageEquipment(object):
+class DummmyXYStageDevice(object):
     
     def __init__(self, debug=False):
         self.x = 0
@@ -11,30 +12,33 @@ class DummmyXYStageEquipment(object):
     
     def read_x(self):
         self.x = self.x + self.noise()
-        if self.debug: print "read_x", self.x
+        #if self.debug: print "read_x", self.x
+        #print("read_x", self.x)
         return self.x
 
     def read_y(self):
         self.y = self.y + self.noise()
-        if self.debug: print "read_y", self.y
+        #if self.debug: print "read_y", self.y
         return self.y
     
     def write_x(self, x):
         self.x = x
-        if self.debug: print "write_x", self.x
+        #print("write_x", self.x, x)
+        #if self.debug: print "write_x", self.x
         
 
     def write_y(self, y):
         self.y = y
-        if self.debug: print "write_y", self.y
+        #if self.debug: print "write_y", self.y
     
     def close(self):
-        print "dummy_xy_stage_equipment close"
-        
+        #print "dummy_xy_stage_equipment close"
+        pass
+    
     def noise(self):
         return (random.random()-0.5)*10e-3
 
-class DummyXYStage(HardwareComponent):
+class DummyXYStageHW(HardwareComponent):
     
     name = "dummy_xy_stage"
     
@@ -55,31 +59,32 @@ class DummyXYStage(HardwareComponent):
         self.y_position.spinbox_decimals = 3
 
     def connect(self):
-        if self.debug_mode.val: print "connecting to dummy_xy_stage"
+        #if self.debug_mode.val: print "connecting to dummy_xy_stage"
 
         # Open connection to hardware
-        self.stage_equip = DummmyXYStageEquipment(debug=self.debug_mode.val)
+        self.stage_device = DummmyXYStageDevice(debug=self.debug_mode.val)
 
         # connect logged quantities
-        self.x_position.hardware_read_func = self.stage_equip.read_x
-        self.y_position.hardware_read_func = self.stage_equip.read_y
+        self.x_position.hardware_read_func = self.stage_device.read_x
+        self.y_position.hardware_read_func = self.stage_device.read_y
         
-        self.x_position.hardware_set_func  = self.stage_equip.write_x
-        self.y_position.hardware_set_func  = self.stage_equip.write_y
+        self.x_position.hardware_set_func  = self.stage_device.write_x
+        self.y_position.hardware_set_func  = self.stage_device.write_y
 
     def disconnect(self):
-        if self.debug_mode.val: print "disconnecting to dummy_xy_stage"
+        #if self.debug_mode.val: print "disconnecting to dummy_xy_stage"
         
         #disconnect logged quantities from hardware
-        for lq in self.logged_quantities.values():
+        for lq in self.settings.as_list():
             lq.hardware_read_func = None
             lq.hardware_set_func = None
         
-        #disconnect hardware
-        self.stage_equip.close()
-        
-        # clean up hardware object
-        del self.stage_equip
+        if hasattr(self, 'stage_device'):
+            #disconnect hardware
+            self.stage_device.close()
+            
+            # clean up hardware object
+            del self.stage_device
 
 
 
