@@ -86,11 +86,11 @@ class Measurement(QtCore.QObject):
         try:
             self._add_control_widgets_to_measurements_tab()
         except Exception as err:
-            self.log.warning("MeasurementComponent: could not add to measurement tab: {}, {}".format(self.name,  err))
+            self.log.info("MeasurementComponent: could not add to measurement tab: {}, {}".format(self.name,  err))
         try:
             self._add_control_widgets_to_measurements_tree()
         except Exception as err:
-            self.log.warning("MeasurementComponent: could not add to measurement tree: {}, {}".format(self.name,  err))
+            self.log.info("MeasurementComponent: could not add to measurement tree: {}, {}".format(self.name,  err))
 
 
     def setup(self):

@@ -35,7 +35,7 @@ try:
         from qtconsole.inprocess import QtInProcessKernelManager
     CONSOLE_TYPE = 'qtconsole'
 except Exception as err:
-    logging.warning("unable to import ipython console, using pyqtgraph.console", err)
+    logging.warning("Unable to import iPython console, using pyqtgraph.console instead. Error: {}".format( err))
     import pyqtgraph.console
     CONSOLE_TYPE = 'pyqtgraph.console'
     
@@ -64,7 +64,7 @@ import traceback
 def log_unhandled_exception(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     logging.critical("Unhandled exception:" + text)
-sys.excepthook = log_unhandled_exception
+#sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
     
@@ -133,10 +133,10 @@ class BaseApp(QtCore.QObject):
         with open(fname, 'wb') as configfile:
             config.write(configfile)
         
-        self.log.info("ini settings saved to", fname, config.optionxform)    
+        self.log.info("ini settings saved to {} {}".format( fname, config.optionxform))    
 
     def settings_load_ini(self, fname):
-        self.log.info("ini settings loading from", fname)
+        self.log.info("ini settings loading from " + fname)
         
         def str2bool(v):
             return v.lower() in ("yes", "true", "t", "1")
@@ -217,7 +217,7 @@ class BaseMicroscopeApp(BaseApp):
 
         # Setup the figures         
         for name, measure in self.measurements.items():
-            self.log.info("setting up figures for", name, "measurement", measure.name)            
+            self.log.info("setting up figures for {} measurement {}".format( name, measure.name) )            
             measure.setup_figure()
             if self.mdi and hasattr(measure, 'ui'):
                 self.ui.mdiArea.addSubWindow(measure.ui, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
@@ -297,12 +297,12 @@ class BaseMicroscopeApp(BaseApp):
         self.log.info("on_close")
         # disconnect all hardware objects
         for hw in self.hardware.values():
-            self.log.info("disconnecting", hw.name)
+            self.log.info("disconnecting {}".format( hw.name))
             if hw.settings['connected']:
                 try:
                     hw.disconnect()
                 except Exception as err:
-                    self.log.error("tried to disconnect", hw.name, err)
+                    self.log.error("tried to disconnect {}: {}".format( hw.name, err) )
 
     def setup(self):
         """ Override to add Hardware and Measurement Components"""
@@ -321,7 +321,7 @@ class BaseMicroscopeApp(BaseApp):
     """
         
     def add_pg_graphics_layout(self, name, widget):
-        self.log.info("---adding pg GraphicsLayout figure", name, widget)
+        self.log.info("---adding pg GraphicsLayout figure {} {}".format( name, widget))
         if name in self.figs:
             return self.figs[name]
         else:
@@ -374,7 +374,7 @@ class BaseMicroscopeApp(BaseApp):
         with h5_io.h5_base_file(self, fname) as h5_file:
             for measurement in self.measurements.values():
                 h5_io.h5_create_measurement_group(measurement, h5_file)
-            self.log.info("settings saved to", h5_file.filename)
+            self.log.info("settings saved to {}".format(h5_file.filename))
             
     def settings_save_ini(self, fname, save_ro=True, save_gui=True, save_hardware=True, save_measurements=True):
         config = configparser.ConfigParser()
@@ -400,12 +400,12 @@ class BaseMicroscopeApp(BaseApp):
         with open(fname, 'wb') as configfile:
             config.write(configfile)
         
-        self.log.info("ini settings saved to", fname, config.optionxform)
+        self.log.info("ini settings saved to {} {}".format( fname, config.optionxform))
 
 
         
     def settings_load_ini(self, fname):
-        self.log.info("ini settings loading from", fname)
+        self.log.info("ini settings loading from {}".format(fname))
         
         def str2bool(v):
             return v.lower() in ("yes", "true", "t", "1")
@@ -446,7 +446,7 @@ class BaseMicroscopeApp(BaseApp):
                     if not lq.ro:
                         lq.update_value(new_val)
         
-        self.log.info("ini settings loaded from", fname)
+        self.log.info("ini settings loaded from {}"+ fname)
         
     def settings_load_h5(self, fname):
         import h5py
