@@ -179,8 +179,9 @@ class HardwareComponent(QtCore.QObject):
         Read all settings (:class:`LoggedQuantity`) connected to hardware states
         """
         for name, lq in self.settings.as_dict().items():
-            if self.debug_mode.val: self.log.debug("read_from_hardware", name)
-            lq.read_from_hardware()
+            if lq.has_hardware_read():
+                if self.debug_mode.val: self.log.debug("read_from_hardware", name)
+                lq.read_from_hardware()
         
     
     def connect(self):
