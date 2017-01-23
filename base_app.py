@@ -13,7 +13,6 @@ import numpy as np
 import collections
 from collections import OrderedDict
 import logging
-from ScopeFoundry.helper_funcs import get_logger_from_class
 
 try:
     import configparser
@@ -35,7 +34,7 @@ try:
         from qtconsole.inprocess import QtInProcessKernelManager
     CONSOLE_TYPE = 'qtconsole'
 except Exception as err:
-    logging.warning("Unable to import iPython console, using pyqtgraph.console instead. Error: {}".format( err))
+    logging.warning("ScopeFoundry unable to import iPython console, using pyqtgraph.console instead. Error: {}".format( err))
     import pyqtgraph.console
     CONSOLE_TYPE = 'pyqtgraph.console'
     
@@ -48,7 +47,7 @@ except Exception as err:
 
 from .logged_quantity import LoggedQuantity, LQCollection
 
-from .helper_funcs import confirm_on_close, load_qt_ui_file, OrderedAttrDict, sibling_path
+from .helper_funcs import confirm_on_close, ignore_on_close, load_qt_ui_file, OrderedAttrDict, sibling_path, get_logger_from_class
 
 #from equipment.image_display import ImageDisplay
 
@@ -220,7 +219,9 @@ class BaseMicroscopeApp(BaseApp):
             self.log.info("setting up figures for {} measurement {}".format( name, measure.name) )            
             measure.setup_figure()
             if self.mdi and hasattr(measure, 'ui'):
-                self.ui.mdiArea.addSubWindow(measure.ui, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
+                measure.subwin = self.ui.mdiArea.addSubWindow(measure.ui, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
+                ignore_on_close(measure.subwin)
+                #measure.subwin.installEventFilter()
                 #measure.ui.setWindowFlags()
                 measure.ui.show()            
         

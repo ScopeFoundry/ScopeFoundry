@@ -47,10 +47,10 @@ def load_qt_ui_file(ui_filename):
     return ui
 
 def confirm_on_close(widget, title="Close ScopeFoundry?", message="Do you wish to shut down ScopeFoundry?", func_on_close=None):
-    widget.closeEventEater = CloseEventEater(title, message, func_on_close)
+    widget.closeEventEater = ConfirmCloseEventEater(title, message, func_on_close)
     widget.installEventFilter(widget.closeEventEater)
     
-class CloseEventEater(QtCore.QObject):
+class ConfirmCloseEventEater(QtCore.QObject):
     
     def __init__(self, title="Close ScopeFoundry?", message="Do you wish to shut down ScopeFoundry?", func_on_close=None):
         QtCore.QObject.__init__(self)
@@ -78,6 +78,20 @@ class CloseEventEater(QtCore.QObject):
         else:
             # standard event processing            
             return QtCore.QObject.eventFilter(self,obj, event)
+    
+def ignore_on_close(widget):
+    widget.ignoreCloseEventEater = IgnoreCloseEventEater()
+    widget.installEventFilter(widget.ignoreCloseEventEater)
+    
+class IgnoreCloseEventEater(QtCore.QObject):
+    def eventFilter(self, obj, event):
+        if event.type() == QtCore.QEvent.Close:
+            # eat close event
+            event.ignore()
+            return True
+        else:
+            # standard event processing            
+            return QtCore.QObject.eventFilter(self,obj, event)            
         
 def replace_widget_in_layout(old_widget, new_widget, retain_font=True, retain_sizePolicy=True, retain_size=True):
     """
