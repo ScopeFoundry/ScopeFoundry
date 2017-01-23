@@ -66,7 +66,7 @@ class Measurement(QtCore.QObject):
         self.running    = self.settings.New('running', dtype=bool, ro=True) # is the thread actually running?
         self.progress   = self.settings.New('progress', dtype=float, unit="%", si=False, ro=True)
 
-        self.activation.updated_value.connect(self.start_stop)
+        self.activation.updated_value[bool].connect(self.start_stop)
 
         self.add_operation("start", self.start)
         self.add_operation("interrupt", self.interrupt)
