@@ -198,10 +198,9 @@ class BaseMicroscopeApp(BaseApp):
         self.hardware = OrderedAttrDict()
         self.measurements = OrderedAttrDict()
 
-        self.side_ui = None
-        
+        self.quickbar = None
+                   
         self.setup()
-        
         
         self.setup_default_ui()
 
@@ -228,15 +227,8 @@ class BaseMicroscopeApp(BaseApp):
         if hasattr(self.ui, 'console_pushButton'):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
             self.ui.console_pushButton.clicked.connect(self.console_widget.activateWindow)
-            
-        # Uncomment below line to test whether quickaccess_scrollArea hides correctly.
-        # self.side_ui = None    
-            
-        if self.side_ui is not None:
-            self.add_quickbar(self.side_ui)
-            # Inject side_ui into sidebar of self.ui. Done.
-            pass
-        else:
+                        
+        if self.quickbar is None:
             # Collapse sidebar
             self.ui.quickaccess_scrollArea.setVisible(False)
             pass
@@ -305,7 +297,8 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.mdiArea.cascadeSubWindows()
     
     def add_quickbar(self, widget):
-        self.ui.scrollAreaWidgetContents.layout().addWidget(widget)
+        self.ui.quickaccess_scrollArea.setVisible(True)
+        self.ui.quickaccess_scrollAreaWidgetContents.layout().addWidget(widget)
         self.quickbar = widget
         return self.quickbar
         
