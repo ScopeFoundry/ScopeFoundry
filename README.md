@@ -33,12 +33,22 @@ _Optional:_
 Installation
 ------------
 
+If you have all the requirements 
+
 $ pip install git+git://github.com/ScopeFoundry/ScopeFoundry.git
 
 If you use the Anaconda python distribution, you can create an environment
 that has ScopeFoundry and its required dependencies. See the `conda_env`
 sub-directory for environment files and Windows batch files for environment
 setup.
+
+Alternatively:
+
+$ conda create -n scopefoundry python=3.5
+$ source activate scopefoundry
+(scopefoundry) $ conda install numpy pyqt qtpy h5py
+(scopefoundry) $ pip install pyqtgraph
+(scopefoundry) $ pip install git+git://github.com/ScopeFoundry/ScopeFoundry.git
 
 
 Documentation
