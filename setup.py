@@ -12,7 +12,7 @@ setup(
     author_email='esbarnard@lbl.gov',
 
     # Choose your license
-    license='MIT',
+    license='BSD',
 
     package_dir={'ScopeFoundry': '.'},
     
