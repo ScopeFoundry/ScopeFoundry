@@ -14,28 +14,36 @@ Edward S. Barnard <esbarnard@lbl.gov>
 Contributors
 ------------
 
-Coming soon...
+* Alan Buckley
+* Nick Borys
+* Frank Ogletree
+* Benedikt Ursprung
+* Clarice Aiello
+* Hao Wu
 
 
 Requirements
 ------------
-	* Python 2.7, or 3.x
-	* PyQt 4.7+, PySide, or PyQt5 (via qtpy shim package)
-	* NumPy
-	* PyQtGraph
-	* h5py
+
+* Python 2.7, or 3.x
+* PyQt 4.7+, PySide, or PyQt5 (via qtpy shim package)
+* NumPy
+* PyQtGraph
+* h5py
 
 _Optional:_
 
-	* qtconsole
-	* Ipython
+* qtconsole
+* Ipython
   
 Installation
 ------------
 
-If you have all the requirements 
+If you have all the requirements:
 
-$ pip install git+git://github.com/ScopeFoundry/ScopeFoundry.git
+```
+pip install git+git://github.com/ScopeFoundry/ScopeFoundry.git
+```
 
 If you use the Anaconda python distribution, you can create an environment
 that has ScopeFoundry and its required dependencies. See the `conda_env`
@@ -44,14 +52,15 @@ setup.
 
 Alternatively:
 
+```
 $ conda create -n scopefoundry python=3.5
 $ source activate scopefoundry
 (scopefoundry) $ conda install numpy pyqt qtpy h5py
 (scopefoundry) $ pip install pyqtgraph
 (scopefoundry) $ pip install git+git://github.com/ScopeFoundry/ScopeFoundry.git
-
+```
 
 Documentation
 -------------
 
-Coming soon...
+See <http://www.scopefoundry.org>
