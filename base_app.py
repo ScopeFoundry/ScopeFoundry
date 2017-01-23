@@ -198,13 +198,14 @@ class BaseMicroscopeApp(BaseApp):
         self.hardware = OrderedAttrDict()
         self.measurements = OrderedAttrDict()
 
-
+        self.side_ui = None
+        
         self.setup()
         
         
         self.setup_default_ui()
 
-
+    
 
 
     
@@ -227,6 +228,21 @@ class BaseMicroscopeApp(BaseApp):
         if hasattr(self.ui, 'console_pushButton'):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
             self.ui.console_pushButton.clicked.connect(self.console_widget.activateWindow)
+            
+        # Uncomment below line to test whether quickaccess_scrollArea hides correctly.
+        # self.side_ui = None    
+            
+        if self.side_ui is not None:
+            self.add_quickbar(self.side_ui)
+            # Inject side_ui into sidebar of self.ui. Done.
+            pass
+        else:
+            # Collapse sidebar
+            self.ui.quickaccess_scrollArea.setVisible(False)
+            pass
+        
+        
+        
         
         #settings events
         if hasattr(self.ui, "settings_autosave_pushButton"):
