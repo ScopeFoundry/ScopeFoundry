@@ -130,6 +130,8 @@ class LoggedQuantity(QtCore.QObject):
                 self.oldval = self.val
                 val = self.hardware_read_func()
             self.update_value(new_val=val, update_hardware=False, send_signal=send_signal)
+        else:
+            self.log.warn("{} read_from_hardware called when not connected to hardware".format(self.name))
         return self.val
 
     def value(self):
@@ -446,6 +448,29 @@ class LoggedQuantity(QtCore.QObject):
                     widget.setReadOnly(self.ro)    
                 #TODO other widget types
             self.updated_readonly.emit(self.ro)
+    
+    def is_connected_to_hardware(self):
+        return (self.hardware_read_func is not None) or (self.hardware_set_func is not None)
+    
+    def has_hardware_read(self):
+        return self.hardware_read_func is not None
+    
+    def has_hardware_write(self):
+        return self.hardware_set_func is not None
+
+    def connect_to_hardware(self, read_func=None, write_func=None):
+        if read_func is not None:
+            assert callable(read_func) 
+            self.hardware_read_func = read_func
+        if write_func is not None:
+            assert callable(write_func)
+            self.hardware_set_func = write_func
+    
+    def disconnect_from_hardware(self, dis_read=True, dis_write=True):
+        if dis_read:
+            self.hardware_read_func = None
+        if dis_write:
+            self.hardware_set_func = None
         
 
             
@@ -810,3 +835,7 @@ class LQCollection(object):
             #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
             #self.control_widgets[lqname] = widget  
         return ui_widget
+    
+    def disconnect_all_from_hardware(self):
+        for lq in self.as_list():
+            lq.disconnect_from_hardware()
