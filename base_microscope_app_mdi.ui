@@ -38,8 +38,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>69</width>
-          <height>736</height>
+          <width>77</width>
+          <height>728</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2"/>
@@ -56,50 +56,6 @@
         <string>Logged Quantities</string>
        </property>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="2" column="1">
-         <widget class="QGroupBox" name="settings_groupBox">
-          <property name="title">
-           <string>Settings</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout_7">
-           <item row="1" column="0">
-            <widget class="QPushButton" name="settings_load_last_pushButton">
-             <property name="text">
-              <string>Load Last</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0">
-            <widget class="QPushButton" name="settings_autosave_pushButton">
-             <property name="text">
-              <string>Auto Save</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QPushButton" name="settings_save_pushButton">
-             <property name="text">
-              <string>Save...</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QPushButton" name="settings_load_pushButton">
-             <property name="text">
-              <string>Load...</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QPushButton" name="console_pushButton">
-             <property name="text">
-              <string>Console...</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
         <item row="1" column="1">
          <widget class="QSplitter" name="splitter">
           <property name="orientation">
@@ -144,7 +100,7 @@
      <x>0</x>
      <y>0</y>
      <width>1105</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <property name="nativeMenuBar">
@@ -216,7 +172,7 @@
   </action>
   <action name="action_load_ini">
    <property name="text">
-    <string>&amp;Load .ini ...</string>
+    <string>&amp;Load Settings ...</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+L</string>
@@ -224,7 +180,7 @@
   </action>
   <action name="action_save_ini">
    <property name="text">
-    <string>&amp;Save .ini ...</string>
+    <string>&amp;Save Settings ...</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
