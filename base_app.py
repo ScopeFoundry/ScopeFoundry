@@ -183,6 +183,13 @@ class BaseMicroscopeApp(BaseApp):
     def __init__(self, argv):
         BaseApp.__init__(self, argv)
         
+        initial_data_save_dir = os.path.abspath(os.path.join('.', 'data'))
+        if not os.path.isdir(initial_data_save_dir):
+            os.makedirs(initial_data_save_dir)
+        
+        self.settings.New('save_dir', dtype='file', is_dir=True, initial=initial_data_save_dir)
+        self.settings.New('sample', dtype=str, initial='')
+        
         if not hasattr(self, 'ui_filename'):
             if self.mdi:
                 self.ui_filename = sibling_path(__file__,"base_microscope_app_mdi.ui")
@@ -236,11 +243,16 @@ class BaseMicroscopeApp(BaseApp):
             self.ui.quickaccess_scrollArea.setVisible(False)
         
         
+        # Save Dir events
+        self.ui.action_set_data_dir.triggered.connect(self.settings.save_dir.file_browser)
+        self.settings.save_dir.connect_to_browse_widgets(self.ui.save_dir_lineEdit, self.ui.save_dir_browse_pushButton)
         
+        # Sample meta data
+        self.settings.sample.connect_bidir_to_widget(self.ui.sample_lineEdit)
         
-        #settings events
+        #settings button events
         if hasattr(self.ui, "settings_autosave_pushButton"):
-            self.ui.settings_autosave_pushButton.clicked.connect(self.settings_auto_save)
+            self.ui.settings_autosave_pushButton.clicked.connect(self.settings_auto_save_ini)
         if hasattr(self.ui, "settings_load_last_pushButton"):
             self.ui.settings_load_last_pushButton.clicked.connect(self.settings_load_last)
         if hasattr(self.ui, "settings_save_pushButton"):
@@ -249,11 +261,10 @@ class BaseMicroscopeApp(BaseApp):
             self.ui.settings_load_pushButton.clicked.connect(self.settings_load_dialog)
         
         #Menu bar entries:
-        # To do: connect self.ui.action_set_data_dir to save data directory function 
-            # (Function has yet to be created)
-        # To do: connect self.ui.action_log_viewer to log viewer function
+        # TODO: connect self.ui.action_log_viewer to log viewer function
             # (Function has yet to be created)
         self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)
+        self.ui.action_auto_save_ini.triggered.connect(self.settings_auto_save_ini)
         self.ui.action_save_ini.triggered.connect(self.settings_save_dialog)
         self.ui.action_console.triggered.connect(self.console_widget.show)
         self.ui.action_console.triggered.connect(self.console_widget.activateWindow)
@@ -262,25 +273,19 @@ class BaseMicroscopeApp(BaseApp):
         #Refer to existing ui object:
         self.menubar = self.ui.menuWindow
 
-        #Create new action group: 
+        #Create new action group for switching between window and tab mode
         self.action_group = QtWidgets.QActionGroup(self)
-                
         #Add actions to group:
-        self.action_group.addAction(self.ui.windowAction)
-        self.action_group.addAction(self.ui.tabAction)
-        
-        #Add actions to "Window Menu Bar"
-        #self.menubar.addAction(self.windowAction)
-        #self.menubar.addAction(self.tabAction)
+        self.action_group.addAction(self.ui.window_action)
+        self.action_group.addAction(self.ui.tab_action)
         
         self.ui.mdiArea.setTabsClosable(False)
         self.ui.mdiArea.setTabsMovable(True)
         
-        
-        self.ui.tabAction.triggered.connect(self.set_tab_mode)
-        self.ui.windowAction.triggered.connect(self.set_subwindow_mode)
-        self.ui.actionCascade.triggered.connect(self.cascade_layout)
-        self.ui.actionTile.triggered.connect(self.tile_layout)
+        self.ui.tab_action.triggered.connect(self.set_tab_mode)
+        self.ui.window_action.triggered.connect(self.set_subwindow_mode)
+        self.ui.cascade_action.triggered.connect(self.cascade_layout)
+        self.ui.tile_action.triggered.connect(self.tile_layout)
             
     def set_subwindow_mode(self):
         self.ui.mdiArea.setViewMode(self.ui.mdiArea.SubWindowView)
@@ -436,28 +441,28 @@ class BaseMicroscopeApp(BaseApp):
                 h5_io.h5_create_measurement_group(measurement, h5_file)
             self.log.info("settings saved to {}".format(h5_file.filename))
             
-    def settings_save_ini(self, fname, save_ro=True, save_gui=True, save_hardware=True, save_measurements=True):
+    def settings_save_ini(self, fname, save_ro=True, save_app=True, save_hardware=True, save_measurements=True):
         config = configparser.ConfigParser()
         config.optionxform = str
-        if save_gui:
+        if save_app:
             config.add_section('app')
             for lqname, lq in self.settings.items():
                 config.set('app', lqname, lq.val)
         if save_hardware:
             for hc_name, hc in self.hardware.items():
-                section_name = 'hardware/'+hc_name            
+                section_name = 'hardware/'+hc_name
                 config.add_section(section_name)
                 for lqname, lq in hc.settings.items():
                     if not lq.ro or save_ro:
-                        config.set(section_name, lqname, lq.val)
+                        config.set(section_name, lqname, lq.ini_string_value())
         if save_measurements:
             for meas_name, measurement in self.measurements.items():
                 section_name = 'measurement/'+meas_name            
                 config.add_section(section_name)
                 for lqname, lq in measurement.settings.items():
                     if not lq.ro or save_ro:
-                        config.set(section_name, lqname, lq.val)
-        with open(fname, 'wb') as configfile:
+                        config.set(section_name, lqname, lq.ini_string_value())
+        with open(fname, 'w') as configfile:
             config.write(configfile)
         
         self.log.info("ini settings saved to {} {}".format( fname, config.optionxform))
@@ -509,14 +514,15 @@ class BaseMicroscopeApp(BaseApp):
         self.log.info("ini settings loaded from {}"+ fname)
         
     def settings_load_h5(self, fname):
+        # TODO finish this function
         import h5py
         with h5py.File(fname) as h5_file:
             pass
     
-    def settings_auto_save(self):
+    def settings_auto_save_ini(self):
         #fname = "%i_settings.h5" % time.time()
         #self.settings_save_h5(fname)
-        self.settings_save_ini("%i_settings.ini" % time.time())
+        self.settings_save_ini(os.path.join(self.settings['save_dir'], "%i_settings.ini" % time.time()))
 
     def settings_load_last(self):
         import glob
