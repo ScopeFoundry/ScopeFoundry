@@ -63,7 +63,7 @@ import traceback
 def log_unhandled_exception(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     logging.critical("Unhandled exception:" + text)
-#sys.excepthook = log_unhandled_exception
+sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
     
@@ -202,37 +202,7 @@ class BaseMicroscopeApp(BaseApp):
         self.setup()
         
         self.setup_default_ui()
-
-    def retrieveSelectionID(self):
-        self.items = self.ui.measurements_treeWidget.selectedItems()
-        for item in self.items:
-            return(item.text(0))
-
-    def openContextMenu(self, position):
-#         indexes =  self.ui.measurements_treeWidget.selectedIndexes()
-#         if len(indexes) > 0:
-#             level = 0
-#             index = indexes[0]
-#             while index.parent().isValid():
-#                 index = index.parent()
-#                 level += 1
-        menu = QtWidgets.QMenu()
-#         if level == 0:
-#             startAction = menu.addAction(self.tr("Start Measurement"))
-#             interruptAction = menu.addAction(self.tr("Interrupt Measurement"))
-
-        startAction = menu.addAction(self.tr("Start Measurement"))
-        interruptAction = menu.addAction(self.tr("Interrupt Measurement"))
         
-        action = menu.exec_(self.ui.measurements_treeWidget.viewport().mapToGlobal(position))
-        if action == startAction:
-            print('startAction')
-            self.measurements['{}'.format(self.retrieveSelectionID())].start()
-            #print('{}'.format(self.retrieveSelectionID()))
-        elif action == interruptAction:
-            print('interruptAction')
-            self.measurements['{}'.format(self.retrieveSelectionID())].start()
-            #print('{}'.format(self.retrieveSelectionID()))
 
     def setup_default_ui(self):
         
@@ -242,7 +212,11 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.measurements_treeWidget.setColumnWidth(0,175)
 
         self.ui.measurements_treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.ui.measurements_treeWidget.customContextMenuRequested.connect(self.openContextMenu) #(self.openContextMenu)
+        self.ui.measurements_treeWidget.customContextMenuRequested.connect(self.on_measure_tree_context_menu)
+
+        self.ui.hardware_treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.ui.hardware_treeWidget.customContextMenuRequested.connect(self.on_hardware_tree_context_menu)
+
 
         # Setup the figures         
         for name, measure in self.measurements.items():
@@ -251,9 +225,7 @@ class BaseMicroscopeApp(BaseApp):
             if self.mdi and hasattr(measure, 'ui'):
                 measure.subwin = self.ui.mdiArea.addSubWindow(measure.ui, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
                 ignore_on_close(measure.subwin)
-                #measure.subwin.installEventFilter()
-                #measure.ui.setWindowFlags()
-                measure.ui.show()            
+                measure.subwin.show()            
         
         if hasattr(self.ui, 'console_pushButton'):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
@@ -262,7 +234,6 @@ class BaseMicroscopeApp(BaseApp):
         if self.quickbar is None:
             # Collapse sidebar
             self.ui.quickaccess_scrollArea.setVisible(False)
-            pass
         
         
         
@@ -293,11 +264,7 @@ class BaseMicroscopeApp(BaseApp):
 
         #Create new action group: 
         self.action_group = QtWidgets.QActionGroup(self)
-        
-        #Generate actions:
-        #self.windowAction = QtWidgets.QAction("Sub&window Mode", self, checkable=True, shortcut="Alt+W")
-        #self.tabAction = QtWidgets.QAction("&Tab Mode", self, checkable=True, shortcut="Alt+T")       
-        
+                
         #Add actions to group:
         self.action_group.addAction(self.ui.windowAction)
         self.action_group.addAction(self.ui.tabAction)
@@ -343,6 +310,59 @@ class BaseMicroscopeApp(BaseApp):
                     hw.disconnect()
                 except Exception as err:
                     self.log.error("tried to disconnect {}: {}".format( hw.name, err) )
+
+    def on_measure_tree_context_menu(self, position):
+#         indexes =  self.ui.measurements_treeWidget.selectedIndexes()
+#         if len(indexes) > 0:
+#             level = 0
+#             index = indexes[0]
+#             while index.parent().isValid():
+#                 index = index.parent()
+#                 level += 1
+#         if level == 0:
+#             startAction = menu.addAction(self.tr("Start Measurement"))
+#             interruptAction = menu.addAction(self.tr("Interrupt Measurement"))
+        selected_items = self.ui.measurements_treeWidget.selectedItems()
+        if len(selected_items) < 1:
+            return
+        selected_measurement_name = selected_items[0].text(0)
+        if selected_measurement_name not in self.measurements:
+            return
+        M = self.measurements[selected_measurement_name]
+        
+        cmenu = QtWidgets.QMenu()        
+        a = cmenu.addAction(selected_measurement_name)
+        a.setEnabled(False)
+        start_action = cmenu.addAction("Start")
+        interrupt_action = cmenu.addAction("Interrupt")
+        
+        action = cmenu.exec_(QtGui.QCursor.pos())
+        if action == start_action:
+            M.start()
+        elif action == interrupt_action:
+            M.interrupt()
+    
+    def on_hardware_tree_context_menu(self, position):
+        selected_items = self.ui.hardware_treeWidget.selectedItems()
+        if len(selected_items) < 1:
+            return
+        selected_hw_name = selected_items[0].text(0)
+        if selected_hw_name not in self.hardware:
+            return
+        H = self.hardware[selected_hw_name]
+        
+        cmenu = QtWidgets.QMenu()        
+        a = cmenu.addAction(selected_hw_name)
+        a.setEnabled(False)
+        connect_action = cmenu.addAction("Connect")
+        disconnect_action = cmenu.addAction("Disconnect")
+        
+        action = cmenu.exec_(QtGui.QCursor.pos())
+        if action == connect_action:
+            H.settings['connected']=True
+        elif action == disconnect_action:
+            H.settings['connected']=False
+        
 
     def setup(self):
         """ Override to add Hardware and Measurement Components"""
