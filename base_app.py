@@ -63,7 +63,7 @@ import traceback
 def log_unhandled_exception(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     logging.critical("Unhandled exception:" + text)
-sys.excepthook = log_unhandled_exception
+#sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
     
@@ -203,16 +203,46 @@ class BaseMicroscopeApp(BaseApp):
         
         self.setup_default_ui()
 
-    
+    def retrieveSelectionID(self):
+        self.items = self.ui.measurements_treeWidget.selectedItems()
+        for item in self.items:
+            return(item.text(0))
 
+    def openContextMenu(self, position):
+#         indexes =  self.ui.measurements_treeWidget.selectedIndexes()
+#         if len(indexes) > 0:
+#             level = 0
+#             index = indexes[0]
+#             while index.parent().isValid():
+#                 index = index.parent()
+#                 level += 1
+        menu = QtWidgets.QMenu()
+#         if level == 0:
+#             startAction = menu.addAction(self.tr("Start Measurement"))
+#             interruptAction = menu.addAction(self.tr("Interrupt Measurement"))
 
-    
+        startAction = menu.addAction(self.tr("Start Measurement"))
+        interruptAction = menu.addAction(self.tr("Interrupt Measurement"))
+        
+        action = menu.exec_(self.ui.measurements_treeWidget.viewport().mapToGlobal(position))
+        if action == startAction:
+            print('startAction')
+            self.measurements['{}'.format(self.retrieveSelectionID())].start()
+            #print('{}'.format(self.retrieveSelectionID()))
+        elif action == interruptAction:
+            print('interruptAction')
+            self.measurements['{}'.format(self.retrieveSelectionID())].start()
+            #print('{}'.format(self.retrieveSelectionID()))
+
     def setup_default_ui(self):
         
         confirm_on_close(self.ui, title="Close %s?" % self.name, message="Do you wish to shut down %s?" % self.name, func_on_close=self.on_close)
         
         self.ui.hardware_treeWidget.setColumnWidth(0,175)
         self.ui.measurements_treeWidget.setColumnWidth(0,175)
+
+        self.ui.measurements_treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.ui.measurements_treeWidget.customContextMenuRequested.connect(self.openContextMenu) #(self.openContextMenu)
 
         # Setup the figures         
         for name, measure in self.measurements.items():
