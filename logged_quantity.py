@@ -334,7 +334,7 @@ class LoggedQuantity(QtCore.QObject):
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
             def on_edit_finished():
-                self.log.debug("on_edit_finished")
+                self.log.debug(self.name + " qLineEdit on_edit_finished")
                 try:
                     widget.blockSignals(True)
                     self.update_value(widget.text())

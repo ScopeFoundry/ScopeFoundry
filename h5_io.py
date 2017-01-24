@@ -1,6 +1,7 @@
 from __future__ import absolute_import, print_function
 import h5py
 import time
+import os
 
 """
 recommended HDF5 file format for ScopeFoundry
@@ -52,7 +53,7 @@ other thoughts:
 def h5_base_file(app, fname=None, measurement=None):
     t0 = time.time()
     if fname is None and measurement is not None:
-        fname = "%i_%s.h5" % (t0, measurement.name)
+        fname = os.path.join(app.settings['save_dir'], "%i_%s.h5" % (t0, measurement.name) )
     h5_file = h5py.File(fname)
     root = h5_file['/']
     root.attrs["ScopeFoundry_version"] = 101
@@ -164,10 +165,7 @@ def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = No
     #set the emd version tag at root of h5 file
     h5parent.file['/'].attrs['version_major'] = 0
     h5parent.file['/'].attrs['version_minor'] = 2
-    
-    from matplotlib import pyplot
-    pyplot.acorr
-    
+        
     # create the EMD data group
     emd_grp = h5parent.create_group(name)
     emd_grp.attrs['emd_group_type'] = 1
