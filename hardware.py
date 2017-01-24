@@ -204,8 +204,10 @@ class HardwareComponent(QtCore.QObject):
     def enable_connection(self, enable=True):
         if enable:
             self.connect()
+            self.tree_item.setText(1,'O')
             self.tree_item.setForeground(1, QtGui.QColor('green'))
         else:
+            self.tree_item.setText(1,'X')
             self.tree_item.setForeground(1, QtGui.QColor('red'))
             self.disconnect()
             
