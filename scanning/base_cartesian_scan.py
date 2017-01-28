@@ -12,6 +12,7 @@ import time
 from ScopeFoundry import h5_io
 from qtpy import QtCore
 from ScopeFoundry import LQRange
+import os
 
 def ijk_zigzag_generator(dims, axis_order=(0,1,2)):
     """3D zig-zag scan pattern generator with arbitrary fast axis order"""
@@ -483,7 +484,13 @@ class BaseCartesian2DSlowScan(BaseCartesian2DScan):
                 # h5 data file setup
                 self.t0 = time.time()
                 if self.settings['save_h5']:
-                    self.h5_file = h5_io.h5_base_file(self.app, "%i_%s.h5" % (self.t0, self.name) )
+                    
+                    h5fname = os.path.join(
+                        self.app.settings['save_dir'],
+                        "%i_%s.h5" % (self.t0, self.name))
+                    
+                    self.h5_file = h5_io.h5_base_file(self.app, h5fname)
+                          
                     self.h5_file.attrs['time_id'] = self.t0
                     H = self.h5_meas_group  =  h5_io.h5_create_measurement_group(self, self.h5_file)
                 
