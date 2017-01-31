@@ -1,8 +1,8 @@
 '''
 Created on Jul 23, 2014
 
-modified by Ed Barnard
-ui enhancements by Alan Buckley
+Modified by Ed Barnard
+UI enhancements by Ed Barnard, Alan Buckley
 '''
 from __future__ import print_function, division, absolute_import
 
@@ -121,6 +121,7 @@ class BaseApp(QtCore.QObject):
 
 
     def settings_save_ini(self, fname, save_ro=True):
+        """"""
         config = configparser.ConfigParser()
         config.optionxform = str
         config.add_section('app')
@@ -154,6 +155,7 @@ class BaseApp(QtCore.QObject):
                     lq.update_value(new_val)
 
     def settings_save_ini_ask(self, dir=None, save_ro=True):
+        """Opens a Save dialogue asking the user to select a save destination and give the save file a filename. Saves settings to an .ini file."""
         # TODO add default directory, etc
         fname, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, caption=u'Save Settings', dir=u"", filter=u"Settings (*.ini)")
         #print(repr(fname))
@@ -162,6 +164,7 @@ class BaseApp(QtCore.QObject):
         return fname
 
     def settings_load_ini_ask(self, dir=None):
+        """Opens a Load dialogue asking the user which .ini file to load into our app settings. Loads settings from an .ini file."""
         # TODO add default directory, etc
         fname, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Settings (*.ini)")
         #print(repr(fname))
@@ -171,12 +174,15 @@ class BaseApp(QtCore.QObject):
 
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
+    """The name of the core module, ScopeFoundry."""
     mdi = True
+    """Multiple Document Interface flag. Tells the app whether to include an MDI widget in the app."""
     
     def __del__ ( self ): 
         self.ui = None
 
-    def show(self): 
+    def show(self):
+        """Tells Qt to show the user interface"""
         #self.ui.exec_()
         self.ui.show()
 
@@ -212,7 +218,7 @@ class BaseMicroscopeApp(BaseApp):
         
 
     def setup_default_ui(self):
-        
+        """Loads various default features into the user interface upon app startup."""
         confirm_on_close(self.ui, title="Close %s?" % self.name, message="Do you wish to shut down %s?" % self.name, func_on_close=self.on_close)
         
         self.ui.hardware_treeWidget.setColumnWidth(0,175)
@@ -288,15 +294,19 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.tile_action.triggered.connect(self.tile_layout)
             
     def set_subwindow_mode(self):
+        """Switches Multiple Document Interface to Subwindowed viewing mode."""
         self.ui.mdiArea.setViewMode(self.ui.mdiArea.SubWindowView)
     
     def set_tab_mode(self):
+        """Switches Multiple Document Interface to Tabbed viewing mode."""
         self.ui.mdiArea.setViewMode(self.ui.mdiArea.TabbedView)
         
-    def cascade_layout(self):
+    def tile_layout(self):
+        """Tiles subwindows in user interface. Specifically in the Multi Document Interface."""
         self.ui.mdiArea.tileSubWindows()
         
-    def tile_layout(self):
+    def cascade_layout(self):
+        """Cascades subwindows in user interface. Specifically in the Multi Document Interface."""
         self.ui.mdiArea.cascadeSubWindows()
     
     def add_quickbar(self, widget):
@@ -425,16 +435,26 @@ class BaseMicroscopeApp(BaseApp):
     
 
     def add_hardware_component(self,hc):
+        """Loads a HardwareComponent module into the app. After calling this, the module appears in the Hardware tree."""
         self.hardware.add(hc.name, hc)
         return hc
     
     def add_measurement_component(self, measure):
+        """Loads a MeasurementComponent module into the app. After calling this, the module appears in the Measurement tree."""
         assert not measure.name in self.measurements.keys()
         self.measurements.add(measure.name, measure)
 
         return measure
     
     def settings_save_h5(self, fname):
+        """
+        Saves h5 file to a file.
+
+        ==============  =========  =============================================
+        **Arguments:**  **Type:**  **Description:**
+        fname           str        relative path to the filename of the h5 file.              
+        ==============  =========  =============================================
+        """
         from . import h5_io
         with h5_io.h5_base_file(self, fname) as h5_file:
             for measurement in self.measurements.values():
@@ -442,6 +462,12 @@ class BaseMicroscopeApp(BaseApp):
             self.log.info("settings saved to {}".format(h5_file.filename))
             
     def settings_save_ini(self, fname, save_ro=True, save_app=True, save_hardware=True, save_measurements=True):
+        """
+        ==============  =========  ==============================================
+        **Arguments:**  **Type:**  **Description:**
+        fname           str        relative path to the filename of the ini file.              
+        ==============  =========  ==============================================
+        """
         config = configparser.ConfigParser()
         config.optionxform = str
         if save_app:
@@ -470,6 +496,13 @@ class BaseMicroscopeApp(BaseApp):
 
         
     def settings_load_ini(self, fname):
+        """
+        ==============  =========  ==============================================
+        **Arguments:**  **Type:**  **Description:**
+        fname           str        relative path to the filename of the ini file.              
+        ==============  =========  ==============================================
+        """
+
         self.log.info("ini settings loading from {}".format(fname))
         
         def str2bool(v):
@@ -514,17 +547,31 @@ class BaseMicroscopeApp(BaseApp):
         self.log.info("ini settings loaded from {}"+ fname)
         
     def settings_load_h5(self, fname):
+        """
+        Loads h5 settings given a filename.
+
+        ==============  =========  ====================================================================================
+        **Arguments:**  **Type:**  **Description:**
+        fname           str        relative path to the filename of the h5 file.              
+        ==============  =========  ====================================================================================
+        """
         # TODO finish this function
         import h5py
         with h5py.File(fname) as h5_file:
             pass
     
     def settings_auto_save_ini(self):
+        """
+        Saves the ini file to the pre-defined directory with a time stamp in the filename.
+        """
         #fname = "%i_settings.h5" % time.time()
         #self.settings_save_h5(fname)
         self.settings_save_ini(os.path.join(self.settings['save_dir'], "%i_settings.ini" % time.time()))
 
     def settings_load_last(self):
+        """
+        Loads last saved ini file.
+        """
         import glob
         #fname = sorted(glob.glob("*_settings.h5"))[-1]
         #self.settings_load_h5(fname)
@@ -533,11 +580,13 @@ class BaseMicroscopeApp(BaseApp):
     
     
     def settings_save_dialog(self):
+        """Opens a save as ini dialogue in the app user interface."""
         fname, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Settings file", "", "Settings File (*.ini)")
         if fname:
             self.settings_save_ini(fname)
     
     def settings_load_dialog(self):
+        """Opens a load ini dialogue in the app user interface"""
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Settings file", "", "Settings File (*.ini *.h5)")
         self.settings_load_ini(fname)
 
