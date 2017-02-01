@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Apr  1 09:25:48 2014
-
 @author: esbarnard
 """
 from __future__ import absolute_import, print_function
@@ -35,8 +34,11 @@ class Measurement(QtCore.QObject):
     subclass and additionally implement :meth:`setup_figure`, :meth:`update_display` 
     """
     
-    measurement_sucessfully_completed = QtCore.Signal(()) # signal sent when full measurement is complete
-    measurement_interrupted = QtCore.Signal(()) # signal sent when  measurement is complete due to an interruption
+    measurement_sucessfully_completed = QtCore.Signal(())
+    """signal sent when full measurement is complete"""
+    measurement_interrupted = QtCore.Signal(()) 
+    """signal sent when  measurement is complete due to an interruption"""
+
     #measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
     
     def __init__(self, app):
@@ -132,7 +134,7 @@ class Measurement(QtCore.QObject):
         self.display_update_timer.start(self.display_update_period*1000)
 
     def pre_run(self):
-        "over-ride this method to enable main-thread initialization prior to measurement thread start"
+        """Override this method to enable main-thread initialization prior to measurement thread start"""
         pass
     
    
@@ -152,10 +154,13 @@ class Measurement(QtCore.QObject):
     
     
     def post_run(self):
-        "over-ride this method to enable main-thread finalization after to measurement thread completes"
+        """Override this method to enable main-thread finalization after to measurement thread completes"""
         pass
         
     def _thread_run(self):
+        """
+        This function governs the behavior of the measurement thread. 
+        """
         self.set_progress(50.) # set progress bars to default run position at 50%
         try:
             self.run()
@@ -180,6 +185,14 @@ class Measurement(QtCore.QObject):
         return self.app
     
     def set_progress(self, pct):
+        """
+        This function updates the logged quantity progress which is used for the display of progress bars in the UI.
+         
+        ==============  ==============================================================================================
+        **Arguments:** 
+        pct             The percentage of progress given by a measurement module                                      
+        ==============  ==============================================================================================
+        """
         self.progress.update_value(pct)
                 
     @QtCore.Slot()
@@ -198,12 +211,15 @@ class Measurement(QtCore.QObject):
         #self._on_display_update_timer()
 
     def terminate(self):
+        """
+        Terminate MeasurementQThread.
+        """
         self.acq_thread.terminate()
         
     def start_stop(self, start):
         """
         Use boolean *start* to either start (True) or
-        interrupt (False) measurement
+        interrupt (False) measurement. Test.
         """
         self.log.info("{} start_stop {}".format(self.name, start))
         if start:
@@ -253,12 +269,27 @@ class Measurement(QtCore.QObject):
         return lq
     
     def add_operation(self, name, op_func):
-        """type name: str
-           type op_func: QtCore.Slot
+        """
+        Used to create a logged quantity connection between a button in the Measurement tree
+        and a function.
+
+        ==============  =================
+        **type name:**  **type op_func:**
+        str             QtCore.Slot
+        ==============  =================
         """
         self.operations[name] = op_func   
     
     def load_ui(self, ui_fname=None):
+        """
+        Loads and shows user interface.
+
+        ==============  ===============================================================
+        **Arguments:** 
+        ui_fname        filename of user interface file (usually made with Qt Designer)                                      
+        ==============  ===============================================================
+        """
+
         # TODO destroy and rebuild UI if it already exists
         if ui_fname is not None:
             self.ui_filename = ui_fname
@@ -280,8 +311,8 @@ class Measurement(QtCore.QObject):
             self.ui.parent().raise_()
     
     def _add_control_widgets_to_measurements_tab(self):
-        cwidget = self.app.ui.measurements_tab_scrollArea_content_widget
         
+        cwidget = self.app.ui.measurements_tab_scrollArea_content_widget
         self.controls_groupBox = QtWidgets.QGroupBox(self.name)
         self.controls_formLayout = QtWidgets.QFormLayout()
         self.controls_groupBox.setLayout(self.controls_formLayout)
@@ -317,9 +348,11 @@ class Measurement(QtCore.QObject):
             
             
     def _add_control_widgets_to_measurements_tree(self, tree=None):
+        """
+        Adds Measurement items and their controls to Measurements tree in the user interface.
+        """
         if tree is None:
             tree = self.app.ui.measurements_treeWidget
-        
         tree.setColumnCount(2)
         tree.setHeaderLabels(["Measurements", "Value"])
 
