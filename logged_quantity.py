@@ -244,15 +244,17 @@ class LoggedQuantity(QtCore.QObject):
         self.update_value(self.choices[new_choice_index][1], **kwargs)
     
     def add_listener(self, func, argtype=(), **kwargs):
-        """ Connect 'func' as a listener (Qt Slot) for the 
+        """
+        Connect 'func' as a listener (Qt Slot) for the 
         updated_value signal.
         By default 'func' should take no arguments,
         but argtype can define the data type that it should accept.
         but should be limited to those supported by LoggedQuantity 
         (i.e. int, float, str)
-        **kwargs are passed to the connect function
+        \*\*kwargs are passed to the connect function
         appends the 'func' to the 'listeners' list
         """
+        
         #    --> This is now handled by redefining sys.excepthook handle in ScopeFoundry.base_app
         # Wraps func in a try block to absorb the Exception to avoid crashing PyQt5 >5.5
         # see https://riverbankcomputing.com/pipermail/pyqt/2016-March/037134.html
