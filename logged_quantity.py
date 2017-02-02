@@ -269,6 +269,10 @@ class LoggedQuantity(QtCore.QObject):
         self.listeners.append(func)
 
     def connect_bidir_to_widget(self, widget):
+        # DEPRECATED
+        return self.connect_to_widget(widget)
+
+    def connect_to_widget(self, widget):
         """
         Creates Qt signal-slot connections between LQ and the QtWidget *widget*
         
@@ -493,7 +497,7 @@ class FileLQ(LoggedQuantity):
         
     def connect_to_browse_widgets(self, lineEdit, pushButton):
         assert type(lineEdit) == QtWidgets.QLineEdit
-        self.connect_bidir_to_widget(lineEdit)
+        self.connect_to_widget(lineEdit)
     
         assert type(pushButton) == QtWidgets.QPushButton
         pushButton.clicked.connect(self.file_browser)
@@ -827,7 +831,7 @@ class LQCollection(object):
                 widget = QtWidgets.QCheckBox()  
             elif lq.dtype in [str]:
                 widget = QtWidgets.QLineEdit()
-            lq.connect_bidir_to_widget(widget)
+            lq.connect_to_widget(widget)
 
             # Add to formlayout
             formLayout.addRow(lqname, widget)
