@@ -218,6 +218,9 @@ class BaseMicroscopeApp(BaseApp):
         
 
     def setup_default_ui(self):
+        self.ui.show()
+        self.ui.activateWindow()
+                
         """Loads various default features into the user interface upon app startup."""
         confirm_on_close(self.ui, title="Close %s?" % self.name, message="Do you wish to shut down %s?" % self.name, func_on_close=self.on_close)
         
@@ -237,6 +240,7 @@ class BaseMicroscopeApp(BaseApp):
             measure.setup_figure()
             if self.mdi and hasattr(measure, 'ui'):
                 measure.subwin = self.ui.mdiArea.addSubWindow(measure.ui, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
+                measure.subwin.setWindowTitle(measure.name)
                 ignore_on_close(measure.subwin)
                 measure.subwin.show()            
         
@@ -292,6 +296,10 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.window_action.triggered.connect(self.set_subwindow_mode)
         self.ui.cascade_action.triggered.connect(self.cascade_layout)
         self.ui.tile_action.triggered.connect(self.tile_layout)
+        
+        self.ui.setWindowTitle(self.name)
+
+        
             
     def set_subwindow_mode(self):
         """Switches Multiple Document Interface to Subwindowed viewing mode."""
