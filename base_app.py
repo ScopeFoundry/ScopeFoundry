@@ -431,20 +431,31 @@ class BaseMicroscopeApp(BaseApp):
 #             return fig
     
     def add_figure(self,name,widget):
+        # DEPRECATED
         return self.add_figure_mpl(name,widget)
     
 
-    def add_hardware_component(self,hc):
-        """Loads a HardwareComponent module into the app. After calling this, the module appears in the Hardware tree."""
-        self.hardware.add(hc.name, hc)
-        return hc
+    def add_hardware(self,hw):
+        """Loads a HardwareComponent object into the app. After calling this, the HW appears in the Hardware tree."""
+        assert not hw.name in self.hardware.keys()
+        self.hardware.add(hw.name, hw)
+        return hw
     
-    def add_measurement_component(self, measure):
-        """Loads a MeasurementComponent module into the app. After calling this, the module appears in the Measurement tree."""
+    def add_hardware_component(self,hw):
+        # DEPRECATED use add_hardware()
+        return self.add_hardware(hw)
+    
+    
+    def add_measurement(self, measure):
+        """Loads a Measurement object into the app. After calling this, the measurement appears in the Measurement tree."""
         assert not measure.name in self.measurements.keys()
         self.measurements.add(measure.name, measure)
 
         return measure
+    
+    def add_measurement_component(self, measure):
+        # DEPRECATED, use add_measurement()
+        return self.add_measurement(measure)
     
     def settings_save_h5(self, fname):
         """
