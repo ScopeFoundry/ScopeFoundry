@@ -37,7 +37,7 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return MagicMock()
 
-MOCK_MODULES = ['PyQt', 'qtpy', 'numpy', 'h5py']
+MOCK_MODULES = ['PyQt', 'qtpy', 'numpy', 'h5py', 'pyqtgraph']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
