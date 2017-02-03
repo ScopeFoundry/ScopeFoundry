@@ -37,13 +37,13 @@ class QLock(QtCore.QMutex):
 
 class LoggedQuantity(QtCore.QObject):
     """
-    LoggedQuantity objects are containers that wrap settings. These settings may be a number (integer or float) 
+    **LoggedQuantity** objects are containers that wrap settings. These settings may be a number (integer or float) 
     or a string and occasionally small arrays of them. 
     
     These objects emit signals when changed and can be connected bidirectionally to Qt Widgets. 
     
     In ScopeFoundry we represent the values in an object called a `LoggedQuantity`. 
-    A `LoggedQuantity` is a class that contains a value, a `bool`, `float`, `int`, `str` etc 
+    A :class:`LoggedQuantity` is a class that contains a value, a `bool`, `float`, `int`, `str` etc 
     that is part of an application's state. In the case of microscope and equipment control, 
     these also can represent the state of a piece of hardware. These are very useful objects 
     because the are the central location of the value contained within. All graphical interface views 
@@ -108,7 +108,17 @@ class LoggedQuantity(QtCore.QObject):
         self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
         
     def coerce_to_type(self, x):
-        """force x to dtype of the LQ"""        
+        """
+        Force x to dtype of the LQ
+        
+        =============  ==================================
+        **Arguments**  **Description**
+        *x*            value of type str, bool, int, etc.
+        =============  ==================================
+        
+        :returns: Same value, *x* of the same type as its respective logged quantity
+        
+        """        
         return self.dtype(x)
         
     def _expand_choices(self, choices):
@@ -151,11 +161,15 @@ class LoggedQuantity(QtCore.QObject):
         
         if *update_hardware* is true: call connected hardware_set_func
         
-        Options:
-        update_hardware (default True): calls hardware_set_func if defined
-        send_signal (default True): sends out QT signals on change
-        reread_hardware: read from hardware after writing to hardware to ensure change
-                         (defaults to self.reread_from_hardware_after_write)
+        =============== =================================================================================================================
+        **Arguments:**  **Description:**
+        update_hardware calls hardware_set_func if defined (default True)
+        send_signal     sends out QT signals on upon change (default True)
+        reread_hardware read from hardware after writing to hardware to ensure change (defaults to self.reread_from_hardware_after_write)
+        =============== =================================================================================================================
+        
+        :returns: None
+        
         """
         # use a thread lock during update_value to avoid another thread
         # calling update_value during the update_value
@@ -200,7 +214,13 @@ class LoggedQuantity(QtCore.QObject):
         """
         emit updated_value signals if value has changed.
         
-        *force* will emit signals regardless of value change. 
+        =============  =============================================
+        **Arguments**  **Description**
+        *force*        will emit signals regardless of value change. 
+        =============  =============================================
+        
+        :returns: None
+        
         """
         #self.log.debug("send_display_updates: {} force={}".format(self.name, force))
         if (not self.same_values(self.oldval, self.val)) or (force):
@@ -225,8 +245,17 @@ class LoggedQuantity(QtCore.QObject):
             pass
     
     def same_values(self, v1, v2):
-        """ compare two values of the LQ type
-            used in update_value
+        """ 
+        Compares two values of the LQ type, used in update_value
+
+        =============  ====================
+        **Arguments**  **Description**
+        v1             value 1
+        v2             value 2
+        =============  ====================
+        
+        :returns: Boolean value (True or False)
+
         """
         return v1 == v2
     
@@ -237,6 +266,9 @@ class LoggedQuantity(QtCore.QObject):
             return self.fmt % self.val
 
     def ini_string_value(self):
+        """
+        :returns: A string showing the logged quantity value.
+        """
         return str(self.val)
 
     
@@ -288,8 +320,18 @@ class LoggedQuantity(QtCore.QObject):
          * QCheckBox
          * QLineEdit
          * QComboBox
-         * pyqtgraph.widgets.SpinBox.SpinBox        
+         * pyqtgraph.widgets.SpinBox.SpinBox 
+
+        =============  ====================================================================
+        **Arguments**  **Description**
+        widget         The name of the Qt GUI Object, examples of which are listed above.
+                       For example, if you have a QDoubleSpinBox in the gui which you 
+                       renamed int_value_doubleSpinBox in the Qt Designer Object Inspector, 
+                       use self.ui.int_value_doubleSpinBox
+        =============  ====================================================================
         
+        :returns: None
+
         """
 
         if type(widget) == QtWidgets.QDoubleSpinBox:
@@ -456,6 +498,10 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_readonly.emit(self.ro)
     
     def is_connected_to_hardware(self):
+        """
+        :returns: True if either self.hardware_read_func or 
+        self.hardware_set_func are defined. False if None.
+        """
         return (self.hardware_read_func is not None) or (self.hardware_set_func is not None)
     
     def has_hardware_read(self):

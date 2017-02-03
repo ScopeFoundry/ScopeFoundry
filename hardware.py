@@ -8,7 +8,7 @@ from ScopeFoundry.helper_funcs import get_logger_from_class
 
 class HardwareComponent(QtCore.QObject):
     """
-    HardwareComponent
+    :class:`HardwareComponent`
     
     Base class for ScopeFoundry Hardware objects
     

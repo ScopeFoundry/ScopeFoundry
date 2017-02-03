@@ -32,10 +32,23 @@ class OrderedAttrDict(object):
         return self._odict.__contains__(k)
 
 def sibling_path(a, b):
+    """
+    Joins arguments prefix a, with suffix b, using `os.path.join`.
+    
+    ==============  ==============================
+    **Arguments:**
+    *a*             directory name of pathname *a*
+    b               path suffix
+    ==============  ==============================
+
+    :returns: combined path of above arguments.
+    """
     return os.path.join(os.path.dirname(a), b)
 
 
 def load_qt_ui_file(ui_filename):
+    """Loads a QT user interface file (files ending in .ui). 
+    This function is typically called from :class:`Measurement` level modules."""
     ### PySide version
     #ui_loader = QtUiTools.QUiLoader()
     #ui_file = QtCore.QFile(ui_filename)
@@ -47,10 +60,15 @@ def load_qt_ui_file(ui_filename):
     return ui
 
 def confirm_on_close(widget, title="Close ScopeFoundry?", message="Do you wish to shut down ScopeFoundry?", func_on_close=None):
+    """Calls the :class:`ConfirmCloseEventEater` class which asks for user confirmation in a pop-up dialog upon closing the ScopeFoundry app."""
     widget.closeEventEater = ConfirmCloseEventEater(title, message, func_on_close)
     widget.installEventFilter(widget.closeEventEater)
     
 class ConfirmCloseEventEater(QtCore.QObject):
+    
+    """
+    Tells the Qt to confirm the closing of the app by the user with a pop-up confirmation dialog.
+    """
     
     def __init__(self, title="Close ScopeFoundry?", message="Do you wish to shut down ScopeFoundry?", func_on_close=None):
         QtCore.QObject.__init__(self)
@@ -59,6 +77,7 @@ class ConfirmCloseEventEater(QtCore.QObject):
         self.func_on_close = func_on_close
     
     def eventFilter(self, obj, event):
+        """Listens for QtCore.QEvent.Close signal and asks the user whether to close the app in a pop-up dialog."""
         if event.type() == QtCore.QEvent.Close:
             # eat close event
             logging.debug("close")
@@ -80,10 +99,19 @@ class ConfirmCloseEventEater(QtCore.QObject):
             return QtCore.QObject.eventFilter(self,obj, event)
     
 def ignore_on_close(widget):
+    """Calls the :class:`IgnoreCloseEventEater` class which intercepts the QtCore.QEvent.Close signal 
+    and prevents the deletion of subwindows and their associated objects."""
     widget.ignoreCloseEventEater = IgnoreCloseEventEater()
     widget.installEventFilter(widget.ignoreCloseEventEater)
     
 class IgnoreCloseEventEater(QtCore.QObject):
+    """
+    This class is utilized to prevent the closing of important subwindows 
+    and prevent the deletion of related python objects. Tells the Qt event 
+    manager to ignore calls to close the subwindow when user hits [x] on 
+    the subwindow.
+    """
+
     def eventFilter(self, obj, event):
         if event.type() == QtCore.QEvent.Close:
             # eat close event
@@ -91,7 +119,7 @@ class IgnoreCloseEventEater(QtCore.QObject):
             return True
         else:
             # standard event processing            
-            return QtCore.QObject.eventFilter(self,obj, event)            
+            return QtCore.QObject.eventFilter(self, obj, event)            
         
 def replace_widget_in_layout(old_widget, new_widget, retain_font=True, retain_sizePolicy=True, retain_size=True):
     """
