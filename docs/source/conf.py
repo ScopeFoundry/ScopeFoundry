@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.join(path, '..', '..', '..'))
 
 ##### for ReadTheDocs (http://docs.readthedocs.io/en/latest/faq.html)
 
-import sys
+"""import sys
 #from unittest.mock import MagicMock
 from mock import Mock as MagicMock
 
@@ -39,7 +39,7 @@ class Mock(MagicMock):
 
 MOCK_MODULES = ['PyQt', 'qtpy', 'numpy', 'h5py', 'pyqtgraph']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
-
+"""
 
 
 # -- General configuration ------------------------------------------------
