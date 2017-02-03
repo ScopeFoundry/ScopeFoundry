@@ -26,6 +26,21 @@ path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(path, '..', '..', '..'))
 
 
+##### for ReadTheDocs (http://docs.readthedocs.io/en/latest/faq.html)
+
+import sys
+from unittest.mock import MagicMock
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+MOCK_MODULES = ['PyQt', 'qtpy', 'numpy', 'h5py']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
+
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
