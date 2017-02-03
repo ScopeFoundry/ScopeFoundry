@@ -29,7 +29,8 @@ sys.path.insert(0, os.path.join(path, '..', '..', '..'))
 ##### for ReadTheDocs (http://docs.readthedocs.io/en/latest/faq.html)
 
 import sys
-from unittest.mock import MagicMock
+#from unittest.mock import MagicMock
+from mock import Mock as MagicMock
 
 class Mock(MagicMock):
     @classmethod
