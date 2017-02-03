@@ -37,27 +37,36 @@ class QLock(QtCore.QMutex):
 
 class LoggedQuantity(QtCore.QObject):
     """
-    **LoggedQuantity** objects are containers that wrap settings. These settings may be a number (integer or float) 
-    or a string and occasionally small arrays of them. 
+    **LoggedQuantity** objects are containers that wrap settings. These settings
+    may be a number (integer or float) or a string and occasionally small arrays
+    of them.
     
-    These objects emit signals when changed and can be connected bidirectionally to Qt Widgets. 
+    These objects emit signals when changed and can be connected bidirectionally
+    to Qt Widgets.
     
-    In ScopeFoundry we represent the values in an object called a `LoggedQuantity`. 
-    A :class:`LoggedQuantity` is a class that contains a value, a `bool`, `float`, `int`, `str` etc 
-    that is part of an application's state. In the case of microscope and equipment control, 
-    these also can represent the state of a piece of hardware. These are very useful objects 
-    because the are the central location of the value contained within. All graphical interface views 
-    will be guaranteed to be consistent with the `LQ` state. The data of these quantities will also 
-    be saved in datafiles created by ScopeFoundry.
+    In ScopeFoundry we represent the values in an object called a
+    `LoggedQuantity`. A :class:`LoggedQuantity` is a class that contains a
+    value, a `bool`, `float`, `int`, `str` etc that is part of an application's
+    state. In the case of microscope and equipment control, these also can
+    represent the state of a piece of hardware. These are very useful objects
+    because the are the central location of the value contained within. All
+    graphical interface views will be guaranteed to be consistent with the `LQ`
+    state. The data of these quantities will also be saved in datafiles created
+    by ScopeFoundry.
     
     """
 
-    updated_value = QtCore.Signal((float,),(int,),(bool,), (), (str,),) # signal sent when value has been updated
-    updated_text_value = QtCore.Signal(str) # signal sent when value has been updated, sends text representation
-    updated_choice_index_value = QtCore.Signal(int) # emits the index of the value in self.choices
-    
-    updated_min_max = QtCore.Signal((float,float),(int,int), (),) # signal sent when min max range updated
-    updated_readonly = QtCore.Signal((bool,), (),) # signal sent when read only (ro) status has changed
+    # signal sent when value has been updated
+    updated_value = QtCore.Signal((float,),(int,),(bool,), (), (str,),) 
+    # signal sent when value has been updated, sends text representation
+    updated_text_value = QtCore.Signal(str) 
+    # emits the index of the value in self.choices
+    updated_choice_index_value = QtCore.Signal(int)
+     
+    # signal sent when min max range updated
+    updated_min_max = QtCore.Signal((float,float),(int,int), (),)
+    # signal sent when read only (ro) status has changed 
+    updated_readonly = QtCore.Signal((bool,), (),) 
     
     def __init__(self, name, dtype=float, 
                  hardware_read_func=None, hardware_set_func=None, 
@@ -79,7 +88,8 @@ class LoggedQuantity(QtCore.QObject):
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
-        self.choices = self._expand_choices(choices) # should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
+        # choices should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
+        self.choices = self._expand_choices(choices) 
         self.ro = ro # Read-Only
         
         self.log = get_logger_from_class(self)
@@ -116,7 +126,8 @@ class LoggedQuantity(QtCore.QObject):
         *x*            value of type str, bool, int, etc.
         =============  ==================================
         
-        :returns: Same value, *x* of the same type as its respective logged quantity
+        :returns: Same value, *x* of the same type as its respective logged
+        quantity
         
         """        
         return self.dtype(x)
@@ -159,10 +170,11 @@ class LoggedQuantity(QtCore.QObject):
          
         Change value of LQ and emit signals to inform listeners of change 
         
-        if *update_hardware* is true: call connected hardware_set_func
+        if *update_hardware* is true: call connected hardware write function
         
         =============== =================================================================================================================
         **Arguments:**  **Description:**
+        new_val         New value for the LoggedQuantity to store
         update_hardware calls hardware_set_func if defined (default True)
         send_signal     sends out QT signals on upon change (default True)
         reread_hardware read from hardware after writing to hardware to ensure change (defaults to self.reread_from_hardware_after_write)
@@ -171,6 +183,7 @@ class LoggedQuantity(QtCore.QObject):
         :returns: None
         
         """
+        
         # use a thread lock during update_value to avoid another thread
         # calling update_value during the update_value
         
@@ -212,7 +225,7 @@ class LoggedQuantity(QtCore.QObject):
             
     def send_display_updates(self, force=False):
         """
-        emit updated_value signals if value has changed.
+        Emit updated_value signals if value has changed.
         
         =============  =============================================
         **Arguments**  **Description**
@@ -311,9 +324,9 @@ class LoggedQuantity(QtCore.QObject):
         connects updated_value signal to the appropriate slot depending on 
         the type of widget 
         
-        Makes a bidirectional connection to a QT widget, ie when LQ is updated, 
-        widget gets a signal and when widget is updated, the LQ receives a signal
-        and update_value() slot is called.
+        Makes a bidirectional connection to a QT widget, ie when LQ is updated,
+        widget gets a signal and when widget is updated, the LQ receives a
+        signal and update_value() slot is called.
         
         Handles many types of widgets:
          * QDoubleSpinBox
