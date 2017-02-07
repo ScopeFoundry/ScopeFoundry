@@ -33,8 +33,8 @@ def ijk_zigzag_generator(dims, axis_order=(0,1,2)):
                 yield tuple(ijk)
     return
 
-class BaseCartesian2DScan(Measurement):
-    name = "base_cartesian_2Dscan"
+class BaseRaster2DScan(Measurement):
+    name = "base_raster_2Dscan"
     
     def __init__(self, app, h_limits=(-1,1), v_limits=(-1,1), h_unit='', v_unit=''):
         self.h_limits = h_limits
@@ -44,7 +44,7 @@ class BaseCartesian2DScan(Measurement):
         Measurement.__init__(self, app)
         
     def setup(self):
-        self.ui_filename = sibling_path(__file__,"cart_scan_base.ui")
+        self.ui_filename = sibling_path(__file__,"raster_scan_base.ui")
         self.ui = load_qt_ui_file(self.ui_filename)
         #self.ui.show()
         self.ui.setWindowTitle(self.name)
@@ -455,9 +455,9 @@ class BaseCartesian2DScan(Measurement):
                         self.scan_index_array[pixel_i,:] = [kk, jj, ii]                 
                         pixel_i += 1
                     
-class BaseCartesian2DSlowScan(BaseCartesian2DScan):
+class BaseRaster2DSlowScan(BaseRaster2DScan):
 
-    name = "base_cartesian_2Dscan"
+    name = "base_raster_2Dscan"
 
     def run(self):
         S = self.settings
@@ -584,57 +584,3 @@ class BaseCartesian2DSlowScan(BaseCartesian2DScan):
 
 
 
-class TestCartesian2DSlowScan(BaseCartesian2DSlowScan):
-    name='test_cart_2d_slow_scan'
-    
-    def __init__(self, app):
-        BaseCartesian2DSlowScan.__init__(self, app, h_limits=(0,100), v_limits=(0,100), h_unit="um", v_unit="um")        
-    
-    def setup(self):
-        BaseCartesian2DSlowScan.setup(self)
-        self.settings.New('pixel_time', initial=0.001, unit='s', si=False, spinbox_decimals=5)
-        
-    
-    def pre_scan_setup(self):
-        self.display_update_period = 0.050 #seconds
-        
-        self.stage = self.app.hardware['dummy_xy_stage']
-        if self.settings['save_h5']:
-            self.test_data = self.h5_meas_group.create_dataset('test_data', self.scan_shape, dtype=float)
-        
-        self.prev_px = time.time()
-         
-    def post_scan_cleanup(self):
-        print("post_scan_cleanup")
-        
-    def collect_pixel(self, pixel_i, k,j,i):
-        #print pixel_i, k,j,i
-        t0 = time.time()
-        #px_data = np.random.rand()
-        #px_data = t0 - self.prev_px
-        x0,y0 = self.pos
-        x_set = self.stage.settings['x_position']
-        y_set = self.stage.settings['y_position']
-        x_hw = self.stage.settings.x_position.read_from_hardware(send_signal=False)
-        y_hw = self.stage.settings.y_position.read_from_hardware(send_signal=False)
-        if np.abs(x_hw - x0) > 1:
-            self.log.debug('='*60)
-            self.log.debug('pos      {} {}'.format(x0, y0))
-            self.log.debug('settings {} {}'.format(x_set, y_set))
-            self.log.debug('hw       {} {}'.format(x_hw, y_hw))            
-            self.log.debug('settings value delta {} {}'.format(x_set-x0, y_set-y0))
-            self.log.debug('read_hw  value delta {} {}'.format(x_hw-x0, y_hw-y0))
-            self.log.debug('='*60)
-        
-        x = x_hw
-        y = y_hw
-        
-        px_data = np.sinc((x-50)*0.05)**2 * np.sinc(0.05*(y-50))**2 #+ 0.05*np.random.random()
-        #px_data = (x-xhw)**2 + ( y-yhw)**2
-        #if px_data > 1:
-        #    print('hw', x, xhw, y, yhw)
-        self.display_image_map[k,j,i] = px_data
-        if self.settings['save_h5']:
-            self.test_data[k,j,i] = px_data 
-        time.sleep(self.settings['pixel_time'])
-        #self.prev_px = t0
