@@ -13,6 +13,7 @@ import numpy as np
 import collections
 from collections import OrderedDict
 import logging
+import inspect
 
 try:
     import configparser
@@ -444,10 +445,21 @@ class BaseMicroscopeApp(BaseApp):
     
 
     def add_hardware(self,hw):
-        """Loads a HardwareComponent object into the app. After calling this, the HW appears in the Hardware tree."""
+        """Loads a HardwareComponent object into the app. 
+        After calling this, the HW appears in the Hardware tree.
+        
+        If *hw* is a class, rather an instance, create an instance 
+        and add it to self.hardware
+        """
         assert not hw.name in self.hardware.keys()
+
+        if inspect.isclass(hw):
+            #If *hw* is a class, rather an instance, create an instance 
+            hw = hw(app=self)
+        
         self.hardware.add(hw.name, hw)
         return hw
+    
     
     def add_hardware_component(self,hw):
         # DEPRECATED use add_hardware()
@@ -455,8 +467,19 @@ class BaseMicroscopeApp(BaseApp):
     
     
     def add_measurement(self, measure):
-        """Loads a Measurement object into the app. After calling this, the measurement appears in the Measurement tree."""
+        """Loads a Measurement object into the app.
+        After calling this, the measurement appears in the Measurement tree.
+        
+        If *measure* is a class, rather an instance, create an instance 
+        and add it to self.measurements
+
+        """
         assert not measure.name in self.measurements.keys()
+        
+        if inspect.isclass(measure):
+            #If *measure* is a class, rather an instance, create an instance 
+            measure = measure(app=self)
+
         self.measurements.add(measure.name, measure)
 
         return measure
