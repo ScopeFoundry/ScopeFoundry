@@ -879,18 +879,27 @@ class LQCollection(object):
         
         for lqname, lq in self.as_dict().items():
             #: :type lq: LoggedQuantity
-            if lq.choices is not None:
-                widget = QtWidgets.QComboBox()
-            elif lq.dtype in [int, float]:
-                if lq.si:
-                    widget = pg.SpinBox()
-                else:
-                    widget = QtWidgets.QDoubleSpinBox()
-            elif lq.dtype in [bool]:
-                widget = QtWidgets.QCheckBox()  
-            elif lq.dtype in [str]:
-                widget = QtWidgets.QLineEdit()
-            lq.connect_to_widget(widget)
+            if isinstance(lq, FileLQ):
+                lineEdit = QtWidgets.QLineEdit()
+                browseButton = QtWidgets.QPushButton('...')
+                lq.connect_to_browse_widgets(lineEdit, browseButton)
+                widget = QtWidgets.QWidget()
+                widget.setLayout(QtWidgets.QHBoxLayout())
+                widget.layout().addWidget(lineEdit)
+                widget.layout().addWidget(browseButton)
+            else:
+                if lq.choices is not None:
+                    widget = QtWidgets.QComboBox()
+                elif lq.dtype in [int, float]:
+                    if lq.si:
+                        widget = pg.SpinBox()
+                    else:
+                        widget = QtWidgets.QDoubleSpinBox()
+                elif lq.dtype in [bool]:
+                    widget = QtWidgets.QCheckBox()  
+                elif lq.dtype in [str]:
+                    widget = QtWidgets.QLineEdit()
+                lq.connect_to_widget(widget)
 
             # Add to formlayout
             formLayout.addRow(lqname, widget)
