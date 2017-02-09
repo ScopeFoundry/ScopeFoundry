@@ -30,6 +30,12 @@
        <bool>true</bool>
       </property>
       <widget class="QScrollArea" name="quickaccess_scrollArea">
+       <property name="minimumSize">
+        <size>
+         <width>400</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="widgetResizable">
         <bool>true</bool>
        </property>
@@ -38,8 +44,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>76</width>
-          <height>728</height>
+          <width>398</width>
+          <height>736</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2"/>
@@ -136,7 +142,7 @@
      <x>0</x>
      <y>0</y>
      <width>1105</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="nativeMenuBar">
