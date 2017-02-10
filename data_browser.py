@@ -190,7 +190,13 @@ class FileInfoView(DataBrowserView):
         if fname is None:
             fname = self.databrowser.settings['data_filename']
 
-        self.ui.setText(fname)
+        _, ext = os.path.splitext(fname)
+        
+        if ext in ('.py', '.ini', '.txt'):
+            with open(fname, 'r') as f:
+                self.ui.setText(f.read())
+        else:
+            self.ui.setText(fname)
         
     def is_file_supported(self, fname):
         return True
