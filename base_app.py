@@ -505,11 +505,15 @@ class BaseMicroscopeApp(BaseApp):
             section_name = 'measurement/'+meas_name            
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
-                    lq = measurement.settings.get_lq(lqname)
-                    if lq.dtype == bool:
-                        new_val = str2bool(new_val)                    
-                    if not lq.ro:
-                        lq.update_value(new_val)
+                    try:
+                        lq = measurement.settings.get_lq(lqname)
+                        if lq.dtype == bool:
+                            new_val = str2bool(new_val)                    
+                        if not lq.ro:
+                            lq.update_value(new_val)
+                    except Exception as err:
+                        self.log.error("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                            
         
         self.log.info("ini settings loaded from {}"+ fname)
         
