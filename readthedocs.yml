@@ -1,0 +1,5 @@
+conda:
+  file: conda_env/linux_environment.yml
+python:
+  version: 3
+  setup_py_install: true

@@ -20,6 +20,26 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+path = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(path, '..', '..', '..'))
+
+
+##### for ReadTheDocs (http://docs.readthedocs.io/en/latest/faq.html)
+
+"""import sys
+#from unittest.mock import MagicMock
+from mock import Mock as MagicMock
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+MOCK_MODULES = ['PyQt', 'qtpy', 'numpy', 'h5py', 'pyqtgraph']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+"""
 
 
 # -- General configuration ------------------------------------------------
@@ -35,7 +55,8 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.doctest',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages']
+    #'sphinx.ext.githubpages'
+    ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -87,7 +108,9 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'bizstyle'
+#html_theme = 'bizstyle'
+html_theme = 'default'
+
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

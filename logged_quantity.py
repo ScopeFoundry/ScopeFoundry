@@ -37,27 +37,36 @@ class QLock(QtCore.QMutex):
 
 class LoggedQuantity(QtCore.QObject):
     """
-    LoggedQuantity objects are containers that wrap settings. These settings may be a number (integer or float) 
-    or a string and occasionally small arrays of them. 
+    **LoggedQuantity** objects are containers that wrap settings. These settings
+    may be a number (integer or float) or a string and occasionally small arrays
+    of them.
     
-    These objects emit signals when changed and can be connected bidirectionally to Qt Widgets. 
+    These objects emit signals when changed and can be connected bidirectionally
+    to Qt Widgets.
     
-    In ScopeFoundry we represent the values in an object called a `LoggedQuantity`. 
-    A `LoggedQuantity` is a class that contains a value, a `bool`, `float`, `int`, `str` etc 
-    that is part of an application's state. In the case of microscope and equipment control, 
-    these also can represent the state of a piece of hardware. These are very useful objects 
-    because the are the central location of the value contained within. All graphical interface views 
-    will be guaranteed to be consistent with the `LQ` state. The data of these quantities will also 
-    be saved in datafiles created by ScopeFoundry.
+    In ScopeFoundry we represent the values in an object called a
+    `LoggedQuantity`. A :class:`LoggedQuantity` is a class that contains a
+    value, a `bool`, `float`, `int`, `str` etc that is part of an application's
+    state. In the case of microscope and equipment control, these also can
+    represent the state of a piece of hardware. These are very useful objects
+    because the are the central location of the value contained within. All
+    graphical interface views will be guaranteed to be consistent with the `LQ`
+    state. The data of these quantities will also be saved in datafiles created
+    by ScopeFoundry.
     
     """
 
-    updated_value = QtCore.Signal((float,),(int,),(bool,), (), (str,),) # signal sent when value has been updated
-    updated_text_value = QtCore.Signal(str) # signal sent when value has been updated, sends text representation
-    updated_choice_index_value = QtCore.Signal(int) # emits the index of the value in self.choices
-    
-    updated_min_max = QtCore.Signal((float,float),(int,int), (),) # signal sent when min max range updated
-    updated_readonly = QtCore.Signal((bool,), (),) # signal sent when read only (ro) status has changed
+    # signal sent when value has been updated
+    updated_value = QtCore.Signal((float,),(int,),(bool,), (), (str,),) 
+    # signal sent when value has been updated, sends text representation
+    updated_text_value = QtCore.Signal(str) 
+    # emits the index of the value in self.choices
+    updated_choice_index_value = QtCore.Signal(int)
+     
+    # signal sent when min max range updated
+    updated_min_max = QtCore.Signal((float,float),(int,int), (),)
+    # signal sent when read only (ro) status has changed 
+    updated_readonly = QtCore.Signal((bool,), (),) 
     
     def __init__(self, name, dtype=float, 
                  hardware_read_func=None, hardware_set_func=None, 
@@ -79,7 +88,8 @@ class LoggedQuantity(QtCore.QObject):
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
-        self.choices = self._expand_choices(choices) # should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
+        # choices should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
+        self.choices = self._expand_choices(choices) 
         self.ro = ro # Read-Only
         
         self.log = get_logger_from_class(self)
@@ -108,7 +118,18 @@ class LoggedQuantity(QtCore.QObject):
         self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
         
     def coerce_to_type(self, x):
-        """force x to dtype of the LQ"""        
+        """
+        Force x to dtype of the LQ
+        
+        =============  ==================================
+        **Arguments**  **Description**
+        *x*            value of type str, bool, int, etc.
+        =============  ==================================
+        
+        :returns: Same value, *x* of the same type as its respective logged
+        quantity
+        
+        """        
         return self.dtype(x)
         
     def _expand_choices(self, choices):
@@ -149,14 +170,20 @@ class LoggedQuantity(QtCore.QObject):
          
         Change value of LQ and emit signals to inform listeners of change 
         
-        if *update_hardware* is true: call connected hardware_set_func
+        if *update_hardware* is true: call connected hardware write function
         
-        Options:
-        update_hardware (default True): calls hardware_set_func if defined
-        send_signal (default True): sends out QT signals on change
-        reread_hardware: read from hardware after writing to hardware to ensure change
-                         (defaults to self.reread_from_hardware_after_write)
+        =============== =================================================================================================================
+        **Arguments:**  **Description:**
+        new_val         New value for the LoggedQuantity to store
+        update_hardware calls hardware_set_func if defined (default True)
+        send_signal     sends out QT signals on upon change (default True)
+        reread_hardware read from hardware after writing to hardware to ensure change (defaults to self.reread_from_hardware_after_write)
+        =============== =================================================================================================================
+        
+        :returns: None
+        
         """
+        
         # use a thread lock during update_value to avoid another thread
         # calling update_value during the update_value
         
@@ -198,9 +225,15 @@ class LoggedQuantity(QtCore.QObject):
             
     def send_display_updates(self, force=False):
         """
-        emit updated_value signals if value has changed.
+        Emit updated_value signals if value has changed.
         
-        *force* will emit signals regardless of value change. 
+        =============  =============================================
+        **Arguments**  **Description**
+        *force*        will emit signals regardless of value change. 
+        =============  =============================================
+        
+        :returns: None
+        
         """
         #self.log.debug("send_display_updates: {} force={}".format(self.name, force))
         if (not self.same_values(self.oldval, self.val)) or (force):
@@ -225,8 +258,17 @@ class LoggedQuantity(QtCore.QObject):
             pass
     
     def same_values(self, v1, v2):
-        """ compare two values of the LQ type
-            used in update_value
+        """ 
+        Compares two values of the LQ type, used in update_value
+
+        =============  ====================
+        **Arguments**  **Description**
+        v1             value 1
+        v2             value 2
+        =============  ====================
+        
+        :returns: Boolean value (True or False)
+
         """
         return v1 == v2
     
@@ -237,6 +279,9 @@ class LoggedQuantity(QtCore.QObject):
             return self.fmt % self.val
 
     def ini_string_value(self):
+        """
+        :returns: A string showing the logged quantity value.
+        """
         return str(self.val)
 
     
@@ -244,15 +289,17 @@ class LoggedQuantity(QtCore.QObject):
         self.update_value(self.choices[new_choice_index][1], **kwargs)
     
     def add_listener(self, func, argtype=(), **kwargs):
-        """ Connect 'func' as a listener (Qt Slot) for the 
+        """
+        Connect 'func' as a listener (Qt Slot) for the 
         updated_value signal.
         By default 'func' should take no arguments,
         but argtype can define the data type that it should accept.
         but should be limited to those supported by LoggedQuantity 
         (i.e. int, float, str)
-        **kwargs are passed to the connect function
+        \*\*kwargs are passed to the connect function
         appends the 'func' to the 'listeners' list
         """
+        
         #    --> This is now handled by redefining sys.excepthook handle in ScopeFoundry.base_app
         # Wraps func in a try block to absorb the Exception to avoid crashing PyQt5 >5.5
         # see https://riverbankcomputing.com/pipermail/pyqt/2016-March/037134.html
@@ -267,23 +314,37 @@ class LoggedQuantity(QtCore.QObject):
         self.listeners.append(func)
 
     def connect_bidir_to_widget(self, widget):
+        # DEPRECATED
+        return self.connect_to_widget(widget)
+
+    def connect_to_widget(self, widget):
         """
         Creates Qt signal-slot connections between LQ and the QtWidget *widget*
         
         connects updated_value signal to the appropriate slot depending on 
         the type of widget 
         
-        Makes a bidirectional connection to a QT widget, ie when LQ is updated, 
-        widget gets a signal and when widget is updated, the LQ receives a signal
-        and update_value() slot is called.
+        Makes a bidirectional connection to a QT widget, ie when LQ is updated,
+        widget gets a signal and when widget is updated, the LQ receives a
+        signal and update_value() slot is called.
         
         Handles many types of widgets:
          * QDoubleSpinBox
          * QCheckBox
          * QLineEdit
          * QComboBox
-         * pyqtgraph.widgets.SpinBox.SpinBox        
+         * pyqtgraph.widgets.SpinBox.SpinBox 
+
+        =============  ====================================================================
+        **Arguments**  **Description**
+        widget         The name of the Qt GUI Object, examples of which are listed above.
+                       For example, if you have a QDoubleSpinBox in the gui which you 
+                       renamed int_value_doubleSpinBox in the Qt Designer Object Inspector, 
+                       use self.ui.int_value_doubleSpinBox
+        =============  ====================================================================
         
+        :returns: None
+
         """
 
         if type(widget) == QtWidgets.QDoubleSpinBox:
@@ -450,6 +511,10 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_readonly.emit(self.ro)
     
     def is_connected_to_hardware(self):
+        """
+        :returns: True if either self.hardware_read_func or 
+        self.hardware_set_func are defined. False if None.
+        """
         return (self.hardware_read_func is not None) or (self.hardware_set_func is not None)
     
     def has_hardware_read(self):
@@ -491,7 +556,7 @@ class FileLQ(LoggedQuantity):
         
     def connect_to_browse_widgets(self, lineEdit, pushButton):
         assert type(lineEdit) == QtWidgets.QLineEdit
-        self.connect_bidir_to_widget(lineEdit)
+        self.connect_to_widget(lineEdit)
     
         assert type(pushButton) == QtWidgets.QPushButton
         pushButton.clicked.connect(self.file_browser)
@@ -814,18 +879,27 @@ class LQCollection(object):
         
         for lqname, lq in self.as_dict().items():
             #: :type lq: LoggedQuantity
-            if lq.choices is not None:
-                widget = QtWidgets.QComboBox()
-            elif lq.dtype in [int, float]:
-                if lq.si:
-                    widget = pg.SpinBox()
-                else:
-                    widget = QtWidgets.QDoubleSpinBox()
-            elif lq.dtype in [bool]:
-                widget = QtWidgets.QCheckBox()  
-            elif lq.dtype in [str]:
-                widget = QtWidgets.QLineEdit()
-            lq.connect_bidir_to_widget(widget)
+            if isinstance(lq, FileLQ):
+                lineEdit = QtWidgets.QLineEdit()
+                browseButton = QtWidgets.QPushButton('...')
+                lq.connect_to_browse_widgets(lineEdit, browseButton)
+                widget = QtWidgets.QWidget()
+                widget.setLayout(QtWidgets.QHBoxLayout())
+                widget.layout().addWidget(lineEdit)
+                widget.layout().addWidget(browseButton)
+            else:
+                if lq.choices is not None:
+                    widget = QtWidgets.QComboBox()
+                elif lq.dtype in [int, float]:
+                    if lq.si:
+                        widget = pg.SpinBox()
+                    else:
+                        widget = QtWidgets.QDoubleSpinBox()
+                elif lq.dtype in [bool]:
+                    widget = QtWidgets.QCheckBox()  
+                elif lq.dtype in [str]:
+                    widget = QtWidgets.QLineEdit()
+                lq.connect_to_widget(widget)
 
             # Add to formlayout
             formLayout.addRow(lqname, widget)
