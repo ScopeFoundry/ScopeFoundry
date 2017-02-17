@@ -6,6 +6,7 @@ import os
 from qtpy import QtCore, QtWidgets
 import pyqtgraph as pg
 import numpy as np
+from ScopeFoundry.logged_quantity import LQCollection
 
 
 
@@ -160,6 +161,7 @@ class DataBrowserView(QtCore.QObject):
     def __init__(self, databrowser):
         QtCore.QObject.__init__(self)
         self.databrowser =  databrowser
+        self.settings = LQCollection()
         self.setup()
         
     def setup(self):
