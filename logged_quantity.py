@@ -154,6 +154,16 @@ class LoggedQuantity(QtCore.QObject):
         else:
             self.log.warn("{} read_from_hardware called when not connected to hardware".format(self.name))
         return self.val
+    
+    def write_to_hardware(self, reread_hardware=None):
+        if reread_hardware is None:
+            # if undefined, default to stored reread_from_hardware_after_write bool
+            reread_hardware = self.reread_from_hardware_after_write
+        # Read from Hardware
+        if self.has_hardware_write():
+            self.hardware_set_func(self.val)
+            if reread_hardware:
+                self.read_from_hardware(send_signal=False)
 
     def value(self):
         "return stored value"
