@@ -180,7 +180,7 @@ class HardwareComponent(QtCore.QObject):
         """
         for name, lq in self.settings.as_dict().items():
             if lq.has_hardware_read():
-                if self.debug_mode.val: self.log.debug("read_from_hardware", name)
+                if self.debug_mode.val: self.log.debug("read_from_hardware {}".format(name) )
                 lq.read_from_hardware()
         
     
