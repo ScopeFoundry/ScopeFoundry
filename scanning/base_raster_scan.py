@@ -254,7 +254,7 @@ class BaseRaster2DScan(Measurement):
         self.current_stage_pos_arrow.setPos(x,y)
     
     def update_display(self):
-        self.log.debug('update_display')
+        #self.log.debug('update_display')
         if self.initial_scan_setup_plotting:
             if self.settings['show_previous_scans']:
                 self.img_item = pg.ImageItem()
