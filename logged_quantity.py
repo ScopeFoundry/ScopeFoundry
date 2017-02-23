@@ -144,6 +144,13 @@ class LoggedQuantity(QtCore.QObject):
                 expanded_choices.append( ( str(c), self.dtype(c) ) )
         return expanded_choices
     
+    def __str__(self):
+        return "{} = {}".format(self.name, self.val)
+    
+    def __repr__(self):
+        return "LQ: {} = {}".format(self.name, self.val)
+
+    
     def read_from_hardware(self, send_signal=True):
         self.log.debug("{}: read_from_hardware send_signal={}".format(self.name, send_signal))
         if self.hardware_read_func:        
