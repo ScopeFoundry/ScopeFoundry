@@ -462,9 +462,9 @@ class LoggedQuantity(QtCore.QObject):
                 widget.setEnabled(False)
                 widget.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
                 widget.setReadOnly(True)
-            widget.setDecimals(self.spinbox_decimals)
+            #widget.setDecimals(self.spinbox_decimals)
             widget.setSingleStep(self.spinbox_step)
-            self.updated_value[float].connect(widget.setValue)
+            #self.updated_value[float].connect(widget.setValue)
             #if not self.ro:
                 #widget.valueChanged[float].connect(self.update_value)
             def update_widget_value(x):
@@ -478,7 +478,10 @@ class LoggedQuantity(QtCore.QObject):
                 finally:
                     widget.blockSignals(False)                    
             self.updated_value[float].connect(update_widget_value)
-            
+            def on_widget_update(_widget):
+                self.update_value(_widget.value())
+            widget.sigValueChanged.connect(on_widget_update)
+
         elif type(widget) == QtWidgets.QLabel:
             self.updated_text_value.connect(widget.setText)
         elif type(widget) == QtWidgets.QProgressBar:
