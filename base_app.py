@@ -557,7 +557,7 @@ class BaseMicroscopeApp(BaseApp):
 
         if 'app' in config.sections():
             for lqname, new_val in config.items('app'):
-                lq = self.settings[lqname]
+                lq = self.settings.get_lq(lqname)
                 if lq.dtype == bool:
                     new_val = str2bool(new_val)
                 lq.update_value(new_val)
