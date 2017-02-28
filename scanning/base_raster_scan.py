@@ -109,12 +109,23 @@ class BaseRaster2DScan(Measurement):
         #self.progress.updated_value[str].connect(self.ui.xy_scan_progressBar.setValue)
         #self.progress.updated_value.connect(self.tree_progressBar.setValue)
 
+        self.settings.continuous_scan.connect_to_widget(
+            self.ui.continuous_scan_checkBox)
+        self.settings.save_h5.connect_to_widget(
+            self.ui.save_h5_checkBox)
+
+        self.settings.show_previous_scans.connect_to_widget(
+            self.ui.show_previous_scans_checkBox)
+
         self.initial_scan_setup_plotting = False
         self.display_image_map = np.zeros(self.scan_shape, dtype=float)
         self.scan_specific_setup()
         
 
         self.add_operation('clear_previous_scans', self.clear_previous_scans)
+
+        self.ui.clear_previous_scans_pushButton.clicked.connect(
+            self.clear_previous_scans)
 
     def compute_scan_params(self):
         self.log.debug('compute_scan_params')
