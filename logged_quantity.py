@@ -421,12 +421,15 @@ class LoggedQuantity(QtCore.QObject):
             widget.editingFinished.connect(on_edit_finished)
             
         elif type(widget) == QtWidgets.QPlainTextEdit:
-            # FIXME doesn't quite work right: a signal character resets cursor position
-            self.updated_text_value[str].connect(widget.setPlainText)
+            self.updated_text_value[str].connect(widget.document().setPlainText)
             # TODO Read only
-            def set_from_plaintext():
-                self.update_value(widget.toPlainText())
-            widget.textChanged.connect(set_from_plaintext)
+            def on_widget_textChanged():
+                try:
+                    widget.blockSignals(True)
+                    self.update_value(widget.toPlainText())
+                finally:
+                    widget.blockSignals(False)
+            widget.textChanged.connect(on_widget_textChanged)
             
         elif type(widget) == QtWidgets.QComboBox:
             # need to have a choice list to connect to a QComboBox
