@@ -3,6 +3,7 @@ from qtpy import QtCore, QtWidgets, uic
 from collections import OrderedDict
 import os
 import logging
+import pyqtgraph as pg
 
 class OrderedAttrDict(object):
 
@@ -182,6 +183,10 @@ def replace_widget_in_layout(old_widget, new_widget, retain_font=True,
     
     
     return new_widget
+
+def replace_spinbox_in_layout(old_widget, **kwargs):
+    new_spinbox = pg.SpinBox()
+    return replace_widget_in_layout(old_widget, new_widget=new_spinbox, **kwargs)
 
 def print_all_connected(qobject, signal=None):
     if signal is None:
