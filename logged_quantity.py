@@ -6,6 +6,7 @@ from collections import OrderedDict
 import json
 import sys
 from ScopeFoundry.helper_funcs import get_logger_from_class
+from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 #import threading
 
 # python 2/3 compatibility
@@ -93,6 +94,7 @@ class LoggedQuantity(QtCore.QObject):
         # choices should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
         self.choices = self._expand_choices(choices) 
         self.ro = ro # Read-Only
+        self.is_array = False
         
         self.log = get_logger_from_class(self)
         
@@ -641,6 +643,8 @@ class ArrayLQ(LoggedQuantity):
         # threading lock
         self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
         
+        self.is_array = True
+        
         
         
 
@@ -921,7 +925,13 @@ class LQCollection(object):
                 widget.setLayout(QtWidgets.QHBoxLayout())
                 widget.layout().addWidget(lineEdit)
                 widget.layout().addWidget(browseButton)
-            else:
+            if isinstance(lq, ArrayLQ):
+                widget = QtWidgets.QTableView()
+                widget.horizontalHeader().hide()
+                widget.verticalHeader().hide()
+                model = ArrayLQ_QTableModel(lq, transpose=(len(lq.val.shape) == 1))
+                widget.setModel(model)
+            else:    
                 if lq.choices is not None:
                     widget = QtWidgets.QComboBox()
                 elif lq.dtype in [int, float]:

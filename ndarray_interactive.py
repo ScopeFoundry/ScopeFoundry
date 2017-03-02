@@ -88,7 +88,9 @@ class NumpyQTableModel(QtCore.QAbstractTableModel):
 class ArrayLQ_QTableModel(NumpyQTableModel):
     def __init__(self, lq, col_names=None, row_names=None, parent=None, **kwargs):
         print(lq.val)
-        NumpyQTableModel.__init__(self, lq.val, col_names=col_names, row_names=row_names, parent=parent, **kwargs)
+        default_kwargs = dict( col_names=col_names, row_names=row_names, fmt=lq.fmt)
+        default_kwargs.update(kwargs)
+        NumpyQTableModel.__init__(self, lq.val, parent=parent, **default_kwargs)
         self.lq = lq
         self.lq.updated_value[()].connect(self.on_lq_updated_value)
         self.dataChanged.connect(self.on_dataChanged)
