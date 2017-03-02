@@ -457,6 +457,8 @@ class BaseMicroscopeApp(BaseApp):
             hw = hw(app=self)
         
         self.hardware.add(hw.name, hw)
+        
+        hw.add_widgets_to_tree(tree=self.ui.hardware_treeWidget)
         return hw
     
     
@@ -475,11 +477,13 @@ class BaseMicroscopeApp(BaseApp):
         """
         assert not measure.name in self.measurements.keys()
         
+        #If *measure* is a class, rather an instance, create an instance 
         if inspect.isclass(measure):
-            #If *measure* is a class, rather an instance, create an instance 
             measure = measure(app=self)
 
         self.measurements.add(measure.name, measure)
+        
+        measure.add_widgets_to_tree(tree=self.ui.measurements_treeWidget)
 
         return measure
     

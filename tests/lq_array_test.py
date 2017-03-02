@@ -19,7 +19,8 @@ class LQArrayTestApp(BaseApp):
             self.settings.test_array, 
             col_names=['Center','FWHM', 'Amplitude'])
         
-        self.ui = QtWidgets.QWidget()
+        self.ui = QtWidgets.QScrollArea()
+        self.ui.setWidgetResizable(True)
         self.ui.setLayout(QtWidgets.QVBoxLayout())
         
         self.tableView1 = QtWidgets.QTableView()
@@ -60,9 +61,20 @@ class LQArrayTestApp(BaseApp):
             self.ui.layout().addWidget(tableView)
             
         #  int does not round
+        self.settings.New("test_int", dtype=int, initial=124)
         
         self.settings_ui = self.settings.New_UI()
         self.ui.layout().addWidget(self.settings_ui)
+        
+        
+        self.treeWidget = QtWidgets.QTreeWidget()
+        self.treeWidget.setColumnCount(2)
+        self.ui.layout().addWidget(self.treeWidget)
+        self.tree_item = QtWidgets.QTreeWidgetItem(self.treeWidget, ["asdf", 'jkl;'])
+        self.settings.add_widgets_to_subtree(self.tree_item)
+        
+        
+        
 
         self.ui.show()
         self.console_widget.show()
