@@ -84,6 +84,8 @@ class LoggedQuantity(QtCore.QObject):
         self.hardware_read_func = hardware_read_func
         self.hardware_set_func = hardware_set_func
         self.fmt = fmt # string formatting string. This is ignored if dtype==str
+        if self.dtype == str:
+            self.fmt = "%s"
         self.si   = si # will use pyqtgraph SI Spinbox if True
         self.unit = unit
         self.vmin = vmin
@@ -608,15 +610,22 @@ class ArrayLQ(LoggedQuantity):
         
         self.name = name
         self.dtype = dtype
-        self.val = np.array(initial, dtype=dtype)
+        if self.dtype == str:
+            self.val = np.array(initial, dtype=object)
+        else:
+            self.val = np.array(initial, dtype=dtype)
         self.hardware_read_func = hardware_read_func
         self.hardware_set_func = hardware_set_func
         self.fmt = fmt # % string formatting string. This is ignored if dtype==str
+        if self.dtype == str:
+            self.fmt = "%s"
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
         self.ro = ro # Read-Only
         
+        self.log = get_logger_from_class(self)
+
         if self.dtype == int:
             self.spinbox_decimals = 0
         else:
@@ -631,6 +640,8 @@ class ArrayLQ(LoggedQuantity):
         
         # threading lock
         self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
+        
+        
         
 
     def same_values(self, v1, v2):
