@@ -7,6 +7,7 @@ import json
 import sys
 from ScopeFoundry.helper_funcs import get_logger_from_class
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
+import pyqtgraph as pg
 #import threading
 
 # python 2/3 compatibility
@@ -645,7 +646,9 @@ class ArrayLQ(LoggedQuantity):
         
         self.is_array = True
         
+        self._tableView = None
         
+    
         
 
     def same_values(self, v1, v2):
@@ -697,6 +700,20 @@ class ArrayLQ(LoggedQuantity):
                 pass
                 #print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
     
+    @property
+    def array_tableView(self):
+        if self._tableView == None:
+            self._tableView  = self.create_tableView()
+            self._tableView.setWindowTitle(self.name)
+        return self._tableView
+    
+    def create_tableView(self, **kwargs):
+        widget = QtWidgets.QTableView()
+        #widget.horizontalHeader().hide()
+        #widget.verticalHeader().hide()
+        model = ArrayLQ_QTableModel(self, transpose=(len(self.val.shape) == 1), **kwargs)
+        widget.setModel(model)
+        return widget
 
 class LQRange(QtCore.QObject):
     """
@@ -876,6 +893,7 @@ class LQCollection(object):
         "Dictionary-like access reads and sets value of LQ's"
         return self._logged_quantities[key].val
     
+    
     def __setitem__(self, key, item):
         "Dictionary-like access reads and sets value of LQ's"
         self._logged_quantities[key].update_value(item)
@@ -908,8 +926,6 @@ class LQCollection(object):
         """create a default Qt Widget that contains 
         widgets for all settings in the LQCollection
         """
-        import pyqtgraph as pg
-        
 
         ui_widget =  QtWidgets.QWidget()
         formLayout = QtWidgets.QFormLayout()
@@ -926,11 +942,9 @@ class LQCollection(object):
                 widget.layout().addWidget(lineEdit)
                 widget.layout().addWidget(browseButton)
             if isinstance(lq, ArrayLQ):
-                widget = QtWidgets.QTableView()
+                widget = lq.create_tableView()
                 widget.horizontalHeader().hide()
                 widget.verticalHeader().hide()
-                model = ArrayLQ_QTableModel(lq, transpose=(len(lq.val.shape) == 1))
-                widget.setModel(model)
             else:    
                 if lq.choices is not None:
                     widget = QtWidgets.QComboBox()
@@ -953,6 +967,45 @@ class LQCollection(object):
             #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
             #self.control_widgets[lqname] = widget  
         return ui_widget
+    
+    def add_widgets_to_subtree(self, tree_item):
+        lq_tree_items = []
+        for lqname, lq in self.as_dict().items():
+            #: :type lq: LoggedQuantity
+            if isinstance(lq, ArrayLQ):
+                lineedit = QtWidgets.QLineEdit()
+                button = QtWidgets.QPushButton('...')
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                widget.setLayout(layout)
+                layout.addWidget(lineedit)
+                layout.addWidget(button)
+                
+                lq.connect_to_widget(lineedit)
+                button.clicked.connect(lq.array_tableView.show)
+                button.clicked.connect(lq.array_tableView.raise_)
+            else:
+                if lq.choices is not None:
+                    widget = QtWidgets.QComboBox()
+                elif lq.dtype in [int, float]:
+                    if lq.si:
+                        widget = pg.SpinBox()
+                    else:
+                        widget = QtWidgets.QDoubleSpinBox()
+                elif lq.dtype in [bool]:
+                    widget = QtWidgets.QCheckBox()  
+                elif lq.dtype in [str]:
+                    widget = QtWidgets.QLineEdit()
+                lq.connect_to_widget(widget)
+    
+            lq_tree_item = QtWidgets.QTreeWidgetItem(tree_item, [lqname, ""])
+            lq_tree_items.append(lq_tree_item)
+            tree_item.addChild(lq_tree_item)
+            lq.tree_widget = widget
+            tree_item.treeWidget().setItemWidget(lq_tree_item, 1, lq.tree_widget)
+            #self.control_widgets[lqname] = widget
+        return lq_tree_items
+
     
     def disconnect_all_from_hardware(self):
         for lq in self.as_list():
