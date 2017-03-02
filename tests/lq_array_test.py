@@ -59,7 +59,10 @@ class LQArrayTestApp(BaseApp):
             tableView.setModel(tableModel)
             self.ui.layout().addWidget(tableView)
             
-        # Bool doesnot work yet, int does not round
+        #  int does not round
+        
+        self.settings_ui = self.settings.New_UI()
+        self.ui.layout().addWidget(self.settings_ui)
 
         self.ui.show()
         self.console_widget.show()
