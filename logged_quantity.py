@@ -5,7 +5,7 @@ import numpy as np
 from collections import OrderedDict
 import json
 import sys
-from ScopeFoundry.helper_funcs import get_logger_from_class
+from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 #import threading
@@ -134,7 +134,9 @@ class LoggedQuantity(QtCore.QObject):
         :returns: Same value, *x* of the same type as its respective logged
         quantity
         
-        """        
+        """
+        if self.dtype==bool and isinstance(x, str):
+            return str2bool(x)       
         return self.dtype(x)
         
     def _expand_choices(self, choices):
@@ -980,6 +982,8 @@ class LQCollection(object):
                 widget.setLayout(layout)
                 layout.addWidget(lineedit)
                 layout.addWidget(button)
+                layout.setSpacing(0)
+                layout.setContentsMargins(0,0,0,0)
                 
                 lq.connect_to_widget(lineedit)
                 button.clicked.connect(lq.array_tableView.show)
