@@ -642,7 +642,8 @@ class ArrayLQ(LoggedQuantity):
         self._in_reread_loop = False # flag to prevent reread from hardware loops
         
         self.widget_list = []
-        
+        self.listeners = []
+
         # threading lock
         self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
         
