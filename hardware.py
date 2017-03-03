@@ -52,6 +52,9 @@ class HardwareComponent(QtCore.QObject):
 
         self.connected = self.add_logged_quantity("connected", dtype=bool)
         self.connected.updated_value[bool].connect(self.enable_connection)
+
+        self.connect_success = False
+
         
         self.debug_mode = self.add_logged_quantity("debug_mode", dtype=bool, initial=debug)
         
@@ -173,10 +176,13 @@ class HardwareComponent(QtCore.QObject):
     @QtCore.Slot(bool)
     def enable_connection(self, enable=True):
         if enable:
+            self.connect_success = False
             self.connect()
+            self.connect_success = True
             self.tree_item.setText(1,'O')
             self.tree_item.setForeground(1, QtGui.QColor('green'))
         else:
+            self.connect_success = False
             self.tree_item.setText(1,'X')
             self.tree_item.setForeground(1, QtGui.QColor('red'))
             self.disconnect()
