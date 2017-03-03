@@ -550,10 +550,6 @@ class BaseMicroscopeApp(BaseApp):
 
         self.log.info("ini settings loading from {}".format(fname))
         
-        def str2bool(v):
-            return v.lower() in ("yes", "true", "t", "1")
-
-
         config = configparser.ConfigParser()
         config.optionxform = str
         config.read(fname)
@@ -561,8 +557,6 @@ class BaseMicroscopeApp(BaseApp):
         if 'app' in config.sections():
             for lqname, new_val in config.items('app'):
                 lq = self.settings.get_lq(lqname)
-                if lq.dtype == bool:
-                    new_val = str2bool(new_val)
                 lq.update_value(new_val)
         
         for hc_name, hc in self.hardware.items():
@@ -572,8 +566,6 @@ class BaseMicroscopeApp(BaseApp):
                 for lqname, new_val in config.items(section_name):
                     try:
                         lq = hc.settings.get_lq(lqname)
-                        if lq.dtype == bool:
-                            new_val = str2bool(new_val)
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
@@ -585,8 +577,6 @@ class BaseMicroscopeApp(BaseApp):
                 for lqname, new_val in config.items(section_name):
                     try:
                         lq = measurement.settings.get_lq(lqname)
-                        if lq.dtype == bool:
-                            new_val = str2bool(new_val)                    
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
