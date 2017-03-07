@@ -48,7 +48,8 @@ except Exception as err:
 
 from .logged_quantity import LoggedQuantity, LQCollection
 
-from .helper_funcs import confirm_on_close, ignore_on_close, load_qt_ui_file, OrderedAttrDict, sibling_path, get_logger_from_class
+from .helper_funcs import confirm_on_close, ignore_on_close, load_qt_ui_file, \
+    OrderedAttrDict, sibling_path, get_logger_from_class, str2bool
 
 #from equipment.image_display import ImageDisplay
 
@@ -139,8 +140,6 @@ class BaseApp(QtCore.QObject):
     def settings_load_ini(self, fname):
         self.log.info("ini settings loading from " + fname)
         
-        def str2bool(v):
-            return v.lower() in ("yes", "true", "t", "1")
 
         config = configparser.ConfigParser()
         config.optionxform = str
@@ -458,6 +457,8 @@ class BaseMicroscopeApp(BaseApp):
             hw = hw(app=self)
         
         self.hardware.add(hw.name, hw)
+        
+        hw.add_widgets_to_tree(tree=self.ui.hardware_treeWidget)
         return hw
     
     
@@ -476,11 +477,13 @@ class BaseMicroscopeApp(BaseApp):
         """
         assert not measure.name in self.measurements.keys()
         
+        #If *measure* is a class, rather an instance, create an instance 
         if inspect.isclass(measure):
-            #If *measure* is a class, rather an instance, create an instance 
             measure = measure(app=self)
 
         self.measurements.add(measure.name, measure)
+        
+        measure.add_widgets_to_tree(tree=self.ui.measurements_treeWidget)
 
         return measure
     
@@ -547,19 +550,13 @@ class BaseMicroscopeApp(BaseApp):
 
         self.log.info("ini settings loading from {}".format(fname))
         
-        def str2bool(v):
-            return v.lower() in ("yes", "true", "t", "1")
-
-
         config = configparser.ConfigParser()
         config.optionxform = str
         config.read(fname)
 
         if 'app' in config.sections():
             for lqname, new_val in config.items('app'):
-                lq = self.settings[lqname]
-                if lq.dtype == bool:
-                    new_val = str2bool(new_val)
+                lq = self.settings.get_lq(lqname)
                 lq.update_value(new_val)
         
         for hc_name, hc in self.hardware.items():
@@ -569,8 +566,6 @@ class BaseMicroscopeApp(BaseApp):
                 for lqname, new_val in config.items(section_name):
                     try:
                         lq = hc.settings.get_lq(lqname)
-                        if lq.dtype == bool:
-                            new_val = str2bool(new_val)
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
@@ -580,11 +575,13 @@ class BaseMicroscopeApp(BaseApp):
             section_name = 'measurement/'+meas_name            
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
-                    lq = measurement.settings.get_lq(lqname)
-                    if lq.dtype == bool:
-                        new_val = str2bool(new_val)                    
-                    if not lq.ro:
-                        lq.update_value(new_val)
+                    try:
+                        lq = measurement.settings.get_lq(lqname)
+                        if not lq.ro:
+                            lq.update_value(new_val)
+                    except Exception as err:
+                        self.log.error("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                            
         
         self.log.info("ini settings loaded from {}"+ fname)
         

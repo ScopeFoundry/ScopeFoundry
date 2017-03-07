@@ -52,20 +52,14 @@ class HardwareComponent(QtCore.QObject):
 
         self.connected = self.add_logged_quantity("connected", dtype=bool)
         self.connected.updated_value[bool].connect(self.enable_connection)
+
+        self.connect_success = False
+
         
         self.debug_mode = self.add_logged_quantity("debug_mode", dtype=bool, initial=debug)
         
         self.setup()
         
-
-        try:
-            self._add_control_widgets_to_hardware_tab()
-        except Exception as err:
-            self.log.info("HardwareComponent: could not add to hardware tab {} {}".format( self.name,  err ))
-        try:
-            self._add_control_widgets_to_hardware_tree()
-        except Exception as err:
-            self.log.info("HardwareComponent: could not add to hardware tree {} {}".format( self.name,  err ))
 
         self.has_been_connected_once = False
         
@@ -78,15 +72,12 @@ class HardwareComponent(QtCore.QObject):
         """
         raise NotImplementedError()
 
-    def _add_control_widgets_to_hardware_tab(self):
-        cwidget = self.app.ui.hardware_tab_scrollArea_content_widget
+    def new_control_widgets(self):
         
         self.controls_groupBox = QtWidgets.QGroupBox(self.name)
         self.controls_formLayout = QtWidgets.QFormLayout()
         self.controls_groupBox.setLayout(self.controls_formLayout)
-        
-        cwidget.layout().addWidget(self.controls_groupBox)
-        
+                
         #self.connect_hardware_checkBox = QtWidgets.QCheckBox("Connect to Hardware")
         #self.controls_formLayout.addRow("Connect", self.connect_hardware_checkBox)
         #self.connect_hardware_checkBox.stateChanged.connect(self.enable_connection)
@@ -112,7 +103,6 @@ class HardwareComponent(QtCore.QObject):
             self.controls_formLayout.addRow(lqname, widget)
             self.control_widgets[lqname] = widget
         
-        
         self.op_buttons = OrderedDict()
         for op_name, op_func in self.operations.items(): 
             op_button = QtWidgets.QPushButton(op_name)
@@ -122,9 +112,11 @@ class HardwareComponent(QtCore.QObject):
         self.read_from_hardware_button = QtWidgets.QPushButton("Read From Hardware")
         self.read_from_hardware_button.clicked.connect(self.read_from_hardware)
         self.controls_formLayout.addRow("Logged Quantities:", self.read_from_hardware_button)
+        
+        return self.controls_groupBox
     
-    def _add_control_widgets_to_hardware_tree(self):
-        tree = self.app.ui.hardware_treeWidget
+    def add_widgets_to_tree(self, tree):
+        #tree = self.app.ui.hardware_treeWidget
         #tree = QTreeWidget()
         tree.setColumnCount(2)
         tree.setHeaderLabels(["Hardware", "Value"])
@@ -134,29 +126,10 @@ class HardwareComponent(QtCore.QObject):
         self.tree_item.setFirstColumnSpanned(False)
         self.tree_item.setForeground(1, QtGui.QColor('red'))
         
-        for lqname, lq in self.settings.as_dict().items():
-            #: :type lq: LoggedQuantity
-            if lq.choices is not None:
-                widget = QtWidgets.QComboBox()
-            elif lq.dtype in [int, float]:
-                if lq.si:
-                    widget = pg.SpinBox()
-                else:
-                    widget = QtWidgets.QDoubleSpinBox()
-            elif lq.dtype in [bool]:
-                widget = QtWidgets.QCheckBox()  
-            elif lq.dtype in [str]:
-                widget = QtWidgets.QLineEdit()
-            lq.connect_bidir_to_widget(widget)
-
-            # Add to formlayout
-            #self.controls_formLayout.addRow(lqname, widget)
-            lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
-            self.tree_item.addChild(lq_tree_item)
-            lq.hardware_tree_widget = widget
-            tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
-            #self.control_widgets[lqname] = widget
-                
+        # Add logged quantities to tree
+        self.settings.add_widgets_to_subtree(self.tree_item)        
+        
+        # Add oepration buttons to tree        
         self.op_buttons = OrderedDict()
         for op_name, op_func in self.operations.items(): 
             op_button = QtWidgets.QPushButton(op_name)
@@ -180,7 +153,7 @@ class HardwareComponent(QtCore.QObject):
         """
         for name, lq in self.settings.as_dict().items():
             if lq.has_hardware_read():
-                if self.debug_mode.val: self.log.debug("read_from_hardware", name)
+                if self.debug_mode.val: self.log.debug("read_from_hardware {}".format(name) )
                 lq.read_from_hardware()
         
     
@@ -203,10 +176,13 @@ class HardwareComponent(QtCore.QObject):
     @QtCore.Slot(bool)
     def enable_connection(self, enable=True):
         if enable:
+            self.connect_success = False
             self.connect()
+            self.connect_success = True
             self.tree_item.setText(1,'O')
             self.tree_item.setForeground(1, QtGui.QColor('green'))
         else:
+            self.connect_success = False
             self.tree_item.setText(1,'X')
             self.tree_item.setForeground(1, QtGui.QColor('red'))
             self.disconnect()
