@@ -55,11 +55,11 @@ class BaseRaster2DScan(Measurement):
 
         # local logged quantities
         lq_params = dict(dtype=float, vmin=self.h_limits[0],vmax=self.h_limits[1], ro=False, unit=self.h_unit )
-        self.h0 = self.settings.New('h0',  initial=0, **lq_params  )
-        self.h1 = self.settings.New('h1',  initial=1, **lq_params  )
+        self.h0 = self.settings.New('h0',  initial=self.h_limits[0], **lq_params  )
+        self.h1 = self.settings.New('h1',  initial=self.h_limits[1], **lq_params  )
         lq_params = dict(dtype=float, vmin=self.v_limits[0],vmax=self.v_limits[1], ro=False, unit=self.h_unit )
-        self.v0 = self.settings.New('v0',  initial=0, **lq_params  )
-        self.v1 = self.settings.New('v1',  initial=1, **lq_params  )
+        self.v0 = self.settings.New('v0',  initial=self.v_limits[0], **lq_params  )
+        self.v1 = self.settings.New('v1',  initial=self.v_limits[1], **lq_params  )
 
         lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(self.h_limits[1]-self.h_limits[0]), ro=False, unit=self.h_unit )
         self.dh = self.settings.New('dh', initial=0.1, **lq_params)
@@ -109,12 +109,23 @@ class BaseRaster2DScan(Measurement):
         #self.progress.updated_value[str].connect(self.ui.xy_scan_progressBar.setValue)
         #self.progress.updated_value.connect(self.tree_progressBar.setValue)
 
+        self.settings.continuous_scan.connect_to_widget(
+            self.ui.continuous_scan_checkBox)
+        self.settings.save_h5.connect_to_widget(
+            self.ui.save_h5_checkBox)
+
+        self.settings.show_previous_scans.connect_to_widget(
+            self.ui.show_previous_scans_checkBox)
+
         self.initial_scan_setup_plotting = False
         self.display_image_map = np.zeros(self.scan_shape, dtype=float)
         self.scan_specific_setup()
         
 
         self.add_operation('clear_previous_scans', self.clear_previous_scans)
+
+        self.ui.clear_previous_scans_pushButton.clicked.connect(
+            self.clear_previous_scans)
 
     def compute_scan_params(self):
         self.log.debug('compute_scan_params')
@@ -254,7 +265,7 @@ class BaseRaster2DScan(Measurement):
         self.current_stage_pos_arrow.setPos(x,y)
     
     def update_display(self):
-        self.log.debug('update_display')
+        #self.log.debug('update_display')
         if self.initial_scan_setup_plotting:
             if self.settings['show_previous_scans']:
                 self.img_item = pg.ImageItem()

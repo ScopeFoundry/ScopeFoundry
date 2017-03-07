@@ -84,17 +84,6 @@ class Measurement(QtCore.QObject):
         self.setup()
         
         
-        
-        try:
-            self._add_control_widgets_to_measurements_tab()
-        except Exception as err:
-            self.log.info("MeasurementComponent: could not add to measurement tab: {}, {}".format(self.name,  err))
-        try:
-            self._add_control_widgets_to_measurements_tree()
-        except Exception as err:
-            self.log.info("MeasurementComponent: could not add to measurement tree: {}, {}".format(self.name,  err))
-
-
     def setup(self):
         """Override this to set up logged quantities and gui connections
         Runs during __init__, before the hardware connection is established
@@ -310,14 +299,12 @@ class Measurement(QtCore.QObject):
         if self.app.mdi and self.ui.parent():
             self.ui.parent().raise_()
     
-    def _add_control_widgets_to_measurements_tab(self):
+    def new_control_widgets(self):
         
-        cwidget = self.app.ui.measurements_tab_scrollArea_content_widget
         self.controls_groupBox = QtWidgets.QGroupBox(self.name)
         self.controls_formLayout = QtWidgets.QFormLayout()
         self.controls_groupBox.setLayout(self.controls_formLayout)
         
-        cwidget.layout().addWidget(self.controls_groupBox)
                 
         self.control_widgets = OrderedDict()
         for lqname, lq in self.settings.as_dict().items():
@@ -346,13 +333,15 @@ class Measurement(QtCore.QObject):
             op_button.clicked.connect(op_func)
             self.controls_formLayout.addRow(op_name, op_button)
             
+        return self.controls_groupBox
             
-    def _add_control_widgets_to_measurements_tree(self, tree=None):
+            
+    def add_widgets_to_tree(self, tree):
         """
         Adds Measurement items and their controls to Measurements tree in the user interface.
         """
-        if tree is None:
-            tree = self.app.ui.measurements_treeWidget
+        #if tree is None:
+        #    tree = self.app.ui.measurements_treeWidget
         tree.setColumnCount(2)
         tree.setHeaderLabels(["Measurements", "Value"])
 
@@ -364,26 +353,7 @@ class Measurement(QtCore.QObject):
         self.progress.updated_value.connect(self.tree_progressBar.setValue)
 
         # Add logged quantities to tree
-        for lqname, lq in self.settings.as_dict().items():
-            #: :type lq: LoggedQuantity
-            if lq.choices is not None:
-                widget = QtWidgets.QComboBox()
-            elif lq.dtype in [int, float]:
-                if lq.si:
-                    widget = pg.SpinBox()
-                else:
-                    widget = QtWidgets.QDoubleSpinBox()
-            elif lq.dtype in [bool]:
-                widget = QtWidgets.QCheckBox()  
-            elif lq.dtype in [str]:
-                widget = QtWidgets.QLineEdit()
-            lq.connect_bidir_to_widget(widget)
-
-            lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
-            self.tree_item.addChild(lq_tree_item)
-            lq.hardware_tree_widget = widget
-            tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
-            #self.control_widgets[lqname] = widget
+        self.settings.add_widgets_to_subtree(self.tree_item)
                 
         # Add operation buttons to tree
         self.op_buttons = OrderedDict()

@@ -5,7 +5,9 @@ import numpy as np
 from collections import OrderedDict
 import json
 import sys
-from ScopeFoundry.helper_funcs import get_logger_from_class
+from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool
+from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
+import pyqtgraph as pg
 #import threading
 
 # python 2/3 compatibility
@@ -84,6 +86,8 @@ class LoggedQuantity(QtCore.QObject):
         self.hardware_read_func = hardware_read_func
         self.hardware_set_func = hardware_set_func
         self.fmt = fmt # string formatting string. This is ignored if dtype==str
+        if self.dtype == str:
+            self.fmt = "%s"
         self.si   = si # will use pyqtgraph SI Spinbox if True
         self.unit = unit
         self.vmin = vmin
@@ -91,6 +95,7 @@ class LoggedQuantity(QtCore.QObject):
         # choices should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
         self.choices = self._expand_choices(choices) 
         self.ro = ro # Read-Only
+        self.is_array = False
         
         self.log = get_logger_from_class(self)
         
@@ -129,7 +134,9 @@ class LoggedQuantity(QtCore.QObject):
         :returns: Same value, *x* of the same type as its respective logged
         quantity
         
-        """        
+        """
+        if self.dtype==bool and isinstance(x, str):
+            return str2bool(x)       
         return self.dtype(x)
         
     def _expand_choices(self, choices):
@@ -144,6 +151,13 @@ class LoggedQuantity(QtCore.QObject):
                 expanded_choices.append( ( str(c), self.dtype(c) ) )
         return expanded_choices
     
+    def __str__(self):
+        return "{} = {}".format(self.name, self.val)
+    
+    def __repr__(self):
+        return "LQ: {} = {}".format(self.name, self.val)
+
+    
     def read_from_hardware(self, send_signal=True):
         self.log.debug("{}: read_from_hardware send_signal={}".format(self.name, send_signal))
         if self.hardware_read_func:        
@@ -154,6 +168,16 @@ class LoggedQuantity(QtCore.QObject):
         else:
             self.log.warn("{} read_from_hardware called when not connected to hardware".format(self.name))
         return self.val
+    
+    def write_to_hardware(self, reread_hardware=None):
+        if reread_hardware is None:
+            # if undefined, default to stored reread_from_hardware_after_write bool
+            reread_hardware = self.reread_from_hardware_after_write
+        # Read from Hardware
+        if self.has_hardware_write():
+            self.hardware_set_func(self.val)
+            if reread_hardware:
+                self.read_from_hardware(send_signal=False)
 
     def value(self):
         "return stored value"
@@ -404,12 +428,15 @@ class LoggedQuantity(QtCore.QObject):
             widget.editingFinished.connect(on_edit_finished)
             
         elif type(widget) == QtWidgets.QPlainTextEdit:
-            # FIXME doesn't quite work right: a signal character resets cursor position
-            self.updated_text_value[str].connect(widget.setPlainText)
+            self.updated_text_value[str].connect(widget.document().setPlainText)
             # TODO Read only
-            def set_from_plaintext():
-                self.update_value(widget.toPlainText())
-            widget.textChanged.connect(set_from_plaintext)
+            def on_widget_textChanged():
+                try:
+                    widget.blockSignals(True)
+                    self.update_value(widget.toPlainText())
+                finally:
+                    widget.blockSignals(False)
+            widget.textChanged.connect(on_widget_textChanged)
             
         elif type(widget) == QtWidgets.QComboBox:
             # need to have a choice list to connect to a QComboBox
@@ -445,9 +472,9 @@ class LoggedQuantity(QtCore.QObject):
                 widget.setEnabled(False)
                 widget.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
                 widget.setReadOnly(True)
-            widget.setDecimals(self.spinbox_decimals)
+            #widget.setDecimals(self.spinbox_decimals)
             widget.setSingleStep(self.spinbox_step)
-            self.updated_value[float].connect(widget.setValue)
+            #self.updated_value[float].connect(widget.setValue)
             #if not self.ro:
                 #widget.valueChanged[float].connect(self.update_value)
             def update_widget_value(x):
@@ -461,7 +488,10 @@ class LoggedQuantity(QtCore.QObject):
                 finally:
                     widget.blockSignals(False)                    
             self.updated_value[float].connect(update_widget_value)
-            
+            def on_widget_update(_widget):
+                self.update_value(_widget.value())
+            widget.sigValueChanged.connect(on_widget_update)
+
         elif type(widget) == QtWidgets.QLabel:
             self.updated_text_value.connect(widget.setText)
         elif type(widget) == QtWidgets.QProgressBar:
@@ -585,15 +615,22 @@ class ArrayLQ(LoggedQuantity):
         
         self.name = name
         self.dtype = dtype
-        self.val = np.array(initial, dtype=dtype)
+        if self.dtype == str:
+            self.val = np.array(initial, dtype=object)
+        else:
+            self.val = np.array(initial, dtype=dtype)
         self.hardware_read_func = hardware_read_func
         self.hardware_set_func = hardware_set_func
         self.fmt = fmt # % string formatting string. This is ignored if dtype==str
+        if self.dtype == str:
+            self.fmt = "%s"
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
         self.ro = ro # Read-Only
         
+        self.log = get_logger_from_class(self)
+
         if self.dtype == int:
             self.spinbox_decimals = 0
         else:
@@ -605,9 +642,16 @@ class ArrayLQ(LoggedQuantity):
         self._in_reread_loop = False # flag to prevent reread from hardware loops
         
         self.widget_list = []
-        
+        self.listeners = []
+
         # threading lock
         self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
+        
+        self.is_array = True
+        
+        self._tableView = None
+        
+    
         
 
     def same_values(self, v1, v2):
@@ -659,6 +703,20 @@ class ArrayLQ(LoggedQuantity):
                 pass
                 #print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
     
+    @property
+    def array_tableView(self):
+        if self._tableView == None:
+            self._tableView  = self.create_tableView()
+            self._tableView.setWindowTitle(self.name)
+        return self._tableView
+    
+    def create_tableView(self, **kwargs):
+        widget = QtWidgets.QTableView()
+        #widget.horizontalHeader().hide()
+        #widget.verticalHeader().hide()
+        model = ArrayLQ_QTableModel(self, transpose=(len(self.val.shape) == 1), **kwargs)
+        widget.setModel(model)
+        return widget
 
 class LQRange(QtCore.QObject):
     """
@@ -838,6 +896,7 @@ class LQCollection(object):
         "Dictionary-like access reads and sets value of LQ's"
         return self._logged_quantities[key].val
     
+    
     def __setitem__(self, key, item):
         "Dictionary-like access reads and sets value of LQ's"
         self._logged_quantities[key].update_value(item)
@@ -870,8 +929,6 @@ class LQCollection(object):
         """create a default Qt Widget that contains 
         widgets for all settings in the LQCollection
         """
-        import pyqtgraph as pg
-        
 
         ui_widget =  QtWidgets.QWidget()
         formLayout = QtWidgets.QFormLayout()
@@ -887,7 +944,11 @@ class LQCollection(object):
                 widget.setLayout(QtWidgets.QHBoxLayout())
                 widget.layout().addWidget(lineEdit)
                 widget.layout().addWidget(browseButton)
-            else:
+            if isinstance(lq, ArrayLQ):
+                widget = lq.create_tableView()
+                widget.horizontalHeader().hide()
+                widget.verticalHeader().hide()
+            else:    
                 if lq.choices is not None:
                     widget = QtWidgets.QComboBox()
                 elif lq.dtype in [int, float]:
@@ -909,6 +970,47 @@ class LQCollection(object):
             #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
             #self.control_widgets[lqname] = widget  
         return ui_widget
+    
+    def add_widgets_to_subtree(self, tree_item):
+        lq_tree_items = []
+        for lqname, lq in self.as_dict().items():
+            #: :type lq: LoggedQuantity
+            if isinstance(lq, ArrayLQ):
+                lineedit = QtWidgets.QLineEdit()
+                button = QtWidgets.QPushButton('...')
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                widget.setLayout(layout)
+                layout.addWidget(lineedit)
+                layout.addWidget(button)
+                layout.setSpacing(0)
+                layout.setContentsMargins(0,0,0,0)
+                
+                lq.connect_to_widget(lineedit)
+                button.clicked.connect(lq.array_tableView.show)
+                button.clicked.connect(lq.array_tableView.raise_)
+            else:
+                if lq.choices is not None:
+                    widget = QtWidgets.QComboBox()
+                elif lq.dtype in [int, float]:
+                    if lq.si:
+                        widget = pg.SpinBox()
+                    else:
+                        widget = QtWidgets.QDoubleSpinBox()
+                elif lq.dtype in [bool]:
+                    widget = QtWidgets.QCheckBox()  
+                elif lq.dtype in [str]:
+                    widget = QtWidgets.QLineEdit()
+                lq.connect_to_widget(widget)
+    
+            lq_tree_item = QtWidgets.QTreeWidgetItem(tree_item, [lqname, ""])
+            lq_tree_items.append(lq_tree_item)
+            tree_item.addChild(lq_tree_item)
+            lq.tree_widget = widget
+            tree_item.treeWidget().setItemWidget(lq_tree_item, 1, lq.tree_widget)
+            #self.control_widgets[lqname] = widget
+        return lq_tree_items
+
     
     def disconnect_all_from_hardware(self):
         for lq in self.as_list():
