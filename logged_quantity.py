@@ -77,7 +77,9 @@ class LoggedQuantity(QtCore.QObject):
                  unit = None,
                  spinbox_decimals = 2,
                  spinbox_step=0.1,
-                 vmin=-1e12, vmax=+1e12, choices=None):
+                 vmin=-1e12, vmax=+1e12, choices=None,
+                 reread_from_hardware_after_write = False
+                 ):
         QtCore.QObject.__init__(self)
         
         self.name = name
@@ -103,7 +105,7 @@ class LoggedQuantity(QtCore.QObject):
             self.spinbox_decimals = 0
         else:
             self.spinbox_decimals = spinbox_decimals
-        self.reread_from_hardware_after_write = False
+        self.reread_from_hardware_after_write = reread_from_hardware_after_write
         
         if self.dtype == int:
             self.spinbox_step = 1
