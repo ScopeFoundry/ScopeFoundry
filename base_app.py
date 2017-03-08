@@ -195,6 +195,8 @@ class BaseMicroscopeApp(BaseApp):
         
         self.settings.New('save_dir', dtype='file', is_dir=True, initial=initial_data_save_dir)
         self.settings.New('sample', dtype=str, initial='')
+        self.settings.New('data_fname_format', dtype=str,
+                          initial='{timestamp:%y%m%d_%H%M%S}_{measurement.name}.{ext}')
         
         if not hasattr(self, 'ui_filename'):
             if self.mdi:
