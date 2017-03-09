@@ -64,7 +64,7 @@ class DataBrowser(BaseApp):
         # set views
         
         self.load_view(FileInfoView(self))
-        self.load_view(TestNPZView(self))
+        self.load_view(NPZView(self))
 
         self.settings.view_name.add_listener(self.on_change_view_name)
         self.settings['view_name'] = "file_info"
@@ -196,9 +196,9 @@ class FileInfoView(DataBrowserView):
         return True
 
 
-class TestNPZView(DataBrowserView):
+class NPZView(DataBrowserView):
     
-    name = 'test_npz_view'
+    name = 'npz_view'
     
     def setup(self):
         
@@ -218,8 +218,14 @@ class TestNPZView(DataBrowserView):
             
             self.display_txt = "File: {}\n".format(fname)
             
-            for key,val in self.dat.items():
-                self.display_txt += "\t-->{} {}\n".format(key, val.shape)
+            sorted_keys = sorted(self.dat.keys())
+            
+            for key in sorted_keys:
+                val = self.dat[key]
+                if val.shape == ():
+                    self.display_txt += "    --> {}: {}\n".format(key, val)                    
+                else:
+                    self.display_txt += "    --D {}: Array of {} {}\n".format(key, val.dtype, val.shape)
             
             #self.display_label.setText(self.display_txt)
             self.display_textEdit.setText(self.display_txt)
