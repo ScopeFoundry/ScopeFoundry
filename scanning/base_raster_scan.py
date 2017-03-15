@@ -126,6 +126,19 @@ class BaseRaster2DScan(Measurement):
 
         self.ui.clear_previous_scans_pushButton.clicked.connect(
             self.clear_previous_scans)
+        
+    def set_h_limits(self, vmin, vmax, set_scan_to_max=False):
+        self.settings.h0.change_min_max(vmin, vmax)
+        self.settings.h1.change_min_max(vmin, vmax)
+        if set_scan_to_max:
+            self.settings['h0'] = vmin
+            self.settings['h1'] = vmax
+    def set_v_limits(self, vmin, vmax, set_scan_to_max=False):
+        self.settings.v0.change_min_max(vmin, vmax)
+        self.settings.v1.change_min_max(vmin, vmax)
+        if set_scan_to_max:
+            self.settings['v0'] = vmin
+            self.settings['v1'] = vmax
 
     def compute_scan_params(self):
         self.log.debug('compute_scan_params')
@@ -156,8 +169,10 @@ class BaseRaster2DScan(Measurement):
     def compute_scan_arrays(self):
         print("params")
         self.compute_scan_params()
-        print("gen_arrays")
-        getattr(self, "gen_%s_scan" % self.scan_type.val)(gen_arrays=True)
+        gen_func_name = "gen_%s_scan" % self.scan_type.val
+        print("gen_arrays:", gen_func_name)
+        # calls correct scan generator function
+        getattr(self, gen_func_name)(gen_arrays=True)
     
     def create_empty_scan_arrays(self):
         self.scan_h_positions = np.zeros(self.Npixels, dtype=float)
@@ -286,8 +301,12 @@ class BaseRaster2DScan(Measurement):
             kk, jj, ii = self.current_scan_index
             self.img_item.setImage(self.display_image_map[kk,:,:].T, autoRange=False, autoLevels=False)
             self.img_item.setRect(self.img_item_rect) # Important to set rectangle after setImage for non-square pixels
-            self.hist_lut.imageChanged(autoLevel=True)
+            self.update_LUT()
             
+    def update_LUT(self):
+        ''' override this function to control display LUT scaling'''
+        self.hist_lut.imageChanged(autoLevel=True)
+               
     def clear_previous_scans(self):
         #current_img = img_items.pop()
         for img_item in self.img_items[:-1]:
@@ -468,7 +487,7 @@ class BaseRaster2DScan(Measurement):
                     
 class BaseRaster2DSlowScan(BaseRaster2DScan):
 
-    name = "base_raster_2Dscan"
+    name = "base_raster_2Dslowscan"
 
     def run(self):
         S = self.settings
@@ -520,7 +539,8 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                 
                 # start scan
                 self.pixel_i = 0
-                
+                self.current_scan_index = self.scan_index_array[0]
+
                 self.pixel_time = np.zeros(self.scan_shape, dtype=float)
                 if self.settings['save_h5']:
                     self.pixel_time_h5 = H.create_dataset(name='pixel_time', shape=self.scan_shape, dtype=float)            
@@ -592,6 +612,7 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
         # store in arrays        
         print(self.name, "collect_pixel", pixel_num, k,j,i, "not implemented")
     
-
+        
+ 
 
 
