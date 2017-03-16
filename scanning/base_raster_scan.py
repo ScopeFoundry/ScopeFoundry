@@ -80,6 +80,19 @@ class BaseRaster2DScan(Measurement):
         
         self.settings.New('show_previous_scans', dtype=bool, initial=True)
         
+        
+        self.settings.New('n_frames', dtype=int, initial=1, vmin=1)
+        
+        self.settings.New('pixel_time', dtype=float, ro=True, si=True, initial=1, unit='s')
+        self.settings.New('line_time' , dtype=float, ro=True, si=True, unit='s')
+        self.settings.New('frame_time' , dtype=float, ro=True, si=True, unit='s')        
+        self.settings.New('total_time', dtype=float, ro=True, si=True, unit='s')
+        
+        for lq_name in ['Nh', 'Nv', 'pixel_time']:
+            self.settings.get_lq(lq_name).add_listener(self.compute_times)
+            
+        self.compute_times()
+        
         #update Nh, Nv and other scan parameters when changes to inputs are made 
         #for lqname in 'h0 h1 v0 v1 dh dv'.split():
         #    self.logged_quantities[lqname].updated_value.connect(self.compute_scan_params)
@@ -161,7 +174,8 @@ class BaseRaster2DScan(Measurement):
                               self.h1.val + 0.5*self.dh.val,
                               self.v0.val - 0.5*self.dv.val,
                               self.v1.val + 0.5*self.dv.val]
-                
+        
+        self.compute_times()
         
         # call appropriate scan generator to determine scan size, don't compute scan arrays yet
         getattr(self, "gen_%s_scan" % self.scan_type.val)(gen_arrays=False)
@@ -346,14 +360,6 @@ class BaseRaster2DScan(Measurement):
         # connect events
         
     
-    def pre_scan_setup(self):
-        print(self.name, "pre_scan_setup not implemented")
-        # hardware
-        # create data arrays
-        # update figure
-    
-    def post_scan_cleanup(self):
-        print(self.name, "post_scan_setup not implemented")
     
     @property
     def h_array(self):
@@ -362,6 +368,13 @@ class BaseRaster2DScan(Measurement):
     @property
     def v_array(self):
         return self.v_range.array
+
+    def compute_times(self):
+        #self.settings['pixel_time'] = 1.0/self.scanDAQ.settings['dac_rate']
+        S = self.settings
+        S['line_time']  = S['pixel_time'] * S['Nh']
+        S['frame_time'] = S['pixel_time'] * self.Npixels
+        S['total_time'] = S['frame_time'] * S['n_frames']
     
     #### Scan Generators
     def gen_raster_scan(self, gen_arrays=True):
@@ -519,7 +532,7 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                         self.app.settings['save_dir'],
                         "%i_%s.h5" % (self.t0, self.name))
                     
-                    self.h5_file = h5_io.h5_base_file(self.app, h5fname)
+                    self.h5_file = h5_io.h5_base_file(self.app, measurement=self)
                           
                     self.h5_file.attrs['time_id'] = self.t0
                     H = self.h5_meas_group  =  h5_io.h5_create_measurement_group(self, self.h5_file)
@@ -606,13 +619,20 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
         #y = self.stage.settings.y_position.read_from_hardware()
         #print(x,y)
         
+    def pre_scan_setup(self):
+        print(self.name, "pre_scan_setup not implemented")
+        # hardware
+        # create data arrays
+        # update figure        
 
     def collect_pixel(self, pixel_num, k, j, i):
         # collect data
         # store in arrays        
         print(self.name, "collect_pixel", pixel_num, k,j,i, "not implemented")
     
-        
+    def post_scan_cleanup(self):
+        print(self.name, "post_scan_setup not implemented")
+
  
 
 
