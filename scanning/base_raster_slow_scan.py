@@ -32,12 +32,8 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
             try:
                 # h5 data file setup
                 self.t0 = time.time()
+
                 if self.settings['save_h5']:
-                    
-                    h5fname = os.path.join(
-                        self.app.settings['save_dir'],
-                        "%i_%s.h5" % (self.t0, self.name))
-                    
                     self.h5_file = h5_io.h5_base_file(self.app, measurement=self)
                           
                     self.h5_file.attrs['time_id'] = self.t0
@@ -103,9 +99,9 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                     S['progress'] = 100.0*self.pixel_i / (self.Npixels)
             finally:
                 self.post_scan_cleanup()
-                if self.settings['save_h5'] and hasattr(self, 'h5_file'):
+                if hasattr(self, 'h5_file'):
                     self.h5_file.close()
-                if not self.continuous_scan.val:
+                if not self.settings['continuous_scan']:
                     break
                 
     def move_position_start(self, x,y):

@@ -71,6 +71,9 @@ class BaseRaster2DScan(Measurement):
         self.Nh = self.settings.New('Nh', initial=11, vmin=1, dtype=int, ro=False)
         self.Nv = self.settings.New('Nv', initial=11, vmin=1, dtype=int, ro=False)
         
+        self.Npixels = self.Nh.val*self.Nv.val
+        
+        
         self.scan_type = self.settings.New('scan_type', dtype=str, initial='raster',
                                                   choices=('raster', 'serpentine', 'trace_retrace', 
                                                            'ortho_raster', 'ortho_trace_retrace'))
