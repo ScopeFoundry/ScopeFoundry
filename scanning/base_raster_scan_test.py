@@ -20,8 +20,8 @@ class TestRaster2DSlowScan(BaseRaster2DSlowScan):
     
     def setup(self):
         BaseRaster2DSlowScan.setup(self)
-        self.settings.New('pixel_time', initial=0.001, unit='s', si=False, spinbox_decimals=5)
-        
+        #self.settings.New('pixel_time', initial=0.001, unit='s', si=False, spinbox_decimals=5)
+        self.settings.pixel_time.change_readonly(False) 
     
     def pre_scan_setup(self):
         self.display_update_period = 0.050 #seconds
@@ -75,7 +75,8 @@ class TestRaster2DFrameSlowScan(BaseRaster2DFrameSlowScan):
     
     def setup(self):
         BaseRaster2DSlowScan.setup(self)
-        self.settings.New('pixel_time', initial=0.001, unit='s', si=False, spinbox_decimals=5)
+        #self.settings.New('pixel_time', initial=0.001, unit='s', si=False, spinbox_decimals=5)
+        self.settings.pixel_time.change_readonly(False)
         
     
     def pre_scan_setup(self):

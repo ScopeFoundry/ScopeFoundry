@@ -91,7 +91,7 @@ class BaseRaster2DScan(Measurement):
         self.settings.New('frame_time' , dtype=float, ro=True, si=True, unit='s')        
         self.settings.New('total_time', dtype=float, ro=True, si=True, unit='s')
         
-        for lq_name in ['Nh', 'Nv', 'pixel_time']:
+        for lq_name in ['Nh', 'Nv', 'pixel_time', 'n_frames']:
             self.settings.get_lq(lq_name).add_listener(self.compute_times)
             
         self.compute_times()
