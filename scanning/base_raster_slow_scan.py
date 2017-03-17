@@ -50,7 +50,6 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                     H['scan_slow_move'] = self.scan_slow_move
                     H['scan_index_array'] = self.scan_index_array
                 
-                self.pre_scan_setup()
                 
                 # start scan
                 self.pixel_i = 0
@@ -59,6 +58,8 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                 self.pixel_time = np.zeros(self.scan_shape, dtype=float)
                 if self.settings['save_h5']:
                     self.pixel_time_h5 = H.create_dataset(name='pixel_time', shape=self.scan_shape, dtype=float)            
+
+                self.pre_scan_setup()
                 
                 self.move_position_start(self.scan_h_positions[0], self.scan_v_positions[0])
                 
