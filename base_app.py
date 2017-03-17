@@ -515,18 +515,20 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the ini file.              
         ==============  =========  ==============================================
         """
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
         config.optionxform = str
         if save_app:
             config.add_section('app')
             for lqname, lq in self.settings.items():
-                config.set('app', lqname, lq.val)
+                print(lq.ini_string_value())                
+                config.set('app', lqname, lq.ini_string_value(), )
         if save_hardware:
             for hc_name, hc in self.hardware.items():
                 section_name = 'hardware/'+hc_name
                 config.add_section(section_name)
                 for lqname, lq in hc.settings.items():
                     if not lq.ro or save_ro:
+                        print(lq.ini_string_value())
                         config.set(section_name, lqname, lq.ini_string_value())
         if save_measurements:
             for meas_name, measurement in self.measurements.items():

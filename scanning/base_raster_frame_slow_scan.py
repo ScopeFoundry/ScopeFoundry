@@ -51,13 +51,15 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
                     H['scan_v_positions'] = self.scan_v_positions
                     H['scan_slow_move'] = self.scan_slow_move
                     H['scan_index_array'] = self.scan_index_array
-                    self.pixel_times_h5 = H.create_dataset(name='pixel_times', 
-                                                           shape=self.frames_scan_shape,
+                    self.pixel_times_h5 = self.create_h5_framed_dataset(name='pixel_times', 
+                                                           single_frame_map=self.pixel_times,
                                                            dtype=float)            
                 
                 
                 # start scan
                 for self.frame_i in range(self.settings['n_frames']):
+                    if self.settings['save_h5']:
+                        self.extend_h5_framed_dataset(self.pixel_times_h5, self.frame_i)
                     if self.interrupt_measurement_called: break
                     # start frame
                     self.pixel_i = 0
@@ -155,3 +157,54 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
         (n_frames, N_subframes, Nv, Nh)
         """
         return (self.settings['n_frames'],) + self.scan_shape
+    
+    def create_h5_framed_dataset(self, name, single_frame_map, **kwargs):
+        """
+        Create and return an empty HDF5 dataset in self.h5_m that can store
+        multiple frames of single_frame_map.
+        
+        Must fill the dataset as frames roll in.
+        
+        creates reasonable defaults for compression and dtype, can be overriden 
+        with**kwargs are sent directly to create_dataset
+        """
+        if self.settings['save_h5']:
+            shape=(self.settings['n_frames'],) + single_frame_map.shape
+            if self.settings['continuous_scan']:
+                # allow for array to grow to store additional frames
+                maxshape = (None,)+single_frame_map.shape 
+            else:
+                maxshape = shape
+            print('maxshape', maxshape)
+            default_kwargs = dict(
+                name=name,
+                shape=shape,
+                dtype=single_frame_map.dtype,
+                #chunks=(1,),
+                maxshape=maxshape,
+                compression='gzip',
+                #shuffle=True,
+                )
+            default_kwargs.update(kwargs)
+            map_h5 =  self.h5_m.create_dataset(
+                **default_kwargs
+                )
+            return map_h5
+    
+    def extend_h5_framed_dataset(self, map_h5, frame_num):
+        """
+        Adds additional frames to dataset map_h5, if frame_num 
+        is too large. Adds n_frames worth of extra frames
+        """
+        if self.settings['continuous_scan']:
+            current_num_frames, *frame_shape = map_h5.shape
+            if frame_num >= current_num_frames:
+                print ("extend_h5_framed_dataset", map_h5.name, map_h5.shape, frame_num)
+                n_frames_extend = self.settings['n_frames']
+                new_num_frames = n_frames_extend*(1 + frame_num//n_frames_extend)
+                map_h5.resize((new_num_frames,) + tuple(frame_shape))
+                return True
+            else:
+                return False
+        else:
+            return False
