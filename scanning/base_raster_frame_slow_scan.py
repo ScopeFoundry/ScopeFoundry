@@ -28,36 +28,41 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
         self.display_image_map = np.zeros(self.scan_shape, dtype=float)
         self.pixel_times = np.zeros(self.scan_shape, dtype=float)
 
+
+        # h5 data file setup
+        self.t0 = time.time()
+
+        if self.settings['save_h5']:
+            self.h5_file = h5_io.h5_base_file(self.app, measurement=self)
+                  
+            self.h5_file.attrs['time_id'] = self.t0
+            H = self.h5_meas_group  =  h5_io.h5_create_measurement_group(self, self.h5_file)
+        
+            #create h5 data arrays
+            H['h_array'] = self.h_array
+            H['v_array'] = self.v_array
+            H['range_extent'] = self.range_extent
+            H['corners'] = self.corners
+            H['imshow_extent'] = self.imshow_extent
+            H['scan_h_positions'] = self.scan_h_positions
+            H['scan_v_positions'] = self.scan_v_positions
+            H['scan_slow_move'] = self.scan_slow_move
+            H['scan_index_array'] = self.scan_index_array
+            self.pixel_times_h5 = self.create_h5_framed_dataset(name='pixel_times', 
+                                                   single_frame_map=self.pixel_times,
+                                                   dtype=float)            
+        
+        self.frame_i = 0
+        self.pixel_i = 0
+        self.current_scan_index = self.scan_index_array[0]
+        
         self.pre_scan_setup()
+        
 
-        while not self.interrupt_measurement_called:        
-            try:
-                # h5 data file setup
-                self.t0 = time.time()
-
-                if self.settings['save_h5']:
-                    self.h5_file = h5_io.h5_base_file(self.app, measurement=self)
-                          
-                    self.h5_file.attrs['time_id'] = self.t0
-                    H = self.h5_meas_group  =  h5_io.h5_create_measurement_group(self, self.h5_file)
-                
-                    #create h5 data arrays
-                    H['h_array'] = self.h_array
-                    H['v_array'] = self.v_array
-                    H['range_extent'] = self.range_extent
-                    H['corners'] = self.corners
-                    H['imshow_extent'] = self.imshow_extent
-                    H['scan_h_positions'] = self.scan_h_positions
-                    H['scan_v_positions'] = self.scan_v_positions
-                    H['scan_slow_move'] = self.scan_slow_move
-                    H['scan_index_array'] = self.scan_index_array
-                    self.pixel_times_h5 = self.create_h5_framed_dataset(name='pixel_times', 
-                                                           single_frame_map=self.pixel_times,
-                                                           dtype=float)            
-                
-                
+        try:
+            while not self.interrupt_measurement_called:        
                 # start scan
-                for self.frame_i in range(self.settings['n_frames']):
+                for i in range(self.settings['n_frames']):
                     if self.settings['save_h5']:
                         self.extend_h5_framed_dataset(self.pixel_times_h5, self.frame_i)
                     if self.interrupt_measurement_called: break
@@ -103,12 +108,13 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
                         self.collect_pixel(self.pixel_i, self.frame_i, kk, jj, ii)
                         S['progress'] = 100.0*self.pixel_i / (self.Npixels*self.settings['n_frames'])
                     self.on_end_frame(self.frame_i)
-            finally:
-                self.post_scan_cleanup()
-                if hasattr(self, 'h5_file'):
-                    self.h5_file.close()
+                    self.frame_i += 1                    
                 if not self.settings['continuous_scan']:
                     break
+        finally:
+            self.post_scan_cleanup()
+            if self.settings['save_h5'] and hasattr(self, 'h5_file'):
+                self.h5_file.close()
                 
     def move_position_start(self, x,y):
         self.stage.x_position.update_value(x)
@@ -160,7 +166,7 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
     
     def create_h5_framed_dataset(self, name, single_frame_map, **kwargs):
         """
-        Create and return an empty HDF5 dataset in self.h5_m that can store
+        Create and return an empty HDF5 dataset in self.h5_meas_group that can store
         multiple frames of single_frame_map.
         
         Must fill the dataset as frames roll in.
@@ -175,7 +181,7 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
                 maxshape = (None,)+single_frame_map.shape 
             else:
                 maxshape = shape
-            print('maxshape', maxshape)
+            #print('maxshape', maxshape)
             default_kwargs = dict(
                 name=name,
                 shape=shape,
@@ -186,7 +192,7 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
                 #shuffle=True,
                 )
             default_kwargs.update(kwargs)
-            map_h5 =  self.h5_m.create_dataset(
+            map_h5 =  self.h5_meas_group.create_dataset(
                 **default_kwargs
                 )
             return map_h5
@@ -199,12 +205,14 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
         if self.settings['continuous_scan']:
             current_num_frames, *frame_shape = map_h5.shape
             if frame_num >= current_num_frames:
-                print ("extend_h5_framed_dataset", map_h5.name, map_h5.shape, frame_num)
+                #print ("extend_h5_framed_dataset", map_h5.name, map_h5.shape, frame_num)
                 n_frames_extend = self.settings['n_frames']
                 new_num_frames = n_frames_extend*(1 + frame_num//n_frames_extend)
                 map_h5.resize((new_num_frames,) + tuple(frame_shape))
                 return True
             else:
+                # "Dataset is large enough, no expansion"
                 return False
         else:
+            # "non continuous scan, no expansion"
             return False
