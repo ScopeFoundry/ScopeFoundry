@@ -850,7 +850,7 @@ class LQCollection(object):
     attribute access such as lqcoll.x1 will return full LoggedQuantity object
     
     dictionary-style access lqcoll['x1'] allows direct reading and writing of 
-    the LQ's value, while handling the signals
+    the LQ's value, handling the signals automatically
     
     New LQ's can be created with :meth:`New`
     
@@ -927,7 +927,7 @@ class LQCollection(object):
         self.ranges[name] = lqrange
         return lqrange
     
-    def New_UI(self):
+    def New_UI(self, include = None, exclude = []):
         """create a default Qt Widget that contains 
         widgets for all settings in the LQCollection
         """
@@ -936,7 +936,15 @@ class LQCollection(object):
         formLayout = QtWidgets.QFormLayout()
         ui_widget.setLayout(formLayout)
         
-        for lqname, lq in self.as_dict().items():
+        if include is None:
+            lqnames = self.as_dict().keys()
+        else:
+            lqnames = include
+        
+        for lqname in lqnames:
+            if lqname in exclude:
+                continue
+            lq = self.get_lq(lqname)
             #: :type lq: LoggedQuantity
             if isinstance(lq, FileLQ):
                 lineEdit = QtWidgets.QLineEdit()
