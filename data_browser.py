@@ -91,6 +91,7 @@ class DataBrowser(BaseApp):
         # update choices for view_name
         self.settings.view_name.change_choice_list(list(self.views.keys()))
         self.log.debug('load_view done {}'.format(new_view))
+        return new_view
 
     def on_change_data_filename(self):
         fname = self.settings.data_filename.val 
@@ -243,13 +244,13 @@ class HyperSpectralBaseView(DataBrowserView):
     
     def setup(self):
         
-        self.ui = QtWidgets.QWidget()
-        self.ui.setLayout(QtWidgets.QVBoxLayout())
+        self.ui = self.splitter = QtWidgets.QSplitter()
+        #self.ui.setLayout(QtWidgets.QVBoxLayout())
         self.imview = pg.ImageView()
         self.imview.getView().invertY(False) # lower left origin
-        self.ui.layout().addWidget(self.imview)
+        self.splitter.addWidget(self.imview)
         self.graph_layout = pg.GraphicsLayoutWidget()
-        self.ui.layout().addWidget(self.graph_layout)
+        self.splitter.addWidget(self.graph_layout)
 
         self.spec_plot = self.graph_layout.addPlot()
         self.rect_plotdata = self.spec_plot.plot()
@@ -299,10 +300,13 @@ class HyperSpectralBaseView(DataBrowserView):
             self.databrowser.ui.statusbar.showMessage("failed to load %s:\n%s" %(fname, err))
             raise(err)
         finally:        
-            # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose        
-            self.imview.setImage(self.display_image.T)
-            self.on_change_rect_roi()
-            self.on_update_circ_roi()
+            self.update_display()
+            
+    def update_display(self):
+        # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose        
+        self.imview.setImage(self.display_image.T)
+        self.on_change_rect_roi()
+        self.on_update_circ_roi()
     
     def load_data(self, fname):
         """
@@ -345,7 +349,9 @@ class HyperSpectralBaseView(DataBrowserView):
         
         #print "xc,yc,i,j", xc,yc, i,j
         
-        self.circ_roi_plotline.setData([xc, i+0.5], [yc, j + 0.5])        
+        self.circ_roi_plotline.setData([xc, i+0.5], [yc, j + 0.5])
+        
+        self.circ_roi_ji = (j,i)       
         
         self.point_plotdata.setData(self.spec_x_array, self.hyperspec_data[j,i,:])
 
