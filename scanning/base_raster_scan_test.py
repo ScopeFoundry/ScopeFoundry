@@ -72,14 +72,12 @@ class TestRaster2DFrameSlowScan(BaseRaster2DFrameSlowScan):
     
     def __init__(self, app):
         BaseRaster2DSlowScan.__init__(self, app, h_limits=(0,100), v_limits=(0,100), h_unit="um", v_unit="um")        
-    
-    def setup(self):
-        BaseRaster2DSlowScan.setup(self)
-        #self.settings.New('pixel_time', initial=0.001, unit='s', si=False, spinbox_decimals=5)
-        self.settings.pixel_time.change_readonly(False)
         
+    def scan_specific_setup(self): # called on app initialization
+        self.settings.pixel_time.change_readonly(False)
     
-    def pre_scan_setup(self):
+    
+    def pre_scan_setup(self): # called at the begining of run 
         self.display_update_period = 0.050 #seconds
         
         self.stage = self.app.hardware['dummy_xy_stage']
@@ -89,7 +87,7 @@ class TestRaster2DFrameSlowScan(BaseRaster2DFrameSlowScan):
         
         self.prev_px = time.time()
          
-    def post_scan_cleanup(self):
+    def post_scan_cleanup(self): # called at the end of run 
         print("post_scan_cleanup")
         
     def collect_pixel(self, pixel_i, frame_i,  k,j,i):
@@ -117,7 +115,10 @@ class TestRaster2DFrameSlowScan(BaseRaster2DFrameSlowScan):
     def on_new_frame(self, frame_i):
         print("on_new_frame")
         if self.settings['save_h5']:
-            self.extend_h5_framed_dataset(self.test_data, frame_i) 
+            self.extend_h5_framed_dataset(self.test_data, frame_i)
+            
+    def on_end_frame(self, frame_i):
+        pass
 
 
 
