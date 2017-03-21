@@ -5,6 +5,7 @@ from collections import OrderedDict
 import os
 from qtpy import QtCore, QtWidgets
 import pyqtgraph as pg
+import pyqtgraph.dockarea as dockarea
 import numpy as np
 from ScopeFoundry.logged_quantity import LQCollection
 
@@ -244,13 +245,16 @@ class HyperSpectralBaseView(DataBrowserView):
     
     def setup(self):
         
-        self.ui = self.splitter = QtWidgets.QSplitter()
+        #self.ui = self.splitter = QtWidgets.QSplitter()
         #self.ui.setLayout(QtWidgets.QVBoxLayout())
+        self.ui = self.dockarea = dockarea.DockArea()
         self.imview = pg.ImageView()
         self.imview.getView().invertY(False) # lower left origin
-        self.splitter.addWidget(self.imview)
+        #self.splitter.addWidget(self.imview)
+        self.dockarea.addDock(name='Image', widget=self.imview)
         self.graph_layout = pg.GraphicsLayoutWidget()
-        self.splitter.addWidget(self.graph_layout)
+        #self.splitter.addWidget(self.graph_layout)
+        self.dockarea.addDock(name='Spec Plot', widget=self.graph_layout)
 
         self.spec_plot = self.graph_layout.addPlot()
         self.rect_plotdata = self.spec_plot.plot()
