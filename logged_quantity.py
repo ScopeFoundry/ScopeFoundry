@@ -78,7 +78,8 @@ class LoggedQuantity(QtCore.QObject):
                  spinbox_decimals = 2,
                  spinbox_step=0.1,
                  vmin=-1e12, vmax=+1e12, choices=None,
-                 reread_from_hardware_after_write = False
+                 reread_from_hardware_after_write = False,
+                 description = None
                  ):
         QtCore.QObject.__init__(self)
         
@@ -98,6 +99,7 @@ class LoggedQuantity(QtCore.QObject):
         self.choices = self._expand_choices(choices) 
         self.ro = ro # Read-Only
         self.is_array = False
+        self.description = description
         
         self.log = get_logger_from_class(self)
         
