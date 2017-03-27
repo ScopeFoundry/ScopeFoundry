@@ -553,8 +553,8 @@ class BaseMicroscopeApp(BaseApp):
         """
 
         self.log.info("ini settings loading from {}".format(fname))
-        
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
+        #config = configparser.ConfigParser()
         config.optionxform = str
         config.read(fname)
 
