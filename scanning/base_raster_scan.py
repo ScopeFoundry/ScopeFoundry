@@ -248,11 +248,11 @@ class BaseRaster2DScan(Measurement):
         
         #self.stage = self.app.hardware_components['dummy_xy_stage']
         if hasattr(self, 'stage'):
-            self.stage.x_position.updated_value.connect(self.update_arrow_pos, QtCore.Qt.UniqueConnection)
-            self.stage.y_position.updated_value.connect(self.update_arrow_pos, QtCore.Qt.UniqueConnection)
+            self.stage.settings.x_position.updated_value.connect(self.update_arrow_pos, QtCore.Qt.UniqueConnection)
+            self.stage.settings.y_position.updated_value.connect(self.update_arrow_pos, QtCore.Qt.UniqueConnection)
             
-            self.stage.x_position.connect_bidir_to_widget(self.ui.x_doubleSpinBox)
-            self.stage.y_position.connect_bidir_to_widget(self.ui.y_doubleSpinBox)
+            self.stage.settings.x_position.connect_to_widget(self.ui.x_doubleSpinBox)
+            self.settings.stage.y_position.connect_to_widget(self.ui.y_doubleSpinBox)
 
         
         self.graph_layout.nextRow()

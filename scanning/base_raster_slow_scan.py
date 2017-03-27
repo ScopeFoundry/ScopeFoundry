@@ -105,17 +105,17 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                 if not self.settings['continuous_scan']:
                     break
                 
-    def move_position_start(self, x,y):
-        self.stage.x_position.update_value(x)
-        self.stage.y_position.update_value(y)
+    def move_position_start(self, h,v):
+        self.stage.settings.x_position.update_value(h)
+        self.stage.settings.y_position.update_value(v)
     
-    def move_position_slow(self, x,y, dx, dy):
-        self.stage.x_position.update_value(x)
-        self.stage.y_position.update_value(y)
+    def move_position_slow(self, h,v, dh, dv):
+        self.stage.settings.x_position.update_value(h)
+        self.stage.settings.y_position.update_value(v)
         
-    def move_position_fast(self, x,y, dx, dy):
-        self.stage.x_position.update_value(x)
-        self.stage.y_position.update_value(y)
+    def move_position_fast(self, h,v, dh, dv):
+        self.stage.settings.x_position.update_value(h)
+        self.stage.settings.y_position.update_value(v)
         #x = self.stage.settings['x_position']
         #y = self.stage.settings['y_position']        
         #x = self.stage.settings.x_position.read_from_hardware()
