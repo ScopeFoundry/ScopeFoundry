@@ -132,7 +132,7 @@ class BaseApp(QtCore.QObject):
             if not lq.ro or save_ro:
                 config.set('app', lqname, lq.ini_string_value())
                 
-        with open(fname, 'wb') as configfile:
+        with open(fname, 'w') as configfile:
             config.write(configfile)
         
         self.log.info("ini settings saved to {} {}".format( fname, config.optionxform))    
