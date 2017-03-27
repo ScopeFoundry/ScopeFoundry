@@ -72,11 +72,11 @@ class Measurement(QtCore.QObject):
 
         self.add_operation("start", self.start)
         self.add_operation("interrupt", self.interrupt)
-        self.add_operation('terminate', self.terminate)
-        self.add_operation("setup", self.setup)
-        self.add_operation("setup_figure", self.setup_figure)
+        #self.add_operation('terminate', self.terminate)
+        #self.add_operation("setup", self.setup)
+        #self.add_operation("setup_figure", self.setup_figure)
         self.add_operation("update_display", self.update_display)
-        self.add_operation('show_ui', self.show_ui)
+        #self.add_operation('show_ui', self.show_ui)
         
         if hasattr(self, 'ui_filename'):
             self.load_ui()
