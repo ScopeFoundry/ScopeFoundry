@@ -866,6 +866,10 @@ class LQCollection(object):
         self.log = get_logger_from_class(self)
         
     def New(self, name, dtype=float, **kwargs):
+        """
+        Create a new LoggedQuantity with name and dtype
+        """
+        
         is_array = kwargs.pop('array', False)
         #self.log.debug("{} is_array? {}".format(name, is_array))
         if is_array:
@@ -876,7 +880,7 @@ class LQCollection(object):
             else:
                 lq = LoggedQuantity(name=name, dtype=dtype, **kwargs)
         self._logged_quantities[name] = lq
-        self.__dict__[name] = lq
+        self.__dict__[name] = lq # allow attribute access
         return lq
 
     def get_lq(self, key):
@@ -918,7 +922,7 @@ class LQCollection(object):
         min_lq  = self.New( name + "_min" , **kwargs ) 
         max_lq  = self.New( name + "_max" , **kwargs ) 
         step_lq = self.New( name + "_step", **kwargs)
-        num_lq  = self.New( name + "_num", dtype=int, vmin=1)
+        num_lq  = self.New( name + "_num", dtype=int, vmin=1, initial=1)
         center_lq = self.New(name + "_center", **kwargs)
         span_lq = self.New( name + "_span", **kwargs)
     
