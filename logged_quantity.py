@@ -881,6 +881,16 @@ class LQCollection(object):
                 lq = FileLQ(name=name, **kwargs)
             else:
                 lq = LoggedQuantity(name=name, dtype=dtype, **kwargs)
+
+        return self.Add(lq)
+    
+    def Add(self, lq):
+        """Add an existing LoggedQuantity to the Collection
+        Examples of usefulness: add hardware lq to measurement settings
+        """
+        name = lq.name
+        assert not (name in self._logged_quantities)
+        assert not (name in self.__dict__)
         self._logged_quantities[name] = lq
         self.__dict__[name] = lq # allow attribute access
         return lq
