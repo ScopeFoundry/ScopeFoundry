@@ -67,6 +67,7 @@ class Measurement(QtCore.QObject):
         self.activation = self.settings.New('activation', dtype=bool, ro=False) # does the user want to the thread to be running
         self.running    = self.settings.New('running', dtype=bool, ro=True) # is the thread actually running?
         self.progress   = self.settings.New('progress', dtype=float, unit="%", si=False, ro=True)
+        self.settings.New('profile', dtype=bool, initial=False) # Run a profile on the run to find performance problems
 
         self.activation.updated_value[bool].connect(self.start_stop)
 
@@ -152,6 +153,10 @@ class Measurement(QtCore.QObject):
         """
         self.set_progress(50.) # set progress bars to default run position at 50%
         try:
+            if self.settings['profile']:
+                import cProfile
+                profile = cProfile.Profile()
+                profile.enable()
             self.run()
         #except Exception as err:
         #    self.interrupt_measurement_called = True
@@ -166,6 +171,11 @@ class Measurement(QtCore.QObject):
                 self.interrupt_measurement_called = False
             else:
                 self.measurement_sucessfully_completed.emit()
+            if self.settings['profile']:
+                profile.disable()
+                profile.print_stats(sort='time')   
+    
+            
 
 
     @property
