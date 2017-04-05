@@ -573,7 +573,7 @@ class BaseMicroscopeApp(BaseApp):
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
-                        self.log.error("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                         
         for meas_name, measurement in self.measurements.items():
             section_name = 'measurement/'+meas_name            
@@ -584,7 +584,7 @@ class BaseMicroscopeApp(BaseApp):
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
-                        self.log.error("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                             
         
         self.log.info("ini settings loaded from {}"+ fname)
