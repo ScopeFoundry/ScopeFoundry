@@ -897,8 +897,18 @@ class LQCollection(object):
     def as_dict(self):
         return self._logged_quantities
     
-    def items(self):
-        return self._logged_quantities.items()
+#    def items(self):
+#        return self._logged_quantities.items()
+    
+    def keys(self):
+        return self._logged_quantities.keys()
+    
+    def remove(self, name):
+        del self._logged_quantities[name]
+        del self.__dict__[name]
+
+    def __delitem__(self, key): 
+        self.remove(key)
     
     def __getitem__(self, key):
         "Dictionary-like access reads and sets value of LQ's"
