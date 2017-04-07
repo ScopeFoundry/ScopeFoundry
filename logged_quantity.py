@@ -842,8 +842,8 @@ class LQRange(QtCore.QObject):
     def recalc_with_new_center_span(self,x):
         C = self.center.val
         S = self.span.val
-        self.min.updated_value( C - 0.5*S)
-        self.max.updated_value( C + 0.5*S)
+        self.min.update_value( C - 0.5*S)
+        self.max.update_value( C + 0.5*S)
 
 class LQCollection(object):
     """
@@ -881,6 +881,16 @@ class LQCollection(object):
                 lq = FileLQ(name=name, **kwargs)
             else:
                 lq = LoggedQuantity(name=name, dtype=dtype, **kwargs)
+
+        return self.Add(lq)
+    
+    def Add(self, lq):
+        """Add an existing LoggedQuantity to the Collection
+        Examples of usefulness: add hardware lq to measurement settings
+        """
+        name = lq.name
+        assert not (name in self._logged_quantities)
+        assert not (name in self.__dict__)
         self._logged_quantities[name] = lq
         self.__dict__[name] = lq # allow attribute access
         return lq
@@ -931,14 +941,14 @@ class LQCollection(object):
     
     def New_Range(self, name, **kwargs):
                         
-        min_lq  = self.New( name + "_min" , **kwargs ) 
-        max_lq  = self.New( name + "_max" , **kwargs ) 
-        step_lq = self.New( name + "_step", **kwargs)
-        num_lq  = self.New( name + "_num", dtype=int, vmin=1, initial=1)
-        center_lq = self.New(name + "_center", **kwargs)
-        span_lq = self.New( name + "_span", **kwargs)
+        min_lq  = self.New( name + "_min" , initial=0., **kwargs ) 
+        max_lq  = self.New( name + "_max" , initial=1., **kwargs ) 
+        step_lq = self.New( name + "_step", initial=0.1, **kwargs)
+        num_lq  = self.New( name + "_num", dtype=int, vmin=1, initial=11)
+        #center_lq = self.New(name + "_center", **kwargs, initial=0.5)
+        #span_lq = self.New( name + "_span", **kwargs, initial=1.0)
     
-        lqrange = LQRange(min_lq, max_lq, step_lq, num_lq, center_lq, span_lq)
+        lqrange = LQRange(min_lq, max_lq, step_lq, num_lq)#, center_lq, span_lq)
 
         self.ranges[name] = lqrange
         return lqrange
