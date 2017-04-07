@@ -156,5 +156,10 @@ if __name__ == '__main__':
     
     import sys
     app = TestRaster2DSlowScanApp([])
+    
+    from ScopeFoundry.flask_web_view.flask_web_view import MicroscopeFlaskWebThread
+    app.flask_thread = MicroscopeFlaskWebThread(app)
+    app.flask_thread.start()
+    
     sys.exit(app.exec_())    
 
