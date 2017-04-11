@@ -71,6 +71,9 @@ class BaseRaster2DScan(Measurement):
         self.Nh = self.settings.New('Nh', initial=11, vmin=1, dtype=int, ro=False)
         self.Nv = self.settings.New('Nv', initial=11, vmin=1, dtype=int, ro=False)
         
+        self.Npixels = self.Nh.val*self.Nv.val
+        
+        
         self.scan_type = self.settings.New('scan_type', dtype=str, initial='raster',
                                                   choices=('raster', 'serpentine', 'trace_retrace', 
                                                            'ortho_raster', 'ortho_trace_retrace'))
@@ -79,6 +82,19 @@ class BaseRaster2DScan(Measurement):
         self.settings.New('save_h5', dtype=bool, initial=True, ro=False)
         
         self.settings.New('show_previous_scans', dtype=bool, initial=True)
+        
+        
+        self.settings.New('n_frames', dtype=int, initial=1, vmin=1)
+        
+        self.settings.New('pixel_time', dtype=float, ro=True, si=True, initial=1, unit='s')
+        self.settings.New('line_time' , dtype=float, ro=True, si=True, unit='s')
+        self.settings.New('frame_time' , dtype=float, ro=True, si=True, unit='s')        
+        self.settings.New('total_time', dtype=float, ro=True, si=True, unit='s')
+        
+        for lq_name in ['Nh', 'Nv', 'pixel_time', 'n_frames']:
+            self.settings.get_lq(lq_name).add_listener(self.compute_times)
+            
+        self.compute_times()
         
         #update Nh, Nv and other scan parameters when changes to inputs are made 
         #for lqname in 'h0 h1 v0 v1 dh dv'.split():
@@ -126,6 +142,19 @@ class BaseRaster2DScan(Measurement):
 
         self.ui.clear_previous_scans_pushButton.clicked.connect(
             self.clear_previous_scans)
+        
+    def set_h_limits(self, vmin, vmax, set_scan_to_max=False):
+        self.settings.h0.change_min_max(vmin, vmax)
+        self.settings.h1.change_min_max(vmin, vmax)
+        if set_scan_to_max:
+            self.settings['h0'] = vmin
+            self.settings['h1'] = vmax
+    def set_v_limits(self, vmin, vmax, set_scan_to_max=False):
+        self.settings.v0.change_min_max(vmin, vmax)
+        self.settings.v1.change_min_max(vmin, vmax)
+        if set_scan_to_max:
+            self.settings['v0'] = vmin
+            self.settings['v1'] = vmax
 
     def compute_scan_params(self):
         self.log.debug('compute_scan_params')
@@ -148,7 +177,8 @@ class BaseRaster2DScan(Measurement):
                               self.h1.val + 0.5*self.dh.val,
                               self.v0.val - 0.5*self.dv.val,
                               self.v1.val + 0.5*self.dv.val]
-                
+        
+        self.compute_times()
         
         # call appropriate scan generator to determine scan size, don't compute scan arrays yet
         getattr(self, "gen_%s_scan" % self.scan_type.val)(gen_arrays=False)
@@ -156,8 +186,10 @@ class BaseRaster2DScan(Measurement):
     def compute_scan_arrays(self):
         print("params")
         self.compute_scan_params()
-        print("gen_arrays")
-        getattr(self, "gen_%s_scan" % self.scan_type.val)(gen_arrays=True)
+        gen_func_name = "gen_%s_scan" % self.scan_type.val
+        print("gen_arrays:", gen_func_name)
+        # calls correct scan generator function
+        getattr(self, gen_func_name)(gen_arrays=True)
     
     def create_empty_scan_arrays(self):
         self.scan_h_positions = np.zeros(self.Npixels, dtype=float)
@@ -286,8 +318,12 @@ class BaseRaster2DScan(Measurement):
             kk, jj, ii = self.current_scan_index
             self.img_item.setImage(self.display_image_map[kk,:,:].T, autoRange=False, autoLevels=False)
             self.img_item.setRect(self.img_item_rect) # Important to set rectangle after setImage for non-square pixels
-            self.hist_lut.imageChanged(autoLevel=True)
+            self.update_LUT()
             
+    def update_LUT(self):
+        ''' override this function to control display LUT scaling'''
+        self.hist_lut.imageChanged(autoLevel=True)
+               
     def clear_previous_scans(self):
         #current_img = img_items.pop()
         for img_item in self.img_items[:-1]:
@@ -327,14 +363,6 @@ class BaseRaster2DScan(Measurement):
         # connect events
         
     
-    def pre_scan_setup(self):
-        print(self.name, "pre_scan_setup not implemented")
-        # hardware
-        # create data arrays
-        # update figure
-    
-    def post_scan_cleanup(self):
-        print(self.name, "post_scan_setup not implemented")
     
     @property
     def h_array(self):
@@ -343,6 +371,13 @@ class BaseRaster2DScan(Measurement):
     @property
     def v_array(self):
         return self.v_range.array
+
+    def compute_times(self):
+        #self.settings['pixel_time'] = 1.0/self.scanDAQ.settings['dac_rate']
+        S = self.settings
+        S['line_time']  = S['pixel_time'] * S['Nh']
+        S['frame_time'] = S['pixel_time'] * self.Npixels
+        S['total_time'] = S['frame_time'] * S['n_frames']
     
     #### Scan Generators
     def gen_raster_scan(self, gen_arrays=True):
@@ -466,132 +501,6 @@ class BaseRaster2DScan(Measurement):
                         self.scan_index_array[pixel_i,:] = [kk, jj, ii]                 
                         pixel_i += 1
                     
-class BaseRaster2DSlowScan(BaseRaster2DScan):
-
-    name = "base_raster_2Dscan"
-
-    def run(self):
-        S = self.settings
-        
-        
-        #Hardware
-        # self.apd_counter_hc = self.app.hardware_components['apd_counter']
-        # self.apd_count_rate = self.apd_counter_hc.apd_count_rate
-        # self.stage = self.app.hardware_components['dummy_xy_stage']
-
-        # Data File
-        # H5
-
-        # Compute data arrays
-        self.compute_scan_arrays()
-        
-        self.initial_scan_setup_plotting = True
-        
-        self.display_image_map = np.zeros(self.scan_shape, dtype=float)
-
-
-        while not self.interrupt_measurement_called:        
-            try:
-                # h5 data file setup
-                self.t0 = time.time()
-                if self.settings['save_h5']:
-                    
-                    h5fname = os.path.join(
-                        self.app.settings['save_dir'],
-                        "%i_%s.h5" % (self.t0, self.name))
-                    
-                    self.h5_file = h5_io.h5_base_file(self.app, h5fname)
-                          
-                    self.h5_file.attrs['time_id'] = self.t0
-                    H = self.h5_meas_group  =  h5_io.h5_create_measurement_group(self, self.h5_file)
-                
-                    #create h5 data arrays
-                    H['h_array'] = self.h_array
-                    H['v_array'] = self.v_array
-                    H['range_extent'] = self.range_extent
-                    H['corners'] = self.corners
-                    H['imshow_extent'] = self.imshow_extent
-                    H['scan_h_positions'] = self.scan_h_positions
-                    H['scan_v_positions'] = self.scan_v_positions
-                    H['scan_slow_move'] = self.scan_slow_move
-                    H['scan_index_array'] = self.scan_index_array
-                
-                self.pre_scan_setup()
-                
-                # start scan
-                self.pixel_i = 0
-                
-                self.pixel_time = np.zeros(self.scan_shape, dtype=float)
-                if self.settings['save_h5']:
-                    self.pixel_time_h5 = H.create_dataset(name='pixel_time', shape=self.scan_shape, dtype=float)            
-                
-                self.move_position_start(self.scan_h_positions[0], self.scan_v_positions[0])
-                
-                for self.pixel_i in range(self.Npixels):                
-                    if self.interrupt_measurement_called: break
-                    
-                    i = self.pixel_i
-                    
-                    self.current_scan_index = self.scan_index_array[i]
-                    kk, jj, ii = self.current_scan_index
-                    
-                    h,v = self.scan_h_positions[i], self.scan_v_positions[i]
-                    
-                    if self.pixel_i == 0:
-                        dh = 0
-                        dv = 0
-                    else:
-                        dh = self.scan_h_positions[i] - self.scan_h_positions[i-1] 
-                        dv = self.scan_v_positions[i] - self.scan_v_positions[i-1] 
-                    
-                    if self.scan_slow_move[i]:
-                        self.move_position_slow(h,v, dh, dv)
-                        if self.settings['save_h5']:    
-                            self.h5_file.flush() # flush data to file every slow move
-                        #self.app.qtapp.ProcessEvents()
-                        time.sleep(0.01)
-                    else:
-                        self.move_position_fast(h,v, dh, dv)
-                    
-                    self.pos = (h,v)
-                    # each pixel:
-                    # acquire signal and save to data array
-                    pixel_t0 = time.time()
-                    self.pixel_time[kk, jj, ii] = pixel_t0
-                    if self.settings['save_h5']:
-                        self.pixel_time_h5[kk, jj, ii] = pixel_t0
-                    self.collect_pixel(self.pixel_i, kk, jj, ii)
-                    S['progress'] = 100.0*self.pixel_i / (self.Npixels)
-            finally:
-                self.post_scan_cleanup()
-                if self.settings['save_h5'] and hasattr(self, 'h5_file'):
-                    self.h5_file.close()
-                if not self.continuous_scan.val:
-                    break
-                
-    def move_position_start(self, x,y):
-        self.stage.x_position.update_value(x)
-        self.stage.y_position.update_value(y)
-    
-    def move_position_slow(self, x,y, dx, dy):
-        self.stage.x_position.update_value(x)
-        self.stage.y_position.update_value(y)
-        
-    def move_position_fast(self, x,y, dx, dy):
-        self.stage.x_position.update_value(x)
-        self.stage.y_position.update_value(y)
-        #x = self.stage.settings['x_position']
-        #y = self.stage.settings['y_position']        
-        #x = self.stage.settings.x_position.read_from_hardware()
-        #y = self.stage.settings.y_position.read_from_hardware()
-        #print(x,y)
-        
-
-    def collect_pixel(self, pixel_num, k, j, i):
-        # collect data
-        # store in arrays        
-        print(self.name, "collect_pixel", pixel_num, k,j,i, "not implemented")
-    
 
 
 
