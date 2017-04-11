@@ -475,11 +475,14 @@ class BaseMicroscopeApp(BaseApp):
         and add it to self.measurements
 
         """
-        assert not measure.name in self.measurements.keys()
         
         #If *measure* is a class, rather an instance, create an instance 
         if inspect.isclass(measure):
             measure = measure(app=self)
+
+            
+        assert not measure.name in self.measurements.keys()
+        
 
         self.measurements.add(measure.name, measure)
         
