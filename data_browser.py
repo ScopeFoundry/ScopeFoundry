@@ -5,6 +5,7 @@ from collections import OrderedDict
 import os
 from qtpy import QtCore, QtWidgets
 import pyqtgraph as pg
+import pyqtgraph.dockarea as dockarea
 import numpy as np
 from ScopeFoundry.logged_quantity import LQCollection
 
@@ -64,7 +65,7 @@ class DataBrowser(BaseApp):
         # set views
         
         self.load_view(FileInfoView(self))
-        self.load_view(TestNPZView(self))
+        self.load_view(NPZView(self))
 
         self.settings.view_name.add_listener(self.on_change_view_name)
         self.settings['view_name'] = "file_info"
@@ -91,6 +92,7 @@ class DataBrowser(BaseApp):
         # update choices for view_name
         self.settings.view_name.change_choice_list(list(self.views.keys()))
         self.log.debug('load_view done {}'.format(new_view))
+        return new_view
 
     def on_change_data_filename(self):
         fname = self.settings.data_filename.val 
@@ -202,9 +204,9 @@ class FileInfoView(DataBrowserView):
         return True
 
 
-class TestNPZView(DataBrowserView):
+class NPZView(DataBrowserView):
     
-    name = 'test_npz_view'
+    name = 'npz_view'
     
     def setup(self):
         
@@ -224,8 +226,14 @@ class TestNPZView(DataBrowserView):
             
             self.display_txt = "File: {}\n".format(fname)
             
-            for key,val in self.dat.items():
-                self.display_txt += "\t-->{} {}\n".format(key, val.shape)
+            sorted_keys = sorted(self.dat.keys())
+            
+            for key in sorted_keys:
+                val = self.dat[key]
+                if val.shape == ():
+                    self.display_txt += "    --> {}: {}\n".format(key, val)                    
+                else:
+                    self.display_txt += "    --D {}: Array of {} {}\n".format(key, val.dtype, val.shape)
             
             #self.display_label.setText(self.display_txt)
             self.display_textEdit.setText(self.display_txt)
@@ -243,13 +251,16 @@ class HyperSpectralBaseView(DataBrowserView):
     
     def setup(self):
         
-        self.ui = QtWidgets.QWidget()
-        self.ui.setLayout(QtWidgets.QVBoxLayout())
+        #self.ui = self.splitter = QtWidgets.QSplitter()
+        #self.ui.setLayout(QtWidgets.QVBoxLayout())
+        self.ui = self.dockarea = dockarea.DockArea()
         self.imview = pg.ImageView()
         self.imview.getView().invertY(False) # lower left origin
-        self.ui.layout().addWidget(self.imview)
+        #self.splitter.addWidget(self.imview)
+        self.dockarea.addDock(name='Image', widget=self.imview)
         self.graph_layout = pg.GraphicsLayoutWidget()
-        self.ui.layout().addWidget(self.graph_layout)
+        #self.splitter.addWidget(self.graph_layout)
+        self.dockarea.addDock(name='Spec Plot', widget=self.graph_layout)
 
         self.spec_plot = self.graph_layout.addPlot()
         self.rect_plotdata = self.spec_plot.plot()
@@ -299,10 +310,13 @@ class HyperSpectralBaseView(DataBrowserView):
             self.databrowser.ui.statusbar.showMessage("failed to load %s:\n%s" %(fname, err))
             raise(err)
         finally:        
-            # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose        
-            self.imview.setImage(self.display_image.T)
-            self.on_change_rect_roi()
-            self.on_update_circ_roi()
+            self.update_display()
+            
+    def update_display(self):
+        # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose        
+        self.imview.setImage(self.display_image.T)
+        self.on_change_rect_roi()
+        self.on_update_circ_roi()
     
     def load_data(self, fname):
         """
@@ -345,7 +359,9 @@ class HyperSpectralBaseView(DataBrowserView):
         
         #print "xc,yc,i,j", xc,yc, i,j
         
-        self.circ_roi_plotline.setData([xc, i+0.5], [yc, j + 0.5])        
+        self.circ_roi_plotline.setData([xc, i+0.5], [yc, j + 0.5])
+        
+        self.circ_roi_ji = (j,i)       
         
         self.point_plotdata.setData(self.spec_x_array, self.hyperspec_data[j,i,:])
 

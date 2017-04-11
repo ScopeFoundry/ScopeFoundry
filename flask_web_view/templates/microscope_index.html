@@ -1,0 +1,35 @@
+<body>
+<h1>App {{app.name}}</h1>
+
+<ul>
+{% for lq in app.settings.as_list() %}
+    <li>{{lq.name}}: {{lq.val}} {{lq.unit or ''}}</li>
+{% endfor %}
+</ul>
+
+<h1>Hardware</h1>
+<ul>
+{% for hw in app.hardware.values() %}
+    <li>{{hw.name}}</li>
+    <ul>
+    {% for lq in hw.settings.as_list() %}
+        <li>{{lq.name}}: {{lq.val}} {{lq.unit or ''}}</li>
+    {% endfor %}
+    </ul>
+{% endfor %}
+</ul>
+
+
+<h1>Measurements</h1>
+<ul>
+{% for m in app.measurements.values() %}
+    <li>{{m.name}}</li>
+    <ul>
+    {% for lq in m.settings.as_list() %}
+        <li>{{lq.name}}: {{lq.val}} {{lq.unit or ''}}</li>
+    {% endfor %}
+    </ul>
+{% endfor %}
+</ul>
+
+</body>

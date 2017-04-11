@@ -132,7 +132,7 @@ class BaseApp(QtCore.QObject):
             if not lq.ro or save_ro:
                 config.set('app', lqname, lq.ini_string_value())
                 
-        with open(fname, 'wb') as configfile:
+        with open(fname, 'w') as configfile:
             config.write(configfile)
         
         self.log.info("ini settings saved to {} {}".format( fname, config.optionxform))    
@@ -195,6 +195,8 @@ class BaseMicroscopeApp(BaseApp):
         
         self.settings.New('save_dir', dtype='file', is_dir=True, initial=initial_data_save_dir)
         self.settings.New('sample', dtype=str, initial='')
+        self.settings.New('data_fname_format', dtype=str,
+                          initial='{timestamp:%y%m%d_%H%M%S}_{measurement.name}.{ext}')
         
         if not hasattr(self, 'ui_filename'):
             if self.mdi:
@@ -516,18 +518,20 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the ini file.              
         ==============  =========  ==============================================
         """
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
         config.optionxform = str
         if save_app:
             config.add_section('app')
             for lqname, lq in self.settings.items():
-                config.set('app', lqname, lq.val)
+                print(lq.ini_string_value())                
+                config.set('app', lqname, lq.ini_string_value(), )
         if save_hardware:
             for hc_name, hc in self.hardware.items():
                 section_name = 'hardware/'+hc_name
                 config.add_section(section_name)
                 for lqname, lq in hc.settings.items():
                     if not lq.ro or save_ro:
+                        print(lq.ini_string_value())
                         config.set(section_name, lqname, lq.ini_string_value())
         if save_measurements:
             for meas_name, measurement in self.measurements.items():
@@ -552,8 +556,8 @@ class BaseMicroscopeApp(BaseApp):
         """
 
         self.log.info("ini settings loading from {}".format(fname))
-        
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
+        #config = configparser.ConfigParser()
         config.optionxform = str
         config.read(fname)
 
@@ -572,7 +576,7 @@ class BaseMicroscopeApp(BaseApp):
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
-                        self.log.error("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                         
         for meas_name, measurement in self.measurements.items():
             section_name = 'measurement/'+meas_name            
@@ -583,7 +587,7 @@ class BaseMicroscopeApp(BaseApp):
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
-                        self.log.error("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                             
         
         self.log.info("ini settings loaded from {}"+ fname)

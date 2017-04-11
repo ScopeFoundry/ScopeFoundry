@@ -1,6 +1,7 @@
 from __future__ import absolute_import, print_function
 import h5py
 import time
+from datetime import datetime
 import os
 
 """
@@ -53,7 +54,14 @@ other thoughts:
 def h5_base_file(app, fname=None, measurement=None):
     t0 = time.time()
     if fname is None and measurement is not None:
-        fname = os.path.join(app.settings['save_dir'], "%i_%s.h5" % (t0, measurement.name) )
+        
+        f = app.settings['data_fname_format'].format(
+            app=app,
+            measurement=measurement,
+            timestamp=datetime.fromtimestamp(t0),
+            ext='h5')
+        fname = os.path.join(app.settings['save_dir'], f)        
+        #fname = os.path.join(app.settings['save_dir'], "%i_%s.h5" % (t0, measurement.name) )
     h5_file = h5py.File(fname)
     root = h5_file['/']
     root.attrs["ScopeFoundry_version"] = 101
@@ -93,7 +101,11 @@ def h5_save_lqcoll_to_attrs(settings, h5group):
     unit_group = h5group.create_group('units')
     # TODO decide if we should specify h5 attr data type based on LQ dtype
     for lqname, lq in settings.as_dict().items():
-        h5group.attrs[lqname] = lq.val
+        print('h5_save_lqcoll_to_attrs', lqname, repr(lq.val))
+        try:
+            h5group.attrs[lqname] = lq.val
+        except:
+            h5group.attrs[lqname] = lq.ini_string_value()
         if lq.unit:
             unit_group.attrs[lqname] = lq.unit
 

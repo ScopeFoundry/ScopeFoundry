@@ -77,7 +77,10 @@ class LoggedQuantity(QtCore.QObject):
                  unit = None,
                  spinbox_decimals = 2,
                  spinbox_step=0.1,
-                 vmin=-1e12, vmax=+1e12, choices=None):
+                 vmin=-1e12, vmax=+1e12, choices=None,
+                 reread_from_hardware_after_write = False,
+                 description = None
+                 ):
         QtCore.QObject.__init__(self)
         
         self.name = name
@@ -96,6 +99,7 @@ class LoggedQuantity(QtCore.QObject):
         self.choices = self._expand_choices(choices) 
         self.ro = ro # Read-Only
         self.is_array = False
+        self.description = description
         
         self.log = get_logger_from_class(self)
         
@@ -103,7 +107,7 @@ class LoggedQuantity(QtCore.QObject):
             self.spinbox_decimals = 0
         else:
             self.spinbox_decimals = spinbox_decimals
-        self.reread_from_hardware_after_write = False
+        self.reread_from_hardware_after_write = reread_from_hardware_after_write
         
         if self.dtype == int:
             self.spinbox_step = 1
@@ -838,8 +842,8 @@ class LQRange(QtCore.QObject):
     def recalc_with_new_center_span(self,x):
         C = self.center.val
         S = self.span.val
-        self.min.updated_value( C - 0.5*S)
-        self.max.updated_value( C + 0.5*S)
+        self.min.update_value( C - 0.5*S)
+        self.max.update_value( C + 0.5*S)
 
 class LQCollection(object):
     """
@@ -848,7 +852,7 @@ class LQCollection(object):
     attribute access such as lqcoll.x1 will return full LoggedQuantity object
     
     dictionary-style access lqcoll['x1'] allows direct reading and writing of 
-    the LQ's value, while handling the signals
+    the LQ's value, handling the signals automatically
     
     New LQ's can be created with :meth:`New`
     
@@ -864,6 +868,10 @@ class LQCollection(object):
         self.log = get_logger_from_class(self)
         
     def New(self, name, dtype=float, **kwargs):
+        """
+        Create a new LoggedQuantity with name and dtype
+        """
+        
         is_array = kwargs.pop('array', False)
         #self.log.debug("{} is_array? {}".format(name, is_array))
         if is_array:
@@ -873,8 +881,18 @@ class LQCollection(object):
                 lq = FileLQ(name=name, **kwargs)
             else:
                 lq = LoggedQuantity(name=name, dtype=dtype, **kwargs)
+
+        return self.Add(lq)
+    
+    def Add(self, lq):
+        """Add an existing LoggedQuantity to the Collection
+        Examples of usefulness: add hardware lq to measurement settings
+        """
+        name = lq.name
+        assert not (name in self._logged_quantities)
+        assert not (name in self.__dict__)
         self._logged_quantities[name] = lq
-        self.__dict__[name] = lq
+        self.__dict__[name] = lq # allow attribute access
         return lq
 
     def get_lq(self, key):
@@ -889,8 +907,18 @@ class LQCollection(object):
     def as_dict(self):
         return self._logged_quantities
     
-    def items(self):
-        return self._logged_quantities.items()
+#    def items(self):
+#        return self._logged_quantities.items()
+    
+    def keys(self):
+        return self._logged_quantities.keys()
+    
+    def remove(self, name):
+        del self._logged_quantities[name]
+        del self.__dict__[name]
+
+    def __delitem__(self, key): 
+        self.remove(key)
     
     def __getitem__(self, key):
         "Dictionary-like access reads and sets value of LQ's"
@@ -913,19 +941,19 @@ class LQCollection(object):
     
     def New_Range(self, name, **kwargs):
                         
-        min_lq  = self.New( name + "_min" , **kwargs ) 
-        max_lq  = self.New( name + "_max" , **kwargs ) 
-        step_lq = self.New( name + "_step", **kwargs)
-        num_lq  = self.New( name + "_num", dtype=int, vmin=1)
-        center_lq = self.New(name + "_center", **kwargs)
-        span_lq = self.New( name + "_span", **kwargs)
+        min_lq  = self.New( name + "_min" , initial=0., **kwargs ) 
+        max_lq  = self.New( name + "_max" , initial=1., **kwargs ) 
+        step_lq = self.New( name + "_step", initial=0.1, **kwargs)
+        num_lq  = self.New( name + "_num", dtype=int, vmin=1, initial=11)
+        #center_lq = self.New(name + "_center", **kwargs, initial=0.5)
+        #span_lq = self.New( name + "_span", **kwargs, initial=1.0)
     
-        lqrange = LQRange(min_lq, max_lq, step_lq, num_lq, center_lq, span_lq)
+        lqrange = LQRange(min_lq, max_lq, step_lq, num_lq)#, center_lq, span_lq)
 
         self.ranges[name] = lqrange
         return lqrange
     
-    def New_UI(self):
+    def New_UI(self, include = None, exclude = []):
         """create a default Qt Widget that contains 
         widgets for all settings in the LQCollection
         """
@@ -934,7 +962,15 @@ class LQCollection(object):
         formLayout = QtWidgets.QFormLayout()
         ui_widget.setLayout(formLayout)
         
-        for lqname, lq in self.as_dict().items():
+        if include is None:
+            lqnames = self.as_dict().keys()
+        else:
+            lqnames = include
+        
+        for lqname in lqnames:
+            if lqname in exclude:
+                continue
+            lq = self.get_lq(lqname)
             #: :type lq: LoggedQuantity
             if isinstance(lq, FileLQ):
                 lineEdit = QtWidgets.QLineEdit()
