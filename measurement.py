@@ -49,6 +49,10 @@ class Measurement(QtCore.QObject):
         
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
+        
+        if not hasattr(self, 'name'):
+            self.name = self.__class__.__name__
+
 
         self.app = app
         

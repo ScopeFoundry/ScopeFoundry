@@ -292,8 +292,8 @@ class BaseRaster2DScan(Measurement):
         self.scan_roi.blockSignals(False)
         
     def update_arrow_pos(self):
-        x = self.stage.x_position.val
-        y = self.stage.y_position.val
+        x = self.stage.settings['x_position']
+        y = self.stage.settings['y_position']
         self.current_stage_pos_arrow.setPos(x,y)
     
     def update_display(self):
