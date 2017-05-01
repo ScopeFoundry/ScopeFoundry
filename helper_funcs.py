@@ -210,7 +210,8 @@ def get_logger_from_class(obj):
     """ returns a named Logger from the logging package using the
     full name of the class of the object (obj) as the log name
     """ 
-    return logging.getLogger(obj.__module__ + "." + obj.__class__.__name__)
+    #return logging.getLogger(obj.__module__ + "." + obj.__class__.__name__)
+    return logging.getLogger(obj.__class__.__name__)
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
