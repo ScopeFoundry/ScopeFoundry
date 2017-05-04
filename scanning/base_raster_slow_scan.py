@@ -101,9 +101,14 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
             finally:
                 self.post_scan_cleanup()
                 if hasattr(self, 'h5_file'):
-                    self.h5_file.close()
+                    print('h5_file', self.h5_file)
+                    try:
+                        self.h5_file.close()
+                    except ValueError as err:
+                        self.log.warning('failed to close h5_file: {}'.format(err))
                 if not self.settings['continuous_scan']:
                     break
+        print(self.name, 'done')
                 
     def move_position_start(self, h,v):
         self.stage.settings.x_position.update_value(h)
