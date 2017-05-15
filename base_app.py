@@ -65,6 +65,7 @@ import traceback
 def log_unhandled_exception(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     logging.critical("Unhandled exception:" + text)
+    #print("Unhandled exception:" + text)
 sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
@@ -174,7 +175,7 @@ class BaseApp(QtCore.QObject):
 
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
-    """The name of the core module, ScopeFoundry."""
+    """The name of the microscope app, default is ScopeFoundry."""
     mdi = True
     """Multiple Document Interface flag. Tells the app whether to include an MDI widget in the app."""
     
