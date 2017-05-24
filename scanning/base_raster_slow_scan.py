@@ -141,4 +141,7 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
     def post_scan_cleanup(self):
         print(self.name, "post_scan_setup not implemented")
 
+    def new_pt_pos(self, x,y):
+        self.move_position_start(x, y)
+
  

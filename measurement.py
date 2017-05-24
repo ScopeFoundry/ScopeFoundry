@@ -81,7 +81,7 @@ class Measurement(QtCore.QObject):
         #self.add_operation("setup", self.setup)
         #self.add_operation("setup_figure", self.setup_figure)
         self.add_operation("update_display", self.update_display)
-        #self.add_operation('show_ui', self.show_ui)
+        self.add_operation('show_ui', self.show_ui)
         
         if hasattr(self, 'ui_filename'):
             self.load_ui()
@@ -298,20 +298,21 @@ class Measurement(QtCore.QObject):
             self.ui_filename = ui_fname
         # Load Qt UI from .ui file
         self.ui = load_qt_ui_file(self.ui_filename)
-        self.show_ui()
+        #self.show_ui()
         
     def show_ui(self):
         """
         Shows the graphical user interface of this measurement. :attr:`ui`
         """
-        if self.app.mdi and self.ui.parent():
-            self.ui.parent().raise_()
-            return
-        self.ui.show()
-        self.ui.activateWindow()
-        self.ui.raise_() #just to be sure it's on top
-        if self.app.mdi and self.ui.parent():
-            self.ui.parent().raise_()
+        self.app.bring_measure_ui_to_front(self)
+#         if self.app.mdi and self.ui.parent():
+#             self.ui.parent().raise_()
+#             return
+#         self.ui.show()
+#         self.ui.activateWindow()
+#         self.ui.raise_() #just to be sure it's on top
+#         if self.app.mdi and self.ui.parent():
+#             self.ui.parent().raise_()
     
     def new_control_widgets(self):
         

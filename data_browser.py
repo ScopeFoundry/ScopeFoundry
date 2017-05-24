@@ -52,8 +52,9 @@ class DataBrowser(BaseApp):
         self.fs_model.setRootPath(QtCore.QDir.currentPath())
         self.ui.treeView.setModel(self.fs_model)
         self.ui.treeView.setIconSize(QtCore.QSize(16,16))
-        for i in (1,2,3):
-            self.ui.treeView.hideColumn(i)
+        self.ui.treeView.setSortingEnabled(True)
+        #for i in (1,2,3):
+        #    self.ui.treeView.hideColumn(i)
         #print("="*80, self.ui.treeView.selectionModel())
         self.tree_selectionModel = self.ui.treeView.selectionModel()
         self.tree_selectionModel.selectionChanged.connect(self.on_treeview_selection_change)
@@ -129,7 +130,8 @@ class DataBrowser(BaseApp):
         
         self.current_view = self.views[self.settings['view_name']]
     
-        # hide current view
+        # hide current view 
+        # (handle the initial case where previous_view is None )
         if previous_view:
             previous_view.ui.hide() 
         else:

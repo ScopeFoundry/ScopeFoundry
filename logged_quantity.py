@@ -464,20 +464,27 @@ class LoggedQuantity(QtCore.QObject):
                 integer = False
                 minStep=.1
                 step=.1
-            widget.setOpts(
+            opts = dict(
                         suffix=suffix,
                         siPrefix=True,
                         dec=True,
                         step=step,
                         minStep=minStep,
                         bounds=[self.vmin, self.vmax],
-                        int=integer)            
+                        int=integer)
+            if self.si:
+                del opts['step']
+                del opts['minStep']
+            
+            widget.setOpts(**opts)
+                      
             if self.ro:
                 widget.setEnabled(False)
                 widget.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
                 widget.setReadOnly(True)
             #widget.setDecimals(self.spinbox_decimals)
-            widget.setSingleStep(self.spinbox_step)
+            if not self.si:
+                widget.setSingleStep(self.spinbox_step)
             #self.updated_value[float].connect(widget.setValue)
             #if not self.ro:
                 #widget.valueChanged[float].connect(self.update_value)

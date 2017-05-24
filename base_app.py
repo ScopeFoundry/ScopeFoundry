@@ -65,6 +65,7 @@ import traceback
 def log_unhandled_exception(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     logging.critical("Unhandled exception:" + text)
+    #print("Unhandled exception:" + text)
 sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
@@ -174,7 +175,7 @@ class BaseApp(QtCore.QObject):
 
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
-    """The name of the core module, ScopeFoundry."""
+    """The name of the microscope app, default is ScopeFoundry."""
     mdi = True
     """Multiple Document Interface flag. Tells the app whether to include an MDI widget in the app."""
     
@@ -244,7 +245,9 @@ class BaseMicroscopeApp(BaseApp):
                 measure.subwin = self.ui.mdiArea.addSubWindow(measure.ui, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
                 measure.subwin.setWindowTitle(measure.name)
                 ignore_on_close(measure.subwin)
-                measure.subwin.show()            
+                measure.subwin.show()          
+                # add menu                    
+                self.ui.menuWindow.addAction(measure.name, measure.show_ui)
         
         if hasattr(self.ui, 'console_pushButton'):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
@@ -318,6 +321,17 @@ class BaseMicroscopeApp(BaseApp):
     def cascade_layout(self):
         """Cascades subwindows in user interface. Specifically in the Multi Document Interface."""
         self.ui.mdiArea.cascadeSubWindows()
+        
+    def bring_measure_ui_to_front(self, measure):
+        S = measure.subwin
+        viewMode = self.ui.mdiArea.viewMode()
+        if viewMode == self.ui.mdiArea.SubWindowView:
+            S.showNormal()
+            S.raise_()
+        elif viewMode == self.ui.mdiArea.TabbedView:
+            S.showMaximized()
+            S.raise_()
+
     
     def add_quickbar(self, widget):
         self.ui.quickaccess_scrollArea.setVisible(True)
@@ -358,14 +372,13 @@ class BaseMicroscopeApp(BaseApp):
         cmenu = QtWidgets.QMenu()        
         a = cmenu.addAction(selected_measurement_name)
         a.setEnabled(False)
-        start_action = cmenu.addAction("Start")
-        interrupt_action = cmenu.addAction("Interrupt")
+        cmenu.addSeparator()
+        cmenu.addAction("Start", M.start)
+        cmenu.addAction("Interrupt", M.interrupt)
+        cmenu.addSeparator()
+        cmenu.addAction("Show", lambda M=M: self.bring_measure_ui_to_front(M))
         
         action = cmenu.exec_(QtGui.QCursor.pos())
-        if action == start_action:
-            M.start()
-        elif action == interrupt_action:
-            M.interrupt()
     
     def on_hardware_tree_context_menu(self, position):
         selected_items = self.ui.hardware_treeWidget.selectedItems()
