@@ -316,13 +316,15 @@ class BaseRaster2DScan(Measurement):
         else:
             #if self.settings.scan_type.val in ['raster']
             kk, jj, ii = self.current_scan_index
-            self.img_item.setImage(self.display_image_map[kk,:,:].T, autoRange=False, autoLevels=False)
+            self.disp_img = self.display_image_map[kk,:,:].T
+            self.img_item.setImage(self.disp_img, autoRange=False, autoLevels=False)
             self.img_item.setRect(self.img_item_rect) # Important to set rectangle after setImage for non-square pixels
             self.update_LUT()
             
     def update_LUT(self):
         ''' override this function to control display LUT scaling'''
-        self.hist_lut.imageChanged(autoLevel=True)
+        self.hist_lut.imageChanged(autoLevel=False)
+        self.hist_lut.setLevels(*np.percentile(self.disp_img,(1,99)))
                
     def clear_previous_scans(self):
         #current_img = img_items.pop()
