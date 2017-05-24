@@ -36,10 +36,12 @@ class HardwareComponent(QtCore.QObject):
         
         self.operations[name] = op_func   
             
-    def __init__(self, app, debug=False):
+    def __init__(self, app, debug=False, name=None):
         """
         create new HardwareComponent attached to *app*
         """
+        if name is not None:
+            self.name = name
         
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)

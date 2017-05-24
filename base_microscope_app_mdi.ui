@@ -181,6 +181,7 @@
     <addaction name="tab_action"/>
     <addaction name="cascade_action"/>
     <addaction name="tile_action"/>
+    <addaction name="separator"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuAdvanced"/>
