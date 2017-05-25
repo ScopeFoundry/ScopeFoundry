@@ -252,7 +252,7 @@ class BaseRaster2DScan(Measurement):
             self.stage.settings.y_position.updated_value.connect(self.update_arrow_pos, QtCore.Qt.UniqueConnection)
             
             self.stage.settings.x_position.connect_to_widget(self.ui.x_doubleSpinBox)
-            self.settings.stage.y_position.connect_to_widget(self.ui.y_doubleSpinBox)
+            self.stage.settings.y_position.connect_to_widget(self.ui.y_doubleSpinBox)
 
         
         self.graph_layout.nextRow()
@@ -292,8 +292,8 @@ class BaseRaster2DScan(Measurement):
         self.scan_roi.blockSignals(False)
         
     def update_arrow_pos(self):
-        x = self.stage.x_position.val
-        y = self.stage.y_position.val
+        x = self.stage.settings['x_position']
+        y = self.stage.settings['y_position']
         self.current_stage_pos_arrow.setPos(x,y)
     
     def update_display(self):

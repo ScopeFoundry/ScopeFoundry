@@ -106,7 +106,7 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
                         if self.settings['save_h5']:
                             self.pixel_times_h5[self.frame_i, kk, jj, ii] = pixel_t0
                         self.collect_pixel(self.pixel_i, self.frame_i, kk, jj, ii)
-                        S['progress'] = 100.0*self.pixel_i / (self.Npixels*self.settings['n_frames'])
+                        S['progress'] = 100.0*(self.frame_i*self.Npixels + self.pixel_i) / (self.Npixels*self.settings['n_frames'])
                     self.on_end_frame(self.frame_i)
                     self.frame_i += 1                    
                 if not self.settings['continuous_scan']:
@@ -203,7 +203,8 @@ class BaseRaster2DFrameSlowScan(BaseRaster2DScan):
         is too large. Adds n_frames worth of extra frames
         """
         if self.settings['continuous_scan']:
-            current_num_frames, *frame_shape = map_h5.shape
+            current_num_frames = map_h5.shape[0]
+            frame_shape = map_h5.shape[1:]
             if frame_num >= current_num_frames:
                 #print ("extend_h5_framed_dataset", map_h5.name, map_h5.shape, frame_num)
                 n_frames_extend = self.settings['n_frames']
