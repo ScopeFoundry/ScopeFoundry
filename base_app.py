@@ -65,6 +65,7 @@ import traceback
 def log_unhandled_exception(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     logging.critical("Unhandled exception:" + text)
+    #print("Unhandled exception:" + text)
 sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
@@ -174,7 +175,7 @@ class BaseApp(QtCore.QObject):
 
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
-    """The name of the core module, ScopeFoundry."""
+    """The name of the microscope app, default is ScopeFoundry."""
     mdi = True
     """Multiple Document Interface flag. Tells the app whether to include an MDI widget in the app."""
     
@@ -477,11 +478,14 @@ class BaseMicroscopeApp(BaseApp):
         and add it to self.measurements
 
         """
-        assert not measure.name in self.measurements.keys()
         
         #If *measure* is a class, rather an instance, create an instance 
         if inspect.isclass(measure):
             measure = measure(app=self)
+
+            
+        assert not measure.name in self.measurements.keys()
+        
 
         self.measurements.add(measure.name, measure)
         
@@ -573,7 +577,7 @@ class BaseMicroscopeApp(BaseApp):
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
-                        self.log.error("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                         
         for meas_name, measurement in self.measurements.items():
             section_name = 'measurement/'+meas_name            
@@ -584,7 +588,7 @@ class BaseMicroscopeApp(BaseApp):
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
-                        self.log.error("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                             
         
         self.log.info("ini settings loaded from {}"+ fname)
