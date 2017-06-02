@@ -105,7 +105,7 @@ class MicroscopeFlaskWebThread(QtCore.QThread):
                                    resource_class_kwargs={ 'microscope_app': self.app })
         
         for HW in self.app.hardware.values():
-            print(HW.web_ui())
+            #print(HW.web_ui())
             self.flask_app.route('/hw/{}'.format(HW.name))(HW.web_ui)
         for M in self.app.measurements.values():
             self.flask_app.route('/measure/{}'.format(M.name))(M.web_ui)
@@ -116,12 +116,10 @@ class MicroscopeFlaskWebThread(QtCore.QThread):
 
     def run(self):
         self.flask_app.run(port=5000)
-        print("tread run")
+        print("thread run")
 
     def index(self):
-        #return "<pre>hello {}</pre>".format(self.app.settings.keys())
         return render_template("microscope_index.html", app=self.app)
-    
     
 if __name__ == '__main__':
     import sys
