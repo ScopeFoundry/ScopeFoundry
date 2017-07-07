@@ -244,6 +244,7 @@ class BaseMicroscopeApp(BaseApp):
             if self.mdi and hasattr(measure, 'ui'):
                 measure.subwin = self.ui.mdiArea.addSubWindow(measure.ui, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
                 measure.subwin.setWindowTitle(measure.name)
+                measure.subwin.measure = measure
                 ignore_on_close(measure.subwin)
                 measure.subwin.show()          
                 # add menu                    
