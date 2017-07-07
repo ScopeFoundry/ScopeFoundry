@@ -535,14 +535,14 @@ class BaseMicroscopeApp(BaseApp):
         config.optionxform = str
         if save_app:
             config.add_section('app')
-            for lqname, lq in self.settings.items():
+            for lqname, lq in self.settings.as_dict().items():
                 print(lq.ini_string_value())                
                 config.set('app', lqname, lq.ini_string_value(), )
         if save_hardware:
             for hc_name, hc in self.hardware.items():
                 section_name = 'hardware/'+hc_name
                 config.add_section(section_name)
-                for lqname, lq in hc.settings.items():
+                for lqname, lq in hc.settings.as_dict().items():
                     if not lq.ro or save_ro:
                         print(lq.ini_string_value())
                         config.set(section_name, lqname, lq.ini_string_value())
@@ -550,7 +550,7 @@ class BaseMicroscopeApp(BaseApp):
             for meas_name, measurement in self.measurements.items():
                 section_name = 'measurement/'+meas_name            
                 config.add_section(section_name)
-                for lqname, lq in measurement.settings.items():
+                for lqname, lq in measurement.settings.as_dict().items():
                     if not lq.ro or save_ro:
                         config.set(section_name, lqname, lq.ini_string_value())
         with open(fname, 'w') as configfile:
