@@ -398,7 +398,27 @@ class BaseRaster2DScan(Measurement):
         # connect events
         
     
+
+    def initialize_controller(self):
+#        self.controller = self.app.hardware['xbox_controller']
+#         
+#         if hasattr(self, 'controller'):
+#             self.pt_roi.sigRegionChangeFinished.connect(self.on_update_pt_roi)
+        pass
     
+    def update_point_roi_xbox(self):
+        """Not yet implemented."""
+        dx = self.controller.settings['Axis_4']
+        dy = self.controller.settings['Axis_3']
+        x, y = self.pt_roi.pos()
+        if abs(dx) < 0.25:
+            dx = 0
+        if abs(dy) < 0.25:
+            dy = 0
+        if dx != 0 or dy != 0:
+            c = self.controller.settings.sensitivity.val
+            self.pt_roi.setPos(x+(c*dx), y+(c*dy))
+        
     @property
     def h_array(self):
         return self.h_range.array
