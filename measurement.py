@@ -379,3 +379,6 @@ class Measurement(QtCore.QObject):
             #self.controls_formLayout.addRow(op_name, op_button)
             op_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [op_name, ""])
             tree.setItemWidget(op_tree_item, 1, op_button)
+            
+    def web_ui(self):
+        return "Hardware {}".format(self.name)

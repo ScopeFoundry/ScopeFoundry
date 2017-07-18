@@ -101,7 +101,7 @@ def h5_save_lqcoll_to_attrs(settings, h5group):
     unit_group = h5group.create_group('units')
     # TODO decide if we should specify h5 attr data type based on LQ dtype
     for lqname, lq in settings.as_dict().items():
-        print('h5_save_lqcoll_to_attrs', lqname, repr(lq.val))
+        #print('h5_save_lqcoll_to_attrs', lqname, repr(lq.val))
         try:
             h5group.attrs[lqname] = lq.val
         except:
