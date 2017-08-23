@@ -403,6 +403,17 @@ class LoggedQuantity(QtCore.QObject):
             #if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
                 
+        elif type(widget) == QtWidgets.QSlider:
+            if self.vmin is not None:
+                widget.setMinimum(self.vmin*100)
+            if self.vmax is not None:
+                widget.setMaximum(self.vmax*100)
+            widget.setSingleStep(self.spinbox_step)
+            widget.setValue(int(self.val*100))
+            self.updated_value[int].connect(widget.setValue)
+#             widget.valueChanged[float].connect(self.update_value)
+
+                
         elif type(widget) == QtWidgets.QCheckBox:
 
             def update_widget_value(x):
