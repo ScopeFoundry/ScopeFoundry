@@ -404,14 +404,34 @@ class LoggedQuantity(QtCore.QObject):
             widget.valueChanged[float].connect(self.update_value)
                 
         elif type(widget) == QtWidgets.QSlider:
+            self.vrange = self.vmax - self.vmin
+            def transform_to_slider(x):
+                pct = 100*(x-self.vmin)/self.vrange
+                return int(pct)
+            def transform_from_slider(x):
+                val = self.vmin + (x*self.vrange/100)
+                return val
+            def update_widget_value(x):
+                """
+                block signals from widget when value is set via lq.update_value.
+                This prevents signal-slot loops between widget and lq
+                """
+                try:
+                    widget.blockSignals(True)
+                    widget.setValue(transform_to_slider(x))
+                finally:
+                    widget.blockSignals(False)
+                    
+            def update_spinbox(x):
+                self.update_value(transform_from_slider(x))    
             if self.vmin is not None:
-                widget.setMinimum(self.vmin*100)
+                widget.setMinimum(transform_to_slider(self.vmin))
             if self.vmax is not None:
-                widget.setMaximum(self.vmax*100)
-            widget.setSingleStep(self.spinbox_step)
-            widget.setValue(int(self.val*100))
-            self.updated_value[int].connect(widget.setValue)
-#             widget.valueChanged[float].connect(self.update_value)
+                widget.setMaximum(transform_to_slider(self.vmax))
+            widget.setSingleStep(1)
+            widget.setValue(transform_to_slider(self.val))
+            self.updated_value[float].connect(update_widget_value)
+            widget.valueChanged[int].connect(update_spinbox)
 
                 
         elif type(widget) == QtWidgets.QCheckBox:
