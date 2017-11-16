@@ -41,7 +41,7 @@ class Measurement(QtCore.QObject):
 
     #measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
     
-    def __init__(self, app):
+    def __init__(self, app, name=None):
         """
         :type app: BaseMicroscopeApp
                 
@@ -53,6 +53,8 @@ class Measurement(QtCore.QObject):
         if not hasattr(self, 'name'):
             self.name = self.__class__.__name__
 
+        if name is not None:
+            self.name = name
 
         self.app = app
         

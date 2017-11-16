@@ -40,9 +40,13 @@ class HardwareComponent(QtCore.QObject):
         """
         create new HardwareComponent attached to *app*
         """
+        if not hasattr(self, 'name'):
+            self.name = self.__class__.__name__
+
         if name is not None:
             self.name = name
-        
+            
+                    
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
 
