@@ -581,6 +581,24 @@ class LoggedQuantity(QtCore.QObject):
                     widget.setReadOnly(self.ro)    
                 #TODO other widget types
             self.updated_readonly.emit(self.ro)
+            
+    def change_unit(self, unit):
+        with self.lock:
+            self.unit = unit
+            for widget in self.widget_list:
+                if type(widget) == QtWidgets.QDoubleSpinBox:
+                    if self.unit is not None:
+                        widget.setSuffix(" "+self.unit)
+                         
+                elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
+                    #widget.setFocusPolicy(QtCore.Qt.StrongFocus)
+                    suffix = self.unit
+                    if self.unit is None:
+                        suffix = ""
+                    opts = dict(
+                                suffix=suffix)
+                     
+                    widget.setOpts(**opts)
     
     def is_connected_to_hardware(self):
         """
