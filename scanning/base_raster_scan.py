@@ -5,7 +5,7 @@ Created on Feb 4, 2016
 '''
 
 from ScopeFoundry import Measurement
-from ScopeFoundry.helper_funcs import sibling_path, load_qt_ui_file
+from ScopeFoundry.helper_funcs import sibling_path, load_qt_ui_file,replace_widget_in_layout
 import numpy as np
 import pyqtgraph as pg
 import time
@@ -55,11 +55,11 @@ class BaseRaster2DScan(Measurement):
 
         # local logged quantities
         lq_params = dict(dtype=float, vmin=self.h_limits[0],vmax=self.h_limits[1], ro=False, unit=self.h_unit )
-        self.h0 = self.settings.New('h0',  initial=self.h_limits[0], **lq_params  )
-        self.h1 = self.settings.New('h1',  initial=self.h_limits[1], **lq_params  )
+        self.h0 = self.settings.New('h0',  initial=(self.h_limits[0]+self.h_limits[1])/2, **lq_params  )
+        self.h1 = self.settings.New('h1',  initial=(self.h_limits[0]+self.h_limits[1])/2+1, **lq_params  )
         lq_params = dict(dtype=float, vmin=self.v_limits[0],vmax=self.v_limits[1], ro=False, unit=self.h_unit )
-        self.v0 = self.settings.New('v0',  initial=self.v_limits[0], **lq_params  )
-        self.v1 = self.settings.New('v1',  initial=self.v_limits[1], **lq_params  )
+        self.v0 = self.settings.New('v0',  initial=(self.h_limits[0]+self.h_limits[1])/2, **lq_params  )
+        self.v1 = self.settings.New('v1',  initial=(self.v_limits[0]+self.v_limits[1])/2+1, **lq_params  )
 
         lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(self.h_limits[1]-self.h_limits[0]), ro=False, unit=self.h_unit )
         self.dh = self.settings.New('dh', initial=0.1, **lq_params)
@@ -142,6 +142,11 @@ class BaseRaster2DScan(Measurement):
 
         self.ui.clear_previous_scans_pushButton.clicked.connect(
             self.clear_previous_scans)
+        
+    def set_details_widget(self, ui_filename):
+        print('LOADING DETAIL UO')
+        details_ui = load_qt_ui_file(ui_filename)
+        return replace_widget_in_layout(self.ui.details_groupBox,details_ui)
         
     def set_h_limits(self, vmin, vmax, set_scan_to_max=False):
         self.settings.h0.change_min_max(vmin, vmax)
