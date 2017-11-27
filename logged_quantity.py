@@ -5,7 +5,7 @@ import numpy as np
 from collections import OrderedDict
 import json
 import sys
-from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool
+from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 #import threading
@@ -24,17 +24,6 @@ class DummyLock(object):
     def __exit__(self, *args):
         pass
 
-
-class QLock(QtCore.QMutex):
-    def acquire(self):
-        self.lock()
-    def release(self):
-        self.unlock()
-    def __enter__(self):
-        self.acquire()
-        return self
-    def __exit__(self, *args):
-        self.release()
 
 
 class LoggedQuantity(QtCore.QObject):
@@ -124,7 +113,7 @@ class LoggedQuantity(QtCore.QObject):
         # threading lock
         #self.lock = threading.Lock()
         #self.lock = DummyLock()
-        self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
+        self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
         
     def coerce_to_type(self, x):
         """
@@ -179,7 +168,8 @@ class LoggedQuantity(QtCore.QObject):
             reread_hardware = self.reread_from_hardware_after_write
         # Read from Hardware
         if self.has_hardware_write():
-            self.hardware_set_func(self.val)
+            with self.lock:
+                self.hardware_set_func(self.val)
             if reread_hardware:
                 self.read_from_hardware(send_signal=False)
 
