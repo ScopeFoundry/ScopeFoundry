@@ -317,10 +317,12 @@ class BaseMicroscopeApp(BaseApp):
         
     def tile_layout(self):
         """Tiles subwindows in user interface. Specifically in the Multi Document Interface."""
+        self.set_subwindow_mode()
         self.ui.mdiArea.tileSubWindows()
         
     def cascade_layout(self):
         """Cascades subwindows in user interface. Specifically in the Multi Document Interface."""
+        self.set_subwindow_mode()
         self.ui.mdiArea.cascadeSubWindows()
         
     def bring_measure_ui_to_front(self, measure):
