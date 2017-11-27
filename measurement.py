@@ -115,6 +115,17 @@ class Measurement(QtCore.QObject):
         creates acquisition thread 
         runs thread
         """ 
+        #self.start_stop(True)
+        self.activation.update_value(True)
+        
+    def _start(self):
+        """
+        Starts the measurement
+        
+        calls *pre_run*
+        creates acquisition thread 
+        runs thread
+        """ 
         self.log.info("measurement {} start".format(self.name))
         self.interrupt_measurement_called = False
         if (self.acq_thread is not None) and self.is_measuring():
@@ -228,7 +239,7 @@ class Measurement(QtCore.QObject):
         """
         self.log.info("{} start_stop {}".format(self.name, start))
         if start:
-            self.start()
+            self._start()
         else:
             self.interrupt()
 
