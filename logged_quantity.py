@@ -538,6 +538,12 @@ class LoggedQuantity(QtCore.QObject):
         #self.widget = widget
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
+        
+        
+    def connect_to_lq(self, lq):
+        self.updated_value.connect(lq.update_value)
+        lq.updated_value.connect(self.update_value)
+        
     
     def change_choice_list(self, choices):
         #widget = self.widget
