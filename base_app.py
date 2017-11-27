@@ -237,7 +237,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.hardware_treeWidget.customContextMenuRequested.connect(self.on_hardware_tree_context_menu)
 
 
-        # Setup the figures         
+        # Setup the Measurement UI's         
         for name, measure in self.measurements.items():
             self.log.info("setting up figures for {} measurement {}".format( name, measure.name) )            
             measure.setup_figure()
