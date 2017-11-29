@@ -5,7 +5,7 @@ import numpy as np
 from collections import OrderedDict
 import json
 import sys
-from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool
+from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 #import threading
@@ -24,17 +24,6 @@ class DummyLock(object):
     def __exit__(self, *args):
         pass
 
-
-class QLock(QtCore.QMutex):
-    def acquire(self):
-        self.lock()
-    def release(self):
-        self.unlock()
-    def __enter__(self):
-        self.acquire()
-        return self
-    def __exit__(self, *args):
-        self.release()
 
 
 class LoggedQuantity(QtCore.QObject):
@@ -124,7 +113,7 @@ class LoggedQuantity(QtCore.QObject):
         # threading lock
         #self.lock = threading.Lock()
         #self.lock = DummyLock()
-        self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
+        self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
         
     def coerce_to_type(self, x):
         """
@@ -179,7 +168,8 @@ class LoggedQuantity(QtCore.QObject):
             reread_hardware = self.reread_from_hardware_after_write
         # Read from Hardware
         if self.has_hardware_write():
-            self.hardware_set_func(self.val)
+            with self.lock:
+                self.hardware_set_func(self.val)
             if reread_hardware:
                 self.read_from_hardware(send_signal=False)
 
@@ -403,6 +393,37 @@ class LoggedQuantity(QtCore.QObject):
             #if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
                 
+        elif type(widget) == QtWidgets.QSlider:
+            self.vrange = self.vmax - self.vmin
+            def transform_to_slider(x):
+                pct = 100*(x-self.vmin)/self.vrange
+                return int(pct)
+            def transform_from_slider(x):
+                val = self.vmin + (x*self.vrange/100)
+                return val
+            def update_widget_value(x):
+                """
+                block signals from widget when value is set via lq.update_value.
+                This prevents signal-slot loops between widget and lq
+                """
+                try:
+                    widget.blockSignals(True)
+                    widget.setValue(transform_to_slider(x))
+                finally:
+                    widget.blockSignals(False)
+                    
+            def update_spinbox(x):
+                self.update_value(transform_from_slider(x))    
+            if self.vmin is not None:
+                widget.setMinimum(transform_to_slider(self.vmin))
+            if self.vmax is not None:
+                widget.setMaximum(transform_to_slider(self.vmax))
+            widget.setSingleStep(1)
+            widget.setValue(transform_to_slider(self.val))
+            self.updated_value[float].connect(update_widget_value)
+            widget.valueChanged[int].connect(update_spinbox)
+
+                
         elif type(widget) == QtWidgets.QCheckBox:
 
             def update_widget_value(x):
@@ -517,6 +538,12 @@ class LoggedQuantity(QtCore.QObject):
         #self.widget = widget
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
+        
+        
+    def connect_to_lq(self, lq):
+        self.updated_value.connect(lq.update_value)
+        lq.updated_value.connect(self.update_value)
+        
     
     def change_choice_list(self, choices):
         #widget = self.widget
@@ -550,6 +577,24 @@ class LoggedQuantity(QtCore.QObject):
                     widget.setReadOnly(self.ro)    
                 #TODO other widget types
             self.updated_readonly.emit(self.ro)
+            
+    def change_unit(self, unit):
+        with self.lock:
+            self.unit = unit
+            for widget in self.widget_list:
+                if type(widget) == QtWidgets.QDoubleSpinBox:
+                    if self.unit is not None:
+                        widget.setSuffix(" "+self.unit)
+                         
+                elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
+                    #widget.setFocusPolicy(QtCore.Qt.StrongFocus)
+                    suffix = self.unit
+                    if self.unit is None:
+                        suffix = ""
+                    opts = dict(
+                                suffix=suffix)
+                     
+                    widget.setOpts(**opts)
     
     def is_connected_to_hardware(self):
         """

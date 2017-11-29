@@ -41,7 +41,7 @@ class Measurement(QtCore.QObject):
 
     #measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
     
-    def __init__(self, app):
+    def __init__(self, app, name=None):
         """
         :type app: BaseMicroscopeApp
                 
@@ -53,6 +53,8 @@ class Measurement(QtCore.QObject):
         if not hasattr(self, 'name'):
             self.name = self.__class__.__name__
 
+        if name is not None:
+            self.name = name
 
         self.app = app
         
@@ -106,6 +108,17 @@ class Measurement(QtCore.QObject):
     
     @QtCore.Slot()
     def start(self):
+        """
+        Starts the measurement
+        
+        calls *pre_run*
+        creates acquisition thread 
+        runs thread
+        """ 
+        #self.start_stop(True)
+        self.activation.update_value(True)
+        
+    def _start(self):
         """
         Starts the measurement
         
@@ -226,7 +239,7 @@ class Measurement(QtCore.QObject):
         """
         self.log.info("{} start_stop {}".format(self.name, start))
         if start:
-            self.start()
+            self._start()
         else:
             self.interrupt()
 
@@ -379,3 +392,6 @@ class Measurement(QtCore.QObject):
             #self.controls_formLayout.addRow(op_name, op_button)
             op_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [op_name, ""])
             tree.setItemWidget(op_tree_item, 1, op_button)
+            
+    def web_ui(self):
+        return "Hardware {}".format(self.name)

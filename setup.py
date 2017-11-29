@@ -3,16 +3,19 @@ from setuptools import setup
 setup(
     name = 'ScopeFoundry',
     
-    version = '0.0.1.dev1',
+    version = '1.0.0',
     
-    description = 'a framework for laboratory equipment control and data analysis',
+    description = 'a platform for laboratory equipment control and scientific data analysis',
+    long_description =open('README.md', 'r').read(), 
     
     # Author details
     author='Edward S. Barnard',
     author_email='esbarnard@lbl.gov',
 
     # Choose your license
-    license='BSD',
+    license='LICENSE',
+    
+    url='http://www.scopefoundry.org/',
 
     package_dir={'ScopeFoundry': '.'},
     
