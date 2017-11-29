@@ -8,6 +8,8 @@ import sys
 from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
+from inspect import signature
+
 #import threading
 
 # python 2/3 compatibility
@@ -173,6 +175,7 @@ class LoggedQuantity(QtCore.QObject):
             if reread_hardware:
                 self.read_from_hardware(send_signal=False)
 
+    @property
     def value(self):
         "return stored value"
         return self.val
@@ -622,9 +625,66 @@ class LoggedQuantity(QtCore.QObject):
             self.hardware_read_func = None
         if dis_write:
             self.hardware_set_func = None
-        
 
-            
+    def connect_lq_math(self, lqs, func, reverse_func=None):
+        """
+        Links LQ to other LQs using math functions
+        
+        takes a func that takes a set of logged quantities
+        new_val = f(lq1, lq2, ...)
+
+        when any of the lqs change, the value of this derived LQ
+        will be updated based on func
+        
+        reverse_func allows changes to this LQ to update lqs via reverse func
+        
+        new_lq1_val, new_lq2_val, ... = g(new_val, old_lqs_values)
+        or 
+        new_lq1_val, new_lq2_val, ... = g(new_val)
+        
+        """
+        
+        try:
+            self.math_lqs = tuple(lqs)
+        except TypeError: # if not iterable, assume its a single LQ
+            self.math_lqs = (lqs,)
+        self.math_func = func
+        
+        self.reverse_math_func = reverse_func
+        if reverse_func is not None:
+            rev_sig = signature(reverse_func)
+            self.reverse_func_num_params = len(rev_sig.parameters)
+        
+        def update_math():
+            lq_vals = [lq.value for lq in self.math_lqs]
+            new_val = self.math_func(*lq_vals)
+            self.update_value(new_val)
+        
+        if reverse_func:
+            def update_math_reverse():
+                lq_vals = [lq.value for lq in self.math_lqs]
+                if self.reverse_func_num_params > 1:
+                    new_vals = self.reverse_math_func(self.val, lq_vals)
+                else:
+                    new_vals = self.reverse_math_func(self.val)
+                    
+                try:
+                    new_vals = tuple(new_vals)
+                except TypeError: # if not iterable, assume its a single value
+                    new_vals = (new_vals,)
+
+                for lq, new_val in zip(self.math_lqs, new_vals):
+                    lq.update_value(new_val)
+                    
+        for lq in self.math_lqs:
+            lq.updated_value.connect(update_math)
+            if reverse_func:
+                self.add_listener(update_math_reverse)
+
+    def connect_lq_scale(self, lq, scale):
+        self.lq_scale = scale
+        self.connect_lq_math((lq,), func=lambda x: scale*x,
+                          reverse_func=lambda y, old_vals: [y * 1.0/scale,])
 
 class FileLQ(LoggedQuantity):
     """
