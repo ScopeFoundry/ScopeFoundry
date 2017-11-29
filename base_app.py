@@ -606,7 +606,7 @@ class BaseMicroscopeApp(BaseApp):
                         self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                             
         
-        self.log.info("ini settings loaded from {}"+ fname)
+        self.log.info("ini settings loaded from: {}".format(fname))
         
     def settings_load_h5(self, fname):
         """
