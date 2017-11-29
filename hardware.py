@@ -40,6 +40,8 @@ class HardwareComponent(QtCore.QObject):
         """
         create new HardwareComponent attached to *app*
         """
+        QtCore.QObject.__init__(self)
+
         if not hasattr(self, 'name'):
             self.name = self.__class__.__name__
 
@@ -47,13 +49,12 @@ class HardwareComponent(QtCore.QObject):
             self.name = name
             
                     
-        QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
 
         # threading lock
         #self.lock = threading.Lock()
         #self.lock = DummyLock()
-        self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
+        self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
 
         self.app = app
 

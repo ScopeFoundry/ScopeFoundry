@@ -113,7 +113,7 @@ class LoggedQuantity(QtCore.QObject):
         # threading lock
         #self.lock = threading.Lock()
         #self.lock = DummyLock()
-        self.lock = QLock(mode=0) # mode 0 is non-reentrant lock
+        self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
         
     def coerce_to_type(self, x):
         """
