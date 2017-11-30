@@ -4,7 +4,7 @@ from ScopeFoundry.logged_quantity import LQCollection#, LoggedQuantity
 from collections import OrderedDict
 import pyqtgraph as pg
 import warnings
-from ScopeFoundry.helper_funcs import get_logger_from_class
+from ScopeFoundry.helper_funcs import get_logger_from_class, QLock
 
 class HardwareComponent(QtCore.QObject):
     """
@@ -40,11 +40,21 @@ class HardwareComponent(QtCore.QObject):
         """
         create new HardwareComponent attached to *app*
         """
+        QtCore.QObject.__init__(self)
+
+        if not hasattr(self, 'name'):
+            self.name = self.__class__.__name__
+
         if name is not None:
             self.name = name
-        
-        QtCore.QObject.__init__(self)
+            
+                    
         self.log = get_logger_from_class(self)
+
+        # threading lock
+        #self.lock = threading.Lock()
+        #self.lock = DummyLock()
+        self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
 
         self.app = app
 
@@ -60,8 +70,12 @@ class HardwareComponent(QtCore.QObject):
         
         self.debug_mode = self.add_logged_quantity("debug_mode", dtype=bool, initial=debug)
         
-        self.setup()
+        self.auto_thread_lock = True
         
+        self.setup()
+
+        if self.auto_thread_lock:        
+            self.thread_lock_all_lq()
 
         self.has_been_connected_once = False
         
@@ -197,3 +211,13 @@ class HardwareComponent(QtCore.QObject):
     
     def web_ui(self):
         return "Hardware {}".format(self.name)
+    
+    
+    def thread_lock_lq(self, lq):
+        lq.old_lock = lq.lock
+        lq.lock = self.lock
+        
+    def thread_lock_all_lq(self):
+        for lq in self.settings.as_list():
+            lq.old_lock = lq.lock
+            lq.lock = self.lock
