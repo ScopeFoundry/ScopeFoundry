@@ -658,6 +658,7 @@ class LoggedQuantity(QtCore.QObject):
         def update_math():
             lq_vals = [lq.value for lq in self.math_lqs]
             new_val = self.math_func(*lq_vals)
+            #print(self.name, "update_math", lq_vals, "-->", new_val, )
             self.update_value(new_val)
         
         if reverse_func:
@@ -677,9 +678,18 @@ class LoggedQuantity(QtCore.QObject):
                     lq.update_value(new_val)
                     
         for lq in self.math_lqs:
-            lq.updated_value.connect(update_math)
+            lq.updated_value[()].connect(update_math)
             if reverse_func:
                 self.add_listener(update_math_reverse)
+                
+        update_math()
+                
+    def read_from_lq_math(self):
+        lq_vals = [lq.value for lq in self.math_lqs]
+        new_val = self.math_func(*lq_vals)
+        #print("read_from_lq_math", lq_vals, "-->", new_val, )
+        self.update_value(new_val)
+        
 
     def connect_lq_scale(self, lq, scale):
         self.lq_scale = scale
