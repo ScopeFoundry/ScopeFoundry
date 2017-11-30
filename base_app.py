@@ -237,7 +237,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.hardware_treeWidget.customContextMenuRequested.connect(self.on_hardware_tree_context_menu)
 
 
-        # Setup the figures         
+        # Setup the Measurement UI's         
         for name, measure in self.measurements.items():
             self.log.info("setting up figures for {} measurement {}".format( name, measure.name) )            
             measure.setup_figure()
@@ -317,10 +317,12 @@ class BaseMicroscopeApp(BaseApp):
         
     def tile_layout(self):
         """Tiles subwindows in user interface. Specifically in the Multi Document Interface."""
+        self.set_subwindow_mode()
         self.ui.mdiArea.tileSubWindows()
         
     def cascade_layout(self):
         """Cascades subwindows in user interface. Specifically in the Multi Document Interface."""
+        self.set_subwindow_mode()
         self.ui.mdiArea.cascadeSubWindows()
         
     def bring_measure_ui_to_front(self, measure):
@@ -604,7 +606,7 @@ class BaseMicroscopeApp(BaseApp):
                         self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                             
         
-        self.log.info("ini settings loaded from {}"+ fname)
+        self.log.info("ini settings loaded from: {}".format(fname))
         
     def settings_load_h5(self, fname):
         """
