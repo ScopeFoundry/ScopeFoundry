@@ -557,9 +557,13 @@ class LoggedQuantity(QtCore.QObject):
                 if type(widget) == QtWidgets.QComboBox:
                     # need to have a choice list to connect to a QComboBox
                     assert self.choices is not None 
-                    widget.clear() # removes all old choices
-                    for choice_name, choice_value in self.choices:
-                        widget.addItem(choice_name, choice_value)
+                    try:
+                        widget.blockSignals(True)
+                        widget.clear() # removes all old choices
+                        for choice_name, choice_value in self.choices:
+                            widget.addItem(choice_name, choice_value)
+                    finally:
+                        widget.blockSignals(False)
                 else:
                     raise RuntimeError("Invalid widget type.")
     
