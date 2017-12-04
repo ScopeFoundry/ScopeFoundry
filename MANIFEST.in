@@ -1,0 +1,3 @@
+recursive-include . *.py *.ui README.* *.txt *.md
+include LICENSE CHANGELOG README.md
+global-exclude *.pyc
