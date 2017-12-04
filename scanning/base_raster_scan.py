@@ -134,7 +134,6 @@ class BaseRaster2DScan(Measurement):
             self.ui.show_previous_scans_checkBox)
 
         self.initial_scan_setup_plotting = False
-        self.display_image_map = np.zeros(self.scan_shape, dtype=float)
         self.scan_specific_setup()
         
 
@@ -142,6 +141,8 @@ class BaseRaster2DScan(Measurement):
 
         self.ui.clear_previous_scans_pushButton.clicked.connect(
             self.clear_previous_scans)
+        
+        self.compute_scan_params()
         
     def set_h_limits(self, vmin, vmax, set_scan_to_max=False):
         self.settings.h0.change_min_max(vmin, vmax)
