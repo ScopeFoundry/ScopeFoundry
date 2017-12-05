@@ -47,25 +47,8 @@
        <property name="title">
         <string>File</string>
        </property>
-       <layout class="QGridLayout" name="gridLayout_2">
-        <item row="0" column="2">
-         <widget class="QPushButton" name="data_filename_browse_pushButton">
-          <property name="text">
-           <string>Browse...</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_2">
-          <property name="text">
-           <string>File:</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QLineEdit" name="data_filename_lineEdit"/>
-        </item>
-        <item row="3" column="0" colspan="3">
+       <layout class="QGridLayout" name="gridLayout_2" columnstretch="0,1,0,0">
+        <item row="2" column="0" colspan="4">
          <widget class="QGroupBox" name="dataview_groupBox">
           <property name="title">
            <string>Data View</string>
@@ -93,6 +76,19 @@
           </layout>
          </widget>
         </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="view_name_comboBox"/>
+        </item>
+        <item row="0" column="1" colspan="2">
+         <widget class="QLineEdit" name="data_filename_lineEdit"/>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>File:</string>
+          </property>
+         </widget>
+        </item>
         <item row="1" column="2">
          <widget class="QPushButton" name="console_pushButton">
           <property name="text">
@@ -100,8 +96,26 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
-         <widget class="QComboBox" name="view_name_comboBox"/>
+        <item row="1" column="3">
+         <widget class="QPushButton" name="log_pushButton">
+          <property name="text">
+           <string>Log...</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="3">
+         <widget class="QPushButton" name="data_filename_browse_pushButton">
+          <property name="text">
+           <string>Browse...</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>View:</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
