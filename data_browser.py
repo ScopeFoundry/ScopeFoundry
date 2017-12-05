@@ -75,7 +75,9 @@ class DataBrowser(BaseApp):
         
         #self.console_widget.show()
         self.ui.console_pushButton.clicked.connect(self.console_widget.show)
+        self.ui.log_pushButton.clicked.connect(self.logging_widget.show)
         self.ui.show()
+        
 
         
     def load_view(self, new_view):
