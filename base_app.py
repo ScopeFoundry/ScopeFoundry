@@ -226,7 +226,8 @@ class LoggingQTextEditHandler(Handler):
         )
     
     def format(self, record):
-        timestamp = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        #timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        timestamp = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(record.created))
         style = self.level_styles.get(record.levelname, "")        
         return """{} - <span style="{}">{}</span>: <i>{}</i> :{}<br>""".format(
             timestamp, style, record.levelname, record.name, record.msg)
@@ -247,15 +248,28 @@ class BaseMicroscopeApp(BaseApp):
 
     def __init__(self, argv):
         BaseApp.__init__(self, argv)
+
+        log_dir = os.path.abspath(os.path.join('.', 'log'))
+        if not os.path.isdir(log_dir):
+            os.makedirs(log_dir)
+        self.log_file_handler = logging.FileHandler(
+            os.path.join(log_dir,"{}_log_{:%y%m%d_%H%M%S}.txt".format(self.name, datetime.datetime.fromtimestamp(time.time()))))
+        formatter = logging.Formatter('%(asctime)s|%(levelname)s|%(name)s|%(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+        self.log_file_handler.setFormatter(formatter)
+
+        logging.getLogger().addHandler(self.log_file_handler)
         
         initial_data_save_dir = os.path.abspath(os.path.join('.', 'data'))
         if not os.path.isdir(initial_data_save_dir):
             os.makedirs(initial_data_save_dir)
         
+        
         self.settings.New('save_dir', dtype='file', is_dir=True, initial=initial_data_save_dir)
         self.settings.New('sample', dtype=str, initial='')
         self.settings.New('data_fname_format', dtype=str,
                           initial='{timestamp:%y%m%d_%H%M%S}_{measurement.name}.{ext}')
+        
+        #self.settings.New('log_dir', dtype='file', is_dir=True, initial=initial_log_dir)
         
         if not hasattr(self, 'ui_filename'):
             if self.mdi:
@@ -276,8 +290,9 @@ class BaseMicroscopeApp(BaseApp):
         self.setup()
         
         self.setup_default_ui()
+
+
         
-        self.logging_widget.show()
         
 
     def setup_default_ui(self):
