@@ -14,6 +14,7 @@ import collections
 from collections import OrderedDict
 import logging
 import inspect
+from logging import Handler
 
 try:
     import configparser
@@ -85,7 +86,8 @@ class BaseApp(QtCore.QObject):
         self.setup_console_widget()
         # FIXME Breaks things for microscopes, but necessary for stand alone apps!
         #if hasattr(self, "setup"):
-        #    self.setup() 
+        #    self.setup()
+        self.setup_logging()
 
         if not hasattr(self, 'name'):
             self.name = "ScopeFoundry"
@@ -104,6 +106,13 @@ class BaseApp(QtCore.QObject):
             self.kernel_manager = QtInProcessKernelManager()
             self.kernel_manager.start_kernel()
             self.kernel = self.kernel_manager.kernel
+            self.kernel.shell.banner1 += """
+            ScopeFoundry Console
+            
+            Variables:
+             * np: numpy package
+             * app: the ScopeFoundry App object
+            """
             self.kernel.gui = 'qt4'
             self.kernel.shell.push({'np': np, 'app': self})
             self.kernel_client = self.kernel_manager.client()
@@ -172,6 +181,56 @@ class BaseApp(QtCore.QObject):
         if fname:
             self.settings_load_ini(fname)
         return fname  
+    
+    def setup_logging(self):
+        
+        logging.basicConfig(level=logging.WARN)#, filename='example.log', stream=sys.stdout)
+        logging.getLogger('traitlets').setLevel(logging.WARN)
+        logging.getLogger('ipykernel.inprocess').setLevel(logging.WARN)
+        logging.getLogger('LoggedQuantity').setLevel(logging.WARN)
+        logging.getLogger('PyQt5').setLevel(logging.WARN)
+        logger = logging.getLogger('FoundryDataBrowser')
+        
+        self.logging_widget = QtWidgets.QWidget()
+        self.logging_widget.setWindowTitle("Log")
+        self.logging_widget.setLayout(QtWidgets.QVBoxLayout())
+        self.logging_widget.search_lineEdit = QtWidgets.QLineEdit()
+        self.logging_widget.log_textEdit = QtWidgets.QTextEdit("")
+        
+        self.logging_widget.layout().addWidget(self.logging_widget.search_lineEdit)
+        self.logging_widget.layout().addWidget(self.logging_widget.log_textEdit)
+        
+        self.logging_widget.log_textEdit.document().setDefaultStyleSheet("body{font-family: Courier;}")
+        
+        self.logging_widget_handler = LoggingQTextEditHandler(
+            self.logging_widget.log_textEdit, level=logging.DEBUG)
+        logging.getLogger().addHandler(self.logging_widget_handler)
+            
+class LoggingQTextEditHandler(Handler):
+    def __init__(self, textEdit, level=logging.NOTSET):
+        self.textEdit = textEdit
+        Handler.__init__(self, level=level)
+    def emit(self, record):
+        log_entry = self.format(record)
+        self.textEdit.moveCursor(QtGui.QTextCursor.End)
+        self.textEdit.insertHtml(log_entry)
+        self.textEdit.moveCursor(QtGui.QTextCursor.End)
+        
+    level_styles = dict(
+        CRITICAL="color: red;",
+        ERROR="color: red;",
+        WARNING='color: orange;',
+        INFO='color: green;',
+        DEBUG='color: green;',
+        NOTSET='',
+        )
+    
+    def format(self, record):
+        #timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        timestamp = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(record.created))
+        style = self.level_styles.get(record.levelname, "")        
+        return """{} - <span style="{}">{}</span>: <i>{}</i> :{}<br>""".format(
+            timestamp, style, record.levelname, record.name, record.msg)
 
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
@@ -189,15 +248,28 @@ class BaseMicroscopeApp(BaseApp):
 
     def __init__(self, argv):
         BaseApp.__init__(self, argv)
+
+        log_dir = os.path.abspath(os.path.join('.', 'log'))
+        if not os.path.isdir(log_dir):
+            os.makedirs(log_dir)
+        self.log_file_handler = logging.FileHandler(
+            os.path.join(log_dir,"{}_log_{:%y%m%d_%H%M%S}.txt".format(self.name, datetime.datetime.fromtimestamp(time.time()))))
+        formatter = logging.Formatter('%(asctime)s|%(levelname)s|%(name)s|%(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+        self.log_file_handler.setFormatter(formatter)
+
+        logging.getLogger().addHandler(self.log_file_handler)
         
         initial_data_save_dir = os.path.abspath(os.path.join('.', 'data'))
         if not os.path.isdir(initial_data_save_dir):
             os.makedirs(initial_data_save_dir)
         
+        
         self.settings.New('save_dir', dtype='file', is_dir=True, initial=initial_data_save_dir)
         self.settings.New('sample', dtype=str, initial='')
         self.settings.New('data_fname_format', dtype=str,
                           initial='{timestamp:%y%m%d_%H%M%S}_{measurement.name}.{ext}')
+        
+        #self.settings.New('log_dir', dtype='file', is_dir=True, initial=initial_log_dir)
         
         if not hasattr(self, 'ui_filename'):
             if self.mdi:
@@ -218,6 +290,9 @@ class BaseMicroscopeApp(BaseApp):
         self.setup()
         
         self.setup_default_ui()
+
+
+        
         
 
     def setup_default_ui(self):
@@ -236,19 +311,16 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.hardware_treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.ui.hardware_treeWidget.customContextMenuRequested.connect(self.on_hardware_tree_context_menu)
 
-
+        # Add log widget to mdiArea
+        self.add_mdi_subwin(self.logging_widget, "Log")
+        self.add_mdi_subwin(self.console_widget, "Console")
+        
         # Setup the Measurement UI's         
         for name, measure in self.measurements.items():
             self.log.info("setting up figures for {} measurement {}".format( name, measure.name) )            
             measure.setup_figure()
             if self.mdi and hasattr(measure, 'ui'):
-                measure.subwin = self.ui.mdiArea.addSubWindow(measure.ui, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
-                measure.subwin.setWindowTitle(measure.name)
-                measure.subwin.measure = measure
-                ignore_on_close(measure.subwin)
-                measure.subwin.show()          
-                # add menu                    
-                self.ui.menuWindow.addAction(measure.name, measure.show_ui)
+                self.add_mdi_subwin(measure.ui, measure.name)
         
         if hasattr(self.ui, 'console_pushButton'):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
@@ -326,15 +398,24 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.mdiArea.cascadeSubWindows()
         
     def bring_measure_ui_to_front(self, measure):
-        S = measure.subwin
+        self.bring_mdi_subwin_to_front(measure.subwin)
+        
+    def bring_mdi_subwin_to_front(self, subwin):
         viewMode = self.ui.mdiArea.viewMode()
         if viewMode == self.ui.mdiArea.SubWindowView:
-            S.showNormal()
-            S.raise_()
+            subwin.showNormal()
+            subwin.raise_()
         elif viewMode == self.ui.mdiArea.TabbedView:
-            S.showMaximized()
-            S.raise_()
-
+            subwin.showMaximized()
+            subwin.raise_()
+            
+    def add_mdi_subwin(self, widget, name):
+        subwin = self.ui.mdiArea.addSubWindow(widget, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint)
+        ignore_on_close(subwin)
+        subwin.setWindowTitle(name)
+        subwin.show()
+        self.ui.menuWindow.addAction(name, lambda subwin=subwin: self.bring_mdi_subwin_to_front(subwin))
+        return subwin
     
     def add_quickbar(self, widget):
         self.ui.quickaccess_scrollArea.setVisible(True)
