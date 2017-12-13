@@ -36,7 +36,15 @@ def ijk_zigzag_generator(dims, axis_order=(0,1,2)):
 class BaseRaster2DScan(Measurement):
     name = "base_raster_2Dscan"
     
-    def __init__(self, app, h_limits=(-1,1), v_limits=(-1,1), h_unit='', v_unit=''):
+    def __init__(self, app, 
+                 h_limits=(-1,1),        v_limits=(-1,1), 
+                 h_unit='',              v_unit='', 
+                 h_spinbox_decimals=6,   v_spinbox_decimals=6,
+                 h_spinbox_step=0.000001,v_spinbox_step=0.000001):        
+        self.h_spinbox_decimals = h_spinbox_decimals
+        self.v_spinbox_decimals = v_spinbox_decimals
+        self.h_spinbox_step = h_spinbox_step
+        self.v_spinbox_step = v_spinbox_step
         self.h_limits = h_limits
         self.v_limits = v_limits
         self.h_unit = h_unit
@@ -54,19 +62,23 @@ class BaseRaster2DScan(Measurement):
         #connect events        
 
         # local logged quantities
-        lq_params = dict(dtype=float, vmin=self.h_limits[0],vmax=self.h_limits[1], ro=False, unit=self.h_unit )
-        self.h0 = self.settings.New('h0',  initial=(self.h_limits[0]+self.h_limits[1])/2, **lq_params  )
-        self.h1 = self.settings.New('h1',  initial=(self.h_limits[0]+self.h_limits[1])/2+1, **lq_params  )
-        lq_params = dict(dtype=float, vmin=self.v_limits[0],vmax=self.v_limits[1], ro=False, unit=self.h_unit )
-        self.v0 = self.settings.New('v0',  initial=(self.h_limits[0]+self.h_limits[1])/2, **lq_params  )
-        self.v1 = self.settings.New('v1',  initial=(self.v_limits[0]+self.v_limits[1])/2+1, **lq_params  )
+        h_lq_params = dict(vmin=self.h_limits[0], vmax=self.h_limits[1], unit=self.h_unit, 
+                                spinbox_decimals=self.h_spinbox_decimals, spinbox_step=self.h_spinbox_step,
+                                dtype=float,ro=False)
+        self.h0 = self.settings.New('h0',  initial=(self.h_limits[0]+self.h_limits[1])/2, **h_lq_params  )
+        self.h1 = self.settings.New('h1',  initial=(self.h_limits[0]+self.h_limits[1])/2+10000*self.h_spinbox_step, **h_lq_params  )
+        v_lq_params = dict(vmin=self.v_limits[0], vmax=self.v_limits[1], unit=self.v_unit, 
+                                spinbox_decimals=self.v_spinbox_decimals, spinbox_step=self.v_spinbox_step,
+                                dtype=float,ro=False)
+        self.v0 = self.settings.New('v0',  initial=(self.v_limits[0]+self.v_limits[1])/2, **v_lq_params  )
+        self.v1 = self.settings.New('v1',  initial=(self.v_limits[0]+self.v_limits[1])/2+10000*self.v_spinbox_step, **v_lq_params  )
 
         lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(self.h_limits[1]-self.h_limits[0]), ro=False, unit=self.h_unit )
-        self.dh = self.settings.New('dh', initial=0.1, **lq_params)
-        self.dh.spinbox_decimals = 3
+        self.dh = self.settings.New('dh', initial=self.h_spinbox_step, **lq_params)
+        self.dh.spinbox_decimals = self.h_spinbox_decimals
         lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(self.v_limits[1]-self.v_limits[0]), ro=False, unit=self.v_unit )
-        self.dv = self.settings.New('dv', initial=0.1, **lq_params)
-        self.dv.spinbox_decimals = 3
+        self.dv = self.settings.New('dv', initial=self.v_spinbox_step, **lq_params)
+        self.dv.spinbox_decimals = self.v_spinbox_decimals
         
         self.Nh = self.settings.New('Nh', initial=11, vmin=1, dtype=int, ro=False)
         self.Nv = self.settings.New('Nv', initial=11, vmin=1, dtype=int, ro=False)
