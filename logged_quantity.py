@@ -566,6 +566,8 @@ class LoggedQuantity(QtCore.QObject):
                         widget.blockSignals(False)
                 else:
                     raise RuntimeError("Invalid widget type.")
+        
+        self.send_display_updates(force=True)
     
     def change_min_max(self, vmin=-1e12, vmax=+1e12):
         # TODO  setRange should be a slot for the updated_min_max signal
