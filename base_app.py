@@ -320,7 +320,8 @@ class BaseMicroscopeApp(BaseApp):
             self.log.info("setting up figures for {} measurement {}".format( name, measure.name) )            
             measure.setup_figure()
             if self.mdi and hasattr(measure, 'ui'):
-                self.add_mdi_subwin(measure.ui, measure.name)
+                subwin = self.add_mdi_subwin(measure.ui, measure.name)
+                measure.subwin = subwin
         
         if hasattr(self.ui, 'console_pushButton'):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
