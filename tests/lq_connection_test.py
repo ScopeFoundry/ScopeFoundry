@@ -50,6 +50,17 @@ class LQConnectionTestApp(BaseApp):
         
         lq_scale2.connect_lq_scale(lq0, 25.0)
         
+        
+        
+        test_array = self.settings.New('test_array', dtype=float, array=True,  ro=False, fmt="%1.2f",
+          initial=[[147, 111 , 100]])
+
+        array_follower = self.settings.New('array_follower', dtype=float)
+        
+        test_array.connect_element_follower_lq( array_follower, index=(0,1), bidir=True )
+        
+        
+        
         self.ui = self.settings.New_UI()
         
         self.console_widget.show()

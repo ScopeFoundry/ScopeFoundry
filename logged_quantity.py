@@ -10,6 +10,7 @@ from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
 
+
 #import threading
 
 # python 2/3 compatibility
@@ -850,6 +851,29 @@ class ArrayLQ(LoggedQuantity):
         widget.setModel(model)
         return widget
 
+
+    def connect_element_follower_lq(self, lq, index, bidir=True):
+        """
+        connects an LQ to follow the changes of the array and display a specific element
+        """            
+        # when self (array_lq) is update, update follower lq
+        lq.connect_lq_math((self,),
+                           func=lambda arr, index=index: arr[index])
+        
+        if bidir:
+            # when LQ is updated, update element in self
+            def on_element_follower_lq(lq=lq, arr_lq=self, index=index):
+                #print("on_element_follower_lq", arr_lq.value, lq.value, index)
+                old_val = arr_lq.value[index]
+                new_val = lq.value
+                if new_val == old_val:
+                    return
+                new_arr = arr_lq.value.copy()
+                new_arr[index] = new_val 
+                arr_lq.update_value(new_arr)
+
+            lq.add_listener(on_element_follower_lq)
+            
 class LQRange(QtCore.QObject):
     """
     LQRange is a collection of logged quantities that describe a
