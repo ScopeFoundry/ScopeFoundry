@@ -122,7 +122,7 @@ class HardwareComponent(QtCore.QObject):
         self.op_buttons = OrderedDict()
         for op_name, op_func in self.operations.items(): 
             op_button = QtWidgets.QPushButton(op_name)
-            op_button.clicked.connect(op_func)
+            op_button.clicked.connect(lambda checked, f=op_func: f())
             self.controls_formLayout.addRow(op_name, op_button)
         
         self.read_from_hardware_button = QtWidgets.QPushButton("Read From Hardware")
@@ -149,7 +149,7 @@ class HardwareComponent(QtCore.QObject):
         self.op_buttons = OrderedDict()
         for op_name, op_func in self.operations.items(): 
             op_button = QtWidgets.QPushButton(op_name)
-            op_button.clicked.connect(op_func)
+            op_button.clicked.connect(lambda checked, f=op_func: f())
             self.op_buttons[op_name] = op_button
             #self.controls_formLayout.addRow(op_name, op_button)
             op_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [op_name, ""])
