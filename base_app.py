@@ -733,7 +733,39 @@ class BaseMicroscopeApp(BaseApp):
         """Opens a load ini dialogue in the app user interface"""
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Settings file", "", "Settings File (*.ini *.h5)")
         self.settings_load_ini(fname)
-
+        
+    def lq_path(self,path):
+        """returns the lq based on path string of the form 'domain/[component/]setting'
+        domain = "measurement", "hardware" or "app"
+        """
+        try:
+            domain,component,setting = path.split('/')
+        except ValueError:#app settings do not have a component hierarchy
+            domain,setting = path.split('/')
+        try:
+            if domain in ['hardware','HW','hw']:
+                lq = getattr(self.hardware[component].settings, setting)
+            if domain in ['measurement','measure']:
+                lq = getattr(self.measurement[component].settings, setting)
+            if domain == 'app':
+                lq = getattr(self.settings, setting)
+            return lq
+        except UnboundLocalError:
+            print('WARNING:',domain,'does not exist')
+            
+    def lq_paths_list(self):
+        """returns all logged_quantity paths as a list"""
+        list = []
+        for hw_name,hw in self.hardware.items():
+            for lq_name in hw.settings.keys():
+                list.append('hardware/'+hw_name+"/"+lq_name)
+        for measure_name,measure in self.measurement.items():
+            for lq_name in measure.settings.keys():
+                list.append('measurement/'+measure_name+"/"+lq_name)
+        for lq_name in self.settings.keys():
+            list.append('app/'+lq_name)
+        return list
+        
     @property
     def hardware_components(self):
         warnings.warn("App.hardware_components deprecated, used App.hardware", DeprecationWarning)
