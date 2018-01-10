@@ -206,12 +206,21 @@ class BaseApp(QtCore.QObject):
             self.logging_widget.log_textEdit, level=logging.DEBUG)
         logging.getLogger().addHandler(self.logging_widget_handler)
             
-class LoggingQTextEditHandler(Handler):
+class LoggingQTextEditHandler(Handler, QtCore.QObject):
+    
+    new_log_signal = QtCore.Signal((str,))
+    
     def __init__(self, textEdit, level=logging.NOTSET):
         self.textEdit = textEdit
         Handler.__init__(self, level=level)
+        QtCore.QObject.__init__(self)
+        self.new_log_signal.connect(self.on_new_log)
+
     def emit(self, record):
         log_entry = self.format(record)
+        self.new_log_signal.emit(log_entry)
+        
+    def on_new_log(self, log_entry):
         self.textEdit.moveCursor(QtGui.QTextCursor.End)
         self.textEdit.insertHtml(log_entry)
         self.textEdit.moveCursor(QtGui.QTextCursor.End)
