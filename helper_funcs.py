@@ -4,6 +4,7 @@ from collections import OrderedDict
 import os
 import logging
 import pyqtgraph as pg
+import threading
 
 class OrderedAttrDict(object):
 
@@ -227,3 +228,35 @@ class QLock(QtCore.QMutex):
         return self
     def __exit__(self, *args):
         self.release()
+
+
+# https://stackoverflow.com/questions/5327614/logging-lock-acquire-and-release-calls-in-multi-threaded-application
+class LogLock(object):
+    def __init__(self, name):
+        self.name = str(name)
+        self.lock = threading.Lock()
+        self.log = logging.getLogger('LogLock')
+
+
+    def acquire(self, blocking=True):
+        self.log.debug("{0:x} Trying to acquire {1} lock".format(
+            id(self), self.name))
+        ret = self.lock.acquire(blocking)
+        if ret == True:
+            self.log.debug("{0:x} Acquired {1} lock".format(
+                id(self), self.name))
+        else:
+            self.log.debug("{0:x} Non-blocking aquire of {1} lock failed".format(
+                id(self), self.name))
+        return ret
+
+    def release(self):
+        self.log.debug("{0:x} Releasing {1} lock".format(id(self), self.name))
+        self.lock.release()
+
+    def __enter__(self):
+        self.acquire()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release()
+        return False    # Do not swallow exceptions
