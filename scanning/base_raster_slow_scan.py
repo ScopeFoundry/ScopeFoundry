@@ -82,6 +82,7 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                         dv = self.scan_v_positions[i] - self.scan_v_positions[i-1] 
                     
                     if self.scan_slow_move[i]:
+                        if self.interrupt_measurement_called: break
                         self.move_position_slow(h,v, dh, dv)
                         if self.settings['save_h5']:    
                             self.h5_file.flush() # flush data to file every slow move
@@ -99,6 +100,9 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                         self.pixel_time_h5[kk, jj, ii] = pixel_t0
                     self.collect_pixel(self.pixel_i, kk, jj, ii)
                     S['progress'] = 100.0*self.pixel_i / (self.Npixels)
+            except Exception as err:
+                self.log.error('Failed to Scan {}'.format(err))
+                raise(err)
             finally:
                 self.post_scan_cleanup()
                 if hasattr(self, 'h5_file'):
@@ -140,7 +144,7 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
         print(self.name, "collect_pixel", pixel_num, k,j,i, "not implemented")
     
     def post_scan_cleanup(self):
-        print(self.name, "post_scan_setup not implemented")
+        print(self.name, "post_scan_cleanup not implemented")
 
     def new_pt_pos(self, x,y):
         self.move_position_start(x, y)

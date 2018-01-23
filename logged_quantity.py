@@ -545,8 +545,8 @@ class LoggedQuantity(QtCore.QObject):
         
         
     def connect_to_lq(self, lq):
-        self.updated_value.connect(lq.update_value)
-        lq.updated_value.connect(self.update_value)
+        self.updated_value[(self.dtype)].connect(lq.update_value)
+        lq.updated_value[(lq.dtype)].connect(self.update_value)
         
     
     def change_choice_list(self, choices):
