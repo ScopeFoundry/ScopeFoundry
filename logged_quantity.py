@@ -5,9 +5,12 @@ import numpy as np
 from collections import OrderedDict
 import json
 import sys
-from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool
+from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
+from inspect import signature
+
+
 #import threading
 
 # python 2/3 compatibility
@@ -24,17 +27,6 @@ class DummyLock(object):
     def __exit__(self, *args):
         pass
 
-
-class QLock(QtCore.QMutex):
-    def acquire(self):
-        self.lock()
-    def release(self):
-        self.unlock()
-    def __enter__(self):
-        self.acquire()
-        return self
-    def __exit__(self, *args):
-        self.release()
 
 
 class LoggedQuantity(QtCore.QObject):
@@ -179,10 +171,12 @@ class LoggedQuantity(QtCore.QObject):
             reread_hardware = self.reread_from_hardware_after_write
         # Read from Hardware
         if self.has_hardware_write():
-            self.hardware_set_func(self.val)
+            with self.lock:
+                self.hardware_set_func(self.val)
             if reread_hardware:
                 self.read_from_hardware(send_signal=False)
 
+    @property
     def value(self):
         "return stored value"
         return self.val
@@ -403,6 +397,37 @@ class LoggedQuantity(QtCore.QObject):
             #if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
                 
+        elif type(widget) == QtWidgets.QSlider:
+            self.vrange = self.vmax - self.vmin
+            def transform_to_slider(x):
+                pct = 100*(x-self.vmin)/self.vrange
+                return int(pct)
+            def transform_from_slider(x):
+                val = self.vmin + (x*self.vrange/100)
+                return val
+            def update_widget_value(x):
+                """
+                block signals from widget when value is set via lq.update_value.
+                This prevents signal-slot loops between widget and lq
+                """
+                try:
+                    widget.blockSignals(True)
+                    widget.setValue(transform_to_slider(x))
+                finally:
+                    widget.blockSignals(False)
+                    
+            def update_spinbox(x):
+                self.update_value(transform_from_slider(x))    
+            if self.vmin is not None:
+                widget.setMinimum(transform_to_slider(self.vmin))
+            if self.vmax is not None:
+                widget.setMaximum(transform_to_slider(self.vmax))
+            widget.setSingleStep(1)
+            widget.setValue(transform_to_slider(self.val))
+            self.updated_value[float].connect(update_widget_value)
+            widget.valueChanged[int].connect(update_spinbox)
+
+                
         elif type(widget) == QtWidgets.QCheckBox:
 
             def update_widget_value(x):
@@ -517,6 +542,12 @@ class LoggedQuantity(QtCore.QObject):
         #self.widget = widget
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
+        
+        
+    def connect_to_lq(self, lq):
+        self.updated_value.connect(lq.update_value)
+        lq.updated_value.connect(self.update_value)
+        
     
     def change_choice_list(self, choices):
         #widget = self.widget
@@ -527,11 +558,17 @@ class LoggedQuantity(QtCore.QObject):
                 if type(widget) == QtWidgets.QComboBox:
                     # need to have a choice list to connect to a QComboBox
                     assert self.choices is not None 
-                    widget.clear() # removes all old choices
-                    for choice_name, choice_value in self.choices:
-                        widget.addItem(choice_name, choice_value)
+                    try:
+                        widget.blockSignals(True)
+                        widget.clear() # removes all old choices
+                        for choice_name, choice_value in self.choices:
+                            widget.addItem(choice_name, choice_value)
+                    finally:
+                        widget.blockSignals(False)
                 else:
                     raise RuntimeError("Invalid widget type.")
+        
+        self.send_display_updates(force=True)
     
     def change_min_max(self, vmin=-1e12, vmax=+1e12):
         # TODO  setRange should be a slot for the updated_min_max signal
@@ -550,6 +587,24 @@ class LoggedQuantity(QtCore.QObject):
                     widget.setReadOnly(self.ro)    
                 #TODO other widget types
             self.updated_readonly.emit(self.ro)
+            
+    def change_unit(self, unit):
+        with self.lock:
+            self.unit = unit
+            for widget in self.widget_list:
+                if type(widget) == QtWidgets.QDoubleSpinBox:
+                    if self.unit is not None:
+                        widget.setSuffix(" "+self.unit)
+                         
+                elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
+                    #widget.setFocusPolicy(QtCore.Qt.StrongFocus)
+                    suffix = self.unit
+                    if self.unit is None:
+                        suffix = ""
+                    opts = dict(
+                                suffix=suffix)
+                     
+                    widget.setOpts(**opts)
     
     def is_connected_to_hardware(self):
         """
@@ -577,9 +632,76 @@ class LoggedQuantity(QtCore.QObject):
             self.hardware_read_func = None
         if dis_write:
             self.hardware_set_func = None
+
+    def connect_lq_math(self, lqs, func, reverse_func=None):
+        """
+        Links LQ to other LQs using math functions
+        
+        takes a func that takes a set of logged quantities
+        new_val = f(lq1, lq2, ...)
+
+        when any of the lqs change, the value of this derived LQ
+        will be updated based on func
+        
+        reverse_func allows changes to this LQ to update lqs via reverse func
+        
+        new_lq1_val, new_lq2_val, ... = g(new_val, old_lqs_values)
+        or 
+        new_lq1_val, new_lq2_val, ... = g(new_val)
+        
+        """
+        
+        try:
+            self.math_lqs = tuple(lqs)
+        except TypeError: # if not iterable, assume its a single LQ
+            self.math_lqs = (lqs,)
+        self.math_func = func
+        
+        self.reverse_math_func = reverse_func
+        if reverse_func is not None:
+            rev_sig = signature(reverse_func)
+            self.reverse_func_num_params = len(rev_sig.parameters)
+        
+        def update_math():
+            lq_vals = [lq.value for lq in self.math_lqs]
+            new_val = self.math_func(*lq_vals)
+            #print(self.name, "update_math", lq_vals, "-->", new_val, )
+            self.update_value(new_val)
+        
+        if reverse_func:
+            def update_math_reverse():
+                lq_vals = [lq.value for lq in self.math_lqs]
+                if self.reverse_func_num_params > 1:
+                    new_vals = self.reverse_math_func(self.val, lq_vals)
+                else:
+                    new_vals = self.reverse_math_func(self.val)
+                    
+                try:
+                    new_vals = tuple(new_vals)
+                except TypeError: # if not iterable, assume its a single value
+                    new_vals = (new_vals,)
+
+                for lq, new_val in zip(self.math_lqs, new_vals):
+                    lq.update_value(new_val)
+                    
+        for lq in self.math_lqs:
+            lq.updated_value[()].connect(update_math)
+            if reverse_func:
+                self.add_listener(update_math_reverse)
+                
+        update_math()
+                
+    def read_from_lq_math(self):
+        lq_vals = [lq.value for lq in self.math_lqs]
+        new_val = self.math_func(*lq_vals)
+        #print("read_from_lq_math", lq_vals, "-->", new_val, )
+        self.update_value(new_val)
         
 
-            
+    def connect_lq_scale(self, lq, scale):
+        self.lq_scale = scale
+        self.connect_lq_math((lq,), func=lambda x: scale*x,
+                          reverse_func=lambda y, old_vals: [y * 1.0/scale,])
 
 class FileLQ(LoggedQuantity):
     """
@@ -729,6 +851,29 @@ class ArrayLQ(LoggedQuantity):
         widget.setModel(model)
         return widget
 
+
+    def connect_element_follower_lq(self, lq, index, bidir=True):
+        """
+        connects an LQ to follow the changes of the array and display a specific element
+        """            
+        # when self (array_lq) is update, update follower lq
+        lq.connect_lq_math((self,),
+                           func=lambda arr, index=index: arr[index])
+        
+        if bidir:
+            # when LQ is updated, update element in self
+            def on_element_follower_lq(lq=lq, arr_lq=self, index=index):
+                #print("on_element_follower_lq", arr_lq.value, lq.value, index)
+                old_val = arr_lq.value[index]
+                new_val = lq.value
+                if new_val == old_val:
+                    return
+                new_arr = arr_lq.value.copy()
+                new_arr[index] = new_val 
+                arr_lq.update_value(new_arr)
+
+            lq.add_listener(on_element_follower_lq)
+            
 class LQRange(QtCore.QObject):
     """
     LQRange is a collection of logged quantities that describe a

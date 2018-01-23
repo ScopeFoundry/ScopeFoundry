@@ -75,7 +75,9 @@ class DataBrowser(BaseApp):
         
         #self.console_widget.show()
         self.ui.console_pushButton.clicked.connect(self.console_widget.show)
+        self.ui.log_pushButton.clicked.connect(self.logging_widget.show)
         self.ui.show()
+        
 
         
     def load_view(self, new_view):
@@ -335,6 +337,7 @@ class HyperSpectralBaseView(DataBrowserView):
     @QtCore.Slot(object)
     def on_change_rect_roi(self, roi=None):
         # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time)
+        # NOTE: If data is indeed stored as (frame, y, x, time) in self.hyperspec_data, then axis argument should be axes = (2,1)
         roi_slice, roi_tr = self.rect_roi.getArraySlice(self.hyperspec_data, self.imview.getImageItem(), axes=(1,0)) 
         
         #print("roi_slice", roi_slice)
