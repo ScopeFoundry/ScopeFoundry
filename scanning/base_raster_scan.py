@@ -40,7 +40,7 @@ class BaseRaster2DScan(Measurement):
                  h_limits=(-1,1),        v_limits=(-1,1), 
                  h_unit='',              v_unit='', 
                  h_spinbox_decimals=6,   v_spinbox_decimals=6,
-                 h_spinbox_step=0.000001,v_spinbox_step=0.000001):        
+                 h_spinbox_step=0.1,v_spinbox_step=0.1):        
         self.h_spinbox_decimals = h_spinbox_decimals
         self.v_spinbox_decimals = v_spinbox_decimals
         self.h_spinbox_step = h_spinbox_step
@@ -65,18 +65,20 @@ class BaseRaster2DScan(Measurement):
         h_lq_params = dict(vmin=self.h_limits[0], vmax=self.h_limits[1], unit=self.h_unit, 
                                 spinbox_decimals=self.h_spinbox_decimals, spinbox_step=self.h_spinbox_step,
                                 dtype=float,ro=False)
-        self.h0 = self.settings.New('h0',  initial=(self.h_limits[0]+self.h_limits[1])/2, **h_lq_params  )
-        self.h1 = self.settings.New('h1',  initial=(self.h_limits[0]+self.h_limits[1])/2+10000*self.h_spinbox_step, **h_lq_params  )
+        h_range = self.h_limits[1] - self.h_limits[0]
+        self.h0 = self.settings.New('h0',  initial=self.h_limits[0]+h_range*0.25, **h_lq_params  )
+        self.h1 = self.settings.New('h1',  initial=self.h_limits[0]+h_range*0.75, **h_lq_params  )
         v_lq_params = dict(vmin=self.v_limits[0], vmax=self.v_limits[1], unit=self.v_unit, 
                                 spinbox_decimals=self.v_spinbox_decimals, spinbox_step=self.v_spinbox_step,
                                 dtype=float,ro=False)
-        self.v0 = self.settings.New('v0',  initial=(self.v_limits[0]+self.v_limits[1])/2, **v_lq_params  )
-        self.v1 = self.settings.New('v1',  initial=(self.v_limits[0]+self.v_limits[1])/2+10000*self.v_spinbox_step, **v_lq_params  )
+        v_range = self.v_limits[1]-self.v_limits[0]
+        self.v0 = self.settings.New('v0',  initial=self.v_limits[0] + v_range*0.25, **v_lq_params  )
+        self.v1 = self.settings.New('v1',  initial=self.v_limits[0] + v_range*0.75, **v_lq_params  )
 
-        lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(self.h_limits[1]-self.h_limits[0]), ro=False, unit=self.h_unit )
+        lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(h_range), ro=False, unit=self.h_unit )
         self.dh = self.settings.New('dh', initial=self.h_spinbox_step, **lq_params)
         self.dh.spinbox_decimals = self.h_spinbox_decimals
-        lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(self.v_limits[1]-self.v_limits[0]), ro=False, unit=self.v_unit )
+        lq_params = dict(dtype=float, vmin=1e-9, vmax=abs(v_range), ro=False, unit=self.v_unit )
         self.dv = self.settings.New('dv', initial=self.v_spinbox_step, **lq_params)
         self.dv.spinbox_decimals = self.v_spinbox_decimals
         
@@ -156,10 +158,22 @@ class BaseRaster2DScan(Measurement):
         
         self.compute_scan_params()
         
-    def set_details_widget(self, ui_filename):
-        print('LOADING DETAIL UO')
-        details_ui = load_qt_ui_file(ui_filename)
-        return replace_widget_in_layout(self.ui.details_groupBox,details_ui)
+    def set_details_widget(self, widget = None, ui_filename=None):
+        #print('LOADING DETAIL UI')
+        if ui_filename is not None:
+            details_ui = load_qt_ui_file(ui_filename)
+        if widget is not None:
+            details_ui = widget
+        if hasattr(self, 'details_ui'):
+            if self.details_ui is not None:
+                self.details_ui.deleteLater()
+                self.ui.details_groupBox.layout().removeWidget(self.details_ui)
+                #self.details_ui.hide()
+                del self.details_ui
+        self.details_ui = details_ui
+        #return replace_widget_in_layout(self.ui.details_groupBox,details_ui)
+        self.ui.details_groupBox.layout().addWidget(self.details_ui)
+        return self.details_ui
         
     def set_h_limits(self, vmin, vmax, set_scan_to_max=False):
         self.settings.h0.change_min_max(vmin, vmax)
