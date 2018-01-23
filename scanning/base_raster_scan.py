@@ -159,12 +159,21 @@ class BaseRaster2DScan(Measurement):
         self.compute_scan_params()
         
     def set_details_widget(self, widget = None, ui_filename=None):
-        print('LOADING DETAIL UI')
+        #print('LOADING DETAIL UI')
         if ui_filename is not None:
             details_ui = load_qt_ui_file(ui_filename)
         if widget is not None:
             details_ui = widget
-        return replace_widget_in_layout(self.ui.details_groupBox,details_ui)
+        if hasattr(self, 'details_ui'):
+            if self.details_ui is not None:
+                self.details_ui.deleteLater()
+                self.ui.details_groupBox.layout().removeWidget(self.details_ui)
+                #self.details_ui.hide()
+                del self.details_ui
+        self.details_ui = details_ui
+        #return replace_widget_in_layout(self.ui.details_groupBox,details_ui)
+        self.ui.details_groupBox.layout().addWidget(self.details_ui)
+        return self.details_ui
         
     def set_h_limits(self, vmin, vmax, set_scan_to_max=False):
         self.settings.h0.change_min_max(vmin, vmax)
