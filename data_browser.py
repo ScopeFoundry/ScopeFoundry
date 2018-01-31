@@ -115,6 +115,8 @@ class DataBrowser(BaseApp):
     def on_change_browse_dir(self):
         self.log.debug("on_change_browse_dir")
         self.ui.treeView.setRootIndex(self.fs_model.index(self.settings['browse_dir']))
+        self.fs_model.setRootPath(self.settings['browse_dir'])
+
     
     def on_change_file_filter(self):
         self.log.debug("on_change_file_filter")
