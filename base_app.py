@@ -221,9 +221,10 @@ class LoggingQTextEditHandler(Handler, QtCore.QObject):
         self.new_log_signal.emit(log_entry)
         
     def on_new_log(self, log_entry):
-        self.textEdit.moveCursor(QtGui.QTextCursor.End)
-        self.textEdit.insertHtml(log_entry)
-        self.textEdit.moveCursor(QtGui.QTextCursor.End)
+        #self.textEdit.moveCursor(QtGui.QTextCursor.End)
+        #self.textEdit.insertHtml(log_entry)
+        #self.textEdit.moveCursor(QtGui.QTextCursor.End)
+        self.textEdit.setHtml(log_entry)
         
     level_styles = dict(
         CRITICAL="color: red;",
