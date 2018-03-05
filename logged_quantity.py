@@ -457,14 +457,26 @@ class LoggedQuantity(QtCore.QObject):
             widget.editingFinished.connect(on_edit_finished)
             
         elif type(widget) == QtWidgets.QPlainTextEdit:
-            self.updated_text_value[str].connect(widget.document().setPlainText)
             # TODO Read only
+            
+            def on_lq_changed(new_text):
+                current_cursor = widget.textCursor()
+                current_cursor_pos = current_cursor.position()
+                #print('current_cursor', current_cursor, current_cursor.position())
+                widget.document().setPlainText(new_text)
+                current_cursor.setPosition(current_cursor_pos)
+                widget.setTextCursor(current_cursor)
+                #print('current_cursor', current_cursor, current_cursor.position())
+            
             def on_widget_textChanged():
                 try:
                     widget.blockSignals(True)
                     self.update_value(widget.toPlainText())
                 finally:
                     widget.blockSignals(False)
+
+            #self.updated_text_value[str].connect(widget.document().setPlainText)
+            self.updated_text_value[str].connect(on_lq_changed)
             widget.textChanged.connect(on_widget_textChanged)
             
         elif type(widget) == QtWidgets.QComboBox:
