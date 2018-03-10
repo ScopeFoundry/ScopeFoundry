@@ -223,14 +223,15 @@ class LoggedQuantity(QtCore.QObject):
             self.oldval = self.coerce_to_type(self.val)
             new_val = self.coerce_to_type(new_val)
             
-            self.log.debug("{}: update_value {} --> {}    sender={}".format(self.name, self.oldval, new_val, self.sender()))
+            self.log.debug("{}: update_value {} --> {}    sender={}".format(
+                            self.name, repr(self.oldval), repr(new_val), repr(self.sender())))
     
             # check for equality of new vs old, do not proceed if they are same
             if self.same_values(self.oldval, new_val):
                 self.log.debug("{}: same_value so returning {} {}".format(self.name, self.oldval, new_val))
                 return
             else:
-                pass
+                self.log.debug("{}: different values {} {}".format(self.name, self.oldval, new_val))
                 
             # actually change internal state value
             self.val = new_val
@@ -715,6 +716,25 @@ class LoggedQuantity(QtCore.QObject):
         self.connect_lq_math((lq,), func=lambda x: scale*x,
                           reverse_func=lambda y, old_vals: [y * 1.0/scale,])
 
+    def new_default_widget(self):
+        """ returns the approriate QWidget for the datatype of the
+        LQ. automatically connects widget
+        """
+        if self.choices is not None:
+            widget = QtWidgets.QComboBox()
+        elif self.dtype in [int, float]:
+            if self.si:
+                widget = pg.SpinBox()
+            else:
+                widget = QtWidgets.QDoubleSpinBox()
+        elif self.dtype in [bool]:
+            widget = QtWidgets.QCheckBox()  
+        elif self.dtype in [str]:
+            widget = QtWidgets.QLineEdit()
+        self.connect_to_widget(widget)
+        
+        return widget
+
 class FileLQ(LoggedQuantity):
     """
     Specialized str type :class:`LoggedQuantity` that handles 
@@ -746,6 +766,15 @@ class FileLQ(LoggedQuantity):
         if fname:
             self.update_value(fname)
             
+    def new_default_widget(self):
+        lineEdit = QtWidgets.QLineEdit()
+        browseButton = QtWidgets.QPushButton('...')
+        self.connect_to_browse_widgets(lineEdit, browseButton)
+        widget = QtWidgets.QWidget()
+        widget.setLayout(QtWidgets.QHBoxLayout())
+        widget.layout().addWidget(lineEdit)
+        widget.layout().addWidget(browseButton)
+        return widget
 
 class ArrayLQ(LoggedQuantity):
     updated_shape = QtCore.Signal(str)
@@ -845,7 +874,8 @@ class ArrayLQ(LoggedQuantity):
                 
                 self.oldval = self.val
             else:
-                pass
+                self.log.debug(self.name + ' send_display_updates skipped (olval!=self.val)={} force={} oldval={} val={}'.format(
+                    (self.oldval != self.val) , (force), self.oldval, self.val))
                 #print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
     
     @property
@@ -885,7 +915,13 @@ class ArrayLQ(LoggedQuantity):
                 arr_lq.update_value(new_arr)
 
             lq.add_listener(on_element_follower_lq)
-            
+
+    def new_default_widget(self):
+        widget = create_tableView()
+        widget.horizontalHeader().hide()
+        widget.verticalHeader().hide()
+        return widget
+
 class LQRange(QtCore.QObject):
     """
     LQRange is a collection of logged quantities that describe a
@@ -1136,32 +1172,7 @@ class LQCollection(object):
                 continue
             lq = self.get_lq(lqname)
             #: :type lq: LoggedQuantity
-            if isinstance(lq, FileLQ):
-                lineEdit = QtWidgets.QLineEdit()
-                browseButton = QtWidgets.QPushButton('...')
-                lq.connect_to_browse_widgets(lineEdit, browseButton)
-                widget = QtWidgets.QWidget()
-                widget.setLayout(QtWidgets.QHBoxLayout())
-                widget.layout().addWidget(lineEdit)
-                widget.layout().addWidget(browseButton)
-            if isinstance(lq, ArrayLQ):
-                widget = lq.create_tableView()
-                widget.horizontalHeader().hide()
-                widget.verticalHeader().hide()
-            else:    
-                if lq.choices is not None:
-                    widget = QtWidgets.QComboBox()
-                elif lq.dtype in [int, float]:
-                    if lq.si:
-                        widget = pg.SpinBox()
-                    else:
-                        widget = QtWidgets.QDoubleSpinBox()
-                elif lq.dtype in [bool]:
-                    widget = QtWidgets.QCheckBox()  
-                elif lq.dtype in [str]:
-                    widget = QtWidgets.QLineEdit()
-                lq.connect_to_widget(widget)
-
+            widget = lq.new_default_widget()
             # Add to formlayout
             formLayout.addRow(lqname, widget)
             #lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
@@ -1215,3 +1226,6 @@ class LQCollection(object):
     def disconnect_all_from_hardware(self):
         for lq in self.as_list():
             lq.disconnect_from_hardware()
+            
+
+
