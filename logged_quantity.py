@@ -258,7 +258,7 @@ class LoggedQuantity(QtCore.QObject):
         :returns: None
         
         """
-        #self.log.debug("send_display_updates: {} force={}".format(self.name, force))
+        #self.log.debug("{}:send_display_updates: force={}. From {} to {}".format(self.name, force, self.oldval, self.val))
         if (not self.same_values(self.oldval, self.val)) or (force):
             self.updated_value[()].emit()
             
@@ -432,14 +432,12 @@ class LoggedQuantity(QtCore.QObject):
         elif type(widget) == QtWidgets.QCheckBox:
 
             def update_widget_value(x):
-                try:
-                    widget.blockSignals(True)
-                    widget.setChecked(x)
-                finally:
-                    widget.blockSignals(False)                    
+                lq = widget.sender()
+                #self.log.debug("LQ {} update qcheckbox: {} arg{} lq value{}".format(lq.name,   widget, x, lq.value))                
+                widget.setChecked(lq.value)                    
 
             self.updated_value[bool].connect(update_widget_value)
-            widget.toggled[bool].connect(self.update_value) # another option is stateChanged signal
+            widget.clicked[bool].connect(self.update_value) # another option is stateChanged signal
             if self.ro:
                 #widget.setReadOnly(True)
                 widget.setEnabled(False)
