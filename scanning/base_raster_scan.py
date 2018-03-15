@@ -9,10 +9,8 @@ from ScopeFoundry.helper_funcs import sibling_path, load_qt_ui_file,replace_widg
 import numpy as np
 import pyqtgraph as pg
 import time
-from ScopeFoundry import h5_io
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore
 from ScopeFoundry import LQRange
-import os
 
 def ijk_zigzag_generator(dims, axis_order=(0,1,2)):
     """3D zig-zag scan pattern generator with arbitrary fast axis order"""
@@ -40,7 +38,8 @@ class BaseRaster2DScan(Measurement):
                  h_limits=(-1,1),        v_limits=(-1,1), 
                  h_unit='',              v_unit='', 
                  h_spinbox_decimals=6,   v_spinbox_decimals=6,
-                 h_spinbox_step=0.1,v_spinbox_step=0.1):        
+                 h_spinbox_step=0.1,     v_spinbox_step=0.1,
+                 use_external_range_sync=False):        
         self.h_spinbox_decimals = h_spinbox_decimals
         self.v_spinbox_decimals = v_spinbox_decimals
         self.h_spinbox_step = h_spinbox_step
@@ -49,6 +48,7 @@ class BaseRaster2DScan(Measurement):
         self.v_limits = v_limits
         self.h_unit = h_unit
         self.v_unit = v_unit
+        self.use_external_range_sync = use_external_range_sync
         Measurement.__init__(self, app)
         
     def setup(self):
@@ -85,8 +85,13 @@ class BaseRaster2DScan(Measurement):
         self.Nh = self.settings.New('Nh', initial=11, vmin=1, dtype=int, ro=False)
         self.Nv = self.settings.New('Nv', initial=11, vmin=1, dtype=int, ro=False)
         
-        self.Npixels = self.Nh.val*self.Nv.val
+        self.h_center = self.settings.New('h_center', dtype=float, ro=False)
+        self.v_center = self.settings.New('v_center', dtype=float, ro=False)
+
+        self.h_span = self.settings.New('h_span', dtype=float, ro=False)
+        self.v_span = self.settings.New('v_span', dtype=float, ro=False)
         
+        self.Npixels = self.Nh.val*self.Nv.val
         
         self.scan_type = self.settings.New('scan_type', dtype=str, initial='raster',
                                                   choices=('raster', 'serpentine', 'trace_retrace', 
@@ -110,14 +115,12 @@ class BaseRaster2DScan(Measurement):
             
         self.compute_times()
         
-        #update Nh, Nv and other scan parameters when changes to inputs are made 
-        #for lqname in 'h0 h1 v0 v1 dh dv'.split():
-        #    self.logged_quantities[lqname].updated_value.connect(self.compute_scan_params)
-        self.h_range = LQRange(self.h0, self.h1, self.dh, self.Nh)
-        self.h_range.updated_range.connect(self.compute_scan_params)
+        if not self.use_external_range_sync:
+            self.h_range = LQRange(self.h0, self.h1, self.dh, self.Nh, self.h_center, self.h_span)    
+            self.v_range = LQRange(self.v0, self.v1, self.dv, self.Nv, self.v_center, self.v_span)
 
-        self.v_range = LQRange(self.v0, self.v1, self.dv, self.Nv)
-        self.v_range.updated_range.connect(self.compute_scan_params) #update other scan parameters when changes to inputs are made
+        for s in 'h0 h1 dh v0 v1 dv'.split():
+            self.settings.get_lq(s).add_listener(self.compute_scan_params)
 
         self.scan_type.updated_value.connect(self.compute_scan_params)
         
@@ -125,17 +128,17 @@ class BaseRaster2DScan(Measurement):
         self.ui.start_pushButton.clicked.connect(self.start)
         self.ui.interrupt_pushButton.clicked.connect(self.interrupt)
 
-        self.h0.connect_bidir_to_widget(self.ui.h0_doubleSpinBox)
-        self.h1.connect_bidir_to_widget(self.ui.h1_doubleSpinBox)
-        self.v0.connect_bidir_to_widget(self.ui.v0_doubleSpinBox)
-        self.v1.connect_bidir_to_widget(self.ui.v1_doubleSpinBox)
-        self.dh.connect_bidir_to_widget(self.ui.dh_doubleSpinBox)
-        self.dv.connect_bidir_to_widget(self.ui.dv_doubleSpinBox)
-        self.Nh.connect_bidir_to_widget(self.ui.Nh_doubleSpinBox)
-        self.Nv.connect_bidir_to_widget(self.ui.Nv_doubleSpinBox)
-        self.scan_type.connect_bidir_to_widget(self.ui.scan_type_comboBox)
+        self.h0.connect_to_widget(self.ui.h0_doubleSpinBox)
+        self.h1.connect_to_widget(self.ui.h1_doubleSpinBox)
+        self.v0.connect_to_widget(self.ui.v0_doubleSpinBox)
+        self.v1.connect_to_widget(self.ui.v1_doubleSpinBox)
+        self.dh.connect_to_widget(self.ui.dh_doubleSpinBox)
+        self.dv.connect_to_widget(self.ui.dv_doubleSpinBox)
+        self.Nh.connect_to_widget(self.ui.Nh_doubleSpinBox)
+        self.Nv.connect_to_widget(self.ui.Nv_doubleSpinBox)
+        self.scan_type.connect_to_widget(self.ui.scan_type_comboBox)
         
-        self.progress.connect_bidir_to_widget(self.ui.progress_doubleSpinBox)
+        self.progress.connect_to_widget(self.ui.progress_doubleSpinBox)
         #self.progress.updated_value[str].connect(self.ui.xy_scan_progressBar.setValue)
         #self.progress.updated_value.connect(self.tree_progressBar.setValue)
 
@@ -233,10 +236,9 @@ class BaseRaster2DScan(Measurement):
         # set all logged quantities read only
         for lqname in "h0 h1 v0 v1 dh dv Nh Nv".split():
             self.settings.as_dict()[lqname].change_readonly(True)
-    
-    
-    
-    
+            
+        self.compute_scan_params()
+
     
     def post_run(self):
             # set all logged quantities writable
@@ -422,10 +424,10 @@ class BaseRaster2DScan(Measurement):
         pass
         #self.stage = self.app.hardware.dummy_xy_stage
         
-        #self.app.hardware_components['dummy_xy_stage'].x_position.connect_bidir_to_widget(self.ui.x_doubleSpinBox)
-        #self.app.hardware_components['dummy_xy_stage'].y_position.connect_bidir_to_widget(self.ui.y_doubleSpinBox)
+        #self.app.hardware_components['dummy_xy_stage'].x_position.connect_to_widget(self.ui.x_doubleSpinBox)
+        #self.app.hardware_components['dummy_xy_stage'].y_position.connect_to_widget(self.ui.y_doubleSpinBox)
         
-        #self.app.hardware_components['apd_counter'].int_time.connect_bidir_to_widget(self.ui.int_time_doubleSpinBox)
+        #self.app.hardware_components['apd_counter'].int_time.connect_to_widget(self.ui.int_time_doubleSpinBox)
        
        
        
