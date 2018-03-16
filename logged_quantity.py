@@ -873,10 +873,36 @@ class ArrayLQ(LoggedQuantity):
                 arr_lq.update_value(new_arr)
 
             lq.add_listener(on_element_follower_lq)
-            
 
-            
-class LQRange(QtCore.QObject):
+
+class LQCircularNetwork(QtCore.QObject):
+    '''
+    LQCircularNetwork is collection of logged quantities
+    Helper class if a network of lqs with circular structures are present
+    Use update_values_synchronously method if the specified lqs should 
+    be updated at once. The internal lock-flag prevents infinite loops. 
+    '''
+    updated_values = QtCore.Signal((),)
+    
+    def __init__(self, lq_dict):
+        self.lq_dict = lq_dict  # {lq_key:lq}
+        self.locked = False     # some lock that does NOT allow blocked routines to be executed after release()
+                                # a flag (as it is now) works well.
+    
+    def update_values_synchronously(self,**kwargs):
+        '''
+        kwargs is dict containing lq_key and new_vals 
+        Note: lq_key is not necessarily the name of the lq but key of lq_dict
+              as specified at initialization
+        '''
+        if self.locked == False:
+            self.locked = True
+            for kev,val in kwargs.items():
+                self.lq_dict[kev].update_value(val)
+                self.updated_values.emit()
+                self.locked = False
+
+class LQRange(LQCircularNetwork):
     """
     LQRange is a collection of logged quantities that describe a
     numpy.linspace array inputs.
@@ -885,9 +911,7 @@ class LQRange(QtCore.QObject):
     in sync.
     LQRange.array is the linspace array and is kept upto date
     with changes to the 4 (or 6) LQ's
-    """
-        
-    updated_range = QtCore.Signal((),)# (float,),(int,),(bool,), (), (str,),) # signal sent when value has been updated
+    """       
 
     def __init__(self, min_lq, max_lq, step_lq, num_lq, center_lq=None, span_lq=None):
         QtCore.QObject.__init__(self)
@@ -899,54 +923,62 @@ class LQRange(QtCore.QObject):
         self.center = center_lq
         self.span = span_lq
         
+        lq_dict = {'min':self.min, 'max':self.max, 'num':self.num, 'step':self.step}        
+        
         if self.center == None: 
             assert(self.span == None, 'Invalid initialization of LQRange')
+        else:
+            lq_dict.update({'center':self.center})
         if self.span == None: 
             assert(self.center == None, 'Invalid initialization of LQRange')
+        else:
+            lq_dict.update({'span':self.span})
+        
+        LQCircularNetwork.__init__(self, lq_dict)
       
         '''
-        {step, num} and {min,max,span,center} form each 2 circular subnetworks 
-        Here, we use a flag for each subnetwork to prevent infinite loops
-        i.e. for each subnetwork the parameters are calculated and then set 
-        from by one function that enforces setting each lq only onced per update event
-        (see corresponding set function on how the locks are used)
-        '''
-        # flag 
-        self.set_min_max_center_span_unlocked = True
-        self.set_num_step_unlocked = True
-        
-        # circular subnetwork 1
+        Note: {step, num} and {min,max,span,center} form each 2 circular subnetworks
+        The listener functions update the subnetworks, a connect_lq_math connects 
+         {min,max,span,center} to {step, num} unidirectional
+        '''        
         self.num.add_listener(self.on_change_num)
-        self.step.add_listener(self.on_change_step)        
-        
-        # circular subnetwork 2
+        self.step.add_listener(self.on_change_step)              
         if self.center and self.span:
             self.center.add_listener(self.on_change_center_span)
             self.span.add_listener(self.on_change_center_span)
             self.min.add_listener(self.on_change_min_max)
             self.max.add_listener(self.on_change_min_max)
 
-        # non-cicular nodes can be connected using a simple math connection, Note that step derives from {min,max,num}
         self.step.connect_lq_math((self.min,self.max,self.num), self.calc_step)
+
+
     
     def calc_num(self, min_, max_, step):
+        '''
+        enforces num to be a positive integer and adjust step accordingly
+        returns num,step 
+        '''
         span = max_-min_
         if step==0:
-            self.step.val = span/10
-            return 11
+            n = 10 
         else: 
-            n = span/step #num = n+1, if is n is positive integer (adjust step)
+            n = span/step #num = n+1 
             if n < 0:
                 n = -n
             n = np.ceil(n)
-            self.step.val = span/n
-            return n+1
+        step = span/n
+        num = n+1
+        return int(num),step
     
     def calc_step(self, min_, max_, num):
-        if num==1:
+        """
+        excludes num=1 to prevent division by zero,
+        returns step
+        """
+        if num==1: #prevent division by zero
             num = 2
-            self.num.val=num
-        return (max_-min_)/(num-1)
+        step=(max_-min_)/(num-1)
+        return step
     
     def calc_span(self, min_, max_):
         return (max_-min_)
@@ -962,45 +994,29 @@ class LQRange(QtCore.QObject):
     
     def on_change_step(self):
         step = self.step.val
-        num = self.calc_num(self.min.val, self.max.val, step)
-        self.set_num_step(num, step)
+        num,step = self.calc_num(self.min.val, self.max.val, step)
+        self.update_values_synchronously(num=num, step=step)
         
     def on_change_num(self):
         num = self.num.val
-        step = self.calc_step(self.min.val, self.max.val, num)
-        self.set_num_step(num, step)
+        if num ==1:
+            num = 2
+        step = self.calc_step(self.min.val, self.max.val, self.num.val)
+        self.update_values_synchronously(num=num,step=step)
                
     def on_change_min_max(self):
         min_ = self.min.val
         max_ = self.max.val
         span = self.calc_span(min_, max_)
         center = self.calc_center(min_, max_)
-        self.set_min_max_center_span(min_, max_, span, center)
+        self.update_values_synchronously(span=span, center=center)
         
     def on_change_center_span(self):
         span = self.span.val
         center = self.center.val
         min_ = self.calc_min(center, span)
         max_ = self.calc_max(center, span)
-        self.set_min_max_center_span(min_, max_, span, center)
-    
-    def set_num_step(self, num, step):
-        if self.set_num_step_unlocked:
-            self.set_num_step_unlocked = False
-            self.num.update_value(num)
-            self.step.update_value(step)
-            self.updated_range.emit()
-        self.set_num_step_unlocked = True
-            
-    def set_min_max_center_span(self, min_,max_,span,center):
-        if self.set_min_max_center_span_unlocked:
-            self.set_min_max_center_span_unlocked = False
-            self.min.update_value(min_)
-            self.max.update_value(max_)
-            self.span.update_value(span)
-            self.center.update_value(center)
-            self.updated_range.emit()
-        self.set_min_max_center_span_unlocked = True
+        self.update_values_synchronously(min=min_, max=max_)
     
     @property
     def array(self):
