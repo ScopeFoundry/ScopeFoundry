@@ -339,11 +339,10 @@ class BaseRaster2DScan(Measurement):
     def mouse_update_scan_roi(self):
         x0,y0 =  self.scan_roi.pos()
         w, h =  self.scan_roi.size()
-        #print x0,y0, w, h
-        self.h0.update_value(x0+self.dh.val)
-        self.h1.update_value(x0+w-self.dh.val)
-        self.v0.update_value(y0+self.dv.val)
-        self.v1.update_value(y0+h-self.dv.val)
+        self.h_center.update_value(x0 + w/2)
+        self.v_center.update_value(y0 + h/2)
+        self.h_span.update_value(w-self.dh.val)
+        self.v_span.update_value(h-self.dv.val)
         self.compute_scan_params()
         self.update_scan_roi()
         
