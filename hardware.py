@@ -5,6 +5,7 @@ from collections import OrderedDict
 import pyqtgraph as pg
 import warnings
 from ScopeFoundry.helper_funcs import get_logger_from_class, QLock
+import time
 
 class HardwareComponent(QtCore.QObject):
     """
@@ -15,6 +16,10 @@ class HardwareComponent(QtCore.QObject):
     to subclass, implement :meth:`setup`, :meth:`connect` and :meth:`disconnect`
     
     """
+    connection_succeeded = QtCore.Signal()
+    connection_failed = QtCore.Signal()
+    
+    
 
     def add_logged_quantity(self, name, **kwargs):
         #lq = LoggedQuantity(name=name, **kwargs)
@@ -80,6 +85,9 @@ class HardwareComponent(QtCore.QObject):
         self.has_been_connected_once = False
         
         self.is_connected = False
+        
+        self.connection_failed.connect(self.on_connection_failed)
+        self.connection_succeeded.connect(self.on_connection_succeeded)
         
     def setup(self):
         """
@@ -192,18 +200,37 @@ class HardwareComponent(QtCore.QObject):
     @QtCore.Slot(bool)
     def enable_connection(self, enable=True):
         if enable:
-            self.connect_success = False
-            self.connect()
-            self.connect_success = True
-            self.tree_item.setText(1,'O')
-            self.tree_item.setForeground(1, QtGui.QColor('green'))
+            try:
+                self.connect()
+                self.connection_succeeded.emit()
+            except Exception as err:
+                self.connection_failed.emit()
+                raise err
         else:
-            self.connect_success = False
-            self.tree_item.setText(1,'X')
-            self.tree_item.setForeground(1, QtGui.QColor('red'))
-            self.disconnect()
+            print("disabling connection")
+            try:
+                self.disconnect()
+                self.tree_item.setText(1,'X')
+                self.tree_item.setForeground(1, QtGui.QColor('red'))          
+            except Exception as err:
+                # disconnect failed
+                self.tree_item.setText(1,'?')
+                self.tree_item.setForeground(1, QtGui.QColor('red'))        
+                raise err
             
+    def on_connection_succeeded(self):
+        print(self.name, "connection succeeded!")
+        self.tree_item.setText(1,'O')
+        self.tree_item.setForeground(1, QtGui.QColor('green'))
+
             
+    def on_connection_failed(self):
+        print(self.name, "connection failed!")        
+        self.settings.connected.update_value(False)
+        self.tree_item.setText(1,'!')
+        self.tree_item.setForeground(1, QtGui.QColor('red'))   
+          
+
     @property
     def gui(self):
         warnings.warn("Hardware.gui is deprecated, use Hardware.app", DeprecationWarning)
