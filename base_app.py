@@ -15,6 +15,7 @@ from collections import OrderedDict
 import logging
 import inspect
 from logging import Handler
+import json
 
 try:
     import configparser
@@ -300,6 +301,8 @@ class BaseMicroscopeApp(BaseApp):
         self.setup()
         
         self.setup_default_ui()
+        
+        self.setup_ui()
 
 
         
@@ -322,8 +325,8 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.hardware_treeWidget.customContextMenuRequested.connect(self.on_hardware_tree_context_menu)
 
         # Add log widget to mdiArea
-        self.add_mdi_subwin(self.logging_widget, "Log")
-        self.add_mdi_subwin(self.console_widget, "Console")
+        self.logging_subwin = self.add_mdi_subwin(self.logging_widget, "Log")
+        self.console_subwin = self.add_mdi_subwin(self.console_widget, "Console")
         
         # Setup the Measurement UI's         
         for name, measure in self.measurements.items():
@@ -512,6 +515,10 @@ class BaseMicroscopeApp(BaseApp):
             self.figs[name]=disp
             return disp
     """
+    
+    def setup_ui(self):
+        """ Override to set up ui elements after default ui is built"""
+        pass
         
     def add_pg_graphics_layout(self, name, widget):
         self.log.info("---adding pg GraphicsLayout figure {} {}".format( name, widget))
@@ -788,6 +795,92 @@ class BaseMicroscopeApp(BaseApp):
     def logged_quantities(self):
         warnings.warn('app.logged_quantities deprecated use app.settings', DeprecationWarning)
         return self.settings.as_dict()
+    
+    def set_window_positions(self, positions):
+        def restore_win_state(subwin, win_state):
+            if win_state['maximized']:
+                subwin.showMaximized()
+            elif win_state['minimized']:
+                subwin.showMinimized()
+            else:
+                subwin.setGeometry(*win_state['geometry'])
+
+        for name, win_state in positions.items():
+            if name == 'log':
+                restore_win_state(self.logging_subwin, win_state)
+            elif name == 'console':
+                restore_win_state(self.console_subwin, win_state)
+            elif name == 'main':
+                restore_win_state(self.ui, win_state)
+                self.ui.col_splitter.setSizes(win_state['col_splitter_sizes'])
+            elif name.startswith('measurement/'):
+                M = self.measurements[name.split('/')[-1]]
+                restore_win_state(M.subwin, win_state)
+            
+        
+    def get_window_positions(self):
+        positions = OrderedDict()
+        
+        def qrect_to_tuple(qr):
+            return  (qr.x(), qr.y(), qr.width(), qr.height())
+        
+        def win_state_from_subwin(subwin):
+            window_state = dict(
+                    geometry  = qrect_to_tuple(subwin.geometry()),
+                    maximized = subwin.isMaximized(),
+                    minimized = subwin.isMinimized()
+                    )
+            return window_state
+        
+        positions['main'] = win_state_from_subwin(self.ui)
+        positions['main']['col_splitter_sizes'] = self.ui.col_splitter.sizes()
+            
+        positions['log'] = win_state_from_subwin(self.logging_subwin)
+        positions['console'] = win_state_from_subwin(self.console_subwin)
+
+        for name, M in self.measurements.items():
+            if hasattr(M, 'ui'):
+                positions['measurement/'+name] = win_state_from_subwin(M.subwin)
+
+
+        
+        return positions 
+    
+    def save_window_positions_json(self, fname):
+        import json
+        positions = self.get_window_positions()
+        with open(fname, 'w') as outfile:
+            json.dump(positions, outfile, indent=4)
+            
+    def load_window_positions_json(self, fname):
+        with open(fname, 'r') as infile:
+            positions = json.load(infile)
+        self.set_window_positions(positions)
+        
+#     def save_window_positions_ini(self, fname):
+#         """
+#         ==============  =========  ==============================================
+#         **Arguments:**  **Type:**  **Description:**
+#         fname           str        relative path to the filename of the ini file.              
+#         ==============  =========  ==============================================
+#         """
+#         positions = self.get_window_positions()
+# 
+#         config = configparser.ConfigParser(interpolation=None)
+#         config.optionxform = str
+#         
+#         for name, win_state in positions.items():
+#             config.add_section(name)
+#             for k, v in win_state.items():
+#                 config.set(name, k, v)
+#         with open(fname, 'w') as configfile:
+#             config.write(configfile)
+#         
+#         self.log.info("ini windown settings saved to {} {}".format( fname, config.optionxform))
+
+    
+
+
 
 if __name__ == '__main__':
     

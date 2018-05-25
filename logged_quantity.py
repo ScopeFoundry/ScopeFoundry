@@ -9,7 +9,6 @@ from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
-import time
 
 #import threading
 
@@ -223,14 +222,15 @@ class LoggedQuantity(QtCore.QObject):
             self.oldval = self.coerce_to_type(self.val)
             new_val = self.coerce_to_type(new_val)
             
-            self.log.debug("{}: update_value {} --> {}    sender={}".format(self.name, self.oldval, new_val, self.sender()))
+            self.log.debug("{}: update_value {} --> {}    sender={}".format(
+                            self.name, repr(self.oldval), repr(new_val), repr(self.sender())))
     
             # check for equality of new vs old, do not proceed if they are same
             if self.same_values(self.oldval, new_val):
                 self.log.debug("{}: same_value so returning {} {}".format(self.name, self.oldval, new_val))
                 return
             else:
-                pass
+                self.log.debug("{}: different values {} {}".format(self.name, self.oldval, new_val))
                 
             # actually change internal state value
             self.val = new_val
@@ -257,7 +257,7 @@ class LoggedQuantity(QtCore.QObject):
         :returns: None
         
         """
-        #self.log.debug("send_display_updates: {} force={}".format(self.name, force))
+        #self.log.debug("{}:send_display_updates: force={}. From {} to {}".format(self.name, force, self.oldval, self.val))
         if (not self.same_values(self.oldval, self.val)) or (force):
             self.updated_value[()].emit()
             
@@ -431,14 +431,12 @@ class LoggedQuantity(QtCore.QObject):
         elif type(widget) == QtWidgets.QCheckBox:
 
             def update_widget_value(x):
-                try:
-                    widget.blockSignals(True)
-                    widget.setChecked(x)
-                finally:
-                    widget.blockSignals(False)                    
+                lq = widget.sender()
+                #self.log.debug("LQ {} update qcheckbox: {} arg{} lq value{}".format(lq.name,   widget, x, lq.value))                
+                widget.setChecked(lq.value)                    
 
             self.updated_value[bool].connect(update_widget_value)
-            widget.toggled[bool].connect(self.update_value) # another option is stateChanged signal
+            widget.clicked[bool].connect(self.update_value) # another option is stateChanged signal
             if self.ro:
                 #widget.setReadOnly(True)
                 widget.setEnabled(False)
@@ -457,14 +455,26 @@ class LoggedQuantity(QtCore.QObject):
             widget.editingFinished.connect(on_edit_finished)
             
         elif type(widget) == QtWidgets.QPlainTextEdit:
-            self.updated_text_value[str].connect(widget.document().setPlainText)
             # TODO Read only
+            
+            def on_lq_changed(new_text):
+                current_cursor = widget.textCursor()
+                current_cursor_pos = current_cursor.position()
+                #print('current_cursor', current_cursor, current_cursor.position())
+                widget.document().setPlainText(new_text)
+                current_cursor.setPosition(current_cursor_pos)
+                widget.setTextCursor(current_cursor)
+                #print('current_cursor', current_cursor, current_cursor.position())
+            
             def on_widget_textChanged():
                 try:
                     widget.blockSignals(True)
                     self.update_value(widget.toPlainText())
                 finally:
                     widget.blockSignals(False)
+
+            #self.updated_text_value[str].connect(widget.document().setPlainText)
+            self.updated_text_value[str].connect(on_lq_changed)
             widget.textChanged.connect(on_widget_textChanged)
             
         elif type(widget) == QtWidgets.QComboBox:
@@ -703,6 +713,25 @@ class LoggedQuantity(QtCore.QObject):
         self.connect_lq_math((lq,), func=lambda x: scale*x,
                           reverse_func=lambda y, old_vals: [y * 1.0/scale,])
 
+    def new_default_widget(self):
+        """ returns the approriate QWidget for the datatype of the
+        LQ. automatically connects widget
+        """
+        if self.choices is not None:
+            widget = QtWidgets.QComboBox()
+        elif self.dtype in [int, float]:
+            if self.si:
+                widget = pg.SpinBox()
+            else:
+                widget = QtWidgets.QDoubleSpinBox()
+        elif self.dtype in [bool]:
+            widget = QtWidgets.QCheckBox()  
+        elif self.dtype in [str]:
+            widget = QtWidgets.QLineEdit()
+        self.connect_to_widget(widget)
+        
+        return widget
+
 class FileLQ(LoggedQuantity):
     """
     Specialized str type :class:`LoggedQuantity` that handles 
@@ -734,6 +763,15 @@ class FileLQ(LoggedQuantity):
         if fname:
             self.update_value(fname)
             
+    def new_default_widget(self):
+        lineEdit = QtWidgets.QLineEdit()
+        browseButton = QtWidgets.QPushButton('...')
+        self.connect_to_browse_widgets(lineEdit, browseButton)
+        widget = QtWidgets.QWidget()
+        widget.setLayout(QtWidgets.QHBoxLayout())
+        widget.layout().addWidget(lineEdit)
+        widget.layout().addWidget(browseButton)
+        return widget
 
 class ArrayLQ(LoggedQuantity):
     updated_shape = QtCore.Signal(str)
@@ -833,7 +871,8 @@ class ArrayLQ(LoggedQuantity):
                 
                 self.oldval = self.val
             else:
-                pass
+                self.log.debug(self.name + ' send_display_updates skipped (olval!=self.val)={} force={} oldval={} val={}'.format(
+                    (self.oldval != self.val) , (force), self.oldval, self.val))
                 #print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
     
     @property
@@ -873,6 +912,12 @@ class ArrayLQ(LoggedQuantity):
                 arr_lq.update_value(new_arr)
 
             lq.add_listener(on_element_follower_lq)
+
+    def new_default_widget(self):
+        widget = self.create_tableView()
+        widget.horizontalHeader().hide()
+        widget.verticalHeader().hide()
+        return widget
 
 
 class LQCircularNetwork(QtCore.QObject):
@@ -1153,32 +1198,7 @@ class LQCollection(object):
                 continue
             lq = self.get_lq(lqname)
             #: :type lq: LoggedQuantity
-            if isinstance(lq, FileLQ):
-                lineEdit = QtWidgets.QLineEdit()
-                browseButton = QtWidgets.QPushButton('...')
-                lq.connect_to_browse_widgets(lineEdit, browseButton)
-                widget = QtWidgets.QWidget()
-                widget.setLayout(QtWidgets.QHBoxLayout())
-                widget.layout().addWidget(lineEdit)
-                widget.layout().addWidget(browseButton)
-            if isinstance(lq, ArrayLQ):
-                widget = lq.create_tableView()
-                widget.horizontalHeader().hide()
-                widget.verticalHeader().hide()
-            else:    
-                if lq.choices is not None:
-                    widget = QtWidgets.QComboBox()
-                elif lq.dtype in [int, float]:
-                    if lq.si:
-                        widget = pg.SpinBox()
-                    else:
-                        widget = QtWidgets.QDoubleSpinBox()
-                elif lq.dtype in [bool]:
-                    widget = QtWidgets.QCheckBox()  
-                elif lq.dtype in [str]:
-                    widget = QtWidgets.QLineEdit()
-                lq.connect_to_widget(widget)
-
+            widget = lq.new_default_widget()
             # Add to formlayout
             formLayout.addRow(lqname, widget)
             #lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
@@ -1232,3 +1252,6 @@ class LQCollection(object):
     def disconnect_all_from_hardware(self):
         for lq in self.as_list():
             lq.disconnect_from_hardware()
+            
+
+
