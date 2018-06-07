@@ -462,7 +462,7 @@ class BaseRaster2DScan(Measurement):
 
     @property
     def v_array(self):
-        return np.linspace(self.h0.val, self.h1.val, self.Nh.val)
+        return np.linspace(self.v0.val, self.v1.val, self.Nv.val)
 
     def compute_times(self):
         #self.settings['pixel_time'] = 1.0/self.scanDAQ.settings['dac_rate']
