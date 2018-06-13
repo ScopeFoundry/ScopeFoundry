@@ -13,6 +13,8 @@ from .helper_funcs import load_qt_ui_file
 from collections import OrderedDict
 import pyqtgraph as pg
 from ScopeFoundry.helper_funcs import get_logger_from_class
+import traceback
+import sys
 
 class MeasurementQThread(QtCore.QThread):
     def __init__(self, measurement, parent=None):
@@ -270,8 +272,8 @@ class Measurement(QtCore.QObject):
         try:
             self.update_display()
         except Exception as err:
-            pass
-            self.log.error("{} Failed to update figure: {}".format(self.name, err))          
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            self.log.error("{} Failed to update figure1: {}. {}".format(self.name, err, traceback.format_exception(exc_type, exc_value, exc_traceback)))          
         finally:
             if not self.is_measuring():
                 self.display_update_timer.stop()
