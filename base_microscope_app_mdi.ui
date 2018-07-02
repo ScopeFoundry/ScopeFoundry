@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>ScopeFoundry</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>scopefoundry_logo2_1024.png</normaloff>scopefoundry_logo2_1024.png</iconset>
+  </property>
   <property name="unifiedTitleAndToolBarOnMac">
    <bool>false</bool>
   </property>
