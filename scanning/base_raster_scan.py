@@ -501,6 +501,8 @@ class BaseRaster2DScan(Measurement):
             self.scan_h_positions[:] = H.flat
             self.scan_v_positions[:] = V.flat
             
+            self.scan_slow_move[::self.Nh.val] = True
+            
             II,JJ = np.meshgrid(np.arange(self.Nh.val), np.arange(self.Nv.val))
             self.scan_index_array[:,1] = JJ.flat
             self.scan_index_array[:,2] = II.flat
