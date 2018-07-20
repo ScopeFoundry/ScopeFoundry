@@ -370,7 +370,7 @@ class HyperSpectralBaseView(DataBrowserView):
         
         self.circ_roi_ji = (j,i)       
         
-        self.point_plotdata.setData(self.spec_x_array, self.hyperspec_data[j,i,:])
+        self.point_plotdata.setData(self.spec_x_array, self.hyperspec_data[j,i,:]+1)
 
 
 if __name__ == '__main__':
