@@ -72,7 +72,7 @@ sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
     
-    def __init__(self, argv):
+    def __init__(self, argv=[]):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         
@@ -84,10 +84,13 @@ class BaseApp(QtCore.QObject):
         
         self.settings = LQCollection()
         
-        self.setup_console_widget()
+        # Disable auto creation of console widget
+        #self.setup_console_widget()
+        
         # FIXME Breaks things for microscopes, but necessary for stand alone apps!
         #if hasattr(self, "setup"):
         #    self.setup()
+        
         self.setup_logging()
 
         if not hasattr(self, 'name'):
@@ -98,32 +101,59 @@ class BaseApp(QtCore.QObject):
     def exec_(self):
         return self.qtapp.exec_()
         
-    def setup_console_widget(self):
-        # Console
+    def setup_console_widget(self, kernel=None):
+        """
+        Create and return console QWidget. If Jupyter / IPython is installed
+        this widget will be a full-featured IPython console. If Jupyter is unavailable
+        it will fallback to a pyqtgraph.console.ConsoleWidget.
+        
+        If the app is started in an Jupyter notebook, the console will be
+        connected to the notebook's IPython kernel.
+        
+        the returned console_widget will also be accessible as self.console_widget
+        
+        In order to see the console widget, remember to insert it into an existing
+        window or call self.console_widget.show() to create a new window      
+        """
         if CONSOLE_TYPE == 'pyqtgraph.console':
             self.console_widget = pyqtgraph.console.ConsoleWidget(namespace={'app':self, 'pg':pg, 'np':np}, text="ScopeFoundry Console")
         elif CONSOLE_TYPE == 'qtconsole':
-            # https://github.com/ipython/ipython-in-depth/blob/master/examples/Embedding/inprocess_qtconsole.py
-            self.kernel_manager = QtInProcessKernelManager()
-            self.kernel_manager.start_kernel()
-            self.kernel = self.kernel_manager.kernel
-            self.kernel.shell.banner1 += """
-            ScopeFoundry Console
             
-            Variables:
-             * np: numpy package
-             * app: the ScopeFoundry App object
-            """
-            self.kernel.gui = 'qt4'
-            self.kernel.shell.push({'np': np, 'app': self})
-            self.kernel_client = self.kernel_manager.client()
-            self.kernel_client.start_channels()
-    
-            #self.console_widget = RichIPythonWidget()
-            self.console_widget = RichJupyterWidget()
-            self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
-            self.console_widget.kernel_manager = self.kernel_manager
-            self.console_widget.kernel_client = self.kernel_client
+            if kernel == None:
+                try: # try to find an existing kernel
+                    #https://github.com/jupyter/notebook/blob/master/docs/source/examples/Notebook/Connecting%20with%20the%20Qt%20Console.ipynb
+                    import ipykernel as kernel
+                    import qtconsole.qtconsoleapp
+                    self.qtconsole_app = qtconsole.qtconsoleapp.JupyterQtConsoleApp()
+                    self.console_widget = self.qtconsole_app.new_frontend_connection(kernel.get_connection_file())
+                    self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
+                except: # make your own new in-process kernel
+                    # https://github.com/ipython/ipython-in-depth/blob/master/examples/Embedding/inprocess_qtconsole.py
+                    self.kernel_manager = QtInProcessKernelManager()
+                    self.kernel_manager.start_kernel()
+                    self.kernel = self.kernel_manager.kernel
+                    self.kernel.shell.banner1 += """
+                    ScopeFoundry Console
+                    
+                    Variables:
+                     * np: numpy package
+                     * app: the ScopeFoundry App object
+                    """
+                    self.kernel.gui = 'qt4'
+                    self.kernel.shell.push({'np': np, 'app': self})
+                    self.kernel_client = self.kernel_manager.client()
+                    self.kernel_client.start_channels()
+        
+                    #self.console_widget = RichIPythonWidget()
+                    self.console_widget = RichJupyterWidget()
+                    self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
+                    self.console_widget.kernel_manager = self.kernel_manager
+                    self.console_widget.kernel_client = self.kernel_client
+            else:
+                import qtconsole.qtconsoleapp
+                self.qtconsole_app = qtconsole.qtconsoleapp.JupyterQtConsoleApp()
+                self.console_widget = self.qtconsole_app.new_frontend_connection(kernel.get_connection_file())
+                self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
         else:
             raise ValueError("CONSOLE_TYPE undefined")
         
@@ -257,8 +287,10 @@ class BaseMicroscopeApp(BaseApp):
         #self.ui.exec_()
         self.ui.show()
 
-    def __init__(self, argv):
+    def __init__(self, argv=[]):
         BaseApp.__init__(self, argv)
+        
+        self.setup_console_widget()
 
         log_dir = os.path.abspath(os.path.join('.', 'log'))
         if not os.path.isdir(log_dir):
