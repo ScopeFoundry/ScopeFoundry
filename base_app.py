@@ -84,8 +84,8 @@ class BaseApp(QtCore.QObject):
         
         self.settings = LQCollection()
         
-        # Disable auto creation of console widget
-        #self.setup_console_widget()
+        # auto creation of console widget
+        self.setup_console_widget()
         
         # FIXME Breaks things for microscopes, but necessary for stand alone apps!
         #if hasattr(self, "setup"):
@@ -290,8 +290,6 @@ class BaseMicroscopeApp(BaseApp):
     def __init__(self, argv=[]):
         BaseApp.__init__(self, argv)
         
-        self.setup_console_widget()
-
         log_dir = os.path.abspath(os.path.join('.', 'log'))
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)

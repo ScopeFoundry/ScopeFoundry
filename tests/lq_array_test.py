@@ -81,7 +81,7 @@ class LQArrayTestApp(BaseApp):
         
 
         self.ui.show()
-        self.console_widget.show()
+        self.setup_console_widget().show()
         
     def on_load_ini_button(self):
         self.settings_load_ini('lq_array_test.ini')
