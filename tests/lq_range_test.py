@@ -11,8 +11,8 @@ class LQRangeTestApp(BaseApp):
         BaseApp.__init__(self,argv)
 
         ### LQ
-        self.x_range = self.settings.New_Range('x', include_center_span=True, preserve_num=True)
-        self.y_range = self.settings.New_Range('y', include_center_span=True, preserve_num=True)
+        self.x_range = self.settings.New_Range('x', include_center_span=True)#, preserve_num=True)
+        self.y_range = self.settings.New_Range('y', include_center_span=True)#, preserve_num=True)
 
         ### UI
             
@@ -28,6 +28,7 @@ class LQRangeTestApp(BaseApp):
         self.ui.layout().addWidget(self.console_widget)
         #self.plot.show()
         self.ui.show()
+        self.ui.setWindowTitle("LQRangeTestApp")
         #self.console_widget.show()
         
         self.ui.setGeometry(300,200,1200,600)
