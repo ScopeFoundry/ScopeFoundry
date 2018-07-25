@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name = 'ScopeFoundry',
     
-    version = '1.0.0',
+    version = '1.1.0',
     
     description = 'a platform for laboratory equipment control and scientific data analysis',
     long_description =open('README.md', 'r').read(), 
@@ -13,7 +13,7 @@ setup(
     author_email='esbarnard@lbl.gov',
 
     # Choose your license
-    license='LICENSE',
+    license='BSD',
     
     url='http://www.scopefoundry.org/',
 
