@@ -123,9 +123,10 @@ class BaseApp(QtCore.QObject):
                 try: # try to find an existing kernel
                     #https://github.com/jupyter/notebook/blob/master/docs/source/examples/Notebook/Connecting%20with%20the%20Qt%20Console.ipynb
                     import ipykernel as kernel
+                    conn_file = kernel.get_connection_file()
                     import qtconsole.qtconsoleapp
                     self.qtconsole_app = qtconsole.qtconsoleapp.JupyterQtConsoleApp()
-                    self.console_widget = self.qtconsole_app.new_frontend_connection(kernel.get_connection_file())
+                    self.console_widget = self.qtconsole_app.new_frontend_connection(conn_file)
                     self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
                 except: # make your own new in-process kernel
                     # https://github.com/ipython/ipython-in-depth/blob/master/examples/Embedding/inprocess_qtconsole.py
