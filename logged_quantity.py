@@ -9,6 +9,7 @@ from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
+from ScopeFoundry.widgets import MinMaxQSlider
 
 #import threading
 
@@ -25,6 +26,7 @@ class DummyLock(object):
         return self
     def __exit__(self, *args):
         pass
+
 
 
 
@@ -396,13 +398,24 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_value[float].connect(update_widget_value)
             #if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
-                
+        
+        elif type(widget) == MinMaxQSlider:
+            self.updated_value[float].connect(widget.update_value)
+            widget.updated_value[float].connect(self.update_value)
+            if self.unit is not None:
+                widget.setSuffix(self.unit)
+            widget.setSingleStep(self.spinbox_step)
+            widget.setDecimals(self.spinbox_decimals)
+            widget.setRange(self.vmin, self.vmax)
+            widget.set_name(self.name)
+        
         elif type(widget) == QtWidgets.QSlider:
-            self.vrange = self.vmax - self.vmin
             def transform_to_slider(x):
+                self.vrange = self.vmax - self.vmin
                 pct = 100*(x-self.vmin)/self.vrange
                 return int(pct)
             def transform_from_slider(x):
+                self.vrange = self.vmax - self.vmin
                 val = self.vmin + (x*self.vrange/100)
                 return val
             def update_widget_value(x):
@@ -426,7 +439,10 @@ class LoggedQuantity(QtCore.QObject):
             widget.setValue(transform_to_slider(self.val))
             self.updated_value[float].connect(update_widget_value)
             widget.valueChanged[int].connect(update_spinbox)
-
+            def updated_min_max_slider(widget):
+                widget.setMinimum(transform_to_slider(self.vmin))
+                widget.setMaximum(transform_to_slider(self.vmax))
+            #self.updated_min_max.connect(updated_min_max_slider(widget=widget))
                 
         elif type(widget) == QtWidgets.QCheckBox:
 
