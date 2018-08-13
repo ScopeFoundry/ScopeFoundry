@@ -242,8 +242,10 @@ class LoggingQTextEditHandler(Handler, QtCore.QObject):
     
     new_log_signal = QtCore.Signal((str,))
     
-    def __init__(self, textEdit, level=logging.NOTSET):
+    def __init__(self, textEdit, level=logging.NOTSET, buffer_len = 500):
         self.textEdit = textEdit
+        self.buffer_len = buffer_len
+        self.messages = []
         Handler.__init__(self, level=level)
         QtCore.QObject.__init__(self)
         self.new_log_signal.connect(self.on_new_log)
@@ -256,7 +258,11 @@ class LoggingQTextEditHandler(Handler, QtCore.QObject):
         #self.textEdit.moveCursor(QtGui.QTextCursor.End)
         #self.textEdit.insertHtml(log_entry)
         #self.textEdit.moveCursor(QtGui.QTextCursor.End)
-        self.textEdit.setHtml(log_entry)
+        self.messages.append(log_entry)
+        if len(self.messages) > self.buffer_len:
+            self.messages = ["...<br>",] + self.messages[-self.buffer_len:]
+        self.textEdit.setHtml("\n".join(self.messages))
+        self.textEdit.moveCursor(QtGui.QTextCursor.End)
         
     level_styles = dict(
         CRITICAL="color: red;",
