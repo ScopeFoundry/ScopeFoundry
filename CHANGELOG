@@ -1,3 +1,26 @@
+ScopeFoundry 1.1.1 2018-08-14
+	
+	* Bug Fix: QtConsole creates alerts instead of writing to console on Windows
+
+ScopeFoundry 1.1.0 2018-07-24
+
+	* App level logging enabled by default
+	* Hardware:
+		* Thread locking at HardwareComponent level 
+		* Connection LQ handles failed attempts at connecting 
+			to hardware
+	* LoggedQuantity:
+    	* LQ Math and LQ follower functions
+    	* new_default_widget method
+    * Measurements:
+    	* Nested Measurements: start_nested_measure_and_wait
+		* activation setting starts and stops measurement
+	* Scanning:
+		* Bug fixes to raster scan and UI updates
+    * Allows ScopeFoundry App operation in Jupyter / IPython notebooks
+
+
 ScopeFoundry 1.0.0 2017-09-12
 
     * Initial PyPI release
+

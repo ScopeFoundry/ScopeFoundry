@@ -13,6 +13,8 @@ from .helper_funcs import load_qt_ui_file
 from collections import OrderedDict
 import pyqtgraph as pg
 from ScopeFoundry.helper_funcs import get_logger_from_class
+import traceback
+import sys
 
 class MeasurementQThread(QtCore.QThread):
     def __init__(self, measurement, parent=None):
@@ -270,8 +272,8 @@ class Measurement(QtCore.QObject):
         try:
             self.update_display()
         except Exception as err:
-            pass
-            self.log.error("{} Failed to update figure: {}".format(self.name, err))          
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            self.log.error("{} Failed to update figure1: {}. {}".format(self.name, err, traceback.format_exception(exc_type, exc_value, exc_traceback)))          
         finally:
             if not self.is_measuring():
                 self.display_update_timer.stop()
@@ -295,6 +297,39 @@ class Measurement(QtCore.QObject):
         ==============  =================
         """
         self.operations[name] = op_func   
+        
+    def start_nested_measure_and_wait(self, measure, nested_interrupt = True, 
+                                      polling_func=None, polling_time=0.1):
+        """
+        Start another nested measurement *measure* and wait until completion.
+        
+        Optionally it can call a polling function *polling_func* with no arguments
+        at an interval *polling_time* in seconds. 
+        
+        if *nested_interrupt* is True then interrupting the nested *measure* will
+        also interrupt the outer measurement. *nested_interrupt* defaults to True
+        """
+        
+        measure.settings['activation'] = True
+        time.sleep(0.010)
+        
+        last_polling = time.time()
+        while measure.is_measuring():
+            if self.interrupt_measurement_called:
+                measure.interrupt()
+            if measure.interrupt_measurement_called and nested_interrupt:
+                #print("nested interrupt bubbling up")
+                self.interrupt() 
+            time.sleep(0.010)
+            
+            # polling
+            if polling_func:
+                t = time.time()
+                if t - last_polling > polling_time:
+                    #print("poll", t - last_polling )
+                    polling_func()
+                    last_polling = t
+        
     
     def load_ui(self, ui_fname=None):
         """
