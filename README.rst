@@ -24,7 +24,7 @@ Contributors
 Requirements
 ------------
 
--  Python 2.7, or 3.x
+-  Python 3.x
 -  PyQt 4.7+, PySide, or PyQt5 (via qtpy shim package)
 -  NumPy
 -  PyQtGraph
@@ -53,10 +53,9 @@ Alternatively:
 
 ::
 
-    $ conda create -n scopefoundry python=3.5
+    $ conda create -n scopefoundry python=3.6
     $ source activate scopefoundry
-    (scopefoundry) $ conda install numpy pyqt qtpy h5py
-    (scopefoundry) $ pip install pyqtgraph
+    (scopefoundry) $ conda install numpy pyqt qtpy h5py pyqtgraph
     (scopefoundry) $ pip install git+git://github.com/ScopeFoundry/ScopeFoundry.git
 
 Documentation

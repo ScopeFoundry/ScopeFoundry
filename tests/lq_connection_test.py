@@ -17,6 +17,13 @@ class LQConnectionTestApp(BaseApp):
         
         lq_scale = self.settings.New('lq_scale', dtype=float, ro=False)
         lq_scale2 = self.settings.New('lq_scale2', dtype=float, ro=False)
+        
+        
+        lq_array = self.settings.New('lq_array', dtype=float, array=True, initial=[1.0,2.0,3.0,4.0])
+        lq_array_element = self.settings.New('lq_array_element', dtype=float)
+        
+        lq_array_element.connect_lq_math( (lq_array,), lambda arr: arr[1])
+        
 
         lq1.connect_to_lq(lq2)
         

@@ -74,10 +74,17 @@ class LQArrayTestApp(BaseApp):
         self.settings.add_widgets_to_subtree(self.tree_item)
         
         
+        self.load_ini_button = QtWidgets.QPushButton("Load INI file")
+        self.ui.layout().addWidget(self.load_ini_button)
+        
+        self.load_ini_button.clicked.connect(self.on_load_ini_button)
         
 
         self.ui.show()
-        self.console_widget.show()
+        self.setup_console_widget().show()
+        
+    def on_load_ini_button(self):
+        self.settings_load_ini('lq_array_test.ini')
         
         
 if __name__ == '__main__':
