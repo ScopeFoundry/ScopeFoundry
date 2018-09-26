@@ -15,6 +15,7 @@ from collections import OrderedDict
 import logging
 import inspect
 from logging import Handler
+import json
 
 try:
     import configparser
@@ -71,7 +72,7 @@ sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
     
-    def __init__(self, argv):
+    def __init__(self, argv=[]):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         
@@ -83,10 +84,13 @@ class BaseApp(QtCore.QObject):
         
         self.settings = LQCollection()
         
+        # auto creation of console widget
         self.setup_console_widget()
+        
         # FIXME Breaks things for microscopes, but necessary for stand alone apps!
         #if hasattr(self, "setup"):
         #    self.setup()
+        
         self.setup_logging()
 
         if not hasattr(self, 'name'):
@@ -97,32 +101,60 @@ class BaseApp(QtCore.QObject):
     def exec_(self):
         return self.qtapp.exec_()
         
-    def setup_console_widget(self):
-        # Console
+    def setup_console_widget(self, kernel=None):
+        """
+        Create and return console QWidget. If Jupyter / IPython is installed
+        this widget will be a full-featured IPython console. If Jupyter is unavailable
+        it will fallback to a pyqtgraph.console.ConsoleWidget.
+        
+        If the app is started in an Jupyter notebook, the console will be
+        connected to the notebook's IPython kernel.
+        
+        the returned console_widget will also be accessible as self.console_widget
+        
+        In order to see the console widget, remember to insert it into an existing
+        window or call self.console_widget.show() to create a new window      
+        """
         if CONSOLE_TYPE == 'pyqtgraph.console':
             self.console_widget = pyqtgraph.console.ConsoleWidget(namespace={'app':self, 'pg':pg, 'np':np}, text="ScopeFoundry Console")
         elif CONSOLE_TYPE == 'qtconsole':
-            # https://github.com/ipython/ipython-in-depth/blob/master/examples/Embedding/inprocess_qtconsole.py
-            self.kernel_manager = QtInProcessKernelManager()
-            self.kernel_manager.start_kernel()
-            self.kernel = self.kernel_manager.kernel
-            self.kernel.shell.banner1 += """
-            ScopeFoundry Console
             
-            Variables:
-             * np: numpy package
-             * app: the ScopeFoundry App object
-            """
-            self.kernel.gui = 'qt4'
-            self.kernel.shell.push({'np': np, 'app': self})
-            self.kernel_client = self.kernel_manager.client()
-            self.kernel_client.start_channels()
-    
-            #self.console_widget = RichIPythonWidget()
-            self.console_widget = RichJupyterWidget()
-            self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
-            self.console_widget.kernel_manager = self.kernel_manager
-            self.console_widget.kernel_client = self.kernel_client
+            if kernel == None:
+                try: # try to find an existing kernel
+                    #https://github.com/jupyter/notebook/blob/master/docs/source/examples/Notebook/Connecting%20with%20the%20Qt%20Console.ipynb
+                    import ipykernel as kernel
+                    conn_file = kernel.get_connection_file()
+                    import qtconsole.qtconsoleapp
+                    self.qtconsole_app = qtconsole.qtconsoleapp.JupyterQtConsoleApp()
+                    self.console_widget = self.qtconsole_app.new_frontend_connection(conn_file)
+                    self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
+                except: # make your own new in-process kernel
+                    # https://github.com/ipython/ipython-in-depth/blob/master/examples/Embedding/inprocess_qtconsole.py
+                    self.kernel_manager = QtInProcessKernelManager()
+                    self.kernel_manager.start_kernel()
+                    self.kernel = self.kernel_manager.kernel
+                    self.kernel.shell.banner1 += """
+                    ScopeFoundry Console
+                    
+                    Variables:
+                     * np: numpy package
+                     * app: the ScopeFoundry App object
+                    """
+                    self.kernel.gui = 'qt4'
+                    self.kernel.shell.push({'np': np, 'app': self})
+                    self.kernel_client = self.kernel_manager.client()
+                    self.kernel_client.start_channels()
+        
+                    #self.console_widget = RichIPythonWidget()
+                    self.console_widget = RichJupyterWidget()
+                    self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
+                    self.console_widget.kernel_manager = self.kernel_manager
+                    self.console_widget.kernel_client = self.kernel_client
+            else:
+                import qtconsole.qtconsoleapp
+                self.qtconsole_app = qtconsole.qtconsoleapp.JupyterQtConsoleApp()
+                self.console_widget = self.qtconsole_app.new_frontend_connection(kernel.get_connection_file())
+                self.console_widget.setWindowTitle("ScopeFoundry IPython Console")
         else:
             raise ValueError("CONSOLE_TYPE undefined")
         
@@ -210,8 +242,10 @@ class LoggingQTextEditHandler(Handler, QtCore.QObject):
     
     new_log_signal = QtCore.Signal((str,))
     
-    def __init__(self, textEdit, level=logging.NOTSET):
+    def __init__(self, textEdit, level=logging.NOTSET, buffer_len = 500):
         self.textEdit = textEdit
+        self.buffer_len = buffer_len
+        self.messages = []
         Handler.__init__(self, level=level)
         QtCore.QObject.__init__(self)
         self.new_log_signal.connect(self.on_new_log)
@@ -224,7 +258,11 @@ class LoggingQTextEditHandler(Handler, QtCore.QObject):
         #self.textEdit.moveCursor(QtGui.QTextCursor.End)
         #self.textEdit.insertHtml(log_entry)
         #self.textEdit.moveCursor(QtGui.QTextCursor.End)
-        self.textEdit.setHtml(log_entry)
+        self.messages.append(log_entry)
+        if len(self.messages) > self.buffer_len:
+            self.messages = ["...<br>",] + self.messages[-self.buffer_len:]
+        self.textEdit.setHtml("\n".join(self.messages))
+        self.textEdit.moveCursor(QtGui.QTextCursor.End)
         
     level_styles = dict(
         CRITICAL="color: red;",
@@ -256,9 +294,9 @@ class BaseMicroscopeApp(BaseApp):
         #self.ui.exec_()
         self.ui.show()
 
-    def __init__(self, argv):
+    def __init__(self, argv=[]):
         BaseApp.__init__(self, argv)
-
+        
         log_dir = os.path.abspath(os.path.join('.', 'log'))
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
@@ -300,6 +338,8 @@ class BaseMicroscopeApp(BaseApp):
         self.setup()
         
         self.setup_default_ui()
+        
+        self.setup_ui()
 
 
         
@@ -322,8 +362,8 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.hardware_treeWidget.customContextMenuRequested.connect(self.on_hardware_tree_context_menu)
 
         # Add log widget to mdiArea
-        self.add_mdi_subwin(self.logging_widget, "Log")
-        self.add_mdi_subwin(self.console_widget, "Console")
+        self.logging_subwin = self.add_mdi_subwin(self.logging_widget, "Log")
+        self.console_subwin = self.add_mdi_subwin(self.console_widget, "Console")
         
         # Setup the Measurement UI's         
         for name, measure in self.measurements.items():
@@ -388,6 +428,10 @@ class BaseMicroscopeApp(BaseApp):
         
         self.ui.setWindowTitle(self.name)
 
+        # Set Icon
+        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2_1024.png"))
+        self.qtapp.setWindowIcon(logo_icon)
+        self.ui.setWindowIcon(logo_icon)
         
             
     def set_subwindow_mode(self):
@@ -512,6 +556,10 @@ class BaseMicroscopeApp(BaseApp):
             self.figs[name]=disp
             return disp
     """
+    
+    def setup_ui(self):
+        """ Override to set up ui elements after default ui is built"""
+        pass
         
     def add_pg_graphics_layout(self, name, widget):
         self.log.info("---adding pg GraphicsLayout figure {} {}".format( name, widget))
@@ -788,6 +836,92 @@ class BaseMicroscopeApp(BaseApp):
     def logged_quantities(self):
         warnings.warn('app.logged_quantities deprecated use app.settings', DeprecationWarning)
         return self.settings.as_dict()
+    
+    def set_window_positions(self, positions):
+        def restore_win_state(subwin, win_state):
+            if win_state['maximized']:
+                subwin.showMaximized()
+            elif win_state['minimized']:
+                subwin.showMinimized()
+            else:
+                subwin.setGeometry(*win_state['geometry'])
+
+        for name, win_state in positions.items():
+            if name == 'log':
+                restore_win_state(self.logging_subwin, win_state)
+            elif name == 'console':
+                restore_win_state(self.console_subwin, win_state)
+            elif name == 'main':
+                restore_win_state(self.ui, win_state)
+                self.ui.col_splitter.setSizes(win_state['col_splitter_sizes'])
+            elif name.startswith('measurement/'):
+                M = self.measurements[name.split('/')[-1]]
+                restore_win_state(M.subwin, win_state)
+            
+        
+    def get_window_positions(self):
+        positions = OrderedDict()
+        
+        def qrect_to_tuple(qr):
+            return  (qr.x(), qr.y(), qr.width(), qr.height())
+        
+        def win_state_from_subwin(subwin):
+            window_state = dict(
+                    geometry  = qrect_to_tuple(subwin.geometry()),
+                    maximized = subwin.isMaximized(),
+                    minimized = subwin.isMinimized()
+                    )
+            return window_state
+        
+        positions['main'] = win_state_from_subwin(self.ui)
+        positions['main']['col_splitter_sizes'] = self.ui.col_splitter.sizes()
+            
+        positions['log'] = win_state_from_subwin(self.logging_subwin)
+        positions['console'] = win_state_from_subwin(self.console_subwin)
+
+        for name, M in self.measurements.items():
+            if hasattr(M, 'ui'):
+                positions['measurement/'+name] = win_state_from_subwin(M.subwin)
+
+
+        
+        return positions 
+    
+    def save_window_positions_json(self, fname):
+        import json
+        positions = self.get_window_positions()
+        with open(fname, 'w') as outfile:
+            json.dump(positions, outfile, indent=4)
+            
+    def load_window_positions_json(self, fname):
+        with open(fname, 'r') as infile:
+            positions = json.load(infile)
+        self.set_window_positions(positions)
+        
+#     def save_window_positions_ini(self, fname):
+#         """
+#         ==============  =========  ==============================================
+#         **Arguments:**  **Type:**  **Description:**
+#         fname           str        relative path to the filename of the ini file.              
+#         ==============  =========  ==============================================
+#         """
+#         positions = self.get_window_positions()
+# 
+#         config = configparser.ConfigParser(interpolation=None)
+#         config.optionxform = str
+#         
+#         for name, win_state in positions.items():
+#             config.add_section(name)
+#             for k, v in win_state.items():
+#                 config.set(name, k, v)
+#         with open(fname, 'w') as configfile:
+#             config.write(configfile)
+#         
+#         self.log.info("ini windown settings saved to {} {}".format( fname, config.optionxform))
+
+    
+
+
 
 if __name__ == '__main__':
     
