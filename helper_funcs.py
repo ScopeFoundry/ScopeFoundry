@@ -64,6 +64,14 @@ def load_qt_ui_file(ui_filename):
     ui = uic.loadUi(ui_filename)
     return ui
 
+def load_qt_ui_from_pkg(package, filename):
+    import pkgutil
+    from io import StringIO
+    ui_data = pkgutil.get_data(package, filename).decode() 
+    ui_io = StringIO(ui_data)
+    ui = uic.loadUi(ui_io)
+    return ui
+
 def confirm_on_close(widget, 
                      title="Close ScopeFoundry?",
                      message="Do you wish to shut down ScopeFoundry?", 
