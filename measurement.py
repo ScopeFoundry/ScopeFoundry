@@ -299,19 +299,23 @@ class Measurement(QtCore.QObject):
         self.operations[name] = op_func   
         
     def start_nested_measure_and_wait(self, measure, nested_interrupt = True, 
-                                      polling_func=None, polling_time=0.1):
+                                      polling_func=None, polling_time=0.1, start_time=0.010):
         """
         Start another nested measurement *measure* and wait until completion.
+        
         
         Optionally it can call a polling function *polling_func* with no arguments
         at an interval *polling_time* in seconds. 
         
         if *nested_interrupt* is True then interrupting the nested *measure* will
         also interrupt the outer measurement. *nested_interrupt* defaults to True
+        
+        start_time is how the time period after starting the nested measurement
+        that checks for completion of nested measurement
         """
         
         measure.settings['activation'] = True
-        time.sleep(0.010)
+        time.sleep(start_time) 
         
         last_polling = time.time()
         while measure.is_measuring():
