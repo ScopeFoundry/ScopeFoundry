@@ -3,6 +3,7 @@ from ScopeFoundry import h5_io
 import numpy as np
 import time
 import os
+import traceback
 
 class BaseRaster2DSlowScan(BaseRaster2DScan):
 
@@ -101,8 +102,10 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                     self.collect_pixel(self.pixel_i, kk, jj, ii)
                     S['progress'] = 100.0*self.pixel_i / (self.Npixels)
             except Exception as err:
-                self.log.error('Failed to Scan {}'.format(err))
-                raise(err)
+                self.last_err = err
+                self.log.error('Failed to Scan {}'.format(repr(err)))
+                traceback.print_exc()
+                #raise(err)
             finally:
                 self.post_scan_cleanup()
                 if hasattr(self, 'h5_file'):
