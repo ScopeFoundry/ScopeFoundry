@@ -971,11 +971,11 @@ class LQRange(LQCircularNetwork):
         lq_dict = {'min':self.min, 'max':self.max, 'num':self.num, 'step':self.step}        
         
         if self.center == None: 
-            assert(self.span == None, 'Invalid initialization of LQRange')
+            assert self.span == None, 'Invalid initialization of LQRange'
         else:
             lq_dict.update({'center':self.center})
         if self.span == None: 
-            assert(self.center == None, 'Invalid initialization of LQRange')
+            assert self.center == None, 'Invalid initialization of LQRange'
         else:
             lq_dict.update({'span':self.span})
         
