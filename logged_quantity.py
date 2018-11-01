@@ -203,8 +203,7 @@ class LoggedQuantity(QtCore.QObject):
         
         :returns: None
         
-        """
-        
+        """        
         # use a thread lock during update_value to avoid another thread
         # calling update_value during the update_value
         
@@ -443,6 +442,7 @@ class LoggedQuantity(QtCore.QObject):
                 
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
+            self.updated_value[str].connect(widget.setText)
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
             def on_edit_finished():
