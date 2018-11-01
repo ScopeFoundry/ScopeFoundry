@@ -28,7 +28,7 @@ class MeasurementQThread(QtCore.QThread):
 
 class Measurement(QtCore.QObject):
     """
-    Base class for ScopeFoundry Hardware objects
+    Base class for ScopeFoundry Measurement objects
     
     to subclass, implement :meth:`setup`, :meth:`run` 
     
@@ -116,6 +116,8 @@ class Measurement(QtCore.QObject):
         calls *pre_run*
         creates acquisition thread 
         runs thread
+        starts display timer which calls update_display periodically
+        calls post run when thread is finished
         """ 
         #self.start_stop(True)
         self.activation.update_value(True)
@@ -127,6 +129,8 @@ class Measurement(QtCore.QObject):
         calls *pre_run*
         creates acquisition thread 
         runs thread
+        starts display timer which calls update_display periodically
+        calls post run when thread is finished
         """ 
         self.log.info("measurement {} start".format(self.name))
         self.interrupt_measurement_called = False
@@ -230,7 +234,9 @@ class Measurement(QtCore.QObject):
 
     def terminate(self):
         """
-        Terminate MeasurementQThread.
+        Terminate MeasurementQThread. Usually a bad idea:
+        This will not clean up the thread correctly and usually
+        requires a reboot of the App
         """
         self.acq_thread.terminate()
         
@@ -299,7 +305,7 @@ class Measurement(QtCore.QObject):
         self.operations[name] = op_func   
         
     def start_nested_measure_and_wait(self, measure, nested_interrupt = True, 
-                                      polling_func=None, polling_time=0.1, start_time=0.010):
+                                      polling_func=None, polling_time=0.1, start_time=0.0):
         """
         Start another nested measurement *measure* and wait until completion.
         
@@ -315,8 +321,17 @@ class Measurement(QtCore.QObject):
         """
         
         measure.settings['activation'] = True
-        time.sleep(start_time) 
         
+        # wait until measurement has started
+        t0 = time.time()
+        while not measure.settings['running']:
+            # check for startup timeout
+            if (time.time() - t0) > 1.0:
+                break
+            time.sleep(0.001)
+        
+        time.sleep(start_time) 
+                
         last_polling = time.time()
         while measure.is_measuring():
             if self.interrupt_measurement_called:
