@@ -193,6 +193,16 @@ def replace_widget_in_layout(old_widget, new_widget, retain_font=True,
     
     return new_widget
 
+def auto_connect_widget_in_ui(ui, lq):
+    """
+    Automatically finds widgets in a User Interface QWidget *ui*
+    created from *load_qt_ui_file*
+    that match the name of the LoggedQuantity *lq* and makes
+    a bidirectional connection
+    """
+    for widget_name, widget in ui.__dict__.items():
+        if lq.name in widget_name:
+            lq.connect_to_widget(widget)
 
 def replace_spinbox_in_layout(old_widget, **kwargs):
     new_spinbox = pg.SpinBox()
