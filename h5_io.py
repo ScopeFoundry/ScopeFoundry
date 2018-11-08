@@ -224,3 +224,37 @@ def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = No
             
     return emd_grp
     
+
+def create_extendable_h5_like(h5_group, name, arr, axis=0, **kwargs):
+    """
+    Create and return an empty HDF5 dataset in h5_group that can store
+    an infinitely long log of along *axis* (defaults to axis=0). Dataset will be the same
+    shape as *arr* but can be extended along *axis*
+            
+    creates reasonable defaults for chunksize, and dtype,
+    can be overridden with **kwargs that are sent directly to 
+    h5_group.create_dataset
+    """
+    maxshape = list(arr.shape)
+    maxshape[axis] = None
+    
+    default_kwargs = dict(
+        name=name,
+        shape=arr.shape,
+        dtype=arr.dtype,
+        #chunks=(1,),
+        chunks=arr.shape,
+        maxshape=maxshape,
+        compression=None,
+        #shuffle=True,
+        )
+    default_kwargs.update(kwargs)
+    map_h5 =  h5_group.create_dataset(
+        **default_kwargs
+        )
+    return map_h5
+
+def extend_h5_dataset_along_axis(ds, new_len, axis=0):
+    newshape = list(ds.shape)
+    newshape[axis] = new_len
+    ds.resize( newshape )
