@@ -9,6 +9,7 @@ import pyqtgraph as pg
 import pyqtgraph.dockarea as dockarea
 import numpy as np
 from ScopeFoundry.logged_quantity import LQCollection
+import argparse
 
 
 
@@ -19,6 +20,16 @@ class DataBrowser(BaseApp):
     def __init__(self, argv):
         BaseApp.__init__(self, argv)
         self.setup()
+        parser = argparse.ArgumentParser()
+        for lq in self.settings.as_list():
+            parser.add_argument("--" + lq.name)
+        args = parser.parse_args()
+        for lq in self.settings.as_list():
+            if lq.name in args:
+                val = getattr(args,lq.name)
+                if val is not None:
+                    lq.update_value(val)
+        
     
     def setup(self):
 
