@@ -205,8 +205,7 @@ class LoggedQuantity(QtCore.QObject):
         
         :returns: None
         
-        """
-        
+        """        
         # use a thread lock during update_value to avoid another thread
         # calling update_value during the update_value
         
@@ -459,6 +458,7 @@ class LoggedQuantity(QtCore.QObject):
                 
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
+            self.updated_value[str].connect(widget.setText)
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
             def on_edit_finished():
@@ -987,11 +987,11 @@ class LQRange(LQCircularNetwork):
         lq_dict = {'min':self.min, 'max':self.max, 'num':self.num, 'step':self.step}        
         
         if self.center == None: 
-            assert(self.span == None, 'Invalid initialization of LQRange')
+            assert self.span == None, 'Invalid initialization of LQRange'
         else:
             lq_dict.update({'center':self.center})
         if self.span == None: 
-            assert(self.center == None, 'Invalid initialization of LQRange')
+            assert self.center == None, 'Invalid initialization of LQRange'
         else:
             lq_dict.update({'span':self.span})
         
