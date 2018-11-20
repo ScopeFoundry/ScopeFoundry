@@ -64,6 +64,14 @@ def load_qt_ui_file(ui_filename):
     ui = uic.loadUi(ui_filename)
     return ui
 
+def load_qt_ui_from_pkg(package, filename):
+    import pkgutil
+    from io import StringIO
+    ui_data = pkgutil.get_data(package, filename).decode() 
+    ui_io = StringIO(ui_data)
+    ui = uic.loadUi(ui_io)
+    return ui
+
 def confirm_on_close(widget, 
                      title="Close ScopeFoundry?",
                      message="Do you wish to shut down ScopeFoundry?", 
@@ -185,9 +193,17 @@ def replace_widget_in_layout(old_widget, new_widget, retain_font=True,
     
     return new_widget
 
+
 def replace_spinbox_in_layout(old_widget, **kwargs):
     new_spinbox = pg.SpinBox()
     return replace_widget_in_layout(old_widget, new_widget=new_spinbox, **kwargs)
+
+def groupbox_show_contents(groupbox, show=True):
+    layout = groupbox.layout()
+    
+    for i in range(layout.count()):
+        layout.itemAt(i).widget().setVisible(show)            
+
 
 def print_all_connected(qobject, signal=None):
     if signal is None:

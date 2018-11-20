@@ -1,6 +1,7 @@
 from __future__ import division, print_function, absolute_import
 from ScopeFoundry import BaseApp
-from ScopeFoundry.helper_funcs import load_qt_ui_file, sibling_path
+from ScopeFoundry.helper_funcs import load_qt_ui_file, sibling_path,\
+    load_qt_ui_from_pkg
 from collections import OrderedDict
 import os
 from qtpy import QtCore, QtWidgets
@@ -21,7 +22,8 @@ class DataBrowser(BaseApp):
     
     def setup(self):
 
-        self.ui = load_qt_ui_file(sibling_path(__file__, "data_browser.ui"))
+        #self.ui = load_qt_ui_file(sibling_path(__file__, "data_browser.ui"))
+        self.ui = load_qt_ui_from_pkg('ScopeFoundry', 'data_browser.ui')
         self.ui.show()
         self.ui.raise_()
         
