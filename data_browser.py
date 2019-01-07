@@ -265,10 +265,10 @@ class HyperSpectralBaseView(DataBrowserView):
         self.imview = pg.ImageView()
         self.imview.getView().invertY(False) # lower left origin
         #self.splitter.addWidget(self.imview)
-        self.dockarea.addDock(name='Image', widget=self.imview)
+        self.image_dock = self.dockarea.addDock(name='Image', widget=self.imview)
         self.graph_layout = pg.GraphicsLayoutWidget()
         #self.splitter.addWidget(self.graph_layout)
-        self.dockarea.addDock(name='Spec Plot', widget=self.graph_layout)
+        self.spec_dock = self.dockarea.addDock(name='Spec Plot', widget=self.graph_layout)
 
         self.spec_plot = self.graph_layout.addPlot()
         self.rect_plotdata = self.spec_plot.plot()
@@ -297,6 +297,10 @@ class HyperSpectralBaseView(DataBrowserView):
         self.display_image = None
         self.spec_x_array = None
         
+        self.norm_data = self.settings.New('norm_data', bool, initial=False)
+        self.norm_data.add_listener(self.update_display)
+        self.settings.New('default_view', bool, initial=True)
+        
         self.scan_specific_setup()
         
     def scan_specific_setup(self):
@@ -319,6 +323,9 @@ class HyperSpectralBaseView(DataBrowserView):
             raise(err)
         finally:        
             self.update_display()
+
+        if self.settings['default_view']:
+            self.default_image_view()  
             
     def update_display(self):
         # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose        
@@ -345,7 +352,10 @@ class HyperSpectralBaseView(DataBrowserView):
         roi_slice, roi_tr = self.rect_roi.getArraySlice(self.hyperspec_data, self.imview.getImageItem(), axes=(1,0)) 
         
         #print("roi_slice", roi_slice)
-        self.rect_plotdata.setData(self.spec_x_array, self.hyperspec_data[roi_slice].mean(axis=(0,1))+1)
+        y = self.hyperspec_data[roi_slice].mean(axis=(0,1))+1
+        if self.settings['norm_data']:
+            y = norm(y)
+        self.rect_plotdata.setData(self.spec_x_array, y)
         
     @QtCore.Slot(object)        
     def on_update_circ_roi(self, roi=None):
@@ -372,8 +382,22 @@ class HyperSpectralBaseView(DataBrowserView):
         
         self.circ_roi_ji = (j,i)       
         
-        self.point_plotdata.setData(self.spec_x_array, self.hyperspec_data[j,i,:])
+        y = self.hyperspec_data[j,i,:]
+        if self.settings['norm_data']:
+            y = norm(y)      
+        self.point_plotdata.setData(self.spec_x_array, y)
+        
+    def default_image_view(self):
+        'sets rect_roi congruent to imageItem and optimizes size of imageItem to fit the ViewBox'
+        iI = self.imview.imageItem
+        h,w  = iI.height(), iI.width()       
+        self.rect_roi.setSize((w,h))
+        self.rect_roi.setPos((0,0))
+        self.imview.autoRange()
 
+def norm(x):
+    
+    return x*1.0/x.max()
 
 if __name__ == '__main__':
     import sys
