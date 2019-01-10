@@ -579,6 +579,28 @@ class LoggedQuantity(QtCore.QObject):
                     raise RuntimeError("Invalid widget type.")
         
         self.send_display_updates(force=True)
+        
+    
+    def add_choice(self, additional_choices, allow_duplicates=False, update_value=False):
+        if not isinstance(additional_choices, (list, tuple)):
+            additional_choices = [additional_choices]
+        
+        choices = []
+        for c in self.choices:
+            choices.append(c[0])
+        
+        if allow_duplicates:
+            choices += additional_choices            
+        else:
+            for c in additional_choices:
+                if not (c in choices):
+                    choices.append(c)                        
+        
+        self.change_choice_list(choices)
+        
+        if update_value:
+            self.update_value(choices[-1])
+    
     
     def change_min_max(self, vmin=-1e12, vmax=+1e12):
         # TODO  setRange should be a slot for the updated_min_max signal
