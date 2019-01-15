@@ -12,6 +12,8 @@ from ScopeFoundry.logged_quantity import LQCollection
 import argparse
 
 
+import time
+import array
 
 class DataBrowser(BaseApp):
     
@@ -276,12 +278,13 @@ class HyperSpectralBaseView(DataBrowserView):
         self.imview = pg.ImageView()
         self.imview.getView().invertY(False) # lower left origin
         #self.splitter.addWidget(self.imview)
-        self.dockarea.addDock(name='Image', widget=self.imview)
+        self.image_dock = self.dockarea.addDock(name='Image', widget=self.imview)
         self.graph_layout = pg.GraphicsLayoutWidget()
         #self.splitter.addWidget(self.graph_layout)
-        self.dockarea.addDock(name='Spec Plot', widget=self.graph_layout)
+        self.spec_dock = self.dockarea.addDock(name='Spec Plot', widget=self.graph_layout)
 
         self.spec_plot = self.graph_layout.addPlot()
+        self.spec_plot.setLabel('left', 'Intensity', units='counts') 
         self.rect_plotdata = self.spec_plot.plot()
         self.point_plotdata = self.spec_plot.plot(pen=(0,9))
         
@@ -304,12 +307,84 @@ class HyperSpectralBaseView(DataBrowserView):
         self.imview.getView().addItem(self.circ_roi_plotline) 
         self.circ_roi.sigRegionChanged[object].connect(self.on_update_circ_roi)
         
+        self.corr_layout = pg.GraphicsLayoutWidget()
+        self.corr_plot = self.corr_layout.addPlot()
+        self.corr_plot.setLabel('left', 'intensity', units='')  
+        self.corr_plot.setLabel('bottom', 'median wls', units='nm') 
+        
+        self.corr_plotdata = self.corr_plot.plot(symbol='o')
+        self.dockarea.addDock(name='correlation', widget=self.corr_layout, 
+                              position='below',  relativeTo = self.spec_dock)
+        self.spec_dock.raiseDock()
+        
+        self.default_display_image_choices = ['default', 'sum']
+        self.settings.New('display_image', str, choices = self.default_display_image_choices, initial = 'sum')    
+        self.settings.display_image.add_listener(self.on_display_image_change)    
+        
+        self.default_x_axis_choices = ['default', 'index']
+        self.x_axis = self.settings.New('x_axis', str, choices = self.default_x_axis_choices)
+        self.x_axis.add_listener(self.on_x_axis_change)
+
+        self.norm_data = self.settings.New('norm_data', bool, initial=False)
+        self.norm_data.add_listener(self.update_display)
+        self.settings.New('default_view', bool, initial=True)
+        
         self.hyperspec_data = None
         self.display_image = None
         self.spec_x_array = None
         
+        self.display_images = dict()
+        self.spec_x_arrays = dict()        
+        
+        self.settings_widgets = [] #Not required
+        
         self.scan_specific_setup()
         
+        self.add_settings_dock() #Hack: Need to generate settings after scan_specific_setup()
+        
+    
+    def add_settings_dock(self):
+        self.settings_ui = self.settings.New_UI()
+        ds = self.dockarea.addDock(name='settings', widget=self.settings_ui,
+                                   position='left', relativeTo=self.image_dock)
+        ds.setStretch(1,2)     
+
+        self.update_display_pushButton = QtWidgets.QPushButton(text = 'update display')
+        self.settings_ui.layout().addWidget(self.update_display_pushButton)
+        self.update_display_pushButton.clicked.connect(self.update_display)  
+
+        self.default_view_pushButton = QtWidgets.QPushButton(text = 'default img view')
+        self.settings_ui.layout().addWidget(self.default_view_pushButton)
+        self.default_view_pushButton.clicked.connect(self.default_image_view) 
+        
+        self.recalc_median_pushButton = QtWidgets.QPushButton(text = 'recalc_median')
+        self.settings_widgets.append(self.recalc_median_pushButton)
+        self.recalc_median_pushButton.clicked.connect(self.recalc_median_map)
+        
+        for w in self.settings_widgets:
+            self.settings_ui.layout().addWidget(w)
+        
+    def add_spec_x_array(self, key, array):
+        self.spec_x_arrays[key] = array
+        self.settings.x_axis.add_choice(key, allow_duplicates=False)
+
+    def add_display_image(self, key, image):
+        self.display_images[key] = image
+        self.settings.display_image.add_choice(key, allow_duplicates=False)
+    
+    def on_x_axis_change(self):
+        key = self.settings['x_axis']
+        if key in self.spec_x_arrays:
+            self.spec_x_array = self.spec_x_arrays[key]
+            self.spec_plot.setLabel('bottom', key)
+            self.update_display()
+
+    def on_display_image_change(self):
+        key = self.settings['display_image']
+        if key in self.display_images:
+            self.display_image = self.display_images[key]
+            self.update_display()
+                
     def scan_specific_setup(self):
         #override this!
         pass
@@ -319,23 +394,38 @@ class HyperSpectralBaseView(DataBrowserView):
         return False
     
     def on_change_data_filename(self, fname):
+        self.reset()
         try:
             self.load_data(fname)
+            self.display_images['default'] = self.display_image
+            self.display_images['sum'] = self.hyperspec_data.sum(axis=-1)
+            self.spec_x_arrays['default'] = self.spec_x_array
+            self.spec_x_arrays['index'] = np.arange(self.hyperspec_data.shape[-1])
             self.databrowser.ui.statusbar.clearMessage()
-            
+            self.recalc_median_map()            
         except Exception as err:
             #self.imview.setImage(np.zeros((10,10)))
             HyperSpectralBaseView.load_data(self, fname) # load default dummy data
             self.databrowser.ui.statusbar.showMessage("failed to load %s:\n%s" %(fname, err))
             raise(err)
-        finally:        
-            self.update_display()
+        finally:
+            self.on_display_image_change()
+            self.on_x_axis_change()
+
+        if self.settings['default_view']:
+            self.default_image_view()  
             
     def update_display(self):
         # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose        
         self.imview.setImage(self.display_image.T)
         self.on_change_rect_roi()
         self.on_update_circ_roi()
+
+    def reset(self):
+        self.display_images = dict()
+        self.spec_x_arrays = dict() 
+        self.settings.display_image.change_choice_list(self.default_display_image_choices)
+        self.settings.x_axis.change_choice_list(self.default_x_axis_choices)
     
     def load_data(self, fname):
         """
@@ -356,7 +446,10 @@ class HyperSpectralBaseView(DataBrowserView):
         roi_slice, roi_tr = self.rect_roi.getArraySlice(self.hyperspec_data, self.imview.getImageItem(), axes=(1,0)) 
         
         #print("roi_slice", roi_slice)
-        self.rect_plotdata.setData(self.spec_x_array, self.hyperspec_data[roi_slice].mean(axis=(0,1))+1)
+        y = self.hyperspec_data[roi_slice].mean(axis=(0,1))+1
+        if self.settings['norm_data']:
+            y = norm(y)
+        self.rect_plotdata.setData(self.spec_x_array, y)
         
     @QtCore.Slot(object)        
     def on_update_circ_roi(self, roi=None):
@@ -383,8 +476,46 @@ class HyperSpectralBaseView(DataBrowserView):
         
         self.circ_roi_ji = (j,i)       
         
-        self.point_plotdata.setData(self.spec_x_array, self.hyperspec_data[j,i,:])
+        y = self.hyperspec_data[j,i,:]
+        if self.settings['norm_data']:
+            y = norm(y)      
+        self.point_plotdata.setData(self.spec_x_array, y)
+        
+    def default_image_view(self):
+        'sets rect_roi congruent to imageItem and optimizes size of imageItem to fit the ViewBox'
+        iI = self.imview.imageItem
+        h,w  = iI.height(), iI.width()       
+        self.rect_roi.setSize((w,h))
+        self.rect_roi.setPos((0,0))
+        self.imview.autoRange()
+        
+    def recalc_median_map(self):
+        median_map = spectral_median_map(self.hyperspec_data, wls=self.spec_x_array)
+        self.add_display_image('median_map', median_map)
+        x = self.display_images['median_map'].flatten()
+        y = self.display_images['sum'].flatten()
+        self.corr_plotdata.setData(x,y)
+        
+def spectral_median(spec, wls, count_min=200):
+    int_spec = np.cumsum(spec)
+    total_sum = int_spec[-1]
+    if total_sum > count_min:
+        pos = int_spec.searchsorted( 0.5*total_sum)
+        wl = wls[pos]
+    else:
+        wl = 0
+    return wl
+def spectral_median_map(hyperspectral_data, wls):
+    return np.apply_along_axis(spectral_median, -1, hyperspectral_data, wls=wls)
 
+def norm(x):
+    x_max = x.max()
+    if x_max==0:
+        return x*0.0
+    else:
+        return x*1.0/x_max
+def norm_map(map_):
+    return np.apply_along_axis(norm, -1, map_)
 
 if __name__ == '__main__':
     import sys
