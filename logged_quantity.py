@@ -9,6 +9,7 @@ from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
+from ScopeFoundry.widgets import MinMaxQSlider
 
 #import threading
 
@@ -25,6 +26,7 @@ class DummyLock(object):
         return self
     def __exit__(self, *args):
         pass
+
 
 
 
@@ -395,13 +397,24 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_value[float].connect(update_widget_value)
             #if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
-                
+        
+        elif type(widget) == MinMaxQSlider:
+            self.updated_value[float].connect(widget.update_value)
+            widget.updated_value[float].connect(self.update_value)
+            if self.unit is not None:
+                widget.setSuffix(self.unit)
+            widget.setSingleStep(self.spinbox_step)
+            widget.setDecimals(self.spinbox_decimals)
+            widget.setRange(self.vmin, self.vmax)
+            widget.set_name(self.name)
+        
         elif type(widget) == QtWidgets.QSlider:
-            self.vrange = self.vmax - self.vmin
             def transform_to_slider(x):
+                self.vrange = self.vmax - self.vmin
                 pct = 100*(x-self.vmin)/self.vrange
                 return int(pct)
             def transform_from_slider(x):
+                self.vrange = self.vmax - self.vmin
                 val = self.vmin + (x*self.vrange/100)
                 return val
             def update_widget_value(x):
@@ -425,7 +438,10 @@ class LoggedQuantity(QtCore.QObject):
             widget.setValue(transform_to_slider(self.val))
             self.updated_value[float].connect(update_widget_value)
             widget.valueChanged[int].connect(update_spinbox)
-
+            def updated_min_max_slider(widget):
+                widget.setMinimum(transform_to_slider(self.vmin))
+                widget.setMaximum(transform_to_slider(self.vmax))
+            #self.updated_min_max.connect(updated_min_max_slider(widget=widget))
                 
         elif type(widget) == QtWidgets.QCheckBox:
 
@@ -1088,7 +1104,50 @@ class LQRange(LQCircularNetwork):
     @property
     def array(self):
         return np.linspace(self.min.val, self.max.val, self.num.val)
-        
+    
+    def add_listener(self, func, argtype=(), **kwargs):
+        self.min.add_listener(func, argtype, **kwargs)
+        self.max.add_listener(func, argtype, **kwargs)
+        self.num.add_listener(func, argtype, **kwargs)   
+
+    
+class LQ3Vector(object):
+    
+    def __init__(self, x_lq, y_lq, z_lq):
+        self.x_lq = x_lq
+        self.y_lq = y_lq
+        self.z_lq = z_lq
+    
+    @property
+    def values(self):
+        return np.array([self.x_lq.val, self.y_lq.val, self.z_lq.val])
+    
+    @property
+    def length(self):
+        vec = self.values
+        return np.sqrt(np.dot(vec,vec))
+    
+    @property
+    def normed_values(self):
+        return self.values/self.length
+    
+    def dot(self, _lq_vector):
+        '''
+        returns the scalar product with _lq_vector
+        '''
+        return np.dot(_lq_vector.values,self.values)
+    
+    def project_to(self, _lq_vector):
+        return np.dot(_lq_vector.normed_values, self.values)
+    
+    def angle_to(self, _lq_vector):
+        return np.arccos(np.dot(_lq_vector,self.normed_values))
+    
+    
+    def add_listener(self, func, argtype=(), **kwargs):
+        self.x_lq.add_listener(func, argtype, **kwargs)
+        self.y_lq.add_listener(func, argtype, **kwargs)
+        self.z_lq.add_listener(func, argtype, **kwargs)        
 
 class LQCollection(object):
     """
@@ -1109,6 +1168,7 @@ class LQCollection(object):
     def __init__(self):
         self._logged_quantities = OrderedDict()
         self.ranges = OrderedDict()
+        self.vectors = OrderedDict()
         
         self.log = get_logger_from_class(self)
         
@@ -1200,6 +1260,22 @@ class LQCollection(object):
 
         self.ranges[name] = lqrange
         return lqrange
+    
+    
+    def New_Vector(self, name, components = 'xyz', initial = [1,0,0], **kwargs):
+
+        assert len(components) == len(initial)
+        
+        if len(components) == 3:
+
+            lq_x = self.New(name+'_'+components[0], initial = initial[0], **kwargs)
+            lq_y = self.New(name+'_'+components[1], initial = initial[1], **kwargs)
+            lq_z = self.New(name+'_'+components[2], initial = initial[2], **kwargs)
+                
+            lq_vector = LQ3Vector(lq_x,lq_y,lq_z)
+            self.vectors[name] = lq_vector
+            return lq_vector
+    
     
     def New_UI(self, include = None, exclude = []):
         """create a default Qt Widget that contains 
