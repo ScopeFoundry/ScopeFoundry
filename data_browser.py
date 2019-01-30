@@ -9,6 +9,7 @@ import pyqtgraph as pg
 import pyqtgraph.dockarea as dockarea
 import numpy as np
 from ScopeFoundry.logged_quantity import LQCollection
+from scipy.stats import spearmanr
 import argparse
 
 
@@ -287,14 +288,15 @@ class HyperSpectralBaseView(DataBrowserView):
         self.line_pens = ['w', 'r']
         self.spec_plot = self.graph_layout.addPlot()
         self.spec_plot.setLabel('left', 'Intensity', units='counts') 
-        self.rect_plotdata = self.spec_plot.plot((0,1),pen=self.line_pens[0])
-        self.point_plotdata = self.spec_plot.plot((0,1), pen=self.line_pens[1])
+        self.rect_plotdata = self.spec_plot.plot(y=[0,2,1,3,2],pen=self.line_pens[0])
+        self.point_plotdata = self.spec_plot.plot(y=[0,2,1,3,2], pen=self.line_pens[1])
         self.point_plotdata.setZValue(-1)
 
         #correlation plot
         self.corr_layout = pg.GraphicsLayoutWidget()
         self.corr_plot = self.corr_layout.addPlot()
-        self.corr_plotdata = self.corr_plot.scatterPlot(size=17, pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 60) )
+        self.corr_plotdata = self.corr_plot.scatterPlot(x=[0,1,2,3,4], y=[0,2,1,3,2], size=17, 
+                                        pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 60) )
         self.corr_dock = self.dockarea.addDock(name='correlation', widget=self.corr_layout, 
                               position='below',  relativeTo = self.spec_dock)
         self.spec_dock.raiseDock()
@@ -355,7 +357,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.spec_plot.addItem(self.x_slice_LinearRegionItem)
         self.x_slice_LinearRegionItem.sigRegionChangeFinished.connect(self.on_change_x_slice_LinearRegionItem)
         self.x_slice_InfLineLabel = pg.InfLineLabel(self.x_slice_LinearRegionItem.lines[1], "x_slice", 
-                                               position=0.95, anchor=(0.5, 0.5))
+                                               position=0.85, anchor=(0.5, 0.5))
         self.x_slice_InfLineLabel.setFont(font)
         self.use_x_slice = self.settings.New('use_x_slice', bool, initial = False)
         self.use_x_slice.add_listener(self.on_change_x_slice)
@@ -496,10 +498,8 @@ class HyperSpectralBaseView(DataBrowserView):
             self.recalc_median_map()
             self.post_load()
         except Exception as err:
-            print('')
-            #self.imview.setImage(np.zeros((10,10)))
             HyperSpectralBaseView.load_data(self, fname) # load default dummy data
-            self.databrowser.ui.statusbar.showMessage("failed to load %s:\n%s" %(fname, err))
+            self.databrowser.ui.statusbar.showMessage("failed to load {}: {}".format(fname, err))
             raise(err)
         finally:
             self.on_change_display_image()
@@ -660,21 +660,27 @@ class HyperSpectralBaseView(DataBrowserView):
         try:
             xname = self.settings['cor_X_data']
             yname = self.settings['cor_Y_data']
-            cor_x = self.display_images[xname].flatten()
-            cor_y = self.display_images[yname].flatten()
-            self.corr_plotdata.setData(cor_x,cor_y)
+            X = self.display_images[xname]
+            Y = self.display_images[yname]
+            cor_x = X[self.rect_roi_slice[0:2]].flatten()
+            cor_y = Y[self.rect_roi_slice[0:2]].flatten()
+            self.corr_plotdata.setData(X.flat,Y.flat, brush=pg.mkBrush(255, 255, 255, 60))
+            self.corr_plotdata.addPoints(cor_x,cor_y, brush=pg.mkBrush(255, 0, 0, 60))
             self.corr_plot.autoRange()
             self.corr_plot.setLabels(**{'bottom':xname,'left':yname})
-        except KeyError:
-            self.databrowser.ui.statusbar.showMessage('on_change_corr_settings: Key Error!')
+            sm = spearmanr(cor_x, cor_y)
+                        
+            text = 'Pearson\'s: {:.3f}; Spearman\'s:corr={:.3f}, pvalue={:.3f}'.format(np.corrcoef(cor_x,cor_x)[0,0], 
+                                    sm.correlation, sm.pvalue)
+            self.corr_plot.setTitle(text)
+        except Exception as err:
+            self.databrowser.ui.statusbar.showMessage('Error in on_change_corr_settings: {}'.format(err))
         
     def bin_spatially(self):
         if not (self.settings['display_image'] in self.default_display_image_choices):
             self.settings.display_image.update_value( self.default_display_image_choices[0] )
         fname = self.databrowser.settings['data_filename']
         self.on_change_data_filename(fname)
-        print(self.settings['display_image'])
-
         
 def spectral_median(spec, wls, count_min=200):
     int_spec = np.cumsum(spec)
