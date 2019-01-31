@@ -31,16 +31,18 @@ def ijk_zigzag_generator(dims, axis_order=(0,1,2)):
                 yield tuple(ijk)
     return
 
+
 class BaseRaster2DScan(Measurement):
-    
     name = "base_raster_2D_scan"
     
     def __init__(self, app, 
                  h_limits=(-1,1),        v_limits=(-1,1), 
                  h_unit='',              v_unit='', 
-                 h_spinbox_decimals=6,   v_spinbox_decimals=6,
+                 h_spinbox_decimals=4,   v_spinbox_decimals=4,
                  h_spinbox_step=0.1,     v_spinbox_step=0.1,
-                 use_external_range_sync=False):        
+                 use_external_range_sync=False,
+                 circ_roi_size=1.0,
+                 ):        
         self.h_spinbox_decimals = h_spinbox_decimals
         self.v_spinbox_decimals = v_spinbox_decimals
         self.h_spinbox_step = h_spinbox_step
@@ -50,6 +52,7 @@ class BaseRaster2DScan(Measurement):
         self.h_unit = h_unit
         self.v_unit = v_unit
         self.use_external_range_sync = use_external_range_sync
+        self.circ_roi_size=circ_roi_size
         Measurement.__init__(self, app)
         
     def setup(self):
@@ -313,9 +316,11 @@ class BaseRaster2DScan(Measurement):
         #self.goto_cmenu_action.triggered.connect(self.on_goto_position)
         
         # Point ROI
-        self.pt_roi = pg.CircleROI( (0,0), (2,2) , movable=True, pen=(0,9))
+        self.pt_roi = pg.CircleROI( (0,0), (self.circ_roi_size,self.circ_roi_size) , movable=True, pen=(0,9))
         #self.pt_roi.removeHandle(self.pt_roi.getHandles()[0])
-        h = self.pt_roi.addTranslateHandle((0.5,.5))
+            
+        h = self.pt_roi.addTranslateHandle((0.5,0.5))
+        
         h.pen = pg.mkPen('r')
         h.update()
         self.img_plot.addItem(self.pt_roi)
@@ -329,8 +334,8 @@ class BaseRaster2DScan(Measurement):
             roi = self.circ_roi
         roi_state = roi.saveState()
         x0, y0 = roi_state['pos']
-        xc = x0 + 1
-        yc = y0 + 1
+        xc = x0 + self.circ_roi_size/2.
+        yc = y0 + self.circ_roi_size/2.
         self.new_pt_pos(xc,yc)
     
     def new_pt_pos(self, x,y):
