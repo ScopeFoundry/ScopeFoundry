@@ -295,8 +295,12 @@ class HyperSpectralBaseView(DataBrowserView):
         #correlation plot
         self.corr_layout = pg.GraphicsLayoutWidget()
         self.corr_plot = self.corr_layout.addPlot()
-        self.corr_plotdata = self.corr_plot.scatterPlot(x=[0,1,2,3,4], y=[0,2,1,3,2], size=17, 
-                                        pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 60) )
+        self.corr_plotdata = pg.ScatterPlotItem(x=[0,1,2,3,4], y=[0,2,1,3,2], size=17, 
+                                        pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 60))
+        self.corr_plot.addItem(self.corr_plotdata)
+        
+        #self.corr_plotdata = self.corr_plot.scatterPlot( x=[0,1,2,3,4], y=[0,2,1,3,2], size=17, 
+        #                                pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 60))
         self.corr_dock = self.dockarea.addDock(name='correlation', widget=self.corr_layout, 
                               position='below',  relativeTo = self.spec_dock)
         self.spec_dock.raiseDock()
@@ -546,6 +550,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.rect_roi_slice = roi_slice
         x,y = self.get_xy(roi_slice, apply_use_x_slice=False)
         self.rect_plotdata.setData(x, y)
+        self.on_change_corr_settings()
 
         
     @QtCore.Slot(object)        
@@ -662,15 +667,18 @@ class HyperSpectralBaseView(DataBrowserView):
             yname = self.settings['cor_Y_data']
             X = self.display_images[xname]
             Y = self.display_images[yname]
-            cor_x = X[self.rect_roi_slice[0:2]].flatten()
-            cor_y = Y[self.rect_roi_slice[0:2]].flatten()
-            self.corr_plotdata.setData(X.flat,Y.flat, brush=pg.mkBrush(255, 255, 255, 60))
-            self.corr_plotdata.addPoints(cor_x,cor_y, brush=pg.mkBrush(255, 0, 0, 60))
+            #mask selects points within rect_roi
+            mask = np.zeros_like(X, dtype=bool)
+            mask[self.rect_roi_slice[0:2]] = True
+            mask_ = np.invert(mask)
+            cor_x = X[mask].flatten()
+            cor_y = Y[mask].flatten()
+            self.corr_plotdata.setData(X[mask_].flat,Y[mask_].flat, brush=pg.mkBrush(255, 255, 255, 60), pen=None)
+            self.corr_plotdata.addPoints(cor_x,cor_y, brush=pg.mkBrush(255, 255, 255, 60), pen=pg.mkPen(255, 0, 0, 60))
             self.corr_plot.autoRange()
             self.corr_plot.setLabels(**{'bottom':xname,'left':yname})
             sm = spearmanr(cor_x, cor_y)
-                        
-            text = 'Pearson\'s: {:.3f}; Spearman\'s:corr={:.3f}, pvalue={:.3f}'.format(np.corrcoef(cor_x,cor_x)[0,0], 
+            text = 'Pearson\'s: {:.3f}; Spearman\'s:corr={:.3f}, pvalue={:.3f}'.format(np.corrcoef(cor_x,cor_y)[0,0], 
                                     sm.correlation, sm.pvalue)
             self.corr_plot.setTitle(text)
         except Exception as err:
