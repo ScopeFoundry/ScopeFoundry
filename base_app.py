@@ -919,7 +919,16 @@ class BaseMicroscopeApp(BaseApp):
 #         
 #         self.log.info("ini windown settings saved to {} {}".format( fname, config.optionxform))
 
-    
+    def generate_data_path(self, measurement, ext,t=None):
+        if t is None:
+            t = time.time()
+        f = self.settings['data_fname_format'].format(
+            app=self,
+            measurement=measurement,
+            timestamp=datetime.datetime.fromtimestamp(t),
+            ext=ext)
+        fname = os.path.join(self.settings['save_dir'], f)
+        return fname
 
 
 
