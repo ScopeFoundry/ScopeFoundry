@@ -525,10 +525,21 @@ class HyperSpectralBaseView(DataBrowserView):
         '''
         resets the dictionaries
         '''
-        self.display_images = dict()
-        self.spec_x_arrays = dict() 
+        k_to_delete = []
+        for k in self.display_images.keys():
+            if not k in self.default_display_image_choices:
+                k_to_delete.append(k)
+        for k in k_to_delete:
+            self.display_images.pop(k)
+        k_to_delete = []
+        for k in self.spec_x_arrays.keys():
+            if not k in self.default_x_axis_choices:
+                k_to_delete.append(k)
+        for k in k_to_delete:
+            self.spec_x_arrays.pop(k)
         self.settings.display_image.change_choice_list(self.default_display_image_choices)
         self.settings.x_axis.change_choice_list(self.default_x_axis_choices)
+
     
     def load_data(self, fname):
         """
