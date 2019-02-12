@@ -591,6 +591,8 @@ class HyperSpectralBaseView(DataBrowserView):
         self.circ_roi_slice = np.s_[j:j+1,i:i+1]
         x,y = self.get_xy(self.circ_roi_slice, apply_use_x_slice=False)  
         self.point_plotdata.setData(x, y)
+        self.on_change_corr_settings()
+
 
     def on_change_bg_LinearRegionItem(self):
         self.update_slice('bg_slice', self.bg_LinearRegionItem)
@@ -678,6 +680,8 @@ class HyperSpectralBaseView(DataBrowserView):
             yname = self.settings['cor_Y_data']
             X = self.display_images[xname]
             Y = self.display_images[yname]
+            j,i = self.circ_roi_ji
+            x_circ,y_circ = np.atleast_1d(X[j,i]),np.atleast_1d(Y[j,i])
             #mask selects points within rect_roi
             mask = np.zeros_like(X, dtype=bool)
             mask[self.rect_roi_slice[0:2]] = True
@@ -685,11 +689,12 @@ class HyperSpectralBaseView(DataBrowserView):
             cor_x = X[mask].flatten()
             cor_y = Y[mask].flatten()
             self.corr_plotdata.setData(X[mask_].flat,Y[mask_].flat, brush=pg.mkBrush(255, 255, 255, 60), pen=None)
-            self.corr_plotdata.addPoints(cor_x,cor_y, brush=pg.mkBrush(255, 255, 255, 60), pen=pg.mkPen(255, 0, 0, 60))
+            self.corr_plotdata.addPoints(cor_x,cor_y, brush=pg.mkBrush(255, 255, 255, 60), pen=pg.mkPen(255, 0, 0, 200))
+            self.corr_plotdata.addPoints(x=x_circ,y=y_circ, brush=pg.mkBrush(0, 0, 255, 255))
             self.corr_plot.autoRange()
             self.corr_plot.setLabels(**{'bottom':xname,'left':yname})
             sm = spearmanr(cor_x, cor_y)
-            text = 'Pearson\'s: {:.3f}; Spearman\'s:corr={:.3f}, pvalue={:.3f}'.format(np.corrcoef(cor_x,cor_y)[0,0], 
+            text = 'Pearson\'s: {:.3f}; Spearman\'s:corr={:.3f}, pvalue={:.3f}'.format(np.corrcoef(cor_x,cor_y)[0,1], 
                                     sm.correlation, sm.pvalue)
             self.corr_plot.setTitle(text)
         except Exception as err:
