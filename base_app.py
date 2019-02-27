@@ -727,12 +727,17 @@ class BaseMicroscopeApp(BaseApp):
             self.log.info(section_name)
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
+                    if lqname == 'connected':
+                        continue # skip connected setting, use it at the end
                     try:
                         lq = hc.settings.get_lq(lqname)
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
                         self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                
+                if 'connected' in config[section_name]:
+                    hc.settings['connected'] = config[section_name]['connected']
                         
         for meas_name, measurement in self.measurements.items():
             section_name = 'measurement/'+meas_name            
@@ -919,7 +924,16 @@ class BaseMicroscopeApp(BaseApp):
 #         
 #         self.log.info("ini windown settings saved to {} {}".format( fname, config.optionxform))
 
-    
+    def generate_data_path(self, measurement, ext,t=None):
+        if t is None:
+            t = time.time()
+        f = self.settings['data_fname_format'].format(
+            app=self,
+            measurement=measurement,
+            timestamp=datetime.datetime.fromtimestamp(t),
+            ext=ext)
+        fname = os.path.join(self.settings['save_dir'], f)
+        return fname
 
 
 
