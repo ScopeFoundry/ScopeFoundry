@@ -11,8 +11,9 @@ import numpy as np
 from ScopeFoundry.logged_quantity import LQCollection
 from scipy.stats import spearmanr
 import argparse
-
-
+import time
+import h5py
+from datetime import datetime
 
 
 class DataBrowser(BaseApp):
@@ -329,7 +330,7 @@ class HyperSpectralBaseView(DataBrowserView):
         font.setBold(True)
             
         #settings
-        self.default_display_image_choices = ['default', 'sum', 'median_map']
+        self.default_display_image_choices = ['default', 'sum']
         self.settings.New('display_image', str, choices = self.default_display_image_choices, initial = 'sum')    
         self.settings.display_image.add_listener(self.on_change_display_image)    
         
@@ -389,21 +390,21 @@ class HyperSpectralBaseView(DataBrowserView):
         
         self.display_images = dict()
         self.spec_x_arrays = dict()        
-        
+
+
+        self.settings_dock = self.dockarea.addDock(name='settings', position='left', relativeTo=self.image_dock)
         self.settings_widgets = [] # Hack part 1/2: allows to use settings.New_UI() and have settings defined in scan_specific_setup()
-        
         self.scan_specific_setup()
+        self.generate_settings_ui() # Hack part 2/2: Need to generate settings after scan_specific_setup()
+
+        self.settings_dock.addWidget(self.settings_ui)
+        self.settings_dock.setStretch(1,2)     
         
-        self.add_settings_dock() # Hack part 2/2: Need to generate settings after scan_specific_setup()
-    
         self.circ_roi_slice = self.rect_roi_slice = np.s_[:,:]
 
     
-    def add_settings_dock(self):
+    def generate_settings_ui(self):
         self.settings_ui = self.settings.New_UI()
-        ds = self.dockarea.addDock(name='settings', widget=self.settings_ui,
-                                   position='left', relativeTo=self.image_dock)
-        ds.setStretch(1,2)     
 
         self.update_display_pushButton = QtWidgets.QPushButton(text = 'update display')
         self.settings_widgets.append(self.update_display_pushButton)
@@ -416,6 +417,10 @@ class HyperSpectralBaseView(DataBrowserView):
         self.recalc_median_pushButton = QtWidgets.QPushButton(text = 'recalc_median')
         self.settings_widgets.append(self.recalc_median_pushButton)
         self.recalc_median_pushButton.clicked.connect(self.recalc_median_map)
+
+        self.recalc_sum_pushButton = QtWidgets.QPushButton(text = 'recalc_sum')
+        self.settings_widgets.append(self.recalc_sum_pushButton)
+        self.recalc_sum_pushButton.clicked.connect(self.recalc_sum_map)
         
         for w in self.settings_widgets:
             self.settings_ui.layout().addWidget(w)
@@ -499,7 +504,6 @@ class HyperSpectralBaseView(DataBrowserView):
             self.spec_x_arrays['default'] = self.spec_x_array
             self.spec_x_arrays['index'] = np.arange(self.hyperspec_data.shape[-1])
             self.databrowser.ui.statusbar.clearMessage()
-            self.recalc_median_map()
             self.post_load()
         except Exception as err:
             HyperSpectralBaseView.load_data(self, fname) # load default dummy data
@@ -549,9 +553,9 @@ class HyperSpectralBaseView(DataBrowserView):
             * self.display_image (shape Ny, Nx)
             * self.spec_x_array (shape Nspec)
         """
-        self.hyperspec_data = np.zeros((10,10,34))#np.random.rand(10,10,34)
-        self.display_image =np.zeros((10,10,34))# np.random.rand(10,10)
-        self.spec_x_array = 3*np.arange(34)
+        self.hyperspec_data = np.arange(10*10*34).reshape( (10,10,34) )
+        self.display_image = self.hyperspec_data.sum(-1)# np.random.rand(10,10)
+        self.spec_x_array = np.arange(34)
     
     @QtCore.Slot(object)
     def on_change_rect_roi(self, roi=None):
@@ -607,7 +611,7 @@ class HyperSpectralBaseView(DataBrowserView):
         
     def on_change_x_slice(self):
         if not self.settings['use_x_slice']:
-            self.x_slice = np.s_[0:-1] #the whole array selected
+            self.x_slice = np.s_[:] #the whole array selected
         activate = self.settings['use_x_slice']
         self.set_LinearRegionItem_activated(activate, self.x_slice_LinearRegionItem, [0.05,1.0])
 
@@ -673,6 +677,11 @@ class HyperSpectralBaseView(DataBrowserView):
         x,hyperspec_data = self.get_xhyperspec_data(apply_use_x_slice=True)
         median_map = spectral_median_map(hyperspec_data,x)
         self.add_display_image('median_map', median_map)
+        
+    def recalc_sum_map(self):
+        x,hyperspec_data = self.get_xhyperspec_data(apply_use_x_slice=True)
+        _sum = hyperspec_data.sum(-1)
+        self.add_display_image('sum', _sum)
         
     def on_change_corr_settings(self):
         try:
