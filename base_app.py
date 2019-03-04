@@ -351,7 +351,9 @@ class BaseMicroscopeApp(BaseApp):
                 
         """Loads various default features into the user interface upon app startup."""
         confirm_on_close(self.ui, title="Close %s?" % self.name, message="Do you wish to shut down %s?" % self.name, func_on_close=self.on_close)
-        
+
+
+        # Hardware and Measurement Settings Trees        
         self.ui.hardware_treeWidget.setColumnWidth(0,175)
         self.ui.measurements_treeWidget.setColumnWidth(0,175)
 
@@ -360,6 +362,13 @@ class BaseMicroscopeApp(BaseApp):
 
         self.ui.hardware_treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.ui.hardware_treeWidget.customContextMenuRequested.connect(self.on_hardware_tree_context_menu)
+
+        for name, hw in self.hardware.items():
+            hw.add_widgets_to_tree(tree=self.ui.hardware_treeWidget)
+
+        for name, measure in self.measurements.items():
+            measure.add_widgets_to_tree(tree=self.ui.measurements_treeWidget)
+
 
         # Add log widget to mdiArea
         self.logging_subwin = self.add_mdi_subwin(self.logging_widget, "Log")
@@ -649,20 +658,18 @@ class BaseMicroscopeApp(BaseApp):
 
     def add_hardware(self,hw):
         """Loads a HardwareComponent object into the app. 
-        After calling this, the HW appears in the Hardware tree.
         
         If *hw* is a class, rather an instance, create an instance 
         and add it to self.hardware
         """
         assert not hw.name in self.hardware.keys()
 
+        #If *hw* is a class, rather an instance, create an instance 
         if inspect.isclass(hw):
-            #If *hw* is a class, rather an instance, create an instance 
             hw = hw(app=self)
         
         self.hardware.add(hw.name, hw)
-        
-        hw.add_widgets_to_tree(tree=self.ui.hardware_treeWidget)
+                
         return hw
     
     
@@ -673,24 +680,18 @@ class BaseMicroscopeApp(BaseApp):
     
     def add_measurement(self, measure):
         """Loads a Measurement object into the app.
-        After calling this, the measurement appears in the Measurement tree.
         
         If *measure* is a class, rather an instance, create an instance 
         and add it to self.measurements
 
-        """
-        
+        """        
         #If *measure* is a class, rather an instance, create an instance 
         if inspect.isclass(measure):
             measure = measure(app=self)
 
-            
         assert not measure.name in self.measurements.keys()
         
-
         self.measurements.add(measure.name, measure)
-        
-        measure.add_widgets_to_tree(tree=self.ui.measurements_treeWidget)
 
         return measure
     
