@@ -433,6 +433,52 @@ class BaseMicroscopeApp(BaseApp):
         self.qtapp.setWindowIcon(logo_icon)
         self.ui.setWindowIcon(logo_icon)
         
+        ### parameter tree
+        ## disabled for now
+        """
+        import pyqtgraph.parametertree.parameterTypes as pTypes
+        from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
+        
+        self.ptree = ParameterTree()
+        p = Parameter.create(name='Settings', type='group')
+        
+        app_params = Parameter.create(name='App', type='group')
+        for lq_name, lq in self.settings.as_dict().items():
+            print(lq_name, lq)
+            lq_p = lq.new_pg_parameter()#Parameter.create(name=lq.name, type=lq.dtype)
+            app_params.addChild(lq_p)
+            
+        p.addChild(app_params)
+        
+        
+
+        hw_params = Parameter.create(name='Hardware', type='group')
+        p.addChild(hw_params)
+        
+        for name, measure in self.hardware.items():
+            hw_group = Parameter.create(name=name, type='group')
+            hw_params.addChild(hw_group)
+            for lq_name, lq in measure.settings.as_dict().items():
+                print(lq_name, lq)
+                lq_p = lq.new_pg_parameter()
+                hw_group.addChild(lq_p)
+
+        measure_params = Parameter.create(name='Measurements', type='group')
+        p.addChild(measure_params)
+        
+        for name, measure in self.measurements.items():
+            m_group = Parameter.create(name=name, type='group')
+            measure_params.addChild(m_group)
+            for lq_name, lq in measure.settings.as_dict().items():
+                print(lq_name, lq)
+                lq_p = lq.new_pg_parameter()
+                m_group.addChild(lq_p)
+
+
+        self.ptree.setParameters(p, showTop=True)
+        #self.ptree.show()
+        """
+        
             
     def set_subwindow_mode(self):
         """Switches Multiple Document Interface to Subwindowed viewing mode."""
