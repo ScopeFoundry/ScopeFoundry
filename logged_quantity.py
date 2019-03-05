@@ -998,7 +998,7 @@ class LQRange(LQCircularNetwork):
     with changes to the 4 (or 6) LQ's
     """       
 
-    def __init__(self, min_lq, max_lq, step_lq, num_lq, center_lq=None, span_lq=None):
+    def __init__(self, min_lq, max_lq, step_lq, num_lq, center_lq=None, span_lq=None, sweep_type_lq=None):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         self.min = min_lq
@@ -1035,9 +1035,15 @@ class LQRange(LQCircularNetwork):
             self.max.add_listener(self.on_change_min_max)
 
         self.step.connect_lq_math((self.min,self.max,self.num), self.calc_step)
+        
+        if sweep_type_lq is not None:
+            self.sweep_type_map = {'up':self.up_sweep_array,           'down':self.down_sweep_array, 
+                                   'up_down':self.up_down_sweep_array, 'down_up':self.down_up_sweep_array,
+                                   'zig_zag':self.zig_zag_sweep_array, 'zag_zig':self.zag_zig_sweep_array}
+            self.sweep_type = sweep_type_lq
+            self.sweep_type.change_choice_list(self.sweep_type_map.keys())
+        
 
-
-    
     def calc_num(self, min_, max_, step):
         '''
         enforces num to be a positive integer and adjust step accordingly
@@ -1107,10 +1113,35 @@ class LQRange(LQCircularNetwork):
     def array(self):
         return np.linspace(self.min.val, self.max.val, self.num.val)
     
+    def zig_zag_sweep_array(self):
+        mid_arg = int(self.num.val/2)
+        ar = self.array
+        return np.concatenate([ar[mid_arg:],ar[::-1],ar[0:mid_arg]])
+    def zag_zig_sweep_array(self):
+        return self.zig_zag_sweep_array()[::-1]
+    def up_down_sweep_array(self):
+        ar = self.array
+        return np.concatenate([ar,ar[::-1]])
+    def down_up_sweep_array(self):
+        return self.up_down_sweep_array()[::-1]
+    def down_sweep_array(self):
+        return self.array[::-1]
+    def up_sweep_array(self):
+        return self.array
+        
+    @property
+    def sweep_array(self):
+        print(self.sweep_type.val)
+        if hasattr(self, 'sweep_type'):
+            return self.sweep_type_map[self.sweep_type.val]()
+        else:
+            return self.array
+
     def add_listener(self, func, argtype=(), **kwargs):
         self.min.add_listener(func, argtype, **kwargs)
         self.max.add_listener(func, argtype, **kwargs)
         self.num.add_listener(func, argtype, **kwargs)   
+
 
     
 class LQ3Vector(object):
@@ -1145,11 +1176,12 @@ class LQ3Vector(object):
     def angle_to(self, _lq_vector):
         return np.arccos(np.dot(_lq_vector,self.normed_values))
     
-    
     def add_listener(self, func, argtype=(), **kwargs):
         self.x_lq.add_listener(func, argtype, **kwargs)
         self.y_lq.add_listener(func, argtype, **kwargs)
         self.z_lq.add_listener(func, argtype, **kwargs)        
+
+
 
 class LQCollection(object):
     """
@@ -1246,19 +1278,24 @@ class LQCollection(object):
             return object.__getattribute__(self, name)
     """
     
-    def New_Range(self, name, include_center_span=False, **kwargs):
+    def New_Range(self, name, include_center_span=False, include_sweep_type = False, initials = [0, 1., 0.1], **kwargs):
                         
-        min_lq  = self.New( name + "_min" , initial=0., **kwargs ) 
-        max_lq  = self.New( name + "_max" , initial=1., **kwargs ) 
-        step_lq = self.New( name + "_step", initial=0.1, **kwargs)
+        mn,mx,d = initials
+        min_lq  = self.New( name + "_min" , initial=mn, **kwargs ) 
+        max_lq  = self.New( name + "_max" , initial=mx, **kwargs ) 
+        step_lq = self.New( name + "_step", initial=d, **kwargs)
         num_lq  = self.New( name + "_num", dtype=int, vmin=1, initial=11)
         
+        LQRange_kwargs = {'min_lq':min_lq, 'max_lq':max_lq, 'step_lq':step_lq, 'num_lq':num_lq}
         if include_center_span:
             center_lq = self.New(name + "_center", **kwargs, initial=0.5)
             span_lq = self.New( name + "_span", **kwargs, initial=1.0)
-            lqrange = LQRange(min_lq, max_lq, step_lq, num_lq, center_lq, span_lq)
-        else:
-            lqrange = LQRange(min_lq, max_lq, step_lq, num_lq)
+            LQRange_kwargs.update({'center_lq':center_lq,'span_lq':span_lq})
+        if include_sweep_type:
+            sweep_type_lq  = self.New( name + "_sweep_type", dtype=str, choices=('up','down'), initial='up')
+            LQRange_kwargs.update({'sweep_type_lq':sweep_type_lq})
+        
+        lqrange = LQRange(**LQRange_kwargs)
 
         self.ranges[name] = lqrange
         return lqrange
