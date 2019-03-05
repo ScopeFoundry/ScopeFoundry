@@ -64,7 +64,7 @@ class LoggedQuantity(QtCore.QObject):
     updated_readonly = QtCore.Signal((bool,), (),) 
     
     def __init__(self, name, dtype=float, 
-                 hardware_read_func=None, hardware_set_func=None, 
+                 #hardware_read_func=None, hardware_set_func=None, 
                  initial=0, fmt="%g", si=False,
                  ro = False, # read only flag
                  unit = None,
@@ -79,8 +79,8 @@ class LoggedQuantity(QtCore.QObject):
         self.name = name
         self.dtype = dtype
         self.val = dtype(initial)
-        self.hardware_read_func = hardware_read_func
-        self.hardware_set_func = hardware_set_func
+        self.hardware_read_func = None
+        self.hardware_set_func = None
         self.fmt = fmt # string formatting string. This is ignored if dtype==str
         if self.dtype == str:
             self.fmt = "%s"
@@ -817,7 +817,7 @@ class ArrayLQ(LoggedQuantity):
     updated_shape = QtCore.Signal(str)
     
     def __init__(self, name, dtype=float, 
-                 hardware_read_func=None, hardware_set_func=None, 
+                 #hardware_read_func=None, hardware_set_func=None, 
                  initial=[], fmt="%g", si=True,
                  ro = False,
                  unit = None,
@@ -830,8 +830,8 @@ class ArrayLQ(LoggedQuantity):
             self.val = np.array(initial, dtype=object)
         else:
             self.val = np.array(initial, dtype=dtype)
-        self.hardware_read_func = hardware_read_func
-        self.hardware_set_func = hardware_set_func
+        self.hardware_read_func = None
+        self.hardware_set_func = None
         self.fmt = fmt # % string formatting string. This is ignored if dtype==str
         if self.dtype == str:
             self.fmt = "%s"
