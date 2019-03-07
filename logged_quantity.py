@@ -634,7 +634,9 @@ class LoggedQuantity(QtCore.QObject):
             self.ro = ro
             for widget in self.widget_list:
                 if type(widget) in [QtWidgets.QDoubleSpinBox, pyqtgraph.widgets.SpinBox.SpinBox]:
-                    widget.setReadOnly(self.ro)    
+                    widget.setReadOnly(self.ro)
+                else:
+                    widget.setEnabled(not self.ro)
                 #TODO other widget types
             self.updated_readonly.emit(self.ro)
             
