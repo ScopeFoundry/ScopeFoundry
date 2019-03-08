@@ -6,6 +6,7 @@ import pyqtgraph as pg
 import warnings
 from ScopeFoundry.helper_funcs import get_logger_from_class, QLock
 import time
+import threading
 
 class HardwareComponent(QtCore.QObject):
     """
@@ -202,6 +203,12 @@ class HardwareComponent(QtCore.QObject):
         if enable:
             try:
                 self.connect()
+                # start thread if needed
+                if hasattr(self, 'run'):
+                    self.update_thread_interrupted = False
+                    self._update_thread = threading.Thread(target=self.run)
+                    self._update_thread.start()
+
                 self.connection_succeeded.emit()
             except Exception as err:
                 self.connection_failed.emit()
@@ -209,14 +216,26 @@ class HardwareComponent(QtCore.QObject):
         else:
             print("disabling connection")
             try:
-                self.disconnect()
-                self.tree_item.setText(1,'X')
-                self.tree_item.setForeground(1, QtGui.QColor('red'))          
+                try:
+                    if hasattr(self, 'run') and hasattr(self, '_update_thread'):
+                        self.update_thread_interrupted = True
+                        self._update_thread.join(timeout=5.0)
+                        del self._update_thread
+                finally:
+                    self.disconnect()
+                    self.tree_item.setText(1,'X')
+                    self.tree_item.setForeground(1, QtGui.QColor('red'))          
             except Exception as err:
                 # disconnect failed
                 self.tree_item.setText(1,'?')
                 self.tree_item.setForeground(1, QtGui.QColor('red'))        
                 raise err
+            
+    def run(self):
+        if hasattr(self, 'threaded_update'):
+            while not self.update_thread_interrupted:
+                self.threaded_update()
+                
             
     def on_connection_succeeded(self):
         print(self.name, "connection succeeded!")
