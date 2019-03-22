@@ -2,6 +2,7 @@ from __future__ import division, print_function, absolute_import
 from ScopeFoundry import BaseApp
 from ScopeFoundry.helper_funcs import load_qt_ui_file, sibling_path,\
     load_qt_ui_from_pkg
+from ScopeFoundry.widgets import RegionSlicer
 from collections import OrderedDict
 import os
 from qtpy import QtCore, QtWidgets, QtGui
@@ -14,7 +15,6 @@ import argparse
 import time
 import h5py
 from datetime import datetime
-
 
 class DataBrowser(BaseApp):
     
@@ -266,7 +266,9 @@ class NPZView(DataBrowserView):
         
     def is_file_supported(self, fname):
         return os.path.splitext(fname)[1] == ".npz"
-
+    
+    
+    
 
 
 class HyperSpectralBaseView(DataBrowserView):
@@ -331,11 +333,11 @@ class HyperSpectralBaseView(DataBrowserView):
             
         #settings
         self.default_display_image_choices = ['default', 'sum']
-        self.settings.New('display_image', str, choices = self.default_display_image_choices, initial = 'sum')    
+        self.settings.New('display_image', str, choices = self.default_display_image_choices, initial = 'default')    
         self.settings.display_image.add_listener(self.on_change_display_image)    
         
         self.default_x_axis_choices = ['default', 'index']
-        self.x_axis = self.settings.New('x_axis', str, choices = self.default_x_axis_choices)
+        self.x_axis = self.settings.New('x_axis', str, initial = 'default', choices = self.default_x_axis_choices)
         self.x_axis.add_listener(self.on_change_x_axis)
 
         self.norm_data = self.settings.New('norm_data', bool, initial = False)
@@ -356,33 +358,15 @@ class HyperSpectralBaseView(DataBrowserView):
         self.cor_Y_data.add_listener(self.on_change_corr_settings)
 
         # data slicers
-        self.x_slice = np.s_[0:-1]                        
-        self.x_slice_LinearRegionItem = pg.LinearRegionItem(brush = QtGui.QColor(0,255,0,70))
-        self.x_slice_LinearRegionItem.setZValue(+10)
-        self.spec_plot.addItem(self.x_slice_LinearRegionItem)
-        self.x_slice_LinearRegionItem.sigRegionChangeFinished.connect(self.on_change_x_slice_LinearRegionItem)
-        self.x_slice_InfLineLabel = pg.InfLineLabel(self.x_slice_LinearRegionItem.lines[1], "x_slice", 
-                                               position=0.85, anchor=(0.5, 0.5))
-        self.x_slice_InfLineLabel.setFont(font)
-        self.use_x_slice = self.settings.New('use_x_slice', bool, initial = False)
-        self.use_x_slice.add_listener(self.on_change_x_slice)
-        
-        self.bg_slice = np.s_[0:10]                        
-        self.bg_LinearRegionItem = pg.LinearRegionItem(brush = QtGui.QColor(255,255,255,70))
-        self.bg_LinearRegionItem.setZValue(+11)
-        self.spec_plot.addItem(self.bg_LinearRegionItem)
-        self.bg_LinearRegionItem.sigRegionChangeFinished.connect(self.on_change_bg_LinearRegionItem)
-        self.bg_InfLineLabel = pg.InfLineLabel(self.bg_LinearRegionItem.lines[0], "bg_subtract", 
-                                               position=0.95, rotateAxis = (-1,0), anchor=(0.5, 0.5))
-        self.bg_InfLineLabel.setFont(font)
-        self.bg_subtract = self.settings.New('bg_subtract', bool, initial = False)
-        self.bg_subtract.add_listener(self.on_change_bg_subtract)
-        #self.bg_subtract.update_value(False)  
-              
+        self.x_slicer = RegionSlicer(self.spec_plot, name='x_slice',  slicer_updated_func=self.update_display, 
+                                      brush = QtGui.QColor(0,255,0,70), ZValue=10, font = font, initial = [100,511])
+        self.bg_slicer = RegionSlicer(self.spec_plot, name='bg_slice', slicer_updated_func=self.update_display, 
+                                      brush = QtGui.QColor(255,255,255,70), ZValue=11, font = font, initial = [0,80])
+                
         self.show_lines = ['show_circ_line','show_rect_line']
         for x in self.show_lines:
             lq = self.settings.New(x, bool, initial=True)
-            lq.add_listener(self.on_change_show_lines)
+            lq.add_listener(self.on_change_show_lines)        
         
         self.hyperspec_data = None
         self.display_image = None
@@ -391,21 +375,22 @@ class HyperSpectralBaseView(DataBrowserView):
         self.display_images = dict()
         self.spec_x_arrays = dict()        
 
-
         self.settings_dock = self.dockarea.addDock(name='settings', position='left', relativeTo=self.image_dock)
         self.settings_widgets = [] # Hack part 1/2: allows to use settings.New_UI() and have settings defined in scan_specific_setup()
+        self.settings_widgets.append(self.x_slicer.New_UI())
+        self.settings_widgets.append(self.bg_slicer.New_UI())
         self.scan_specific_setup()
         self.generate_settings_ui() # Hack part 2/2: Need to generate settings after scan_specific_setup()
 
-        self.settings_dock.addWidget(self.settings_ui)
-        self.settings_dock.setStretch(1,2)     
         
-        self.circ_roi_slice = self.rect_roi_slice = np.s_[:,:]
+        #self.circ_roi_slice = self.rect_roi_slice = np.s_[:,:]
 
     
     def generate_settings_ui(self):
         self.settings_ui = self.settings.New_UI()
+        self.settings_dock.addWidget(self.settings_ui)        
 
+        #some more self.settings_widgets[]
         self.update_display_pushButton = QtWidgets.QPushButton(text = 'update display')
         self.settings_widgets.append(self.update_display_pushButton)
         self.update_display_pushButton.clicked.connect(self.update_display)  
@@ -421,9 +406,14 @@ class HyperSpectralBaseView(DataBrowserView):
         self.recalc_sum_pushButton = QtWidgets.QPushButton(text = 'recalc_sum')
         self.settings_widgets.append(self.recalc_sum_pushButton)
         self.recalc_sum_pushButton.clicked.connect(self.recalc_sum_map)
-        
-        for w in self.settings_widgets:
-            self.settings_ui.layout().addWidget(w)
+
+        # Place the self.settings_widgets in a grid
+        ui_widget =  QtWidgets.QWidget()
+        gridLayout = QtWidgets.QGridLayout()
+        ui_widget.setLayout(gridLayout)        
+        for i,w in enumerate(self.settings_widgets):
+            gridLayout.addWidget(w, int(i/2), i%2)
+        self.settings_dock.addWidget(ui_widget)                               
         
     def add_spec_x_array(self, key, array):
         self.spec_x_arrays[key] = array
@@ -442,6 +432,8 @@ class HyperSpectralBaseView(DataBrowserView):
         '''
         x,hyperspec_dat = self.get_xhyperspec_data(apply_use_x_slice)
         y = hyperspec_dat[ji_slice].mean(axis=(0,1))
+        self.databrowser.ui.statusbar.showMessage('get_xy(), counts in slice: {}'.format( y.sum() ) )
+
         if self.settings['norm_data']:
             y = norm(y)          
         return (x,y)
@@ -451,24 +443,28 @@ class HyperSpectralBaseView(DataBrowserView):
         returns processed hyperspec_data
         '''
         hyperspec_data = self.hyperspec_data
-        if self.settings['bg_subtract']:
-            bg = hyperspec_data[:,:,self.bg_slice].mean()
-            hyperspec_data -= bg  
+        if self.bg_slicer.activated.val:
+            bg = hyperspec_data[:,:,self.bg_slicer.slice].mean()
+        else:
+            bg = 0
         x = self.spec_x_array
-        if apply_use_x_slice and self.settings['use_x_slice']:
-            x = x[self.x_slice]
-            hyperspec_data = hyperspec_data[:,:,self.x_slice]
+        if apply_use_x_slice and self.x_slicer.activated.val:
+            x = x[self.x_slicer.slice]
+            hyperspec_data = hyperspec_data[:,:,self.x_slicer.slice]
         binning = self.settings['binning']
         if  binning!= 1:
             x,hyperspec_data = bin_y_average_x(x, hyperspec_data, binning, -1, datapoints_lost_warning=False)   
         if self.settings['norm_data']:
-            hyperspec_data = norm_map(hyperspec_data)          
-        return (x,hyperspec_data)
+            return (x,norm_map(hyperspec_data-bg))
+        else:
+            return (x,hyperspec_data-bg)
     
     def on_change_x_axis(self):
         key = self.settings['x_axis']
         if key in self.spec_x_arrays:
             self.spec_x_array = self.spec_x_arrays[key]
+            self.x_slicer.set_x_array(self.spec_x_array)
+            self.bg_slicer.set_x_array(self.spec_x_array)            
             self.spec_plot.setLabel('bottom', key)
             self.update_display()
             
@@ -511,11 +507,10 @@ class HyperSpectralBaseView(DataBrowserView):
             raise(err)
         finally:
             self.on_change_display_image()
-            self.on_change_x_axis()
-            self.on_change_x_slice()
-            self.on_change_bg_subtract()
             self.on_change_corr_settings()
-            
+            self.update_display()
+        self.on_change_x_axis()
+
         if self.settings['default_view']:
             self.default_image_view()   
 
@@ -597,62 +592,6 @@ class HyperSpectralBaseView(DataBrowserView):
         self.point_plotdata.setData(x, y)
         self.on_change_corr_settings()
 
-
-    def on_change_bg_LinearRegionItem(self):
-        self.update_slice('bg_slice', self.bg_LinearRegionItem)
-        
-    def on_change_bg_subtract(self):
-        activate = self.settings['bg_subtract']
-        self.set_LinearRegionItem_activated(activate, self.bg_LinearRegionItem, [0.0,0.03])
-        self.update_display()
-
-    def on_change_x_slice_LinearRegionItem(self):
-        self.update_slice('x_slice', self.x_slice_LinearRegionItem)
-        
-    def on_change_x_slice(self):
-        if not self.settings['use_x_slice']:
-            self.x_slice = np.s_[:] #the whole array selected
-        activate = self.settings['use_x_slice']
-        self.set_LinearRegionItem_activated(activate, self.x_slice_LinearRegionItem, [0.05,1.0])
-
-    def update_slice(self, slice_name, LinerRegionItem):
-        '''
-        convenience function: updates a slice based on region of `LinearRegionItem`. 
-        Note: the slice to be updated has to be in this name-space and named `slice_name` 
-        '''
-        mn,mx = LinerRegionItem.getRegion()
-        kk_min = np.argmin( (self.spec_x_array - mn)**2 )
-        kk_max = np.argmin( (self.spec_x_array - mx)**2 )
-        _slice = np.s_[kk_min:kk_max]
-        setattr(self, slice_name, _slice)
-        print(slice_name,'=', _slice)
-        self.update_display()
-
-    def set_LinearRegionItem_activated(self, activate, LinearRegionItem, default_region = [0.0,1.0]):
-        '''
-        convenience function to activate a LinearRegionItem
-        ==============  =====================================================================
-        **Arguments:**
-        activate        bool, True to activate, False to deactivate
-        defaut_region   [upper, lower] values typically from 0.0 to 1.0
-        ==============  =====================================================================        
-        '''
-        if LinearRegionItem.getRegion() == (0,1): 
-            #probably not been activated before.
-            vrange = self.spec_x_array[-1] - self.spec_x_array[0]
-            vmin = self.spec_x_array[0] + default_region[0]*vrange
-            vmax = self.spec_x_array[0] + default_region[1]*vrange
-            LinearRegionItem.setRegion( (vmin,vmax) )
-            LinearRegionItem.sigRegionChangeFinished.emit('hello')
-        if activate:
-            LinearRegionItem.setBounds( (self.spec_x_array[0], self.spec_x_array[-1]) )
-            opacity = 1
-        else:
-            opacity = 0
-        LinearRegionItem.setEnabled(activate)
-        LinearRegionItem.setAcceptHoverEvents(activate)
-        LinearRegionItem.setAcceptTouchEvents(activate)
-        LinearRegionItem.setOpacity(opacity)
         
     def on_change_show_lines(self):
         if self.settings['show_circ_line']:
