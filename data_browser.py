@@ -268,7 +268,6 @@ class NPZView(DataBrowserView):
         return os.path.splitext(fname)[1] == ".npz"
     
     
-    
 
 
 class HyperSpectralBaseView(DataBrowserView):
@@ -276,16 +275,12 @@ class HyperSpectralBaseView(DataBrowserView):
     name = 'HyperSpectralBaseView'
     
     def setup(self):
-        
-        #self.ui = self.splitter = QtWidgets.QSplitter()
-        #self.ui.setLayout(QtWidgets.QVBoxLayout())
+
         self.ui = self.dockarea = dockarea.DockArea()
         self.imview = pg.ImageView()
         self.imview.getView().invertY(False) # lower left origin
-        #self.splitter.addWidget(self.imview)
         self.image_dock = self.dockarea.addDock(name='Image', widget=self.imview)
         self.graph_layout = pg.GraphicsLayoutWidget()
-        #self.splitter.addWidget(self.graph_layout)
         self.spec_dock = self.dockarea.addDock(name='Spec Plot', widget=self.graph_layout)
 
         self.line_pens = ['w', 'r']
@@ -300,10 +295,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.corr_plot = self.corr_layout.addPlot()
         self.corr_plotdata = pg.ScatterPlotItem(x=[0,1,2,3,4], y=[0,2,1,3,2], size=17, 
                                         pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 60))
-        self.corr_plot.addItem(self.corr_plotdata)
-        
-        #self.corr_plotdata = self.corr_plot.scatterPlot( x=[0,1,2,3,4], y=[0,2,1,3,2], size=17, 
-        #                                pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 60))
+        self.corr_plot.addItem(self.corr_plotdata)        
         self.corr_dock = self.dockarea.addDock(name='correlation', widget=self.corr_layout, 
                               position='below',  relativeTo = self.spec_dock)
         self.spec_dock.raiseDock()
@@ -406,6 +398,10 @@ class HyperSpectralBaseView(DataBrowserView):
         self.recalc_sum_pushButton = QtWidgets.QPushButton(text = 'recalc_sum')
         self.settings_widgets.append(self.recalc_sum_pushButton)
         self.recalc_sum_pushButton.clicked.connect(self.recalc_sum_map)
+
+        self.save_state_pushButton = QtWidgets.QPushButton(text = 'save_state')
+        self.settings_widgets.append(self.save_state_pushButton)
+        self.save_state_pushButton.clicked.connect(self.save_state)
 
         # Place the self.settings_widgets in a grid
         ui_widget =  QtWidgets.QWidget()
@@ -653,6 +649,40 @@ class HyperSpectralBaseView(DataBrowserView):
             self.settings.display_image.update_value( self.default_display_image_choices[0] )
         fname = self.databrowser.settings['data_filename']
         self.on_change_data_filename(fname)
+    
+    def save_state(self):
+        from ScopeFoundry import h5_io
+        fname = self.databrowser.settings['data_filename']
+        view_state_fname = '{fname}_state_view_{timestamp:%y%m%d_%H%M%S}.{ext}'.format(
+            fname = fname.strip('.h5'),
+            timestamp=datetime.fromtimestamp(time.time()),
+            ext='h5')
+        h5_file = h5py.File(name = view_state_fname)
+        
+        with h5_file as h5_file:
+            h5_group_display_images = h5_file.create_group('display_images')
+            for k,v in self.display_images.items():
+                h5_group_display_images.create_dataset(k, data=v)
+            h5_group_spec_x_array = h5_file.create_group('spec_x_arrays')
+            for k,v in self.spec_x_arrays.items():
+                h5_group_spec_x_array.create_dataset(k, data=v)
+            h5_group_settings_group = h5_file.create_group('settings')
+            h5_io.h5_save_lqcoll_to_attrs(self.settings, h5_group_settings_group)
+            h5_group_settings_group = h5_file.create_group('x_slicer_settings')
+            h5_io.h5_save_lqcoll_to_attrs(self.x_slicer.settings, h5_group_settings_group)            
+            h5_group_settings_group = h5_file.create_group('bg_slicer_settings')
+            h5_io.h5_save_lqcoll_to_attrs(self.bg_slicer.settings, h5_group_settings_group)
+            self.view_specific_save_state_func(h5_file)
+            h5_file.close()          
+
+    def view_specific_save_state_func(self, h5_file):
+        '''
+        you can override me, use 'h5_file' - it's already open 
+        e.g:  h5_file.create_group('scan_specific_settings')
+         ...
+        '''
+        pass
+    
         
 def spectral_median(spec, wls, count_min=200):
     int_spec = np.cumsum(spec)
