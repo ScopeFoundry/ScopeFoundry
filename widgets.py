@@ -6,7 +6,6 @@ Created on Jul 20, 2018
 
 from qtpy import  QtCore, QtWidgets, QtGui
 import pyqtgraph as pg
-from ScopeFoundry.logged_quantity import LQCollection
 import numpy as np
 
 class MinMaxQSlider(QtWidgets.QWidget):
@@ -154,6 +153,7 @@ class RegionSlicer(object):
                  slicer_updated_func=lambda:None,  
                  brush=QtGui.QColor(0,255,0,70), ZValue=10, font=QtGui.QFont("Times", 12), initial=[0,100]):
         self.name = name
+        from ScopeFoundry.logged_quantity import LQCollection
         self.settings = LQCollection()
         self.start = self.settings.New('start', int, initial=initial[0], vmin = 0)
         self.stop = self.settings.New('stop', int, initial=initial[1], vmin = 0)
