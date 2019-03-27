@@ -157,7 +157,7 @@ class LoggedQuantity(QtCore.QObject):
     
     def read_from_hardware(self, send_signal=True):
         self.log.debug("{}: read_from_hardware send_signal={}".format(self.name, send_signal))
-        if self.hardware_read_func:        
+        if self.hardware_read_func is not None:        
             with self.lock:
                 self.oldval = self.val
                 val = self.hardware_read_func()
@@ -443,7 +443,7 @@ class LoggedQuantity(QtCore.QObject):
                 #widget.sliderMoved[int].connect(self.update_value)
                 widget.valueChanged[int].connect(self.update_value)
                 
-                widget.setSingleStep(1)
+                widget.setSingleStep(1)            
                 
         elif type(widget) == QtWidgets.QCheckBox:
 
@@ -634,7 +634,9 @@ class LoggedQuantity(QtCore.QObject):
             self.ro = ro
             for widget in self.widget_list:
                 if type(widget) in [QtWidgets.QDoubleSpinBox, pyqtgraph.widgets.SpinBox.SpinBox]:
-                    widget.setReadOnly(self.ro)    
+                    widget.setReadOnly(self.ro)
+                else:
+                    widget.setEnabled(not self.ro)
                 #TODO other widget types
             self.updated_readonly.emit(self.ro)
             
@@ -754,7 +756,7 @@ class LoggedQuantity(QtCore.QObject):
                           reverse_func=lambda y, old_vals: [y * 1.0/scale,])
 
     def new_default_widget(self):
-        """ returns the approriate QWidget for the datatype of the
+        """ returns the appropriate QWidget for the datatype of the
         LQ. automatically connects widget
         """
         if self.choices is not None:
@@ -771,6 +773,44 @@ class LoggedQuantity(QtCore.QObject):
         self.connect_to_widget(widget)
         
         return widget
+    
+    def new_pg_parameter(self):
+        from pyqtgraph.parametertree import Parameter
+        dtype_map = {str: 'str', float:'float', int:'int', bool:'bool'}
+        
+        if self.choices:
+            print(self.name, "have choices")
+            print(self.choices)
+            # choices should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
+
+            p = Parameter.create(name=self.name, type='list', values=dict(self.choices), value=self.value)
+            
+            def update_param(v):
+                print("updating parameter", self.name, p, v)
+                p.setValue(v)
+
+            
+            self.updated_value[self.dtype].connect(update_param)#(lambda v, p=p: p.setValue(v))
+            p.sigValueChanged.connect(lambda p,v: self.update_value(v))
+
+            return p
+        if self.is_array:
+            # DOES NOT WORK CORRECTLY
+            p = Parameter.create(name=self.name, type='str', value=str(self.value))
+            
+            return p
+        else: 
+            p = Parameter.create(name=self.name, type=dtype_map[self.dtype], value=self.value)
+            
+            def update_param(v):
+                print("updating parameter", self.name, p, v)
+                p.setValue(v)
+                
+            self.updated_value[self.dtype].connect(update_param)#(lambda v, p=p: p.setValue(v))
+            p.sigValueChanged.connect(lambda p,v: self.update_value(v))
+            
+            return p
+        
 
 class FileLQ(LoggedQuantity):
     """
@@ -839,6 +879,7 @@ class ArrayLQ(LoggedQuantity):
         self.vmin = vmin
         self.vmax = vmax
         self.ro = ro # Read-Only
+        self.choices = choices
         
         self.log = get_logger_from_class(self)
 
