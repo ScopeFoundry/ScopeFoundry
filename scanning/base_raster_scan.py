@@ -395,11 +395,11 @@ class BaseRaster2DScan(Measurement):
             
     def update_LUT(self):
         ''' override this function to control display LUT scaling'''
-        self.hist_lut.imageChanged(autoLevel=False)
-        # DISABLE below because of crashing
-#         non_zero_index = np.nonzero(self.disp_img)
-#         if len(non_zero_index[0]) > 0:
-#             self.hist_lut.setLevels(*np.percentile(self.disp_img[non_zero_index],(1,99)))
+        self.hist_lut.imageChanged(autoLevel=True)
+        #DISABLE below because of crashing
+        non_zero_index = np.nonzero(self.disp_img)
+        if len(non_zero_index[0]) > 0:
+            self.hist_lut.setLevels(*np.percentile(self.disp_img[non_zero_index],(1,99)))
                
     def clear_previous_scans(self):
         #current_img = img_items.pop()
