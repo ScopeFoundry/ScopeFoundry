@@ -86,11 +86,11 @@ class BaseRaster2DScan(Measurement):
         self.Nh = self.settings.New('Nh', initial=11, vmin=1, dtype=int, ro=False)
         self.Nv = self.settings.New('Nv', initial=11, vmin=1, dtype=int, ro=False)
         
-        self.h_center = self.settings.New('h_center', dtype=float, ro=False)
-        self.v_center = self.settings.New('v_center', dtype=float, ro=False)
+        self.h_center = self.settings.New('h_center', dtype=float, ro=False,unit=self.h_unit,spinbox_decimals=self.h_spinbox_decimals, spinbox_step=self.h_spinbox_step)
+        self.v_center = self.settings.New('v_center', dtype=float, ro=False,unit=self.v_unit,spinbox_decimals=self.v_spinbox_decimals, spinbox_step=self.v_spinbox_step)
 
-        self.h_span = self.settings.New('h_span', dtype=float, ro=False)
-        self.v_span = self.settings.New('v_span', dtype=float, ro=False)
+        self.h_span = self.settings.New('h_span', dtype=float, ro=False,spinbox_decimals=self.h_spinbox_decimals, spinbox_step=self.h_spinbox_step,unit=self.h_unit)
+        self.v_span = self.settings.New('v_span', dtype=float, ro=False,spinbox_decimals=self.v_spinbox_decimals, spinbox_step=self.v_spinbox_step,unit=self.v_unit)
         
         self.Npixels = self.Nh.val*self.Nv.val
         
