@@ -366,10 +366,11 @@ class LoggedQuantity(QtCore.QObject):
                        use self.ui.int_value_doubleSpinBox
         =============  ====================================================================
         
-        :returns: None
+        :returns: None or Connection object returned by signal.connect()
 
         """
-
+        connection = None
+        
         if type(widget) == QtWidgets.QDoubleSpinBox:
 
             widget.setKeyboardTracking(False)
@@ -394,13 +395,13 @@ class LoggedQuantity(QtCore.QObject):
                 finally:
                     widget.blockSignals(False)                    
             #self.updated_value[float].connect(widget.setValue)
-            self.updated_value[float].connect(update_widget_value)
+            connection = self.updated_value[float].connect(update_widget_value)
             #if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
         
         elif type(widget) == MinMaxQSlider:
             self.updated_value[float].connect(widget.update_value)
-            widget.updated_value[float].connect(self.update_value)
+            connection = widget.updated_value[float].connect(self.update_value)
             if self.unit is not None:
                 widget.setSuffix(self.unit)
             widget.setSingleStep(self.spinbox_step)
@@ -436,10 +437,10 @@ class LoggedQuantity(QtCore.QObject):
                     widget.setMaximum(transform_to_slider(self.vmax))
                 widget.setSingleStep(1)
                 widget.setValue(transform_to_slider(self.val))
-                self.updated_value[float].connect(update_widget_value)
+                connection = self.updated_value[float].connect(update_widget_value)
                 widget.valueChanged[int].connect(update_spinbox)
             elif self.dtype == int:
-                self.updated_value[int].connect(widget.setValue)
+                connection = self.updated_value[int].connect(widget.setValue)
                 #widget.sliderMoved[int].connect(self.update_value)
                 widget.valueChanged[int].connect(self.update_value)
                 
@@ -452,7 +453,7 @@ class LoggedQuantity(QtCore.QObject):
                 #self.log.debug("LQ {} update qcheckbox: {} arg{} lq value{}".format(lq.name,   widget, x, lq.value))                
                 widget.setChecked(lq.value)                    
 
-            self.updated_value[bool].connect(update_widget_value)
+            connection = self.updated_value[bool].connect(update_widget_value)
             widget.clicked[bool].connect(self.update_value) # another option is stateChanged signal
             if self.ro:
                 #widget.setReadOnly(True)
@@ -460,7 +461,7 @@ class LoggedQuantity(QtCore.QObject):
                 
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
-            self.updated_value[str].connect(widget.setText)
+            connection = self.updated_value[str].connect(widget.setText)
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
             def on_edit_finished():
@@ -570,6 +571,7 @@ class LoggedQuantity(QtCore.QObject):
         #self.widget = widget
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
+        return connection
         
         
     def connect_to_lq(self, lq):
