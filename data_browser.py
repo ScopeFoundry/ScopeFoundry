@@ -334,6 +334,13 @@ class HyperSpectralBaseView(DataBrowserView):
 
         self.norm_data = self.settings.New('norm_data', bool, initial = False)
         self.norm_data.add_listener(self.update_display)
+
+        self.bg_subtract = self.settings.New('bg_subtract', str, initial='None', choices=('None', 'bg_slice', 'costum_const'))
+        self.norm_data.add_listener(self.update_display)
+        
+        self.bg_counts = self.settings.New('bg_value', initial=0, unit='cts/bin')
+        self.bg_counts.add_listener(self.update_display)
+
         self.settings.New('default_view', bool, initial=True)
         
         self.binning = self.settings.New('binning', int, initial = 1, vmin=1)
@@ -353,8 +360,9 @@ class HyperSpectralBaseView(DataBrowserView):
         self.x_slicer = RegionSlicer(self.spec_plot, name='x_slice',  slicer_updated_func=self.update_display, 
                                       brush = QtGui.QColor(0,255,0,70), ZValue=10, font = font, initial = [100,511])
         self.bg_slicer = RegionSlicer(self.spec_plot, name='bg_slice', slicer_updated_func=self.update_display, 
-                                      brush = QtGui.QColor(255,255,255,70), ZValue=11, font = font, initial = [0,80])
-                
+                                      brush = QtGui.QColor(255,255,255,70), ZValue=11, font = font, initial = [0,80], label_line=0)
+        self.bg_slicer.activated.add_listener(lambda:self.bg_subtract.update_value('bg_slice') if self.bg_slicer.activated else None)        
+        
         self.show_lines = ['show_circ_line','show_rect_line']
         for x in self.show_lines:
             lq = self.settings.New(x, bool, initial=True)
@@ -433,16 +441,30 @@ class HyperSpectralBaseView(DataBrowserView):
         if self.settings['norm_data']:
             y = norm(y)          
         return (x,y)
-
+    
+    def get_bg(self):
+        bg_subtract_mode = self.bg_subtract.val
+        if bg_subtract_mode == 'bg_slice':
+            if not self.bg_slicer.activated:
+                self.bg_slicer.activated.update_value(True)
+            bg_slice = self.bg_slicer.slice
+            bg = self.hyperspec_data[:,:,bg_slice].mean()
+            self.bg_slicer.set_label(title=bg_subtract_mode,
+                text='{:1.1f}cts/bin\n# of bins:{}'.format(bg,bg_slice.stop-bg_slice.start))
+        elif bg_subtract_mode == 'costum_const':
+            bg = self.bg_counts.val
+            self.bg_slicer.set_label('', title=bg_subtract_mode)
+        else:
+            bg = 0
+            self.bg_slicer.set_label('', title=bg_subtract_mode)
+        return bg
+        
     def get_xhyperspec_data(self, apply_use_x_slice=True):
         '''
         returns processed hyperspec_data
         '''
+        bg = self.get_bg()
         hyperspec_data = self.hyperspec_data
-        if self.bg_slicer.activated.val:
-            bg = hyperspec_data[:,:,self.bg_slicer.slice].mean()
-        else:
-            bg = 0
         x = self.spec_x_array
         if apply_use_x_slice and self.x_slicer.activated.val:
             x = x[self.x_slicer.slice]
