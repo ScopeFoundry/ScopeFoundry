@@ -139,19 +139,26 @@ class RegionSlicer(object):
     adds a movable pyqtgraph.LinearRegionItem to 'parent_plot' and provides
     a numpy slice that would slice specified x_array according to the region.
     Note: The x_array from which the indexes are calculated has to be specified.
-          at initialization or using set_x_array(x_array) method
+          at initialization or using set_x_array(x_array) method. 
             
     parent_plot            <pyqtgraph.PlotItem>
-    name                   <str>
     x_array                array-like 
+    name                   <str> 
     slicer_updated_func    gets called when region is updated
-    brush,ZValue,font      are passed to the LinearRegionItem
     initial                [start_idx, stop_idx] of the slice
+    brush,ZValue,          are passed to the LinearRegionItem
+    font,                  passed to the label
+    label_line             '0' or '1' for placement of label onto 'left' or right
+                           bounding line. 
+                           
+    uses predominantly pyqtgraph.LinearRegionItem.sigRegionChangeFinished signal
     '''
     
     def __init__(self, parent_plot,  x_array=None, name='array_slicer_name',
                  slicer_updated_func=lambda:None,  
-                 brush=QtGui.QColor(0,255,0,70), ZValue=10, font=QtGui.QFont("Times", 12), initial=[0,100]):
+                 initial=[0,100], 
+                 brush=QtGui.QColor(0,255,0,70), ZValue=10, 
+                 font=QtGui.QFont("Times", 12), label_line=1):
         self.name = name
         from ScopeFoundry.logged_quantity import LQCollection
         self.settings = LQCollection()
@@ -168,9 +175,10 @@ class RegionSlicer(object):
         parent_plot.addItem(self.linear_region_item)
         
         self.linear_region_item.sigRegionChangeFinished.connect(self.on_change_region)
-        self.inf_line_label = pg.InfLineLabel(self.linear_region_item.lines[1], self.name, 
-                                               position=0.78, anchor=(0.5, 0.5))
+        self.inf_line_label = pg.InfLineLabel(self.linear_region_item.lines[label_line],
+                                              self.name, position=0.78, anchor=(0.5, 0.5))
         self.inf_line_label.setFont(font)
+        self.set_label('')
         if x_array == None:
             x_array = np.arange(512)
         self.set_x_array(x_array)
@@ -222,7 +230,7 @@ class RegionSlicer(object):
         else:
             opacity = 0
         self.linear_region_item.setOpacity(opacity)
-        print('on_change_activated', activated)
+        #print(self.name, 'on_change_activated', activated)
         self.slicer_updated()
         
     def New_UI(self):
@@ -230,3 +238,9 @@ class RegionSlicer(object):
         ui_widget.layout().insertRow(0, QtWidgets.QLabel("<b>{}</b>".format(self.name)) )        
         return ui_widget
         
+        
+    def set_label(self, text='', title=None, color=(200,200,200)):
+        if title == None:
+            title = self.name
+        label = '{}\n{}'.format(title, text)
+        self.inf_line_label.setText(label, color)
