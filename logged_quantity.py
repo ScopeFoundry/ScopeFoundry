@@ -563,6 +563,8 @@ class LoggedQuantity(QtCore.QObject):
                 self.log.debug("set_progressbar {}".format(x))
                 widget.setValue(int(x))
             self.updated_value.connect(set_progressbar)
+        elif type(widget) == QtWidgets.QLCDNumber:
+            self.updated_value[(self.dtype)].connect(widget.display)
         else:
             raise ValueError("Unknown widget type")
         
