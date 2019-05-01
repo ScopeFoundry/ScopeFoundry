@@ -501,8 +501,10 @@ class HyperSpectralBaseView(DataBrowserView):
         pass
 
     def on_change_data_filename(self, fname):
-        if hasattr(self, 'dat'):
-            self.dat.close()
+
+        if fname == "0":
+            return
+
 
         self.reset()
         try:
@@ -534,9 +536,10 @@ class HyperSpectralBaseView(DataBrowserView):
 
     def update_display(self):
         # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose
-        self.imview.getImageItem().setImage(self.display_image.T)
-        self.on_change_rect_roi()
-        self.on_update_circ_roi()
+        if self.display_image:
+            self.imview.getImageItem().setImage(self.display_image.T)
+            self.on_change_rect_roi()
+            self.on_update_circ_roi()
 
     def reset(self):
         '''
