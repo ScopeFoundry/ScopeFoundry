@@ -130,63 +130,100 @@ class MinMaxQSlider(QtWidgets.QWidget):
         val = self.transform_from_slider(val)
         text =self.name+" "+str(val)
         self.title_label.setText(text)
+
         
-        
-        
-        
-class RegionSlicer(object):
+class RegionSlicer(QtWidgets.QWidget):
     '''
-    adds a movable pyqtgraph.LinearRegionItem to 'parent_plot' and provides
-    a numpy slice that would slice specified x_array according to the region.
-    Note: The x_array from which the indexes are calculated has to be specified.
-          at initialization or using set_x_array(x_array) method. 
-            
-    parent_plot            <pyqtgraph.PlotItem>
-    x_array                array-like 
-    name                   <str> 
-    slicer_updated_func    gets called when region is updated
-    initial                [start_idx, stop_idx] of the slice
-    brush,ZValue,          are passed to the LinearRegionItem
-    font,                  passed to the label
-    label_line             '0' or '1' for placement of label onto 'left' or right
-                           bounding line. 
-                           
-    uses predominantly pyqtgraph.LinearRegionItem.sigRegionChangeFinished signal
+    **Bases:** :class: `QWidget <pyqt.QtWidgets.QWidget>`
+    
+    Adds a movable <pyqtgraph.LinearRegionItem>.
+    Provides a numpy slice that would slices the x_array within the region.
+    
+    ===============================  =============================================================================
+    **Signals:**
+    region_changed_signal()          Emitted when region is changed or activated by user
+    ===============================  =============================================================================
     '''
     
-    def __init__(self, parent_plot,  x_array=None, name='array_slicer_name',
+    region_changed_signal = QtCore.Signal()
+    
+    def __init__(self, plot_item, x_array=None, name='array_slicer_name',
                  slicer_updated_func=lambda:None,  
                  initial=[0,100], 
                  brush=QtGui.QColor(0,255,0,70), ZValue=10, 
-                 font=QtGui.QFont("Times", 12), label_line=1):
+                 font=QtGui.QFont("Times", 12), label_line=1, activated=False):
+        """Create a new LinearRegionItem on plot_item.
+        
+        ====================== ==============================================================
+        **Arguments:**
+        plot_item              <pyqtgraph.PlotDataItem> (recommended) 
+                                or <pyqtgraph.PlotItem>  (does not grab x_array data from plot
+                                item: initialize x_array manually
+                                or use :func:`set_x_array' <self.set_x_array>`)
+        x_array                initializes x_array. 
+        name                   <str> 
+        slicer_updated_func    gets called when region is updated
+        initial                [start_idx, stop_idx] of the slice
+        brush,ZValue,          are passed to the LinearRegionItem
+        font,                  passed to the label
+        label_line             '0' or '1' for placement of label onto 'left' or right
+                               bounding line. 
+        activated              bool state at initialiasation
+        ====================== ==============================================================
+        """
+        QtWidgets.QWidget.__init__(self)        
+
         self.name = name
+        
         from ScopeFoundry.logged_quantity import LQCollection
         self.settings = LQCollection()
         self.start = self.settings.New('start', int, initial=initial[0], vmin = 0)
         self.stop = self.settings.New('stop', int, initial=initial[1], vmin = 0)
-        self.activated = self.settings.New('activated', bool, initial = False)
-        
+        self.activated = self.settings.New('activated', bool, initial = activated)
         self.start.add_listener(self.on_change_start_stop)
         self.stop.add_listener(self.on_change_start_stop)
         self.activated.add_listener(self.on_change_activated)
         
+        if  type(plot_item) == pg.PlotDataItem:
+            self.plot_data_item = plot_item
+            self.plot_data_item.sigPlotChanged.connect(self.set_x_array_from_data_data_item)
+            self.parent_plot_item = plot_item.parentItem()
+        elif type(plot_item) == pg.PlotItem:                
+            self.plot_data_item = None
+            self.parent_plot_item = plot_item
+
         self.linear_region_item = pg.LinearRegionItem(brush = brush)
-        self.linear_region_item.setZValue(ZValue)        
-        parent_plot.addItem(self.linear_region_item)
-        
+        self.linear_region_item.setZValue(ZValue)                         
+        self.parent_plot_item.addItem(self.linear_region_item)
         self.linear_region_item.sigRegionChangeFinished.connect(self.on_change_region)
+        
         self.inf_line_label = pg.InfLineLabel(self.linear_region_item.lines[label_line],
                                               self.name, position=0.78, anchor=(0.5, 0.5))
         self.inf_line_label.setFont(font)
         self.set_label('')
-        if x_array == None:
+        
+        if x_array == None: #give it something to work with.
             x_array = np.arange(512)
         self.set_x_array(x_array)
+        
         self.slicer_updated = slicer_updated_func
+                
     
     @QtCore.Slot(object)
+    def set_x_array_from_data_data_item(self):
+        print('set_x_array_from_data_data_item')
+        self.x_array,_ = self.plot_data_item.getData()
+        self.apply_new_x_array()
+    
     def set_x_array(self, x_array):
-        self.x_array = np.array(x_array)
+        '''
+        use this function to update the x_array
+        not required to use if type(plot_item) == pg.PlotDataItem
+        '''
+        self.x_array = x_array
+        self.apply_new_x_array()
+        
+    def apply_new_x_array(self):
         self.linear_region_item.setBounds( [self.x_array.min(), self.x_array.max()] )
         kk_max = len(self.x_array)
         self.start.change_min_max(0, kk_max)
@@ -200,7 +237,16 @@ class RegionSlicer(object):
     @property
     def slice(self):
         return np.s_[ self.settings['start'] : self.settings['stop'] ]
-            
+    
+    @property
+    def s(self):
+        '''returns an activation sensitive slice'''
+        if self.activated.val:
+            return self.slice
+        else:
+            return np.s_[:]
+    
+    @QtCore.Slot(object)
     def on_change_region(self):
         '''
         updates settings based on region 
@@ -209,15 +255,19 @@ class RegionSlicer(object):
         mn,mx = self.linear_region_item.getRegion()
         self.settings['start'] = np.argmin( (self.x_array - mn)**2 )
         self.settings['stop'] = np.argmin( (self.x_array - mx)**2 )
+        self.region_changed_signal.emit()
         self.slicer_updated()
-    
+        
     def on_change_start_stop(self):
         '''
         updates linear_region_item based on settings 
         '''
         rgn = [0,0]
         rgn[0] = self.x_array[ self.settings['start'] ]
-        rgn[1] = self.x_array[ self.settings['stop'] ]
+        try:
+            rgn[1] = self.x_array[ self.settings['stop'] ]
+        except IndexError:
+            rgn[1] = self.x_array[ self.settings['start'] ]
         self.linear_region_item.setRegion(rgn)    
         
     def on_change_activated(self):
@@ -230,7 +280,7 @@ class RegionSlicer(object):
         else:
             opacity = 0
         self.linear_region_item.setOpacity(opacity)
-        #print(self.name, 'on_change_activated', activated)
+        self.region_changed_signal.emit()
         self.slicer_updated()
         
     def New_UI(self):
@@ -238,9 +288,9 @@ class RegionSlicer(object):
         ui_widget.layout().insertRow(0, QtWidgets.QLabel("<b>{}</b>".format(self.name)) )        
         return ui_widget
         
-        
     def set_label(self, text='', title=None, color=(200,200,200)):
         if title == None:
             title = self.name
-        label = '{}\n{}'.format(title, text)
-        self.inf_line_label.setText(label, color)
+        label = '<h3>{}</h3>{}'.format(title, text)
+        self.inf_line_label.setHtml(label)
+        self.inf_line_label.setColor(color)
