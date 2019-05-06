@@ -136,8 +136,8 @@ class RegionSlicer(QtWidgets.QWidget):
     '''
     **Bases:** :class: `QWidget <pyqt.QtWidgets.QWidget>`
     
-    Adds a movable <pyqtgraph.LinearRegionItem>.
-    Provides a numpy slice that would slices the x_array within the region.
+    Adds a movable <pyqtgraph.LinearRegionItem> to a plot.
+    Provides a numpy slice and mask that would slices the x_array within the region.
     
     ===============================  =============================================================================
     **Signals:**
@@ -159,16 +159,17 @@ class RegionSlicer(QtWidgets.QWidget):
         plot_item              <pyqtgraph.PlotDataItem> (recommended) 
                                 or <pyqtgraph.PlotItem>  (does not grab x_array data from plot
                                 item: initialize x_array manually
-                                or use :func:`set_x_array' <self.set_x_array>`)
+                                or use :func:`set_x_array <self.set_x_array>`)
         x_array                initializes x_array. 
         name                   <str> 
-        slicer_updated_func    gets called when region is updated
+        slicer_updated_func    gets called when region is updated, alternatively use 
+                               :sig:region_changed_signal().
         initial                [start_idx, stop_idx] of the slice
         brush,ZValue,          are passed to the LinearRegionItem
         font,                  passed to the label
-        label_line             '0' or '1' for placement of label onto 'left' or right
+        label_line             '0' or '1' for placement of label onto 'left' or 'right'
                                bounding line. 
-        activated              bool state at initialiasation
+        activated              <bool> state at initialization
         ====================== ==============================================================
         """
         QtWidgets.QWidget.__init__(self)        
@@ -245,6 +246,13 @@ class RegionSlicer(QtWidgets.QWidget):
             return self.slice
         else:
             return np.s_[:]
+        
+    @property
+    def mask(self):
+        if self.activated.val:
+            return (self.x_array >= self.region_min) * (self.x_array <= self.region_max)
+        else:
+            return np.ones_like(self.x_array, dtype=bool)       
     
     @QtCore.Slot(object)
     def on_change_region(self):
@@ -252,7 +260,7 @@ class RegionSlicer(QtWidgets.QWidget):
         updates settings based on region 
         '''
         print(self.name, 'on_change_region')
-        mn,mx = self.linear_region_item.getRegion()
+        self.region_min, self.region_max = mn,mx = self.linear_region_item.getRegion()
         self.settings['start'] = np.argmin( (self.x_array - mn)**2 )
         self.settings['stop'] = np.argmin( (self.x_array - mx)**2 )
         self.region_changed_signal.emit()
