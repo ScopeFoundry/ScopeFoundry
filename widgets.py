@@ -149,7 +149,7 @@ class RegionSlicer(QtWidgets.QWidget):
     
     def __init__(self, plot_item, x_array=None, name='array_slicer_name',
                  slicer_updated_func=lambda:None,  
-                 initial=[0,100], 
+                 initial=[0,100], s_return_on_deactivated = np.s_[:],
                  brush=QtGui.QColor(0,255,0,70), ZValue=10, 
                  font=QtGui.QFont("Times", 12), label_line=1, activated=False):
         """Create a new LinearRegionItem on plot_item.
@@ -160,17 +160,21 @@ class RegionSlicer(QtWidgets.QWidget):
                                 or <pyqtgraph.PlotItem>  (does not grab x_array data from plot
                                 item: initialize x_array manually
                                 or use :func:`set_x_array <self.set_x_array>`)
-        x_array                initializes x_array. 
+        x_array                use to initialize x_array if plot_item == <pyqtgraph.PlotItem>.
         name                   <str> 
         slicer_updated_func    gets called when region is updated, alternatively use 
                                :sig:region_changed_signal().
         initial                [start_idx, stop_idx] of the slice
+        s_return_on_deactivated  Object returned if RegionSlicer is not activated.
+                                 Slicing with np.s_[:] (default) and np.s_[0] gives the full and 
+                                 an empty array respectively. Note, <RegionSlicer.slice> always 
+                                 returns the last determined slice even if slice is deactivated.
         brush,ZValue,          are passed to the LinearRegionItem
         font,                  passed to the label
         label_line             '0' or '1' for placement of label onto 'left' or 'right'
                                bounding line. 
         activated              <bool> state at initialization
-        ====================== ==============================================================
+        ====================== ===============================================================
         """
         QtWidgets.QWidget.__init__(self)        
 
@@ -184,6 +188,8 @@ class RegionSlicer(QtWidgets.QWidget):
         self.start.add_listener(self.on_change_start_stop)
         self.stop.add_listener(self.on_change_start_stop)
         self.activated.add_listener(self.on_change_activated)
+        
+        self.s_return_on_deactivated = s_return_on_deactivated
         
         if  type(plot_item) == pg.PlotDataItem:
             self.plot_data_item = plot_item
@@ -240,12 +246,12 @@ class RegionSlicer(QtWidgets.QWidget):
         return np.s_[ self.settings['start'] : self.settings['stop'] ]
     
     @property
-    def s(self):
-        '''returns an activation sensitive slice'''
+    def s_(self):
+        '''returns slice based on region if activated else `s_return_on_deactivated`'''
         if self.activated.val:
             return self.slice
         else:
-            return np.s_[:]
+            return self.s_return_on_deactivated
         
     @property
     def mask(self):
