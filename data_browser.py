@@ -357,11 +357,13 @@ class HyperSpectralBaseView(DataBrowserView):
         self.cor_Y_data.add_listener(self.on_change_corr_settings)
 
         # data slicers
-        self.x_slicer = RegionSlicer(self.spec_plot, name='x_slice',  slicer_updated_func=self.update_display, 
-                                      brush = QtGui.QColor(0,255,0,70), ZValue=10, font = font, initial = [100,511])
-        self.bg_slicer = RegionSlicer(self.spec_plot, name='bg_slice', slicer_updated_func=self.update_display, 
-                                      brush = QtGui.QColor(255,255,255,70), ZValue=11, font = font, initial = [0,80], label_line=0)
-        self.bg_slicer.activated.add_listener(lambda:self.bg_subtract.update_value('bg_slice') if self.bg_slicer.activated else None)        
+        self.x_slicer = RegionSlicer(self.spec_plot, name='x_slice', 
+                                      brush = QtGui.QColor(0,255,0,70), 
+                                      ZValue=10, font = font, initial = [100,511])
+        self.bg_slicer = RegionSlicer(self.spec_plot, name='bg_slice', slicer_updated_func=self.update_display,
+                                      brush = QtGui.QColor(255,255,255,70), 
+                                      ZValue=11, font = font, initial = [0,80], label_line=0)
+        self.bg_slicer.activated.add_listener(lambda:self.bg_subtract.update_value('bg_slice') if self.bg_slicer.activated.val else None)        
         
         self.show_lines = ['show_circ_line','show_rect_line']
         for x in self.show_lines:
@@ -424,11 +426,21 @@ class HyperSpectralBaseView(DataBrowserView):
         self.settings.x_axis.add_choice(key, allow_duplicates=False)
 
     def add_display_image(self, key, image):
+        key = self.resolve_key_duplicate(key)
         self.display_images[key] = image
         self.settings.display_image.add_choice(key, allow_duplicates=False)
         self.cor_X_data.change_choice_list(self.display_images.keys())
         self.cor_Y_data.change_choice_list(self.display_images.keys())
         self.on_change_corr_settings()
+    
+    def resolve_key_duplicate(self, key):
+        if self.x_slicer.activated.val:
+            key += '_x{}-{}'.format(self.x_slicer.start.val, self.x_slicer.stop.val)
+        if self.settings['bg_subtract'] == 'bg_slice' and self.bg_slicer.activated.val:
+            key += '_bg{}-{}'.format(self.bg_slicer.start.val, self.bg_slicer.stop.val)
+        if self.settings['bg_subtract'] == 'costum_count':
+            key += '_bg{1.2f}'.format(self.bg_counts.val)       
+        return key        
     
     def get_xy(self, ji_slice, apply_use_x_slice=False):
         '''
@@ -450,7 +462,7 @@ class HyperSpectralBaseView(DataBrowserView):
             bg_slice = self.bg_slicer.slice
             bg = self.hyperspec_data[:,:,bg_slice].mean()
             self.bg_slicer.set_label(title=bg_subtract_mode,
-                text='{:1.1f}cts/bin\n# of bins:{}'.format(bg,bg_slice.stop-bg_slice.start))
+                text='{:1.1f} cts<br>{} bins'.format(bg,bg_slice.stop-bg_slice.start))
         elif bg_subtract_mode == 'costum_const':
             bg = self.bg_counts.val
             self.bg_slicer.set_label('', title=bg_subtract_mode)
@@ -628,7 +640,7 @@ class HyperSpectralBaseView(DataBrowserView):
         h,w  = iI.height(), iI.width()       
         self.rect_roi.setSize((w,h))
         self.rect_roi.setPos((0,0))
-        self.imview.autoRange()
+        self.imview.getView().enableAutoRange()
         
     def recalc_median_map(self):
         x,hyperspec_data = self.get_xhyperspec_data(apply_use_x_slice=True)
@@ -705,6 +717,46 @@ class HyperSpectralBaseView(DataBrowserView):
         '''
         pass
     
+    def load_state(self, fname_idx=-1):
+        
+        # does not work properly, maybe because the order the settings are set matters?
+        path = sibling_path(self.databrowser.settings['data_filename'], '')
+        pre_state_fname = self.databrowser.settings['data_filename'].strip(path).strip('.h5')
+        
+        state_files = []
+        for x in os.listdir(path):
+            if pre_state_fname in x:
+                if 'state_view' in x:
+                    state_files.append(x)
+            
+        print('state_files', state_files)
+        
+        if len(state_files) != 0:
+            h5_file = h5py.File(path + state_files[fname_idx])
+            for k,v in h5_file['bg_slicer_settings'].attrs.items():
+                try:
+                    self.bg_slicer.settings[k] = v
+                except:
+                    pass    
+            for k,v in h5_file['x_slicer_settings'].attrs.items():
+                try:
+                    self.x_slicer.settings[k] = v
+                except:
+                    pass
+                
+            for k,v in h5_file['settings'].attrs.items():
+                try:
+                    self.settings[k] = v
+                except:
+                    pass
+
+            for k,v in h5_file['biexponential_settings'].attrs.items():
+                self.biexponential_settings[k] = v
+            for k,v in h5_file['export_settings'].attrs.items():
+                self.export_settings[k] = v
+            
+            h5_file.close()
+            print('loaded', state_files[fname_idx])
         
 def spectral_median(spec, wls, count_min=200):
     int_spec = np.cumsum(spec)
