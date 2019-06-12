@@ -341,7 +341,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.bg_counts = self.settings.New('bg_value', initial=0, unit='cts/bin')
         self.bg_counts.add_listener(self.update_display)
 
-        self.settings.New('default_view', bool, initial=True)
+        self.settings.New('default_view_on_load', bool, initial=True)
         
         self.binning = self.settings.New('binning', int, initial = 1, vmin=1)
         self.binning.add_listener(self.update_display)
@@ -458,7 +458,7 @@ class HyperSpectralBaseView(DataBrowserView):
         '''
         x,hyperspec_dat = self.get_xhyperspec_data(apply_use_x_slice)
         y = hyperspec_dat[ji_slice].mean(axis=(0,1))
-        self.databrowser.ui.statusbar.showMessage('get_xy(), counts in slice: {}'.format( y.sum() ) )
+        #self.databrowser.ui.statusbar.showMessage('get_xy(), counts in slice: {}'.format( y.sum() ) )
 
         if self.settings['norm_data']:
             y = norm(y)          
@@ -493,7 +493,10 @@ class HyperSpectralBaseView(DataBrowserView):
             hyperspec_data = hyperspec_data[:,:,self.x_slicer.slice]
         binning = self.settings['binning']
         if  binning!= 1:
-            x,hyperspec_data = bin_y_average_x(x, hyperspec_data, binning, -1, datapoints_lost_warning=False)   
+            x,hyperspec_data = bin_y_average_x(x, hyperspec_data, binning, -1, datapoints_lost_warning=False)
+            bg *= binning
+        msg = 'effective subtracted bg value is binnging*bg ={:0.1f} which is up to {:2.1f}% of max value.'.format(bg, bg/np.max(hyperspec_data)*100 )
+        self.databrowser.ui.statusbar.showMessage(msg)
         if self.settings['norm_data']:
             return (x,norm_map(hyperspec_data-bg))
         else:
@@ -531,6 +534,7 @@ class HyperSpectralBaseView(DataBrowserView):
     def on_change_data_filename(self, fname):
         self.reset()
         try:
+            self.scalebar_type = None
             self.load_data(fname)
             if self.settings['spatial_binning'] != 1:
                 self.hyperspec_data = bin_2D(self.hyperspec_data, self.settings['spatial_binning'])
@@ -551,31 +555,46 @@ class HyperSpectralBaseView(DataBrowserView):
             self.update_display()
         self.on_change_x_axis()
 
-        if self.settings['default_view']:
+        if self.settings['default_view_on_load']:
             self.default_image_view()   
+            
+    def add_scalebar(self):
+        if hasattr(self, 'scalebar'):
+            self.imview.getView().removeItem(self.scalebar)
+            del self.scalebar
+        if self.scalebar_type =='ConfocalScaleBar':
+            from viewers.scalebars import ConfocalScaleBar
+            span = self.scalebar_span
+            num_px = self.display_image.shape[0]
+            self.scalebar = ConfocalScaleBar(span, num_px)
+            self.scalebar.setParentItem(self.imview.getView())
+            self.scalebar.anchor((1, 1), (1, 1), offset=(-20, -20))
+            
+    def set_scalebar_params(self, h_span, units='m', scalebar_type='ConfocalScaleBar',):
+        '''h_span = -1 defines width of the display image'''
+        self.scalebar_type = scalebar_type
+        self.scalebar_span = {'m':1, 'mm':1e-3, 'um':1e-6, 'nm':1e-9, 'pm':1e-12, 'fm':1e-15}[units] * h_span
 
     def update_display(self):
         # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose        
-        self.imview.setImage(self.display_image.T)
-        self.on_change_rect_roi()
-        self.on_update_circ_roi()
+        if self.display_image is not None:
+            self.imview.setImage(self.display_image.T)
+            self.on_change_rect_roi()
+            self.on_update_circ_roi()
+        if self.scalebar_type != None:
+            self.add_scalebar()
 
+            
     def reset(self):
         '''
         resets the dictionaries
         '''
-        k_to_delete = []
-        for k in self.display_images.keys():
-            if not k in self.default_display_image_choices:
-                k_to_delete.append(k)
-        for k in k_to_delete:
-            self.display_images.pop(k)
-        k_to_delete = []
-        for k in self.spec_x_arrays.keys():
-            if not k in self.default_x_axis_choices:
-                k_to_delete.append(k)
-        for k in k_to_delete:
-            self.spec_x_arrays.pop(k)
+        keys_to_delete = list( set(self.display_images.keys()) - set(self.default_display_image_choices) )
+        for key in keys_to_delete:
+            del self.display_images[key]
+        keys_to_delete = list( set(self.spec_x_arrays.keys()) - set(self.default_x_axis_choices) )
+        for key in keys_to_delete:
+            del self.spec_x_arrays[key]
         self.settings.display_image.change_choice_list(self.default_display_image_choices)
         self.settings.x_axis.change_choice_list(self.default_x_axis_choices)
 
