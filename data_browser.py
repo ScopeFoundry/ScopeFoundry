@@ -413,6 +413,10 @@ class HyperSpectralBaseView(DataBrowserView):
         self.settings_widgets.append(self.save_state_pushButton)
         self.save_state_pushButton.clicked.connect(self.save_state)
 
+        self.delete_current_display_image_pushButton = QtWidgets.QPushButton(text = 'delete_current_display_image')
+        self.settings_widgets.append(self.delete_current_display_image_pushButton)
+        self.delete_current_display_image_pushButton.clicked.connect(self.delete_current_display_image)
+        
         # Place the self.settings_widgets in a grid
         ui_widget =  QtWidgets.QWidget()
         gridLayout = QtWidgets.QGridLayout()
@@ -429,6 +433,7 @@ class HyperSpectralBaseView(DataBrowserView):
         key = self.resolve_key_duplicate(key)
         self.display_images[key] = image
         self.settings.display_image.add_choice(key, allow_duplicates=False)
+        self.settings.display_image.update_value(key)
         self.cor_X_data.change_choice_list(self.display_images.keys())
         self.cor_Y_data.change_choice_list(self.display_images.keys())
         self.on_change_corr_settings()
@@ -442,6 +447,11 @@ class HyperSpectralBaseView(DataBrowserView):
             key += '_bg{1.2f}'.format(self.bg_counts.val)       
         return key        
     
+    def delete_current_display_image(self):
+        key = self.settings.display_image.val
+        del self.display_images[key]
+        self.settings.display_image.remove_choices(key)   
+            
     def get_xy(self, ji_slice, apply_use_x_slice=False):
         '''
         returns processed hyperspec_data averaged over a given spatial slice.
