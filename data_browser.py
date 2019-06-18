@@ -427,13 +427,12 @@ class HyperSpectralBaseView(DataBrowserView):
         
     def add_spec_x_array(self, key, array):
         self.spec_x_arrays[key] = array
-        self.settings.x_axis.add_choice(key, allow_duplicates=False)
+        self.settings.x_axis.add_choices(key, allow_duplicates=False)
 
     def add_display_image(self, key, image):
         key = self.resolve_key_duplicate(key)
         self.display_images[key] = image
-        self.settings.display_image.add_choice(key, allow_duplicates=False)
-        self.settings.display_image.update_value(key)
+        self.settings.display_image.add_choices(key, allow_duplicates=False)
         self.cor_X_data.change_choice_list(self.display_images.keys())
         self.cor_Y_data.change_choice_list(self.display_images.keys())
         self.on_change_corr_settings()
@@ -669,7 +668,9 @@ class HyperSpectralBaseView(DataBrowserView):
         h,w  = iI.height(), iI.width()       
         self.rect_roi.setSize((w,h))
         self.rect_roi.setPos((0,0))
+        #self.circ_roi.setPos((0,0))
         self.imview.getView().enableAutoRange()
+        self.spec_plot.enableAutoRange()
         
     def recalc_median_map(self):
         x,hyperspec_data = self.get_xhyperspec_data(apply_use_x_slice=True)
