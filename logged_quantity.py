@@ -602,28 +602,35 @@ class LoggedQuantity(QtCore.QObject):
         self.send_display_updates(force=True)
         
     
-    def add_choice(self, additional_choices, allow_duplicates=False, update_value=False):
-        if not isinstance(additional_choices, (list, tuple)):
-            additional_choices = [additional_choices]
-        additional_choices = self._expand_choices(additional_choices)
-        print(additional_choices)
+    def add_choices(self, choices, allow_duplicates=False, new_val=-1):
+        if not isinstance(choices, (list, tuple)):
+            choices = [choices]
+        choices = self._expand_choices(choices)
         if not allow_duplicates:
-            additional_choices = list( set(additional_choices) - set(self.choices) )
-        new_choices_list = self.choices + additional_choices
-        print(new_choices_list)
-        self.change_choice_list(new_choices_list)
-        if update_value:
-            self.update_value(new_choices_list[-1][0])
-    
+            choices = list( set(choices) - set(self.choices) )
+        if len(choices) > 0:
+            new_choices_list = self.choices + choices
+            self.change_choice_list(new_choices_list)
+            if type(new_val) == int:
+                new_val = new_choices_list[new_val][0]
+            self.update_value(new_val)
+            return True
+        else:
+            return False
+        
     def remove_choices(self, choices, new_val=-1):
         if not isinstance(choices, (list, tuple)):
             choices = [choices]
         choices = self._expand_choices(choices)
         new_choices_list = list( set(self.choices) - set(choices) )
-        self.change_choice_list(new_choices_list)
-        if type(new_val) == int:
-            new_val = self.choices[new_val][0]
-        self.update_value(new_val)
+        if len(new_choices_list) < len(self.choices):
+            self.change_choice_list(new_choices_list)
+            if type(new_val) == int:
+                new_val = self.choices[new_val][0]
+            self.update_value(new_val)
+            return True
+        else:
+            return False
     
     def change_min_max(self, vmin=-1e12, vmax=+1e12):
         # TODO  setRange should be a slot for the updated_min_max signal
