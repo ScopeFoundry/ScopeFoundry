@@ -686,7 +686,7 @@ class BaseRaster3DScan(Measurement):
         self.Npixels = self.Nh.val*self.Nv.val*self.Nz.val
         
         self.scan_type = self.settings.New('scan_type', dtype=str, initial='raster',
-                                                  choices=('raster', ))
+                                                  choices=('raster', 'serpentine'))
         
         self.continuous_scan = self.settings.New("continuous_scan", dtype=bool, initial=False)
         self.settings.New('save_h5', dtype=bool, initial=True, ro=False)
@@ -1079,7 +1079,7 @@ class BaseRaster3DScan(Measurement):
         #self.settings['pixel_time'] = 1.0/self.scanDAQ.settings['dac_rate']
         S = self.settings
         S['line_time']  = S['pixel_time'] * S['Nh']
-        S['frame_time'] = S['pixel_time'] * self.Npixels
+        S['frame_time'] = S['line_time'] * S['Nv']
         S['total_time'] = S['frame_time'] * S['Nz']
     
     #### Scan Generators
@@ -1123,28 +1123,31 @@ class BaseRaster3DScan(Measurement):
             self.scan_index_array[:,2] = II.flat
             #self.scan_v_positions
             print("array flatten raster gen", time.time() - t0)
-#             
-#         
-#     def gen_serpentine_scan(self, gen_arrays=True):
-#         self.Npixels = self.Nh.val*self.Nv.val
-#         self.scan_shape = (1, self.Nv.val, self.Nh.val)
-# 
-#         if gen_arrays:
-#             self.create_empty_scan_arrays()
-#             pixel_i = 0
-#             for jj in range(self.Nv.val):
-#                 self.scan_slow_move[pixel_i] = True
-#                 
-#                 if jj % 2: #odd lines
-#                     h_line_indicies = range(self.Nh.val)[::-1]
-#                 else:       #even lines -- traverse in opposite direction
-#                     h_line_indicies = range(self.Nh.val)            
-#         
-#                 for ii in h_line_indicies:            
-#                     self.scan_v_positions[pixel_i] = self.v_array[jj]
-#                     self.scan_h_positions[pixel_i] = self.h_array[ii]
-#                     self.scan_index_array[pixel_i,:] = [0, jj, ii]                 
-#                     pixel_i += 1
+             
+         
+    def gen_serpentine_scan(self, gen_arrays=True):
+        self.Npixels = self.Nh.val*self.Nv.val*self.Nz.val
+        self.scan_shape = (self.Nz.val, self.Nv.val, self.Nh.val)
+ 
+        if gen_arrays:
+            self.create_empty_scan_arrays()
+            pixel_i = 0
+            for kk in range(self.Nz.val):
+                self.scan_start_move[pixel_i] = True
+                for jj in range(self.Nv.val):
+                    self.scan_slow_move[pixel_i] = True
+                     
+                    if jj % 2: #odd lines
+                        h_line_indicies = range(self.Nh.val)[::-1]
+                    else:       #even lines -- traverse in opposite direction
+                        h_line_indicies = range(self.Nh.val)            
+             
+                    for ii in h_line_indicies:
+                        self.scan_z_positions[pixel_i] = self.z_array[kk]            
+                        self.scan_v_positions[pixel_i] = self.v_array[jj]
+                        self.scan_h_positions[pixel_i] = self.h_array[ii]
+                        self.scan_index_array[pixel_i,:] = [kk, jj, ii]                 
+                        pixel_i += 1
 #                 
 #     def gen_trace_retrace_scan(self, gen_arrays=True):
 #         self.Npixels = 2*self.Nh.val*self.Nv.val
