@@ -341,7 +341,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.bg_counts = self.settings.New('bg_value', initial=0, unit='cts/bin')
         self.bg_counts.add_listener(self.update_display)
 
-        self.settings.New('default_view', bool, initial=True)
+        self.settings.New('default_view_on_load', bool, initial=True)
         
         self.binning = self.settings.New('binning', int, initial = 1, vmin=1)
         self.binning.add_listener(self.update_display)
@@ -357,11 +357,13 @@ class HyperSpectralBaseView(DataBrowserView):
         self.cor_Y_data.add_listener(self.on_change_corr_settings)
 
         # data slicers
-        self.x_slicer = RegionSlicer(self.spec_plot, name='x_slice',  slicer_updated_func=self.update_display, 
-                                      brush = QtGui.QColor(0,255,0,70), ZValue=10, font = font, initial = [100,511])
-        self.bg_slicer = RegionSlicer(self.spec_plot, name='bg_slice', slicer_updated_func=self.update_display, 
-                                      brush = QtGui.QColor(255,255,255,70), ZValue=11, font = font, initial = [0,80], label_line=0)
-        self.bg_slicer.activated.add_listener(lambda:self.bg_subtract.update_value('bg_slice') if self.bg_slicer.activated else None)        
+        self.x_slicer = RegionSlicer(self.spec_plot, name='x_slice', 
+                                      brush = QtGui.QColor(0,255,0,70), 
+                                      ZValue=10, font = font, initial = [100,511])
+        self.bg_slicer = RegionSlicer(self.spec_plot, name='bg_slice', slicer_updated_func=self.update_display,
+                                      brush = QtGui.QColor(255,255,255,70), 
+                                      ZValue=11, font = font, initial = [0,80], label_line=0)
+        self.bg_slicer.activated.add_listener(lambda:self.bg_subtract.update_value('bg_slice') if self.bg_slicer.activated.val else None)        
         
         self.show_lines = ['show_circ_line','show_rect_line']
         for x in self.show_lines:
@@ -411,6 +413,10 @@ class HyperSpectralBaseView(DataBrowserView):
         self.settings_widgets.append(self.save_state_pushButton)
         self.save_state_pushButton.clicked.connect(self.save_state)
 
+        self.delete_current_display_image_pushButton = QtWidgets.QPushButton(text = 'delete_current_display_image')
+        self.settings_widgets.append(self.delete_current_display_image_pushButton)
+        self.delete_current_display_image_pushButton.clicked.connect(self.delete_current_display_image)
+        
         # Place the self.settings_widgets in a grid
         ui_widget =  QtWidgets.QWidget()
         gridLayout = QtWidgets.QGridLayout()
@@ -421,22 +427,37 @@ class HyperSpectralBaseView(DataBrowserView):
         
     def add_spec_x_array(self, key, array):
         self.spec_x_arrays[key] = array
-        self.settings.x_axis.add_choice(key, allow_duplicates=False)
+        self.settings.x_axis.add_choices(key, allow_duplicates=False)
 
     def add_display_image(self, key, image):
+        key = self.resolve_key_duplicate(key)
         self.display_images[key] = image
-        self.settings.display_image.add_choice(key, allow_duplicates=False)
+        self.settings.display_image.add_choices(key, allow_duplicates=False)
         self.cor_X_data.change_choice_list(self.display_images.keys())
         self.cor_Y_data.change_choice_list(self.display_images.keys())
         self.on_change_corr_settings()
     
+    def resolve_key_duplicate(self, key):
+        if self.x_slicer.activated.val:
+            key += '_x{}-{}'.format(self.x_slicer.start.val, self.x_slicer.stop.val)
+        if self.settings['bg_subtract'] == 'bg_slice' and self.bg_slicer.activated.val:
+            key += '_bg{}-{}'.format(self.bg_slicer.start.val, self.bg_slicer.stop.val)
+        if self.settings['bg_subtract'] == 'costum_count':
+            key += '_bg{1.2f}'.format(self.bg_counts.val)       
+        return key        
+    
+    def delete_current_display_image(self):
+        key = self.settings.display_image.val
+        del self.display_images[key]
+        self.settings.display_image.remove_choices(key)   
+            
     def get_xy(self, ji_slice, apply_use_x_slice=False):
         '''
         returns processed hyperspec_data averaged over a given spatial slice.
         '''
         x,hyperspec_dat = self.get_xhyperspec_data(apply_use_x_slice)
         y = hyperspec_dat[ji_slice].mean(axis=(0,1))
-        self.databrowser.ui.statusbar.showMessage('get_xy(), counts in slice: {}'.format( y.sum() ) )
+        #self.databrowser.ui.statusbar.showMessage('get_xy(), counts in slice: {}'.format( y.sum() ) )
 
         if self.settings['norm_data']:
             y = norm(y)          
@@ -450,7 +471,7 @@ class HyperSpectralBaseView(DataBrowserView):
             bg_slice = self.bg_slicer.slice
             bg = self.hyperspec_data[:,:,bg_slice].mean()
             self.bg_slicer.set_label(title=bg_subtract_mode,
-                text='{:1.1f}cts/bin\n# of bins:{}'.format(bg,bg_slice.stop-bg_slice.start))
+                text='{:1.1f} cts<br>{} bins'.format(bg,bg_slice.stop-bg_slice.start))
         elif bg_subtract_mode == 'costum_const':
             bg = self.bg_counts.val
             self.bg_slicer.set_label('', title=bg_subtract_mode)
@@ -471,7 +492,10 @@ class HyperSpectralBaseView(DataBrowserView):
             hyperspec_data = hyperspec_data[:,:,self.x_slicer.slice]
         binning = self.settings['binning']
         if  binning!= 1:
-            x,hyperspec_data = bin_y_average_x(x, hyperspec_data, binning, -1, datapoints_lost_warning=False)   
+            x,hyperspec_data = bin_y_average_x(x, hyperspec_data, binning, -1, datapoints_lost_warning=False)
+            bg *= binning
+        msg = 'effective subtracted bg value is binnging*bg ={:0.1f} which is up to {:2.1f}% of max value.'.format(bg, bg/np.max(hyperspec_data)*100 )
+        self.databrowser.ui.statusbar.showMessage(msg)
         if self.settings['norm_data']:
             return (x,norm_map(hyperspec_data-bg))
         else:
@@ -509,6 +533,7 @@ class HyperSpectralBaseView(DataBrowserView):
     def on_change_data_filename(self, fname):
         self.reset()
         try:
+            self.scalebar_type = None
             self.load_data(fname)
             if self.settings['spatial_binning'] != 1:
                 self.hyperspec_data = bin_2D(self.hyperspec_data, self.settings['spatial_binning'])
@@ -529,31 +554,46 @@ class HyperSpectralBaseView(DataBrowserView):
             self.update_display()
         self.on_change_x_axis()
 
-        if self.settings['default_view']:
+        if self.settings['default_view_on_load']:
             self.default_image_view()   
+            
+    def add_scalebar(self):
+        if hasattr(self, 'scalebar'):
+            self.imview.getView().removeItem(self.scalebar)
+            del self.scalebar
+        if self.scalebar_type =='ConfocalScaleBar':
+            from viewers.scalebars import ConfocalScaleBar
+            span = self.scalebar_span
+            num_px = self.display_image.shape[0]
+            self.scalebar = ConfocalScaleBar(span, num_px)
+            self.scalebar.setParentItem(self.imview.getView())
+            self.scalebar.anchor((1, 1), (1, 1), offset=(-20, -20))
+            
+    def set_scalebar_params(self, h_span, units='m', scalebar_type='ConfocalScaleBar',):
+        '''h_span = -1 defines width of the display image'''
+        self.scalebar_type = scalebar_type
+        self.scalebar_span = {'m':1, 'mm':1e-3, 'um':1e-6, 'nm':1e-9, 'pm':1e-12, 'fm':1e-15}[units] * h_span
 
     def update_display(self):
         # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose        
-        self.imview.setImage(self.display_image.T)
-        self.on_change_rect_roi()
-        self.on_update_circ_roi()
+        if self.display_image is not None:
+            self.imview.setImage(self.display_image.T)
+            self.on_change_rect_roi()
+            self.on_update_circ_roi()
+        if self.scalebar_type != None:
+            self.add_scalebar()
 
+            
     def reset(self):
         '''
         resets the dictionaries
         '''
-        k_to_delete = []
-        for k in self.display_images.keys():
-            if not k in self.default_display_image_choices:
-                k_to_delete.append(k)
-        for k in k_to_delete:
-            self.display_images.pop(k)
-        k_to_delete = []
-        for k in self.spec_x_arrays.keys():
-            if not k in self.default_x_axis_choices:
-                k_to_delete.append(k)
-        for k in k_to_delete:
-            self.spec_x_arrays.pop(k)
+        keys_to_delete = list( set(self.display_images.keys()) - set(self.default_display_image_choices) )
+        for key in keys_to_delete:
+            del self.display_images[key]
+        keys_to_delete = list( set(self.spec_x_arrays.keys()) - set(self.default_x_axis_choices) )
+        for key in keys_to_delete:
+            del self.spec_x_arrays[key]
         self.settings.display_image.change_choice_list(self.default_display_image_choices)
         self.settings.x_axis.change_choice_list(self.default_x_axis_choices)
 
@@ -628,7 +668,9 @@ class HyperSpectralBaseView(DataBrowserView):
         h,w  = iI.height(), iI.width()       
         self.rect_roi.setSize((w,h))
         self.rect_roi.setPos((0,0))
-        self.imview.autoRange()
+        #self.circ_roi.setPos((0,0))
+        self.imview.getView().enableAutoRange()
+        self.spec_plot.enableAutoRange()
         
     def recalc_median_map(self):
         x,hyperspec_data = self.get_xhyperspec_data(apply_use_x_slice=True)
@@ -705,6 +747,46 @@ class HyperSpectralBaseView(DataBrowserView):
         '''
         pass
     
+    def load_state(self, fname_idx=-1):
+        
+        # does not work properly, maybe because the order the settings are set matters?
+        path = sibling_path(self.databrowser.settings['data_filename'], '')
+        pre_state_fname = self.databrowser.settings['data_filename'].strip(path).strip('.h5')
+        
+        state_files = []
+        for x in os.listdir(path):
+            if pre_state_fname in x:
+                if 'state_view' in x:
+                    state_files.append(x)
+            
+        print('state_files', state_files)
+        
+        if len(state_files) != 0:
+            h5_file = h5py.File(path + state_files[fname_idx])
+            for k,v in h5_file['bg_slicer_settings'].attrs.items():
+                try:
+                    self.bg_slicer.settings[k] = v
+                except:
+                    pass    
+            for k,v in h5_file['x_slicer_settings'].attrs.items():
+                try:
+                    self.x_slicer.settings[k] = v
+                except:
+                    pass
+                
+            for k,v in h5_file['settings'].attrs.items():
+                try:
+                    self.settings[k] = v
+                except:
+                    pass
+
+            for k,v in h5_file['biexponential_settings'].attrs.items():
+                self.biexponential_settings[k] = v
+            for k,v in h5_file['export_settings'].attrs.items():
+                self.export_settings[k] = v
+            
+            h5_file.close()
+            print('loaded', state_files[fname_idx])
         
 def spectral_median(spec, wls, count_min=200):
     int_spec = np.cumsum(spec)
