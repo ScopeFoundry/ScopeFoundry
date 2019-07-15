@@ -855,8 +855,8 @@ class BaseMicroscopeApp(BaseApp):
         try:
             if domain in ['hardware','HW','hw']:
                 lq = getattr(self.hardware[component].settings, setting)
-            if domain in ['measurement','measure']:
-                lq = getattr(self.measurement[component].settings, setting)
+            if domain in ['measurement','measure', 'measurements']:
+                lq = getattr(self.measurements[component].settings, setting)
             if domain == 'app':
                 lq = getattr(self.settings, setting)
             return lq
