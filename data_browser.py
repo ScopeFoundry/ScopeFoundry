@@ -16,6 +16,7 @@ import time
 import h5py
 from datetime import datetime
 
+
 class DataBrowser(BaseApp):
     
     name = "DataBrowser"
@@ -276,6 +277,19 @@ class HyperSpectralBaseView(DataBrowserView):
     
     def setup(self):
 
+        ## Dummy data Structures (override in func:self.load_data())
+        self.hyperspec_data = np.arange(10*10*34).reshape( (10,10,34) )
+        self.display_image = self.hyperspec_data.sum(-1)# np.random.rand(10,10)
+        self.spec_x_array = np.arange(34)
+
+        # Call func:set_scalebar_params() during self.load_data() to add a scalebar!
+        self.scalebar_type = None
+
+        # Will be filled derived maps and images
+        self.display_images = dict()
+        self.spec_x_arrays = dict()   
+
+        ## Graphs and Interface 
         self.ui = self.dockarea = dockarea.DockArea()
         self.imview = pg.ImageView()
         self.imview.getView().invertY(False) # lower left origin
@@ -283,11 +297,11 @@ class HyperSpectralBaseView(DataBrowserView):
         self.graph_layout = pg.GraphicsLayoutWidget()
         self.spec_dock = self.dockarea.addDock(name='Spec Plot', widget=self.graph_layout)
 
-        self.line_pens = ['w', 'r']
+        self.line_colors = ['w', 'r', 'g']
         self.spec_plot = self.graph_layout.addPlot()
         self.spec_plot.setLabel('left', 'Intensity', units='counts') 
-        self.rect_plotdata = self.spec_plot.plot(y=[0,2,1,3,2],pen=self.line_pens[0])
-        self.point_plotdata = self.spec_plot.plot(y=[0,2,1,3,2], pen=self.line_pens[1])
+        self.rect_plotdata = self.spec_plot.plot(y=[0,2,1,3,2], pen=self.line_colors[0])
+        self.point_plotdata = self.spec_plot.plot(y=[0,2,1,3,2], pen=self.line_colors[1])
         self.point_plotdata.setZValue(-1)
 
         #correlation plot
@@ -298,17 +312,17 @@ class HyperSpectralBaseView(DataBrowserView):
         self.corr_plot.addItem(self.corr_plotdata)        
         self.corr_dock = self.dockarea.addDock(name='correlation', widget=self.corr_layout, 
                               position='below',  relativeTo = self.spec_dock)
+        self.corr_plotdata.sigClicked.connect(self.corr_plot_clicked)
         self.spec_dock.raiseDock()
         
-        
         # Rectangle ROI
-        self.rect_roi = pg.RectROI([20, 20], [20, 20], pen=(0,9))
+        self.rect_roi = pg.RectROI([20, 20], [20, 20], pen=self.line_colors[0])
         self.rect_roi.addTranslateHandle((0.5,0.5))        
         self.imview.getView().addItem(self.rect_roi)        
         self.rect_roi.sigRegionChanged[object].connect(self.on_change_rect_roi)
         
         # Point ROI
-        self.circ_roi = pg.CircleROI( (0,0), (2,2) , movable=True, pen=(0,9))
+        self.circ_roi = pg.CircleROI( (0,0), (2,2) , movable=True, pen=self.line_colors[1])
         #self.circ_roi.removeHandle(self.circ_roi.getHandles()[0])
         h = self.circ_roi.addTranslateHandle((0.5,.5))
         h.pen = pg.mkPen('r')
@@ -318,7 +332,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.circ_roi_plotline = pg.PlotCurveItem([0], pen=(0,9))
         self.imview.getView().addItem(self.circ_roi_plotline) 
         self.circ_roi.sigRegionChanged[object].connect(self.on_update_circ_roi)
-        
+                
         #font
         font = QtGui.QFont("Times", 12)
         font.setBold(True)
@@ -340,7 +354,7 @@ class HyperSpectralBaseView(DataBrowserView):
         
         self.bg_counts = self.settings.New('bg_value', initial=0, unit='cts/bin')
         self.bg_counts.add_listener(self.update_display)
-
+        
         self.settings.New('default_view_on_load', bool, initial=True)
         
         self.binning = self.settings.New('binning', int, initial = 1, vmin=1)
@@ -356,13 +370,14 @@ class HyperSpectralBaseView(DataBrowserView):
         self.cor_X_data.add_listener(self.on_change_corr_settings)
         self.cor_Y_data.add_listener(self.on_change_corr_settings)
 
+
         # data slicers
         self.x_slicer = RegionSlicer(self.spec_plot, name='x_slice', 
                                       brush = QtGui.QColor(0,255,0,70), 
-                                      ZValue=10, font = font, initial = [100,511])
+                                      ZValue=10, font=font, initial=[100,511])
         self.bg_slicer = RegionSlicer(self.spec_plot, name='bg_slice', slicer_updated_func=self.update_display,
                                       brush = QtGui.QColor(255,255,255,70), 
-                                      ZValue=11, font = font, initial = [0,80], label_line=0)
+                                      ZValue=11, font=font, initial=[0,80], label_line=0)
         self.bg_slicer.activated.add_listener(lambda:self.bg_subtract.update_value('bg_slice') if self.bg_slicer.activated.val else None)        
         
         self.show_lines = ['show_circ_line','show_rect_line']
@@ -370,22 +385,33 @@ class HyperSpectralBaseView(DataBrowserView):
             lq = self.settings.New(x, bool, initial=True)
             lq.add_listener(self.on_change_show_lines)        
         
-        self.hyperspec_data = None
-        self.display_image = None
-        self.spec_x_array = None
-        
-        self.display_images = dict()
-        self.spec_x_arrays = dict()        
+        # peakutils
+        self.peakutils_settings = LQCollection()    
+        self.show_peak_line = self.peakutils_settings.New('show_peak_line', bool, initial=False)
+        self.show_peak_line.add_listener(self.update_display)
+        self.baseline_deg = self.peakutils_settings.New('baseline_deg', int, initial=0, vmin=-1, vmax=100)
+        self.baseline_deg.add_listener(self.update_display)
+        self.thres = self.peakutils_settings.New('thres', float, initial=0.5, vmin=0, vmax=1) 
+        self.thres.add_listener(self.update_display)
+        self.peakutils_settings.New('unique_solution', bool, initial=False)
+        self.peakutils_settings.New('min_dist', int, initial=-1)
+        self.peakutils_settings.New('gaus_fit_refinement', bool, initial=True)
+        self.peakutils_settings.New('ignore_phony_refinements', bool, initial=True)
+        self.base_plotdata = self.spec_plot.plot(y=[0,2,1,3,2], pen=self.line_colors[2])
+        self.peak_lines = []
 
+
+        # Settings Docks
         self.settings_dock = self.dockarea.addDock(name='settings', position='left', relativeTo=self.image_dock)
         self.settings_widgets = [] # Hack part 1/2: allows to use settings.New_UI() and have settings defined in scan_specific_setup()
         self.settings_widgets.append(self.x_slicer.New_UI())
         self.settings_widgets.append(self.bg_slicer.New_UI())
         self.scan_specific_setup()
         self.generate_settings_ui() # Hack part 2/2: Need to generate settings after scan_specific_setup()
-
-        
-        #self.circ_roi_slice = self.rect_roi_slice = np.s_[:,:]
+    
+        self.peakutils_dock = self.dockarea.addDock(name='PeakUtils', position='below', relativeTo=self.settings_dock)
+        self.peakutils_dock.addWidget(self.peakutils_settings.New_UI())
+        self.settings_dock.raiseDock()    
 
     
     def generate_settings_ui(self):
@@ -393,31 +419,35 @@ class HyperSpectralBaseView(DataBrowserView):
         self.settings_dock.addWidget(self.settings_ui)        
 
         #some more self.settings_widgets[]
-        self.update_display_pushButton = QtWidgets.QPushButton(text = 'update display')
-        self.settings_widgets.append(self.update_display_pushButton)
-        self.update_display_pushButton.clicked.connect(self.update_display)  
+        #self.update_display_pushButton = QtWidgets.QPushButton(text = 'update display')
+        #self.settings_widgets.append(self.update_display_pushButton)
+        #self.update_display_pushButton.clicked.connect(self.update_display)  
 
         self.default_view_pushButton = QtWidgets.QPushButton(text = 'default img view')
         self.settings_widgets.append(self.default_view_pushButton)
         self.default_view_pushButton.clicked.connect(self.default_image_view) 
         
-        self.recalc_median_pushButton = QtWidgets.QPushButton(text = 'recalc_median')
+        self.recalc_median_pushButton = QtWidgets.QPushButton(text = 'recalc median map')
         self.settings_widgets.append(self.recalc_median_pushButton)
         self.recalc_median_pushButton.clicked.connect(self.recalc_median_map)
 
-        self.recalc_sum_pushButton = QtWidgets.QPushButton(text = 'recalc_sum')
+        self.recalc_sum_pushButton = QtWidgets.QPushButton(text = 'recalc sum map')
         self.settings_widgets.append(self.recalc_sum_pushButton)
         self.recalc_sum_pushButton.clicked.connect(self.recalc_sum_map)
+        
+        self.recalc_peak_map_pushButton = QtWidgets.QPushButton(text = 'recalc PeakUtils map')
+        self.settings_widgets.append(self.recalc_peak_map_pushButton)
+        self.recalc_peak_map_pushButton.clicked.connect(self.recalc_peak_map)
 
         self.save_state_pushButton = QtWidgets.QPushButton(text = 'save_state')
         self.settings_widgets.append(self.save_state_pushButton)
         self.save_state_pushButton.clicked.connect(self.save_state)
 
-        self.delete_current_display_image_pushButton = QtWidgets.QPushButton(text = 'delete_current_display_image')
+        self.delete_current_display_image_pushButton = QtWidgets.QPushButton(text = 'remove selected display_image')
         self.settings_widgets.append(self.delete_current_display_image_pushButton)
         self.delete_current_display_image_pushButton.clicked.connect(self.delete_current_display_image)
         
-        # Place the self.settings_widgets in a grid
+        # Place the self.settings_widgets[] on a grid
         ui_widget =  QtWidgets.QWidget()
         gridLayout = QtWidgets.QGridLayout()
         ui_widget.setLayout(gridLayout)        
@@ -430,26 +460,31 @@ class HyperSpectralBaseView(DataBrowserView):
         self.settings.x_axis.add_choices(key, allow_duplicates=False)
 
     def add_display_image(self, key, image):
-        key = self.resolve_key_duplicate(key)
+        key = self.add_descriptor_suffixes(key)
         self.display_images[key] = image
         self.settings.display_image.add_choices(key, allow_duplicates=False)
         self.cor_X_data.change_choice_list(self.display_images.keys())
         self.cor_Y_data.change_choice_list(self.display_images.keys())
+        self.cor_X_data.update_value(self.cor_Y_data.val)
+        self.cor_Y_data.update_value(key)
         self.on_change_corr_settings()
     
-    def resolve_key_duplicate(self, key):
+    def add_descriptor_suffixes(self, key):
         if self.x_slicer.activated.val:
             key += '_x{}-{}'.format(self.x_slicer.start.val, self.x_slicer.stop.val)
         if self.settings['bg_subtract'] == 'bg_slice' and self.bg_slicer.activated.val:
             key += '_bg{}-{}'.format(self.bg_slicer.start.val, self.bg_slicer.stop.val)
         if self.settings['bg_subtract'] == 'costum_count':
-            key += '_bg{1.2f}'.format(self.bg_counts.val)       
+            key += '_bg{1.2f}'.format(self.bg_counts.val)
         return key        
     
     def delete_current_display_image(self):
         key = self.settings.display_image.val
         del self.display_images[key]
-        self.settings.display_image.remove_choices(key)   
+        self.settings.display_image.remove_choices(key)
+        self.cor_X_data.change_choice_list(self.display_images.keys())
+        self.cor_Y_data.change_choice_list(self.display_images.keys())
+
             
     def get_xy(self, ji_slice, apply_use_x_slice=False):
         '''
@@ -580,7 +615,9 @@ class HyperSpectralBaseView(DataBrowserView):
             self.imview.setImage(self.display_image.T)
             self.on_change_rect_roi()
             self.on_update_circ_roi()
-        if self.scalebar_type != None:
+        if not hasattr(self, 'scalebar'):
+            self.add_scalebar()
+        elif not self.scalebar_type in str(type(self.scalebar)):
             self.add_scalebar()
 
             
@@ -619,6 +656,7 @@ class HyperSpectralBaseView(DataBrowserView):
         x,y = self.get_xy(roi_slice, apply_use_x_slice=False)
         self.rect_plotdata.setData(x, y)
         self.on_change_corr_settings()
+        self.update_peaks(*self.get_xy(roi_slice, apply_use_x_slice=True), pen=self.line_colors[0])
 
         
     @QtCore.Slot(object)        
@@ -649,18 +687,40 @@ class HyperSpectralBaseView(DataBrowserView):
         x,y = self.get_xy(self.circ_roi_slice, apply_use_x_slice=False)  
         self.point_plotdata.setData(x, y)
         self.on_change_corr_settings()
-
+        self.update_peaks(*self.get_xy(self.circ_roi_slice, apply_use_x_slice=True), pen=self.line_colors[1])
         
+        
+    def update_peaks(self, wls, spec, pen='g'):
+        self.base_plotdata.setVisible( self.peakutils_settings['show_peak_line'] )
+        
+        for l in self.peak_lines:
+            self.spec_plot.removeItem(l)
+            l.deleteLater()
+        self.peak_lines = []
+                    
+        if self.peakutils_settings['show_peak_line']:
+            PS = self.peakutils_settings
+            import peakutils
+            base = 1.0*peakutils.baseline(spec, PS['baseline_deg'])
+            self.base_plotdata.setData(wls, base)
+            self.base_plotdata.setPen(pen)
+            if PS['min_dist'] < 0: 
+                min_dist = int(len(wls)/2) 
+            else:
+                min_dist = PS['min_dist']
+            peaks_ = peaks(spec-base, wls, PS['thres'], PS['unique_solution'], min_dist, 
+                           PS['gaus_fit_refinement'], PS['ignore_phony_refinements'])
+            for p in np.atleast_1d(peaks_):
+                l = pg.InfiniteLine(pos=(p,0),
+                                    movable=False, angle=90, pen=pen, label='PeakUtils {value:0.2f}', 
+                         labelOpts={'color':pen, 'movable': True, 'fill': (200, 200, 200, 100)})
+                self.spec_plot.addItem(l)
+                self.peak_lines.append(l)
+
     def on_change_show_lines(self):
-        if self.settings['show_circ_line']:
-            self.point_plotdata.setOpacity(1)
-        else:
-            self.point_plotdata.setOpacity(0)
-            
-        if self.settings['show_rect_line']:
-            self.rect_plotdata.setOpacity(1)
-        else:
-            self.rect_plotdata.setOpacity(0)       
+        self.point_plotdata.setVisible(self.settings['show_circ_line'])
+        self.rect_plotdata.setVisible(self.settings['show_rect_line'])
+ 
         
     def default_image_view(self):
         'sets rect_roi congruent to imageItem and optimizes size of imageItem to fit the ViewBox'
@@ -668,7 +728,6 @@ class HyperSpectralBaseView(DataBrowserView):
         h,w  = iI.height(), iI.width()       
         self.rect_roi.setSize((w,h))
         self.rect_roi.setPos((0,0))
-        #self.circ_roi.setPos((0,0))
         self.imview.getView().enableAutoRange()
         self.spec_plot.enableAutoRange()
         
@@ -682,31 +741,62 @@ class HyperSpectralBaseView(DataBrowserView):
         _sum = hyperspec_data.sum(-1)
         self.add_display_image('sum', _sum)
         
+    def recalc_peak_map(self):
+        x,hyperspec_data = self.get_xhyperspec_data(apply_use_x_slice=True)
+        PS = self.peakutils_settings
+        _map = peak_map(hyperspec_data, x, PS['thres'], int(len(x)/2), PS['gaus_fit_refinement'],
+                        PS['ignore_phony_refinements'])
+        map_name = 'peak_map'
+        if  PS['gaus_fit_refinement']: 
+            map_name += '_refined'
+            if PS['ignore_phony_refinements']:
+                map_name += '_ignored'
+        self.add_display_image(map_name, _map)
+          
     def on_change_corr_settings(self):
         try:
             xname = self.settings['cor_X_data']
             yname = self.settings['cor_Y_data']
             X = self.display_images[xname]
             Y = self.display_images[yname]
-            j,i = self.circ_roi_ji
-            x_circ,y_circ = np.atleast_1d(X[j,i]),np.atleast_1d(Y[j,i])
-            #mask selects points within rect_roi
+
+            # generate indices of images pixels (i,j) to uniquely identify each spot and plot.
+            indices = list(np.array(np.unravel_index(np.arange(X.size), X.shape)).T) #no simpler solution out there?
+            self.corr_plotdata.setData(X.flat, Y.flat, brush=pg.mkBrush(255, 255, 255, 60),
+                                       pen=None, data=indices)
+
+            # mark points within rect_roi and circ_roi
             mask = np.zeros_like(X, dtype=bool)
             mask[self.rect_roi_slice[0:2]] = True
-            mask_ = np.invert(mask)
             cor_x = X[mask].flatten()
             cor_y = Y[mask].flatten()
-            self.corr_plotdata.setData(X[mask_].flat,Y[mask_].flat, brush=pg.mkBrush(255, 255, 255, 60), pen=None)
-            self.corr_plotdata.addPoints(cor_x,cor_y, brush=pg.mkBrush(255, 255, 255, 60), pen=pg.mkPen(255, 0, 0, 200))
-            self.corr_plotdata.addPoints(x=x_circ,y=y_circ, brush=pg.mkBrush(0, 0, 255, 255))
+            self.corr_plotdata.addPoints(cor_x, cor_y, brush=None, pen=self.line_colors[0])
+            j,i = self.circ_roi_ji
+            x_circ, y_circ = np.atleast_1d(X[j,i]), np.atleast_1d(Y[j,i])
+            self.corr_plotdata.addPoints(x=x_circ, y=y_circ, pen=self.line_colors[1])
+
+            #some more plot details 
             self.corr_plot.autoRange()
             self.corr_plot.setLabels(**{'bottom':xname,'left':yname})
             sm = spearmanr(cor_x, cor_y)
-            text = 'Pearson\'s: {:.3f}; Spearman\'s:corr={:.3f}, pvalue={:.3f}'.format(np.corrcoef(cor_x,cor_y)[0,1], 
-                                    sm.correlation, sm.pvalue)
+            text = 'Pearson\'s corr: {:.3f}<br>Spearman\'s: corr={:.3f}, pvalue={:.3f}'.format(
+                                np.corrcoef(cor_x,cor_y)[0,1], sm.correlation, sm.pvalue)
             self.corr_plot.setTitle(text)
+            
         except Exception as err:
             self.databrowser.ui.statusbar.showMessage('Error in on_change_corr_settings: {}'.format(err))
+
+    def corr_plot_clicked(self, plotitem, points):
+        '''
+        call back function to locate a point on the correlation plot on the image. 
+        *points* is a list of <pg.ScatterPlotItem.SpotItem> under the mouse pointer during click event.
+        for points within the rect_roi, there are two items representing a pixel
+        but only one contains the pixel indices data.
+        It is always the last in the list, which was plotted first (see func:on_change_corr_settings)        
+        '''
+        i,j = points[-1].data()         
+        self.circ_roi.setPos(j-0.5,i-0.5)
+                
         
     def bin_spatially(self):
         if not (self.settings['display_image'] in self.default_display_image_choices):
@@ -827,7 +917,6 @@ def bin_y_average_x(x, y, binning = 2, axis = -1, datapoints_lost_warning = True
     
     return x_, y_
 
-
 def bin_2D(arr,binning=2):
     '''
     bins an array of at least 2 dimension along the axis 0 and 1
@@ -846,11 +935,44 @@ def bin_2D(arr,binning=2):
         print('cropped data:', (lost_lines_0,lost_lines_1), 'lines lost' )
     return arr
 
+def peak_map(hyperspectral_data, wls, thres, min_dist, refinement, ignore_phony_refinements):
+    return np.apply_along_axis(peaks, -1, hyperspectral_data, 
+                               wls=wls, thres=thres, 
+                               unique_solution=True,
+                               min_dist=min_dist, refinement=refinement,
+                               ignore_phony_refinements=ignore_phony_refinements)
+    
+def peaks(spec, wls, thres=0.5, unique_solution=True, 
+          min_dist=-1, refinement=True, ignore_phony_refinements=True):
+    import peakutils
+    indexes = peakutils.indexes(spec, thres, min_dist=min_dist)
+    if unique_solution:
+        #we only want the highest amplitude peak here!
+        indexes = [indexes[spec[indexes].argmax()]]
+        
+    if refinement:
+        peaks_x = peakutils.interpolate(wls, spec, ind=indexes)
+        if ignore_phony_refinements:
+            for i,p in enumerate(peaks_x):
+                if p < wls.min() or p > wls.max():
+                    print('peakutils.interpolate() yielded result outside wls range, returning unrefined result')
+                    peaks_x[i] = wls[indexes[i]]
+    else:
+        peaks_x = wls[indexes]
+        
+    if unique_solution:
+        return peaks_x[0]
+    else:
+        return peaks_x
+    
+
+
 
 if __name__ == '__main__':
     import sys
     
     app = DataBrowser(sys.argv)
-    
+    app.load_view(HyperSpectralBaseView(app))
+
     sys.exit(app.exec_())
     
