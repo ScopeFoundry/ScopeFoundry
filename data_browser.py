@@ -282,8 +282,9 @@ class HyperSpectralBaseView(DataBrowserView):
         self.display_image = self.hyperspec_data.sum(-1)# np.random.rand(10,10)
         self.spec_x_array = np.arange(34)
 
-        # Call func:set_scalebar_params() during self.load_data() to add a scalebar!
+        # Call :func:set_scalebar_params() during self.load_data() to add a scalebar!
         self.scalebar_type = None
+
 
         # Will be filled derived maps and images
         self.display_images = dict()
@@ -408,10 +409,17 @@ class HyperSpectralBaseView(DataBrowserView):
         self.settings_widgets.append(self.bg_slicer.New_UI())
         self.scan_specific_setup()
         self.generate_settings_ui() # Hack part 2/2: Need to generate settings after scan_specific_setup()
-    
+            
         self.peakutils_dock = self.dockarea.addDock(name='PeakUtils', position='below', relativeTo=self.settings_dock)
         self.peakutils_dock.addWidget(self.peakutils_settings.New_UI())
-        self.settings_dock.raiseDock()    
+        self.settings_dock.raiseDock()
+             
+        self.settings_dock.setStretch(x=0,y=0)
+        self.peakutils_dock.setStretch(x=0,y=0)
+        self.image_dock.setStretch(x=100,y=1)
+
+        #self.settings_dock.widgetArea.setStyleSheet('Dock > QWidget {border:0px; border-radius:0px}')
+        #self.peakutils_dock.widgetArea.setStyleSheet('Dock > QWidget {border:0px; border-radius:0px}')
 
     
     def generate_settings_ui(self):
@@ -443,17 +451,20 @@ class HyperSpectralBaseView(DataBrowserView):
         self.settings_widgets.append(self.save_state_pushButton)
         self.save_state_pushButton.clicked.connect(self.save_state)
 
-        self.delete_current_display_image_pushButton = QtWidgets.QPushButton(text = 'remove selected display_image')
+        self.delete_current_display_image_pushButton = QtWidgets.QPushButton(text = 'remove image')
         self.settings_widgets.append(self.delete_current_display_image_pushButton)
         self.delete_current_display_image_pushButton.clicked.connect(self.delete_current_display_image)
         
         # Place the self.settings_widgets[] on a grid
         ui_widget =  QtWidgets.QWidget()
         gridLayout = QtWidgets.QGridLayout()
+        gridLayout.setSpacing(0)
+        gridLayout.setContentsMargins(0, 0, 0, 0)
         ui_widget.setLayout(gridLayout)        
         for i,w in enumerate(self.settings_widgets):
             gridLayout.addWidget(w, int(i/2), i%2)
-        self.settings_dock.addWidget(ui_widget)                               
+        self.settings_dock.addWidget(ui_widget)          
+        self.settings_dock.layout.setSpacing(0)                     
         
     def add_spec_x_array(self, key, array):
         self.spec_x_arrays[key] = array
@@ -482,8 +493,8 @@ class HyperSpectralBaseView(DataBrowserView):
         key = self.settings.display_image.val
         del self.display_images[key]
         self.settings.display_image.remove_choices(key)
-        self.cor_X_data.change_choice_list(self.display_images.keys())
-        self.cor_Y_data.change_choice_list(self.display_images.keys())
+        self.cor_X_data.remove_choices(key)
+        self.cor_Y_data.remove_choices(key)
 
             
     def get_xy(self, ji_slice, apply_use_x_slice=False):
@@ -579,6 +590,7 @@ class HyperSpectralBaseView(DataBrowserView):
             self.spec_x_arrays['index'] = np.arange(self.hyperspec_data.shape[-1])
             self.databrowser.ui.statusbar.clearMessage()
             self.post_load()
+            self.add_scalebar()
         except Exception as err:
             HyperSpectralBaseView.load_data(self, fname) # load default dummy data
             self.databrowser.ui.statusbar.showMessage("failed to load {}: {}".format(fname, err))
@@ -593,33 +605,39 @@ class HyperSpectralBaseView(DataBrowserView):
             self.default_image_view()   
             
     def add_scalebar(self):
+        ''' not intended to use: Call set_scalebar_params() during load_data()'''
         if hasattr(self, 'scalebar'):
             self.imview.getView().removeItem(self.scalebar)
             del self.scalebar
-        if self.scalebar_type =='ConfocalScaleBar':
+        if self.scalebar_type == 'ConfocalScaleBar':
             from viewers.scalebars import ConfocalScaleBar
-            span = self.scalebar_span
             num_px = self.display_image.shape[0]
-            self.scalebar = ConfocalScaleBar(span, num_px)
+            self.scalebar = ConfocalScaleBar(num_px=num_px,
+                                **self.scalebar_kwargs)
             self.scalebar.setParentItem(self.imview.getView())
             self.scalebar.anchor((1, 1), (1, 1), offset=(-20, -20))
+        elif self.scalebar_type == None:
+            self.scalebar = None
             
-    def set_scalebar_params(self, h_span, units='m', scalebar_type='ConfocalScaleBar',):
-        '''h_span = -1 defines width of the display image'''
+    def set_scalebar_params(self, h_span, units='m', scalebar_type='ConfocalScaleBar',
+                           width=5, brush=None, pen=None, offset=None):
+        '''
+        call this function to during load_data() to add a scalebar
+        *h_span*  horizontal length of pixels in units of *units* if positive
+                  and in units of pixels otherwise (*units* ignored).
+        '''
+        assert scalebar_type in [type(None), 'ConfocalScaleBar']
         self.scalebar_type = scalebar_type
-        self.scalebar_span = {'m':1, 'mm':1e-3, 'um':1e-6, 'nm':1e-9, 'pm':1e-12, 'fm':1e-15}[units] * h_span
+        span = {'m':1, 'mm':1e-3, 'um':1e-6, 'nm':1e-9, 'pm':1e-12, 'fm':1e-15}[units] * h_span
+        self.scalebar_kwargs = {'span':span, 'width':width, 
+                                'brush':brush, 'pen':pen, 'offset':offset}
 
     def update_display(self):
-        # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time), so we need to transpose        
+        # pyqtgraph axes are (x,y), but display_images are in (y,x) so we need to transpose        
         if self.display_image is not None:
             self.imview.setImage(self.display_image.T)
             self.on_change_rect_roi()
             self.on_update_circ_roi()
-        if not hasattr(self, 'scalebar'):
-            self.add_scalebar()
-        elif not self.scalebar_type in str(type(self.scalebar)):
-            self.add_scalebar()
-
             
     def reset(self):
         '''
@@ -644,13 +662,12 @@ class HyperSpectralBaseView(DataBrowserView):
             * self.spec_x_array (shape Nspec)
         """
         self.hyperspec_data = np.arange(10*10*34).reshape( (10,10,34) )
-        self.display_image = self.hyperspec_data.sum(-1)# np.random.rand(10,10)
+        self.display_image = self.hyperspec_data.sum(-1)
         self.spec_x_array = np.arange(34)
     
     @QtCore.Slot(object)
     def on_change_rect_roi(self, roi=None):
-        # pyqtgraph axes are x,y, but data is stored in (frame, y,x, time)
-        # NOTE: If data is indeed stored as (frame, y, x, time) in self.hyperspec_data, then axis argument should be axes = (2,1)
+        # pyqtgraph axes are (x,y), but hyperspec is in (y,x,spec) hence axes=(1,0)      
         roi_slice, roi_tr = self.rect_roi.getArraySlice(self.hyperspec_data, self.imview.getImageItem(), axes=(1,0)) 
         self.rect_roi_slice = roi_slice
         x,y = self.get_xy(roi_slice, apply_use_x_slice=False)
@@ -665,21 +682,15 @@ class HyperSpectralBaseView(DataBrowserView):
             roi = self.circ_roi
 
         roi_state = roi.saveState()
-        #print roi_state
-        #xc, y
         x0, y0 = roi_state['pos']
         xc = x0 + 1
         yc = y0 + 1
-        
-        #Nframe, Ny, Nx, Nt = self.time_trace_map.shape 
-        #print 'Nframe, Ny, Nx, Nt', Nframe, Ny, Nx, Nt, 
+
         Ny, Nx, Nspec = self.hyperspec_data.shape
         
         i = max(0, min(int(xc),  Nx-1))
         j = max(0, min(int(yc),  Ny-1))
-        
-        #print "xc,yc,i,j", xc,yc, i,j
-        
+                
         self.circ_roi_plotline.setData([xc, i+0.5], [yc, j + 0.5])
         
         self.circ_roi_ji = (j,i)    
@@ -744,8 +755,8 @@ class HyperSpectralBaseView(DataBrowserView):
     def recalc_peak_map(self):
         x,hyperspec_data = self.get_xhyperspec_data(apply_use_x_slice=True)
         PS = self.peakutils_settings
-        _map = peak_map(hyperspec_data, x, PS['thres'], int(len(x)/2), PS['gaus_fit_refinement'],
-                        PS['ignore_phony_refinements'])
+        _map = peak_map(hyperspec_data, x, PS['thres'], int(len(x)/2), 
+                        PS['gaus_fit_refinement'], PS['ignore_phony_refinements'])
         map_name = 'peak_map'
         if  PS['gaus_fit_refinement']: 
             map_name += '_refined'
@@ -760,8 +771,12 @@ class HyperSpectralBaseView(DataBrowserView):
             X = self.display_images[xname]
             Y = self.display_images[yname]
 
-            # generate indices of images pixels (i,j) to uniquely identify each spot and plot.
-            indices = list(np.array(np.unravel_index(np.arange(X.size), X.shape)).T) #no simpler solution out there?
+            #Note, the correlation plot is a dimensionality reduction 
+            # (i,j,X,Y) --> (X,Y). To map the scatter points back to the image
+            # we need to associate every (X,Y) on the correlation plot with 
+            # their indices (i,j); in particular 
+            # indices = [(j0,i0), (j0,i1), ...]
+            indices = list( np.indices((X.shape)).reshape(2,-1).T )
             self.corr_plotdata.setData(X.flat, Y.flat, brush=pg.mkBrush(255, 255, 255, 60),
                                        pen=None, data=indices)
 
@@ -789,13 +804,14 @@ class HyperSpectralBaseView(DataBrowserView):
     def corr_plot_clicked(self, plotitem, points):
         '''
         call back function to locate a point on the correlation plot on the image. 
-        *points* is a list of <pg.ScatterPlotItem.SpotItem> under the mouse pointer during click event.
-        for points within the rect_roi, there are two items representing a pixel
-        but only one contains the pixel indices data.
-        It is always the last in the list, which was plotted first (see func:on_change_corr_settings)        
+        
+        *points* is a list of <pg.ScatterPlotItem.SpotItem> under the mouse 
+        pointer during click event. For points within the rect_roi, there are 
+        two items representing a pixel, but only most button one contains the
+        (j,i) as data.    
         '''
-        i,j = points[-1].data()         
-        self.circ_roi.setPos(j-0.5,i-0.5)
+        j,i = points[-1].data()         
+        self.circ_roi.setPos(i-0.5,j-0.5)
                 
         
     def bin_spatially(self):
@@ -935,13 +951,6 @@ def bin_2D(arr,binning=2):
         print('cropped data:', (lost_lines_0,lost_lines_1), 'lines lost' )
     return arr
 
-def peak_map(hyperspectral_data, wls, thres, min_dist, refinement, ignore_phony_refinements):
-    return np.apply_along_axis(peaks, -1, hyperspectral_data, 
-                               wls=wls, thres=thres, 
-                               unique_solution=True,
-                               min_dist=min_dist, refinement=refinement,
-                               ignore_phony_refinements=ignore_phony_refinements)
-    
 def peaks(spec, wls, thres=0.5, unique_solution=True, 
           min_dist=-1, refinement=True, ignore_phony_refinements=True):
     import peakutils
@@ -959,11 +968,18 @@ def peaks(spec, wls, thres=0.5, unique_solution=True,
                     peaks_x[i] = wls[indexes[i]]
     else:
         peaks_x = wls[indexes]
-        
+
     if unique_solution:
         return peaks_x[0]
     else:
         return peaks_x
+def peak_map(hyperspectral_data, wls, thres, min_dist, refinement, ignore_phony_refinements):
+    return np.apply_along_axis(peaks, -1, hyperspectral_data, 
+                               wls=wls, thres=thres, 
+                               unique_solution=True,
+                               min_dist=min_dist, refinement=refinement,
+                               ignore_phony_refinements=ignore_phony_refinements)
+
     
 
 
