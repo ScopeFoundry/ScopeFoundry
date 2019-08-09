@@ -1,7 +1,7 @@
 '''
 Created on Jul 20, 2018
 
-@author: lab
+@author: Benedikt Ursprung
 '''
 
 from qtpy import  QtCore, QtWidgets, QtGui
@@ -137,7 +137,7 @@ class RegionSlicer(QtWidgets.QWidget):
     **Bases:** :class: `QWidget <pyqt.QtWidgets.QWidget>`
     
     Adds a movable <pyqtgraph.LinearRegionItem> to a plot.
-    Provides a numpy slice and mask that would slices the x_array within the region.
+    Provides a numpy slice and mask that would slices the x_array according to the region.
     
     ===============================  =============================================================================
     **Signals:**
@@ -148,10 +148,11 @@ class RegionSlicer(QtWidgets.QWidget):
     ===============================  =============================================================================
     **Properties:**
     slice:                           numpy.slice[start:stop]
-    s_:                              self.slice if activativate  s_return_on_deactivated = np.s_[:] if 
-                                     deactivated.
-    mask:                            numpy boolean array which slices the x_array. 
-                                     useful if x_array is not ordered.
+    s_:                              :property:slice if activated  else *s_return_on_deactivated*
+    mask:                            numpy boolean array of size 'x_array': True for where x is within region
+                                     false otherwise (ignores step). Useful if x_array is not ordered. 
+    m_:                              mask if activated, else a mask equivalent to 
+                                        *s_return_on_deactivated*
     ===============================  =============================================================================    
     '''
     
@@ -174,7 +175,7 @@ class RegionSlicer(QtWidgets.QWidget):
         name                   <str> 
         slicer_updated_func    gets called when region is updated, alternatively use 
                                :sig:region_changed_signal().
-        initial                [start_idx, stop_idx] of the slice
+        initial                initial index values [start,stop,step] or [start,stop]
         s_return_on_deactivated  Object returned if RegionSlicer is not activated.
                                  Slicing with np.s_[:] (default) and np.s_[0] gives the full and 
                                  an empty array respectively. Note, <RegionSlicer.slice> always 
@@ -190,10 +191,15 @@ class RegionSlicer(QtWidgets.QWidget):
 
         self.name = name
         
+        self.slicer_updated = slicer_updated_func
+        
         from ScopeFoundry.logged_quantity import LQCollection
         self.settings = LQCollection()
-        self.start = self.settings.New('start', int, initial=initial[0], vmin = 0)
-        self.stop = self.settings.New('stop', int, initial=initial[1], vmin = 0)
+        if len(initial)==2: initial.append(1)
+        start,stop,step = initial     
+        self.start = self.settings.New('start', int, initial=start, vmin = 0)
+        self.stop = self.settings.New('stop', int, initial=stop, vmin = 0)
+        self.step = self.settings.New('step', int, initial=step)
         self.activated = self.settings.New('activated', bool, initial = activated)
         self.start.add_listener(self.on_change_start_stop)
         self.stop.add_listener(self.on_change_start_stop)
@@ -224,8 +230,6 @@ class RegionSlicer(QtWidgets.QWidget):
             x_array = np.arange(512)
         self.set_x_array(x_array)
         
-        self.slicer_updated = slicer_updated_func
-
     
     @QtCore.Slot(object)
     def set_x_array_from_data_item(self):
@@ -252,7 +256,8 @@ class RegionSlicer(QtWidgets.QWidget):
         
     @property
     def slice(self):
-        return np.s_[ self.settings['start'] : self.settings['stop'] ]
+        S = self.settings
+        return np.s_[ S['start'] : S['stop'] : S['step'] ]
     
     @property
     def s_(self):
@@ -264,11 +269,14 @@ class RegionSlicer(QtWidgets.QWidget):
         
     @property
     def mask(self):
-        if self.activated.val:
-            return (self.x_array >= self.region_min) * (self.x_array <= self.region_max)
-        else:
-            return np.ones_like(self.x_array, dtype=bool)       
+        X = self.x_array[self.slice]
+        return (self.x_array >= X.min()) * (self.x_array <= X.max())
     
+    @property
+    def m_(self):  
+        X = self.x_array[np.s_]
+        return (self.x_array >= X.min()) * (self.x_array <= X.max())
+
     @QtCore.Slot(object)
     def on_change_region(self):
         '''
@@ -298,18 +306,15 @@ class RegionSlicer(QtWidgets.QWidget):
         self.linear_region_item.setEnabled(activated)
         self.linear_region_item.setAcceptHoverEvents(activated)
         self.linear_region_item.setAcceptTouchEvents(activated)
-        if activated:
-            opacity = 1
-        else:
-            opacity = 0
-        self.linear_region_item.setOpacity(opacity)
+        self.linear_region_item.setVisible(activated)
         self.region_changed_signal.emit()
         self.slicer_updated()
         
-    def New_UI(self):
-        ui_widget = self.settings.New_UI()
-        ui_widget.layout().insertRow(0, QtWidgets.QLabel("<b>{}</b>".format(self.name)) )        
+    def New_UI(self, include=None, exclude=[]):
+        ui_widget = self.settings.New_UI(include, exclude)
+        ui_widget.layout().insertRow(0, QtWidgets.QLabel("<b>{}</b>".format(self.name)) )  
         return ui_widget
+        
         
     def set_label(self, text='', title=None, color=(200,200,200)):
         if title == None:
@@ -321,7 +326,7 @@ class RegionSlicer(QtWidgets.QWidget):
     def get_sliced_xar(self, ar=None):
         if ar==None:
             if hasattr(self, 'plot_data_item'):
-                x,y = self.plot_data_item.getData()
+                _,y = self.plot_data_item.getData()
                 return (self.x_array[self.s_], y[self.s_])                
             else:
                 return None
