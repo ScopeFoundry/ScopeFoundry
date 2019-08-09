@@ -298,7 +298,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.graph_layout = pg.GraphicsLayoutWidget()
         self.spec_dock = self.dockarea.addDock(name='Spec Plot', widget=self.graph_layout)
 
-        self.line_colors = ['w', 'r', 'g']
+        self.line_colors = ['w', 'r', 'g', 'b', 'y', 'm', 'c']
         self.spec_plot = self.graph_layout.addPlot()
         self.spec_plot.setLabel('left', 'Intensity', units='counts') 
         self.rect_plotdata = self.spec_plot.plot(y=[0,2,1,3,2], pen=self.line_colors[0])
@@ -326,11 +326,11 @@ class HyperSpectralBaseView(DataBrowserView):
         self.circ_roi = pg.CircleROI( (0,0), (2,2) , movable=True, pen=self.line_colors[1])
         #self.circ_roi.removeHandle(self.circ_roi.getHandles()[0])
         h = self.circ_roi.addTranslateHandle((0.5,.5))
-        h.pen = pg.mkPen('r')
+        h.pen = pg.mkPen(pen=self.line_colors[1])
         h.update()
         self.imview.getView().addItem(self.circ_roi)
         self.circ_roi.removeHandle(0)
-        self.circ_roi_plotline = pg.PlotCurveItem([0], pen=(0,9))
+        self.circ_roi_plotline = pg.PlotCurveItem([0], pen=self.line_colors[1])
         self.imview.getView().addItem(self.circ_roi_plotline) 
         self.circ_roi.sigRegionChanged[object].connect(self.on_update_circ_roi)
                 
@@ -611,26 +611,33 @@ class HyperSpectralBaseView(DataBrowserView):
             del self.scalebar
         if self.scalebar_type == 'ConfocalScaleBar':
             from viewers.scalebars import ConfocalScaleBar
-            num_px = self.display_image.shape[0]
-            self.scalebar = ConfocalScaleBar(num_px=num_px,
-                                **self.scalebar_kwargs)
+            num_px = self.display_image.shape[1] #horizontal dimension!
+            kwargs = self.scalebar_kwargs       
+            self.scalebar = ConfocalScaleBar(num_px=num_px, 
+                                **kwargs)
             self.scalebar.setParentItem(self.imview.getView())
-            self.scalebar.anchor((1, 1), (1, 1), offset=(-20, -20))
+            self.scalebar.anchor((1, 1), (1, 1), offset=kwargs['offset'])
         elif self.scalebar_type == None:
             self.scalebar = None
             
     def set_scalebar_params(self, h_span, units='m', scalebar_type='ConfocalScaleBar',
-                           width=5, brush=None, pen=None, offset=None):
+                           stroke_width=10, brush='w', pen='k', offset=(-20, -20)):
         '''
-        call this function to during load_data() to add a scalebar
-        *h_span*  horizontal length of pixels in units of *units* if positive
-                  and in units of pixels otherwise (*units* ignored).
+        call this function during load_data() to add a scalebar!
+        *h_span*  horizontal length of image in units of *units* if positive.
+                  Else, scalebar is in units of pixels (*units* ignored).
+        *units*   SI length unit of *h_span*.
+        *scalebar_type* is either `None` (no scalebar will be added)
+          or `"ConfocalScaleBar"` (default).
+        *stroke_width*, *brush*, *pen* and *offset* affect appearance and 
+         positioning of the scalebar.
         '''
-        assert scalebar_type in [type(None), 'ConfocalScaleBar']
+        assert scalebar_type in [None, 'ConfocalScaleBar']
         self.scalebar_type = scalebar_type
-        span = {'m':1, 'mm':1e-3, 'um':1e-6, 'nm':1e-9, 'pm':1e-12, 'fm':1e-15}[units] * h_span
-        self.scalebar_kwargs = {'span':span, 'width':width, 
-                                'brush':brush, 'pen':pen, 'offset':offset}
+        span_meter = {'m':1, 'cm':1e-2, 'mm':1e-3, 'um':1e-6, 
+                      'nm':1e-9, 'pm':1e-12, 'fm':1e-15}[units] * h_span
+        self.scalebar_kwargs = {'span':span_meter, 'brush':brush, 'pen':pen,
+                                'width':stroke_width, 'offset':offset}
 
     def update_display(self):
         # pyqtgraph axes are (x,y), but display_images are in (y,x) so we need to transpose        
@@ -777,20 +784,27 @@ class HyperSpectralBaseView(DataBrowserView):
             # their indices (i,j); in particular 
             # indices = [(j0,i0), (j0,i1), ...]
             indices = list( np.indices((X.shape)).reshape(2,-1).T )
-            self.corr_plotdata.setData(X.flat, Y.flat, brush=pg.mkBrush(255, 255, 255, 60),
+            self.corr_plotdata.setData(X.flat, Y.flat, brush=pg.mkBrush(255, 255, 255, 50),
                                        pen=None, data=indices)
 
-            # mark points within rect_roi and circ_roi
+            # mark points within rect_roi 
             mask = np.zeros_like(X, dtype=bool)
             mask[self.rect_roi_slice[0:2]] = True
             cor_x = X[mask].flatten()
             cor_y = Y[mask].flatten()
-            self.corr_plotdata.addPoints(cor_x, cor_y, brush=None, pen=self.line_colors[0])
+            self.corr_plotdata.addPoints(cor_x, cor_y, brush=pg.mkBrush(255, 255, 204, 60), 
+                    pen=pg.mkPen(self.line_colors[0], width=0.5))
+            
+            # mark circ_roi point
             j,i = self.circ_roi_ji
             x_circ, y_circ = np.atleast_1d(X[j,i]), np.atleast_1d(Y[j,i])
-            self.corr_plotdata.addPoints(x=x_circ, y=y_circ, pen=self.line_colors[1])
+            self.corr_plotdata.addPoints(x=x_circ, y=y_circ, 
+                    pen=pg.mkPen(self.line_colors[1], width=3))
 
-            #some more plot details 
+            ##some more plot details 
+            #self.corr_plot.getViewBox().setRange(xRange=(cor_x.min(), cor_x.max()),
+            #                                     yRange=(cor_y.min(), cor_y.max()))
+            
             self.corr_plot.autoRange()
             self.corr_plot.setLabels(**{'bottom':xname,'left':yname})
             sm = spearmanr(cor_x, cor_y)
