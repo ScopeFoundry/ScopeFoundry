@@ -143,11 +143,11 @@ class Measurement(QtCore.QObject):
         creates acquisition thread 
         runs thread
         starts display timer which calls update_display periodically
-        calls post run when thread is finished
+        connects a signal/slot that calls post run when thread is finished
         """
         self.interrupt_measurement_called = False        
         self.run_state.update_value('run_starting')
-        self.log.info("measurement {} start".format(self.name))
+        self.log.info("measurement {} start called from thread: {}".format(self.name, repr(threading.get_ident())))
         if self.is_thread_alive():
             raise RuntimeError("Cannot start a new measurement while still measuring {} {}".format(self.acq_thread, self.is_measuring()))
         # remove previous qthread with delete later
@@ -193,7 +193,7 @@ class Measurement(QtCore.QObject):
         else:
             raise NotImplementedError("Measurement {}.run() not defined".format(self.name))
     
-    
+    @QtCore.Slot()
     def _call_post_run(self):
         """
         Don't call this directly!
@@ -217,6 +217,7 @@ class Measurement(QtCore.QObject):
         """
         This function governs the behavior of the measurement thread. 
         """
+        print(self.name, "_thread_run thread_id:", threading.get_ident())
         self.set_progress(50.) # set progress bars to default run position at 50%
         try:
             if self.settings['profile']:
@@ -270,7 +271,7 @@ class Measurement(QtCore.QObject):
         self.progress.update_value(pct)
                 
     @QtCore.Slot()
-    def interrupt(self):
+    def _interrupt(self):
         """
         Kindly ask the measurement to stop.
         
@@ -278,13 +279,18 @@ class Measurement(QtCore.QObject):
         To actually stop, the threaded :meth:`run` method must check
         for this flag and exit
         """
-        self.log.info("measurement {} interrupt".format(self.name))
+        self.log.info("measurement {} stopping {}".format(self.name, self.settings['run_state']))
         # print("{} interrupt(): run_state={}".format(self.name, self.settings['run_state']))
         if self.settings['run_state'].startswith('run'):
+            self.log.info("measurement {} interrupt called".format(self.name))
             self.interrupt_measurement_called = True
-        self.activation.update_value(False)
+        #self.activation.update_value(False)
         #Make sure display is up to date        
         #self._on_display_update_timer()
+        
+    def interrupt(self):
+        self.activation.update_value(False)
+    
 
     def terminate(self):
         """
@@ -303,7 +309,7 @@ class Measurement(QtCore.QObject):
         if start:
             self._start()
         else:
-            self.interrupt()
+            self._interrupt()
 
         
     def is_measuring(self):
