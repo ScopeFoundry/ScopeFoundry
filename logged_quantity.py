@@ -602,7 +602,7 @@ class LoggedQuantity(QtCore.QObject):
         self.send_display_updates(force=True)
         
     
-    def add_choices(self, choices, allow_duplicates=False, new_val=-1):
+    def add_choices(self, choices, allow_duplicates=False, new_val=None):
         if not isinstance(choices, (list, tuple)):
             choices = [choices]
         choices = self._expand_choices(choices)
@@ -611,23 +611,34 @@ class LoggedQuantity(QtCore.QObject):
         if len(choices) > 0:
             new_choices_list = self.choices + choices
             self.change_choice_list(new_choices_list)
-            if type(new_val) == int:
-                new_val = new_choices_list[new_val][0]
+            if new_val is None:
+                new_val = new_choices_list[-1][1]
             self.update_value(new_val)
             return True
         else:
             return False
         
-    def remove_choices(self, choices, new_val=-1):
+    def remove_choices(self, choices, new_val=None):
+        '''
+        *choices*   list of choices to be removed.
+        *new_val*   the value the function tries to update to (if still exists)
+                    if None (default), *new_val* is replaced by current value.
+        '''
+        v0 = self.val
         if not isinstance(choices, (list, tuple)):
             choices = [choices]
         choices = self._expand_choices(choices)
         new_choices_list = list( set(self.choices) - set(choices) )
         if len(new_choices_list) < len(self.choices):
             self.change_choice_list(new_choices_list)
-            if type(new_val) == int:
-                new_val = self.choices[new_val][0]
-            self.update_value(new_val)
+            if new_val == None:
+                new_val = v0
+            for c,v in new_choices_list:
+                if v==self.dtype(new_val):
+                    self.update_value(self.dtype(new_val))
+                    break
+                else:
+                    self.update_value(new_choices_list[-1][1])
             return True
         else:
             return False
