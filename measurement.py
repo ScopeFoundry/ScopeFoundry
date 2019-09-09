@@ -391,12 +391,16 @@ class Measurement(QtCore.QObject):
         returns True if successful run, otherwise returns false for a run failure or interrupted measurement
         """
         
-        measure.start()
+        self.log.info("Starting nested measurement {} from {} on thread id {}".format(measure.name, self.name, threading.get_ident()))
         
+        measure.start()
+                
         # Wait until measurement has started, timeout of 1 second
         t0 = time.time()
         while not measure.is_measuring():
+            time.sleep(0.010)
             if time.time() - t0 > 1.0:
+                print(self.name, ': nested measurement', measure.name, 'has not started before timeout', )
                 return measure.settings['run_state'] == 'stop_success'
                 
         last_polling = time.time()
@@ -408,8 +412,11 @@ class Measurement(QtCore.QObject):
                 measure.interrupt()
                 
             if measure.interrupt_measurement_called and nested_interrupt:
-                #print("nested interrupt bubbling up", measure.interrupt_measurement_called, self.interrupt_measurement_called)
-                self.interrupt() 
+                # THIS IS MAYBE UNSAFE???: measure.interrupt_measurement_called might be also TRUE if measure finished successfully?
+                # IDEA to TEST: also check the measure.settings['run_state'].startswidth('stop')
+                print("nested interrupt bubbling up", measure.interrupt_measurement_called, self.interrupt_measurement_called)
+                self.interrupt()
+ 
             time.sleep(0.010)
             
             # polling
