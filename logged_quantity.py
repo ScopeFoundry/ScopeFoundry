@@ -78,6 +78,14 @@ class LoggedQuantity(QtCore.QObject):
         QtCore.QObject.__init__(self)
         
         self.name = name
+        
+        if dtype in [int, str, float]:
+            pass
+        elif dtype in ['int', 'uint']:
+            dtype = int
+        elif dtype in ['float', 'uint']:
+            dtype = float
+        
         self.dtype = dtype
         self.val = dtype(initial)
         self.hardware_read_func = None
