@@ -10,6 +10,7 @@ from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
 from ScopeFoundry.widgets import MinMaxQSlider
+from numba.tests.test_conversion import addition
 
 #import threading
 
@@ -64,7 +65,7 @@ class LoggedQuantity(QtCore.QObject):
     updated_readonly = QtCore.Signal((bool,), (),) 
     
     def __init__(self, name, dtype=float, 
-                 hardware_read_func=None, hardware_set_func=None, 
+                 #hardware_read_func=None, hardware_set_func=None, 
                  initial=0, fmt="%g", si=False,
                  ro = False, # read only flag
                  unit = None,
@@ -77,10 +78,18 @@ class LoggedQuantity(QtCore.QObject):
         QtCore.QObject.__init__(self)
         
         self.name = name
+        
+        if dtype in [int, str, float]:
+            pass
+        elif dtype in ['int', 'uint']:
+            dtype = int
+        elif dtype in ['float', 'uint']:
+            dtype = float
+        
         self.dtype = dtype
         self.val = dtype(initial)
-        self.hardware_read_func = hardware_read_func
-        self.hardware_set_func = hardware_set_func
+        self.hardware_read_func = None
+        self.hardware_set_func = None
         self.fmt = fmt # string formatting string. This is ignored if dtype==str
         if self.dtype == str:
             self.fmt = "%s"
@@ -157,7 +166,7 @@ class LoggedQuantity(QtCore.QObject):
     
     def read_from_hardware(self, send_signal=True):
         self.log.debug("{}: read_from_hardware send_signal={}".format(self.name, send_signal))
-        if self.hardware_read_func:        
+        if self.hardware_read_func is not None:        
             with self.lock:
                 self.oldval = self.val
                 val = self.hardware_read_func()
@@ -409,39 +418,41 @@ class LoggedQuantity(QtCore.QObject):
             widget.set_name(self.name)
         
         elif type(widget) == QtWidgets.QSlider:
-            def transform_to_slider(x):
+            if self.dtype == float:
                 self.vrange = self.vmax - self.vmin
-                pct = 100*(x-self.vmin)/self.vrange
-                return int(pct)
-            def transform_from_slider(x):
-                self.vrange = self.vmax - self.vmin
-                val = self.vmin + (x*self.vrange/100)
-                return val
-            def update_widget_value(x):
-                """
-                block signals from widget when value is set via lq.update_value.
-                This prevents signal-slot loops between widget and lq
-                """
-                try:
-                    widget.blockSignals(True)
-                    widget.setValue(transform_to_slider(x))
-                finally:
-                    widget.blockSignals(False)
-                    
-            def update_spinbox(x):
-                self.update_value(transform_from_slider(x))    
-            if self.vmin is not None:
-                widget.setMinimum(transform_to_slider(self.vmin))
-            if self.vmax is not None:
-                widget.setMaximum(transform_to_slider(self.vmax))
-            widget.setSingleStep(1)
-            widget.setValue(transform_to_slider(self.val))
-            self.updated_value[float].connect(update_widget_value)
-            widget.valueChanged[int].connect(update_spinbox)
-            def updated_min_max_slider(widget):
-                widget.setMinimum(transform_to_slider(self.vmin))
-                widget.setMaximum(transform_to_slider(self.vmax))
-            #self.updated_min_max.connect(updated_min_max_slider(widget=widget))
+                def transform_to_slider(x):
+                    pct = 100*(x-self.vmin)/self.vrange
+                    return int(pct)
+                def transform_from_slider(x):
+                    val = self.vmin + (x*self.vrange/100)
+                    return val
+                def update_widget_value(x):
+                    """
+                    block signals from widget when value is set via lq.update_value.
+                    This prevents signal-slot loops between widget and lq
+                    """
+                    try:
+                        widget.blockSignals(True)
+                        widget.setValue(transform_to_slider(x))
+                    finally:
+                        widget.blockSignals(False)
+                        
+                def update_spinbox(x):
+                    self.update_value(transform_from_slider(x))    
+                if self.vmin is not None:
+                    widget.setMinimum(transform_to_slider(self.vmin))
+                if self.vmax is not None:
+                    widget.setMaximum(transform_to_slider(self.vmax))
+                widget.setSingleStep(1)
+                widget.setValue(transform_to_slider(self.val))
+                self.updated_value[float].connect(update_widget_value)
+                widget.valueChanged[int].connect(update_spinbox)
+            elif self.dtype == int:
+                self.updated_value[int].connect(widget.setValue)
+                #widget.sliderMoved[int].connect(self.update_value)
+                widget.valueChanged[int].connect(self.update_value)
+                
+                widget.setSingleStep(1)            
                 
         elif type(widget) == QtWidgets.QCheckBox:
 
@@ -561,6 +572,8 @@ class LoggedQuantity(QtCore.QObject):
                 self.log.debug("set_progressbar {}".format(x))
                 widget.setValue(int(x))
             self.updated_value.connect(set_progressbar)
+        elif type(widget) == QtWidgets.QLCDNumber:
+            self.updated_value[(self.dtype)].connect(widget.display)
         else:
             raise ValueError("Unknown widget type")
         
@@ -597,26 +610,46 @@ class LoggedQuantity(QtCore.QObject):
         self.send_display_updates(force=True)
         
     
-    def add_choice(self, additional_choices, allow_duplicates=False, update_value=False):
-        if not isinstance(additional_choices, (list, tuple)):
-            additional_choices = [additional_choices]
-        
-        choices = []
-        for c in self.choices:
-            choices.append(c[0])
-        
-        if allow_duplicates:
-            choices += additional_choices            
+    def add_choices(self, choices, allow_duplicates=False, new_val=None):
+        if not isinstance(choices, (list, tuple)):
+            choices = [choices]
+        choices = self._expand_choices(choices)
+        if not allow_duplicates:
+            choices = list( set(choices) - set(self.choices) )
+        if len(choices) > 0:
+            new_choices_list = self.choices + choices
+            self.change_choice_list(new_choices_list)
+            if new_val is None:
+                new_val = new_choices_list[-1][1]
+            self.update_value(new_val)
+            return True
         else:
-            for c in additional_choices:
-                if not (c in choices):
-                    choices.append(c)                        
+            return False
         
-        self.change_choice_list(choices)
-        
-        if update_value:
-            self.update_value(choices[-1])
-    
+    def remove_choices(self, choices, new_val=None):
+        '''
+        *choices*   list of choices to be removed.
+        *new_val*   the value the function tries to update to (if still exists)
+                    if None (default), *new_val* is replaced by current value.
+        '''
+        v0 = self.val
+        if not isinstance(choices, (list, tuple)):
+            choices = [choices]
+        choices = self._expand_choices(choices)
+        new_choices_list = list( set(self.choices) - set(choices) )
+        if len(new_choices_list) < len(self.choices):
+            self.change_choice_list(new_choices_list)
+            if new_val == None:
+                new_val = v0
+            for c,v in new_choices_list:
+                if v==self.dtype(new_val):
+                    self.update_value(self.dtype(new_val))
+                    break
+                else:
+                    self.update_value(new_choices_list[-1][1])
+            return True
+        else:
+            return False
     
     def change_min_max(self, vmin=-1e12, vmax=+1e12):
         # TODO  setRange should be a slot for the updated_min_max signal
@@ -632,7 +665,9 @@ class LoggedQuantity(QtCore.QObject):
             self.ro = ro
             for widget in self.widget_list:
                 if type(widget) in [QtWidgets.QDoubleSpinBox, pyqtgraph.widgets.SpinBox.SpinBox]:
-                    widget.setReadOnly(self.ro)    
+                    widget.setReadOnly(self.ro)
+                else:
+                    widget.setEnabled(not self.ro)
                 #TODO other widget types
             self.updated_readonly.emit(self.ro)
             
@@ -752,7 +787,7 @@ class LoggedQuantity(QtCore.QObject):
                           reverse_func=lambda y, old_vals: [y * 1.0/scale,])
 
     def new_default_widget(self):
-        """ returns the approriate QWidget for the datatype of the
+        """ returns the appropriate QWidget for the datatype of the
         LQ. automatically connects widget
         """
         if self.choices is not None:
@@ -769,6 +804,44 @@ class LoggedQuantity(QtCore.QObject):
         self.connect_to_widget(widget)
         
         return widget
+    
+    def new_pg_parameter(self):
+        from pyqtgraph.parametertree import Parameter
+        dtype_map = {str: 'str', float:'float', int:'int', bool:'bool'}
+        
+        if self.choices:
+            print(self.name, "have choices")
+            print(self.choices)
+            # choices should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
+
+            p = Parameter.create(name=self.name, type='list', values=dict(self.choices), value=self.value)
+            
+            def update_param(v):
+                print("updating parameter", self.name, p, v)
+                p.setValue(v)
+
+            
+            self.updated_value[self.dtype].connect(update_param)#(lambda v, p=p: p.setValue(v))
+            p.sigValueChanged.connect(lambda p,v: self.update_value(v))
+
+            return p
+        if self.is_array:
+            # DOES NOT WORK CORRECTLY
+            p = Parameter.create(name=self.name, type='str', value=str(self.value))
+            
+            return p
+        else: 
+            p = Parameter.create(name=self.name, type=dtype_map[self.dtype], value=self.value)
+            
+            def update_param(v):
+                print("updating parameter", self.name, p, v)
+                p.setValue(v)
+                
+            self.updated_value[self.dtype].connect(update_param)#(lambda v, p=p: p.setValue(v))
+            p.sigValueChanged.connect(lambda p,v: self.update_value(v))
+            
+            return p
+        
 
 class FileLQ(LoggedQuantity):
     """
@@ -815,7 +888,7 @@ class ArrayLQ(LoggedQuantity):
     updated_shape = QtCore.Signal(str)
     
     def __init__(self, name, dtype=float, 
-                 hardware_read_func=None, hardware_set_func=None, 
+                 #hardware_read_func=None, hardware_set_func=None, 
                  initial=[], fmt="%g", si=True,
                  ro = False,
                  unit = None,
@@ -828,8 +901,8 @@ class ArrayLQ(LoggedQuantity):
             self.val = np.array(initial, dtype=object)
         else:
             self.val = np.array(initial, dtype=dtype)
-        self.hardware_read_func = hardware_read_func
-        self.hardware_set_func = hardware_set_func
+        self.hardware_read_func = None
+        self.hardware_set_func = None
         self.fmt = fmt # % string formatting string. This is ignored if dtype==str
         if self.dtype == str:
             self.fmt = "%s"
@@ -837,6 +910,7 @@ class ArrayLQ(LoggedQuantity):
         self.vmin = vmin
         self.vmax = vmax
         self.ro = ro # Read-Only
+        self.choices = choices
         
         self.log = get_logger_from_class(self)
 
@@ -976,6 +1050,7 @@ class LQCircularNetwork(QtCore.QObject):
         self.lq_dict = lq_dict  # {lq_key:lq}
         self.locked = False     # some lock that does NOT allow blocked routines to be executed after release()
                                 # a flag (as it is now) works well.
+
     
     def update_values_synchronously(self,**kwargs):
         '''
@@ -995,6 +1070,12 @@ class LQCircularNetwork(QtCore.QObject):
             name = lq.name
         self.lq_dict[name] = lq
 
+    def add_lq(self, lq, name=None):
+        if name is None:
+            name = lq.name
+        self.lq_dict[name] = lq
+
+
 class LQRange(LQCircularNetwork):
     """
     LQRange is a collection of logged quantities that describe a
@@ -1006,7 +1087,7 @@ class LQRange(LQCircularNetwork):
     with changes to the 4 (or 6) LQ's
     """       
 
-    def __init__(self, min_lq, max_lq, step_lq, num_lq, center_lq=None, span_lq=None):
+    def __init__(self, min_lq, max_lq, step_lq, num_lq, center_lq=None, span_lq=None, sweep_type_lq=None):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         self.min = min_lq
@@ -1043,9 +1124,15 @@ class LQRange(LQCircularNetwork):
             self.max.add_listener(self.on_change_min_max)
 
         self.step.connect_lq_math((self.min,self.max,self.num), self.calc_step)
+        
+        if sweep_type_lq is not None:
+            self.sweep_type_map = {'up':self.up_sweep_array,           'down':self.down_sweep_array, 
+                                   'up_down':self.up_down_sweep_array, 'down_up':self.down_up_sweep_array,
+                                   'zig_zag':self.zig_zag_sweep_array, 'zag_zig':self.zag_zig_sweep_array}
+            self.sweep_type = sweep_type_lq
+            self.sweep_type.change_choice_list(self.sweep_type_map.keys())
+        
 
-
-    
     def calc_num(self, min_, max_, step):
         '''
         enforces num to be a positive integer and adjust step accordingly
@@ -1075,6 +1162,7 @@ class LQRange(LQCircularNetwork):
     
     def calc_span(self, min_, max_):
         return (max_-min_)
+    
     
     def calc_center(self, min_, max_):
         return (max_-min_)/2+min_
@@ -1115,10 +1203,42 @@ class LQRange(LQCircularNetwork):
     def array(self):
         return np.linspace(self.min.val, self.max.val, self.num.val)
     
+    def zig_zag_sweep_array(self):
+        mid_arg = int(self.num.val/2)
+        ar = self.array
+        return np.concatenate([ar[mid_arg:],ar[::-1],ar[0:mid_arg]])
+    def zag_zig_sweep_array(self):
+        return self.zig_zag_sweep_array()[::-1]
+    def up_down_sweep_array(self):
+        ar = self.array
+        return np.concatenate([ar,ar[::-1]])
+    def down_up_sweep_array(self):
+        return self.up_down_sweep_array()[::-1]
+    def down_sweep_array(self):
+        return self.array[::-1]
+    def up_sweep_array(self):
+        return self.array
+        
+    @property
+    def sweep_array(self):
+        print(self.sweep_type.val)
+        if hasattr(self, 'sweep_type'):
+            return self.sweep_type_map[self.sweep_type.val]()
+        else:
+            return self.array
+
     def add_listener(self, func, argtype=(), **kwargs):
         self.min.add_listener(func, argtype, **kwargs)
         self.max.add_listener(func, argtype, **kwargs)
-        self.num.add_listener(func, argtype, **kwargs)   
+        self.num.add_listener(func, argtype, **kwargs)
+        
+    def New_UI(self):
+        ui_widget =  QtWidgets.QWidget()
+        formLayout = QtWidgets.QFormLayout()
+        ui_widget.setLayout(formLayout)
+        for lqname,lq in self.lq_dict.items():
+            formLayout.addRow(lqname, lq.new_default_widget())
+        return ui_widget
 
     
 class LQ3Vector(object):
@@ -1147,17 +1267,18 @@ class LQ3Vector(object):
         '''
         return np.dot(_lq_vector.values,self.values)
     
-    def project_to(self, _lq_vector):
+    def project_on(self, _lq_vector):
         return np.dot(_lq_vector.normed_values, self.values)
     
     def angle_to(self, _lq_vector):
-        return np.arccos(np.dot(_lq_vector,self.normed_values))
-    
+        return np.arccos(np.dot(_lq_vector.normed_values,self.normed_values))
     
     def add_listener(self, func, argtype=(), **kwargs):
         self.x_lq.add_listener(func, argtype, **kwargs)
         self.y_lq.add_listener(func, argtype, **kwargs)
         self.z_lq.add_listener(func, argtype, **kwargs)        
+
+
 
 class LQCollection(object):
     """
@@ -1254,19 +1375,24 @@ class LQCollection(object):
             return object.__getattribute__(self, name)
     """
     
-    def New_Range(self, name, include_center_span=False, **kwargs):
+    def New_Range(self, name, include_center_span=False, include_sweep_type = False, initials = [0, 1., 0.1], **kwargs):
                         
-        min_lq  = self.New( name + "_min" , initial=0., **kwargs ) 
-        max_lq  = self.New( name + "_max" , initial=1., **kwargs ) 
-        step_lq = self.New( name + "_step", initial=0.1, **kwargs)
+        mn,mx,d = initials
+        min_lq  = self.New( name + "_min" , initial=mn, **kwargs ) 
+        max_lq  = self.New( name + "_max" , initial=mx, **kwargs ) 
+        step_lq = self.New( name + "_step", initial=d, **kwargs)
         num_lq  = self.New( name + "_num", dtype=int, vmin=1, initial=11)
         
+        LQRange_kwargs = {'min_lq':min_lq, 'max_lq':max_lq, 'step_lq':step_lq, 'num_lq':num_lq}
         if include_center_span:
             center_lq = self.New(name + "_center", **kwargs, initial=0.5)
             span_lq = self.New( name + "_span", **kwargs, initial=1.0)
-            lqrange = LQRange(min_lq, max_lq, step_lq, num_lq, center_lq, span_lq)
-        else:
-            lqrange = LQRange(min_lq, max_lq, step_lq, num_lq)
+            LQRange_kwargs.update({'center_lq':center_lq,'span_lq':span_lq})
+        if include_sweep_type:
+            sweep_type_lq  = self.New( name + "_sweep_type", dtype=str, choices=('up','down'), initial='up')
+            LQRange_kwargs.update({'sweep_type_lq':sweep_type_lq})
+        
+        lqrange = LQRange(**LQRange_kwargs)
 
         self.ranges[name] = lqrange
         return lqrange
