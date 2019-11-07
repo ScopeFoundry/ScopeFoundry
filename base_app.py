@@ -351,7 +351,9 @@ class BaseMicroscopeApp(BaseApp):
                 
         """Loads various default features into the user interface upon app startup."""
         confirm_on_close(self.ui, title="Close %s?" % self.name, message="Do you wish to shut down %s?" % self.name, func_on_close=self.on_close)
-        
+
+
+        # Hardware and Measurement Settings Trees        
         self.ui.hardware_treeWidget.setColumnWidth(0,175)
         self.ui.measurements_treeWidget.setColumnWidth(0,175)
 
@@ -360,6 +362,13 @@ class BaseMicroscopeApp(BaseApp):
 
         self.ui.hardware_treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.ui.hardware_treeWidget.customContextMenuRequested.connect(self.on_hardware_tree_context_menu)
+
+        for name, hw in self.hardware.items():
+            hw.add_widgets_to_tree(tree=self.ui.hardware_treeWidget)
+
+        for name, measure in self.measurements.items():
+            measure.add_widgets_to_tree(tree=self.ui.measurements_treeWidget)
+
 
         # Add log widget to mdiArea
         self.logging_subwin = self.add_mdi_subwin(self.logging_widget, "Log")
@@ -432,6 +441,52 @@ class BaseMicroscopeApp(BaseApp):
         logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2_1024.png"))
         self.qtapp.setWindowIcon(logo_icon)
         self.ui.setWindowIcon(logo_icon)
+        
+        ### parameter tree
+        ## disabled for now
+        """
+        import pyqtgraph.parametertree.parameterTypes as pTypes
+        from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
+        
+        self.ptree = ParameterTree()
+        p = Parameter.create(name='Settings', type='group')
+        
+        app_params = Parameter.create(name='App', type='group')
+        for lq_name, lq in self.settings.as_dict().items():
+            print(lq_name, lq)
+            lq_p = lq.new_pg_parameter()#Parameter.create(name=lq.name, type=lq.dtype)
+            app_params.addChild(lq_p)
+            
+        p.addChild(app_params)
+        
+        
+
+        hw_params = Parameter.create(name='Hardware', type='group')
+        p.addChild(hw_params)
+        
+        for name, measure in self.hardware.items():
+            hw_group = Parameter.create(name=name, type='group')
+            hw_params.addChild(hw_group)
+            for lq_name, lq in measure.settings.as_dict().items():
+                print(lq_name, lq)
+                lq_p = lq.new_pg_parameter()
+                hw_group.addChild(lq_p)
+
+        measure_params = Parameter.create(name='Measurements', type='group')
+        p.addChild(measure_params)
+        
+        for name, measure in self.measurements.items():
+            m_group = Parameter.create(name=name, type='group')
+            measure_params.addChild(m_group)
+            for lq_name, lq in measure.settings.as_dict().items():
+                print(lq_name, lq)
+                lq_p = lq.new_pg_parameter()
+                m_group.addChild(lq_p)
+
+
+        self.ptree.setParameters(p, showTop=True)
+        #self.ptree.show()
+        """
         
             
     def set_subwindow_mode(self):
@@ -603,20 +658,18 @@ class BaseMicroscopeApp(BaseApp):
 
     def add_hardware(self,hw):
         """Loads a HardwareComponent object into the app. 
-        After calling this, the HW appears in the Hardware tree.
         
         If *hw* is a class, rather an instance, create an instance 
         and add it to self.hardware
         """
         assert not hw.name in self.hardware.keys()
 
+        #If *hw* is a class, rather an instance, create an instance 
         if inspect.isclass(hw):
-            #If *hw* is a class, rather an instance, create an instance 
             hw = hw(app=self)
         
         self.hardware.add(hw.name, hw)
-        
-        hw.add_widgets_to_tree(tree=self.ui.hardware_treeWidget)
+                
         return hw
     
     
@@ -627,24 +680,18 @@ class BaseMicroscopeApp(BaseApp):
     
     def add_measurement(self, measure):
         """Loads a Measurement object into the app.
-        After calling this, the measurement appears in the Measurement tree.
         
         If *measure* is a class, rather an instance, create an instance 
         and add it to self.measurements
 
-        """
-        
+        """        
         #If *measure* is a class, rather an instance, create an instance 
         if inspect.isclass(measure):
             measure = measure(app=self)
 
-            
         assert not measure.name in self.measurements.keys()
         
-
         self.measurements.add(measure.name, measure)
-        
-        measure.add_widgets_to_tree(tree=self.ui.measurements_treeWidget)
 
         return measure
     
@@ -727,12 +774,17 @@ class BaseMicroscopeApp(BaseApp):
             self.log.info(section_name)
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
+                    if lqname == 'connected':
+                        continue # skip connected setting, use it at the end
                     try:
                         lq = hc.settings.get_lq(lqname)
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
                         self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
+                
+                if 'connected' in config[section_name]:
+                    hc.settings['connected'] = config[section_name]['connected']
                         
         for meas_name, measurement in self.measurements.items():
             section_name = 'measurement/'+meas_name            
@@ -803,8 +855,8 @@ class BaseMicroscopeApp(BaseApp):
         try:
             if domain in ['hardware','HW','hw']:
                 lq = getattr(self.hardware[component].settings, setting)
-            if domain in ['measurement','measure']:
-                lq = getattr(self.measurement[component].settings, setting)
+            if domain in ['measurement','measure', 'measurements']:
+                lq = getattr(self.measurements[component].settings, setting)
             if domain == 'app':
                 lq = getattr(self.settings, setting)
             return lq
@@ -919,7 +971,16 @@ class BaseMicroscopeApp(BaseApp):
 #         
 #         self.log.info("ini windown settings saved to {} {}".format( fname, config.optionxform))
 
-    
+    def generate_data_path(self, measurement, ext,t=None):
+        if t is None:
+            t = time.time()
+        f = self.settings['data_fname_format'].format(
+            app=self,
+            measurement=measurement,
+            timestamp=datetime.datetime.fromtimestamp(t),
+            ext=ext)
+        fname = os.path.join(self.settings['save_dir'], f)
+        return fname
 
 
 

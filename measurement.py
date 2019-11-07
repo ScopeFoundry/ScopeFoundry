@@ -34,6 +34,16 @@ class Measurement(QtCore.QObject):
     
     for measurements with graphical interfaces, 
     subclass and additionally implement :meth:`setup_figure`, :meth:`update_display` 
+    
+    
+    Run States:
+    
+    stop_first -> run_starting -> run_pre_run --> run_thread_starting --> run_thread_run -->
+    
+    run_thread_end --> run_post_run --> stop_success | stop_interrupted | stop_failure
+    
+    
+    
     """
     
     measurement_sucessfully_completed = QtCore.Signal(())
@@ -73,7 +83,8 @@ class Measurement(QtCore.QObject):
         
         
         self.activation = self.settings.New('activation', dtype=bool, ro=False) # does the user want to the thread to be running
-        self.running    = self.settings.New('running', dtype=bool, ro=True) # is the thread actually running?
+        #self.running    = self.settings.New('running', dtype=bool, ro=True) # is the thread actually running?
+        self.run_state = self.settings.New('run_state', dtype=str, initial='stop_first')
         self.progress   = self.settings.New('progress', dtype=float, unit="%", si=False, ro=True)
         self.settings.New('profile', dtype=bool, initial=False) # Run a profile on the run to find performance problems
 
@@ -102,13 +113,12 @@ class Measurement(QtCore.QObject):
         
     def setup_figure(self):
         """
-        Overide setup_figure to build graphical interfaces. 
+        Override setup_figure to build graphical interfaces. 
         This function is run on ScopeFoundry startup.
         """
         self.log.info("Empty setup_figure called")
         pass
     
-    @QtCore.Slot()
     def start(self):
         """
         Starts the measurement
@@ -121,28 +131,44 @@ class Measurement(QtCore.QObject):
         """ 
         #self.start_stop(True)
         self.activation.update_value(True)
+
         
     def _start(self):
         """
+        INTERNAL DO NOT CALL DIRECTLY
+        
         Starts the measurement
         
         calls *pre_run*
         creates acquisition thread 
         runs thread
         starts display timer which calls update_display periodically
-        calls post run when thread is finished
-        """ 
-        self.log.info("measurement {} start".format(self.name))
-        self.interrupt_measurement_called = False
-        if (self.acq_thread is not None) and self.is_measuring():
-            raise RuntimeError("Cannot start a new measurement while still measuring")
-        #self.acq_thread = threading.Thread(target=self._thread_run)
+        connects a signal/slot that calls post run when thread is finished
+        """
+        self.interrupt_measurement_called = False        
+        self.run_state.update_value('run_starting')
+        self.log.info("measurement {} start called from thread: {}".format(self.name, repr(threading.get_ident())))
+        if self.is_thread_alive():
+            raise RuntimeError("Cannot start a new measurement while still measuring {} {}".format(self.acq_thread, self.is_measuring()))
+        # remove previous qthread with delete later
+        #if self.acq_thread is not None:
+        #    self.acq_thread.deleteLater()
         self.acq_thread = MeasurementQThread(self)
-        self.acq_thread.finished.connect(self.post_run)
+        self.acq_thread.finished.connect(self._call_post_run)
         #self.measurement_state_changed.emit(True)
-        self.running.update_value(True)
-        self.pre_run()
+        #self.running.update_value(True)
+        self.run_state.update_value('run_prerun')
+        try:
+            self.pre_run()
+        except Exception as err:
+            #print("err", err)
+            self.run_state.update_value('stop_failure')
+            self.activation.update_value(False)            
+            raise
+
+        self.run_state.update_value('run_thread_starting')
         self.acq_thread.start()
+        self.run_state.update_value('run_thread_run')
         self.t_start = time.time()
         self.display_update_timer.start(self.display_update_period*1000)
 
@@ -157,6 +183,8 @@ class Measurement(QtCore.QObject):
         
         No GUI updates should occur within the *run* function, any Qt related GUI work 
         should occur in :meth:`update_display` 
+        
+        Don't call this directly!
         """
         
         if hasattr(self, '_run'):
@@ -165,6 +193,21 @@ class Measurement(QtCore.QObject):
         else:
             raise NotImplementedError("Measurement {}.run() not defined".format(self.name))
     
+    @QtCore.Slot()
+    def _call_post_run(self):
+        """
+        Don't call this directly!
+        """
+        self.run_state.update_value('run_post_run')
+        try:
+            self.post_run()
+        except Exception as err:
+            self.end_state = 'stop_failure'
+            raise
+        finally:
+            self.activation.update_value(False)
+            self.run_state.update_value(self.end_state)            
+
     
     def post_run(self):
         """Override this method to enable main-thread finalization after to measurement thread completes"""
@@ -174,6 +217,7 @@ class Measurement(QtCore.QObject):
         """
         This function governs the behavior of the measurement thread. 
         """
+        print(self.name, "_thread_run thread_id:", threading.get_ident())
         self.set_progress(50.) # set progress bars to default run position at 50%
         try:
             if self.settings['profile']:
@@ -181,22 +225,31 @@ class Measurement(QtCore.QObject):
                 profile = cProfile.Profile()
                 profile.enable()
             self.run()
-        #except Exception as err:
-        #    self.interrupt_measurement_called = True
-        #    raise err
+            success = True
+        except Exception as err:
+            success = False
+            raise
         finally:
-            self.running.update_value(False)
-            self.activation.update_value(False)
+            self.run_state.update_value('run_thread_end')
+
+            #self.running.update_value(False)
             self.set_progress(0.) # set progress bars back to zero
             #self.measurement_state_changed.emit(False)
             if self.interrupt_measurement_called:
                 self.measurement_interrupted.emit()
                 self.interrupt_measurement_called = False
+                end_state = 'stop_interrupted'
+            elif not success:
+                end_state = "stop_failure"
             else:
                 self.measurement_sucessfully_completed.emit()
+                end_state = "stop_success"
             if self.settings['profile']:
                 profile.disable()
-                profile.print_stats(sort='time')   
+                profile.print_stats(sort='time')
+                            
+            self.end_state = end_state
+
     
             
 
@@ -218,7 +271,7 @@ class Measurement(QtCore.QObject):
         self.progress.update_value(pct)
                 
     @QtCore.Slot()
-    def interrupt(self):
+    def _interrupt(self):
         """
         Kindly ask the measurement to stop.
         
@@ -226,11 +279,18 @@ class Measurement(QtCore.QObject):
         To actually stop, the threaded :meth:`run` method must check
         for this flag and exit
         """
-        self.log.info("measurement {} interrupt".format(self.name))
-        self.interrupt_measurement_called = True
-        self.activation.update_value(False)
+        self.log.info("measurement {} stopping {}".format(self.name, self.settings['run_state']))
+        # print("{} interrupt(): run_state={}".format(self.name, self.settings['run_state']))
+        if self.settings['run_state'].startswith('run'):
+            self.log.info("measurement {} interrupt called".format(self.name))
+            self.interrupt_measurement_called = True
+        #self.activation.update_value(False)
         #Make sure display is up to date        
         #self._on_display_update_timer()
+        
+    def interrupt(self):
+        self.activation.update_value(False)
+    
 
     def terminate(self):
         """
@@ -249,14 +309,17 @@ class Measurement(QtCore.QObject):
         if start:
             self._start()
         else:
-            self.interrupt()
+            self._interrupt()
 
         
     def is_measuring(self):
         """
         Returns whether the acquisition thread is running
         """
+        #print(self.name, "is_measuring run_state", self.settings['run_state'])
+        return self.settings['run_state'].startswith('run')
         
+        """
         if self.acq_thread is None:
             self.running.update_value(False)
             self.activation.update_value(False)
@@ -267,6 +330,14 @@ class Measurement(QtCore.QObject):
             resp = self.acq_thread.isRunning()
             self.running.update_value(resp)            
             return resp
+        """
+    def is_thread_alive(self):
+        if self.acq_thread is None:
+            return False
+        else:
+            #resp =  self.acq_thread.is_alive()
+            resp = self.acq_thread.isRunning()
+            return resp        
     
     def update_display(self):
         "Override this function to provide figure updates when the display timer runs"
@@ -305,9 +376,10 @@ class Measurement(QtCore.QObject):
         self.operations[name] = op_func   
         
     def start_nested_measure_and_wait(self, measure, nested_interrupt = True, 
-                                      polling_func=None, polling_time=0.1, start_time=0.0):
+                                      polling_func=None, polling_time=0.1):
         """
         Start another nested measurement *measure* and wait until completion.
+        Should be called with run function.
         
         
         Optionally it can call a polling function *polling_func* with no arguments
@@ -316,38 +388,52 @@ class Measurement(QtCore.QObject):
         if *nested_interrupt* is True then interrupting the nested *measure* will
         also interrupt the outer measurement. *nested_interrupt* defaults to True
         
-        start_time is how the time period after starting the nested measurement
-        that checks for completion of nested measurement
+        returns True if successful run, otherwise returns false for a run failure or interrupted measurement
         """
         
-        measure.settings['activation'] = True
+        self.log.info("Starting nested measurement {} from {} on thread id {}".format(measure.name, self.name, threading.get_ident()))
         
-        # wait until measurement has started
+        measure.start()
+                
+        # Wait until measurement has started, timeout of 1 second
         t0 = time.time()
-        while not measure.settings['running']:
-            # check for startup timeout
-            if (time.time() - t0) > 1.0:
-                break
-            time.sleep(0.001)
-        
-        time.sleep(start_time) 
+        while not measure.is_measuring():
+            time.sleep(0.010)
+            if time.time() - t0 > 1.0:
+                print(self.name, ': nested measurement', measure.name, 'has not started before timeout', )
+                return measure.settings['run_state'] == 'stop_success'
                 
         last_polling = time.time()
+        
+        # Now that it is running, wait until done
         while measure.is_measuring():
             if self.interrupt_measurement_called:
+                #print('nest outer interrupted', self.interrupt_measurement_called)
                 measure.interrupt()
+                
             if measure.interrupt_measurement_called and nested_interrupt:
-                #print("nested interrupt bubbling up")
-                self.interrupt() 
+                # THIS IS MAYBE UNSAFE???: measure.interrupt_measurement_called might be also TRUE if measure finished successfully?
+                # IDEA to TEST: also check the measure.settings['run_state'].startswidth('stop')
+                print("nested interrupt bubbling up", measure.interrupt_measurement_called, self.interrupt_measurement_called)
+                self.interrupt()
+ 
             time.sleep(0.010)
             
             # polling
-            if polling_func:
-                t = time.time()
-                if t - last_polling > polling_time:
-                    #print("poll", t - last_polling )
-                    polling_func()
-                    last_polling = t
+            if measure.settings['run_state'] == 'run_thread_run':
+                if polling_func:
+                    t = time.time()
+                    if t - last_polling > polling_time:
+                        try:
+                            polling_func()
+                        except Exception as err:
+                            self.log.error('start_nested_measure_and_wait polling failed {}'.format(err))
+                        last_polling = t
+                    
+        #returns True if successful run, otherwise,
+        #returns false for a run failure or interrupted measurement
+        return measure.settings['run_state'] == 'stop_success'
+                    
         
     
     def load_ui(self, ui_fname=None):

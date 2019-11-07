@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>706</width>
-    <height>577</height>
+    <width>900</width>
+    <height>483</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -17,215 +17,266 @@
    <string>Simple XY Scan</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,1" columnstretch="0,0,1">
-    <item row="0" column="0" rowspan="2">
-     <widget class="QGroupBox" name="control_groupBox">
-      <property name="title">
-       <string>XY Scan Control</string>
-      </property>
-      <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0,0,0,0,0">
-       <item row="2" column="2">
-        <widget class="QDoubleSpinBox" name="y_doubleSpinBox"/>
-       </item>
-       <item row="6" column="3">
-        <widget class="QLabel" name="dv_label_2">
-         <property name="text">
-          <string>dv</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QLabel" name="x_label">
-         <property name="text">
-          <string>current X</string>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="2">
-        <widget class="QDoubleSpinBox" name="h1_doubleSpinBox"/>
-       </item>
-       <item row="2" column="4">
-        <widget class="QLabel" name="progres_label">
-         <property name="text">
-          <string>Progress:</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="4">
-        <widget class="QDoubleSpinBox" name="dv_doubleSpinBox"/>
-       </item>
-       <item row="4" column="4">
-        <widget class="QDoubleSpinBox" name="dh_doubleSpinBox"/>
-       </item>
-       <item row="1" column="2">
-        <widget class="QLabel" name="y_label">
-         <property name="text">
-          <string>current Y</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="6">
-        <widget class="QPushButton" name="interrupt_pushButton">
-         <property name="text">
-          <string>Interrupt</string>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="h_label">
-         <property name="text">
-          <string>H</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="6">
-        <widget class="QDoubleSpinBox" name="progress_doubleSpinBox"/>
-       </item>
-       <item row="6" column="2">
-        <widget class="QDoubleSpinBox" name="v1_doubleSpinBox"/>
-       </item>
-       <item row="6" column="0">
-        <widget class="QLabel" name="v_label_2">
-         <property name="text">
-          <string>V</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="4">
-        <widget class="QPushButton" name="start_pushButton">
-         <property name="text">
-          <string>Start</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <widget class="QDoubleSpinBox" name="x_doubleSpinBox"/>
-       </item>
-       <item row="4" column="1">
-        <widget class="QDoubleSpinBox" name="h0_doubleSpinBox"/>
-       </item>
-       <item row="3" column="0" colspan="7">
-        <widget class="Line" name="line">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="6">
-        <widget class="QDoubleSpinBox" name="Nh_doubleSpinBox"/>
-       </item>
-       <item row="4" column="5">
-        <widget class="QLabel" name="label_2">
-         <property name="text">
-          <string>Nh</string>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="1">
-        <widget class="QDoubleSpinBox" name="v0_doubleSpinBox"/>
-       </item>
-       <item row="6" column="6">
-        <widget class="QDoubleSpinBox" name="Nv_doubleSpinBox"/>
-       </item>
-       <item row="4" column="3">
-        <widget class="QLabel" name="dv_label">
-         <property name="text">
-          <string>dh</string>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="5">
-        <widget class="QLabel" name="label_3">
-         <property name="text">
-          <string>Nv</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1" colspan="2">
-        <widget class="QComboBox" name="scan_type_comboBox"/>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item row="0" column="1">
-     <widget class="QGroupBox" name="groupBox">
-      <property name="title">
-       <string>Data</string>
-      </property>
-      <layout class="QGridLayout" name="gridLayout_3">
-       <item row="0" column="0">
-        <widget class="QCheckBox" name="continuous_scan_checkBox">
-         <property name="text">
-          <string>Continuous</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QCheckBox" name="save_h5_checkBox">
-         <property name="text">
-          <string>Save H5</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item row="1" column="1">
-     <widget class="QGroupBox" name="groupBox_2">
-      <property name="title">
-       <string>View</string>
-      </property>
-      <layout class="QGridLayout" name="gridLayout_4">
-       <item row="0" column="0">
-        <widget class="QCheckBox" name="show_previous_scans_checkBox">
-         <property name="text">
-          <string>Show 
+   <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0" columnstretch="0">
+    <property name="verticalSpacing">
+     <number>3</number>
+    </property>
+    <item row="0" column="0">
+     <layout class="QHBoxLayout" name="settings_horizontalLayout">
+      <item>
+       <widget class="QGroupBox" name="control_groupBox">
+        <property name="maximumSize">
+         <size>
+          <width>450</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>XY Scan Control</string>
+        </property>
+        <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0,0,0,0,0">
+         <item row="2" column="2">
+          <widget class="QDoubleSpinBox" name="y_doubleSpinBox"/>
+         </item>
+         <item row="6" column="3">
+          <widget class="QLabel" name="dv_label_2">
+           <property name="text">
+            <string>dv</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLabel" name="x_label">
+           <property name="text">
+            <string>current X</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="2">
+          <widget class="QDoubleSpinBox" name="h1_doubleSpinBox"/>
+         </item>
+         <item row="2" column="4">
+          <widget class="QLabel" name="progres_label">
+           <property name="text">
+            <string>Progress:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="4">
+          <widget class="QDoubleSpinBox" name="dv_doubleSpinBox"/>
+         </item>
+         <item row="4" column="4">
+          <widget class="QDoubleSpinBox" name="dh_doubleSpinBox"/>
+         </item>
+         <item row="1" column="2">
+          <widget class="QLabel" name="y_label">
+           <property name="text">
+            <string>current Y</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="6">
+          <widget class="QPushButton" name="interrupt_pushButton">
+           <property name="text">
+            <string>Interrupt</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="h_label">
+           <property name="text">
+            <string>H</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="6">
+          <widget class="QDoubleSpinBox" name="progress_doubleSpinBox"/>
+         </item>
+         <item row="6" column="2">
+          <widget class="QDoubleSpinBox" name="v1_doubleSpinBox"/>
+         </item>
+         <item row="6" column="0">
+          <widget class="QLabel" name="v_label_2">
+           <property name="text">
+            <string>V</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="4">
+          <widget class="QPushButton" name="start_pushButton">
+           <property name="text">
+            <string>Start</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QDoubleSpinBox" name="x_doubleSpinBox"/>
+         </item>
+         <item row="4" column="1">
+          <widget class="QDoubleSpinBox" name="h0_doubleSpinBox"/>
+         </item>
+         <item row="3" column="0" colspan="7">
+          <widget class="Line" name="line">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="6">
+          <widget class="QDoubleSpinBox" name="Nh_doubleSpinBox"/>
+         </item>
+         <item row="4" column="5">
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Nh</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="QDoubleSpinBox" name="v0_doubleSpinBox"/>
+         </item>
+         <item row="6" column="6">
+          <widget class="QDoubleSpinBox" name="Nv_doubleSpinBox"/>
+         </item>
+         <item row="4" column="3">
+          <widget class="QLabel" name="dv_label">
+           <property name="text">
+            <string>dh</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="5">
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>Nv</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1" colspan="2">
+          <widget class="QComboBox" name="scan_type_comboBox"/>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item>
+         <widget class="QGroupBox" name="groupBox">
+          <property name="title">
+           <string>Data</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_3">
+           <item row="0" column="0">
+            <widget class="QCheckBox" name="continuous_scan_checkBox">
+             <property name="text">
+              <string>Continuous</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QCheckBox" name="save_h5_checkBox">
+             <property name="text">
+              <string>Save H5</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBox_2">
+          <property name="title">
+           <string>View</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_4">
+           <item row="0" column="0">
+            <widget class="QCheckBox" name="show_previous_scans_checkBox">
+             <property name="text">
+              <string>Show 
 Prev Scans</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QPushButton" name="clear_previous_scans_pushButton">
-         <property name="text">
-          <string>Clear Prev</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QPushButton" name="clear_previous_scans_pushButton">
+             <property name="text">
+              <string>Clear Prev</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="details_groupBox">
+        <property name="title">
+         <string>Details</string>
+        </property>
+        <layout class="QVBoxLayout" name="details_layout"/>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="device_details_GroupBox">
+        <property name="title">
+         <string>Device Details</string>
+        </property>
+        <layout class="QGridLayout" name="device_details_layout"/>
+       </widget>
+      </item>
+     </layout>
     </item>
-    <item row="0" column="2" rowspan="2">
-     <widget class="QGroupBox" name="details_groupBox">
-      <property name="title">
-       <string>Details</string>
-      </property>
-      <layout class="QVBoxLayout" name="verticalLayout"/>
-     </widget>
-    </item>
-    <item row="2" column="0" colspan="3">
+    <item row="1" column="0">
      <widget class="QGroupBox" name="plot_groupBox">
       <property name="title">
-       <string>Plot</string>
+       <string/>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2"/>
+      <property name="flat">
+       <bool>true</bool>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+      </layout>
      </widget>
     </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>706</width>
+     <width>900</width>
      <height>21</height>
     </rect>
    </property>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QStatusBar" name="statusbar">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+  </widget>
  </widget>
  <tabstops>
   <tabstop>scan_type_comboBox</tabstop>
