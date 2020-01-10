@@ -201,9 +201,6 @@ class RegionSlicer(QtWidgets.QWidget):
         self.stop = self.settings.New('stop', int, initial=stop, vmin = 0)
         self.step = self.settings.New('step', int, initial=step)
         self.activated = self.settings.New('activated', bool, initial = activated)
-        self.start.add_listener(self.on_change_start_stop)
-        self.stop.add_listener(self.on_change_start_stop)
-        self.activated.add_listener(self.on_change_activated)
         
         self.s_return_on_deactivated = s_return_on_deactivated
         
@@ -218,7 +215,6 @@ class RegionSlicer(QtWidgets.QWidget):
         self.linear_region_item = pg.LinearRegionItem(brush = brush)
         self.linear_region_item.setZValue(ZValue)                         
         self.parent_plot_item.addItem(self.linear_region_item)
-        self.linear_region_item.sigRegionChangeFinished.connect(self.on_change_region)
         
         self.inf_line_label = pg.InfLineLabel(self.linear_region_item.lines[label_line],
                                               self.name, position=0.78, anchor=(0.5, 0.5))
@@ -229,6 +225,12 @@ class RegionSlicer(QtWidgets.QWidget):
         if x_array == None: #give it something to work with.
             x_array = np.arange(512)
         self.set_x_array(x_array)
+        
+        self.start.add_listener(self.on_change_start_stop)
+        self.stop.add_listener(self.on_change_start_stop)
+        self.activated.add_listener(self.on_change_activated)
+        self.linear_region_item.sigRegionChangeFinished.connect(self.on_change_region)
+
         
     
     @QtCore.Slot(object)
