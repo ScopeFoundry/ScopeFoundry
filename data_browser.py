@@ -99,6 +99,7 @@ class DataBrowser(BaseApp):
 
         
     def load_view(self, new_view):
+        print("loading view", repr(new_view.name))
         
         #instantiate view
         #new_view = ViewClass(self)
@@ -116,7 +117,12 @@ class DataBrowser(BaseApp):
         return new_view
 
     def on_change_data_filename(self):
-        fname = self.settings.data_filename.val 
+        fname = self.settings['data_filename'] 
+        if fname == "0":
+            print("initial file 0")
+            return
+        else:
+            print("file", fname)
         if not self.settings['auto_select_view']:
             self.current_view.on_change_data_filename(fname)
         else:
@@ -348,28 +354,19 @@ class HyperSpectralBaseView(DataBrowserView):
         self.x_axis.add_listener(self.on_change_x_axis)
 
         self.norm_data = self.settings.New('norm_data', bool, initial = False)
-        self.norm_data.add_listener(self.update_display)
-
         self.bg_subtract = self.settings.New('bg_subtract', str, initial='None', choices=('None', 'bg_slice', 'costum_const'))
-        self.norm_data.add_listener(self.update_display)
-        
         self.bg_counts = self.settings.New('bg_value', initial=0, unit='cts/bin')
-        self.bg_counts.add_listener(self.update_display)
         
         self.settings.New('default_view_on_load', bool, initial=True)
         
         self.binning = self.settings.New('binning', int, initial = 1, vmin=1)
-        self.binning.add_listener(self.update_display)
 
         self.spatial_binning = self.settings.New('spatial_binning', int, initial = 1, vmin=1)
-        self.spatial_binning.add_listener(self.bin_spatially)
 
         self.cor_X_data = self.settings.New('cor_X_data', str, choices = self.default_display_image_choices,
                                             initial = 'default')
         self.cor_Y_data = self.settings.New('cor_Y_data', str, choices = self.default_display_image_choices,
                                             initial = 'sum')
-        self.cor_X_data.add_listener(self.on_change_corr_settings)
-        self.cor_Y_data.add_listener(self.on_change_corr_settings)
 
 
         # data slicers
@@ -379,12 +376,7 @@ class HyperSpectralBaseView(DataBrowserView):
         self.bg_slicer = RegionSlicer(self.spec_plot, name='bg_slice', slicer_updated_func=self.update_display,
                                       brush = QtGui.QColor(255,255,255,70), 
                                       ZValue=11, font=font, initial=[0,80], label_line=0)
-        self.bg_slicer.activated.add_listener(lambda:self.bg_subtract.update_value('bg_slice') if self.bg_slicer.activated.val else None)        
         
-        self.show_lines = ['show_circ_line','show_rect_line']
-        for x in self.show_lines:
-            lq = self.settings.New(x, bool, initial=True)
-            lq.add_listener(self.on_change_show_lines)        
         
         # peakutils
         self.peakutils_settings = LQCollection()    
@@ -420,6 +412,24 @@ class HyperSpectralBaseView(DataBrowserView):
 
         #self.settings_dock.widgetArea.setStyleSheet('Dock > QWidget {border:0px; border-radius:0px}')
         #self.peakutils_dock.widgetArea.setStyleSheet('Dock > QWidget {border:0px; border-radius:0px}')
+        
+        ### LQ Connections
+        self.norm_data.add_listener(self.update_display)
+        self.bg_subtract.add_listener(self.update_display)
+        self.bg_counts.add_listener(self.update_display)
+        self.binning.add_listener(self.update_display)
+        self.spatial_binning.add_listener(self.bin_spatially)
+        self.cor_X_data.add_listener(self.on_change_corr_settings)
+        self.cor_Y_data.add_listener(self.on_change_corr_settings)
+
+        self.bg_slicer.activated.add_listener(lambda:self.bg_subtract.update_value('bg_slice') if self.bg_slicer.activated.val else None)        
+
+        self.show_lines = ['show_circ_line','show_rect_line']
+        for x in self.show_lines:
+            lq = self.settings.New(x, bool, initial=True)
+            lq.add_listener(self.on_change_show_lines)        
+
+
 
     
     def generate_settings_ui(self):
@@ -577,6 +587,8 @@ class HyperSpectralBaseView(DataBrowserView):
         pass    
     
     def on_change_data_filename(self, fname):
+        if fname == "0":
+            return
         self.reset()
         try:
             self.scalebar_type = None
