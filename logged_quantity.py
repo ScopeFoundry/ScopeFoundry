@@ -1343,6 +1343,12 @@ class LQCollection(object):
     def as_dict(self):
         return self._logged_quantities
     
+    def as_value_dict(self):
+        val_dict = dict()
+        for k, lq in self.as_dict().items():
+            val_dict[k] = lq.value
+        return val_dict
+    
 #    def items(self):
 #        return self._logged_quantities.items()
     
