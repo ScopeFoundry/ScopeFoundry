@@ -1064,6 +1064,11 @@ class LQCircularNetwork(QtCore.QObject):
                 self.lq_dict[kev].update_value(val)
                 self.updated_values.emit()
                 self.locked = False
+                
+    def add_lq(self, lq, name=None):
+        if name is None:
+            name = lq.name
+        self.lq_dict[name] = lq
 
     def add_lq(self, lq, name=None):
         if name is None:
