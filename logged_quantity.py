@@ -83,7 +83,7 @@ class LoggedQuantity(QtCore.QObject):
             pass
         elif dtype in ['int', 'uint']:
             dtype = int
-        elif dtype in ['float', 'uint']:
+        elif dtype in ['float', 'float32']:
             dtype = float
         
         self.dtype = dtype
