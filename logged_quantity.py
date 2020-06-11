@@ -1413,33 +1413,52 @@ class LQCollection(object):
             return lq_vector
     
     
-    def New_UI(self, include = None, exclude = []):
+    def New_UI(self, include = None, exclude = [], style='form'):
         """create a default Qt Widget that contains 
         widgets for all settings in the LQCollection
         """
 
-        ui_widget =  QtWidgets.QWidget()
-        formLayout = QtWidgets.QFormLayout()
-        ui_widget.setLayout(formLayout)
-        
         if include is None:
             lqnames = self.as_dict().keys()
         else:
             lqnames = include
+
+        ui_widget =  QtWidgets.QWidget()
+
+        if style == 'form':
+            formLayout = QtWidgets.QFormLayout()
+            ui_widget.setLayout(formLayout)
+            
+            
+            for lqname in lqnames:
+                if lqname in exclude:
+                    continue
+                lq = self.get_lq(lqname)
+                #: :type lq: LoggedQuantity
+                widget = lq.new_default_widget()
+                # Add to formlayout
+                formLayout.addRow(lqname, widget)
+                #lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
+                #self.tree_item.addChild(lq_tree_item)
+                #lq.hardware_tree_widget = widget
+                #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
+                #self.control_widgets[lqname] = widget  
         
-        for lqname in lqnames:
-            if lqname in exclude:
-                continue
-            lq = self.get_lq(lqname)
-            #: :type lq: LoggedQuantity
-            widget = lq.new_default_widget()
-            # Add to formlayout
-            formLayout.addRow(lqname, widget)
-            #lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
-            #self.tree_item.addChild(lq_tree_item)
-            #lq.hardware_tree_widget = widget
-            #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
-            #self.control_widgets[lqname] = widget  
+        elif style == 'hbox':
+            hboxLayout = QtWidgets.QHBoxLayout()
+            ui_widget.setLayout(hboxLayout)
+            
+            for lqname in lqnames:
+                if lqname in exclude:
+                    continue
+                lq = self.get_lq(lqname)                
+                widget = lq.new_default_widget()
+
+                hboxLayout.addWidget(QtWidgets.QLabel(lqname))
+                hboxLayout.addWidget(widget)
+                
+
+        
         return ui_widget
     
     def add_widgets_to_subtree(self, tree_item):
