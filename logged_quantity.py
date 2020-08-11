@@ -875,7 +875,6 @@ class FileLQ(LoggedQuantity):
             
     def new_default_widget(self):
         lineEdit = QtWidgets.QLineEdit()
-        lineEdit.set
         browseButton = QtWidgets.QPushButton('...')
         self.connect_to_browse_widgets(lineEdit, browseButton)
         widget = QtWidgets.QWidget()
