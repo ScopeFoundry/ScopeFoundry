@@ -1460,6 +1460,18 @@ class LQCollection(object):
                 lq.connect_to_widget(lineedit)
                 button.clicked.connect(lq.array_tableView.show)
                 button.clicked.connect(lq.array_tableView.raise_)
+            elif isinstance(lq,FileLQ):
+                lineedit = QtWidgets.QLineEdit()
+                button = QtWidgets.QPushButton('...')
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                widget.setLayout(layout)
+                layout.addWidget(lineedit)
+                layout.addWidget(button)
+                layout.setSpacing(0)
+                layout.setContentsMargins(0,0,0,0)
+                
+                lq.connect_to_browse_widgets(lineedit,button)
             else:
                 if lq.choices is not None:
                     widget = QtWidgets.QComboBox()
