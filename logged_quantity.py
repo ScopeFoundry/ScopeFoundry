@@ -865,17 +865,17 @@ class FileLQ(LoggedQuantity):
         pushButton.clicked.connect(self.file_browser)
     
     def file_browser(self):
-        # TODO add default directory, etc
         if self.is_dir:
-            fname = QtWidgets.QFileDialog.getExistingDirectory(None)
+            fname = QtWidgets.QFileDialog.getExistingDirectory(directory=self.default_dir)
         else:
-            fname, _ = QtWidgets.QFileDialog.getOpenFileName(None)
+            fname, _ = QtWidgets.QFileDialog.getOpenFileName(directory=self.default_dir)
         self.log.debug(repr(fname))
         if fname:
             self.update_value(fname)
             
     def new_default_widget(self):
         lineEdit = QtWidgets.QLineEdit()
+        lineEdit.set
         browseButton = QtWidgets.QPushButton('...')
         self.connect_to_browse_widgets(lineEdit, browseButton)
         widget = QtWidgets.QWidget()
