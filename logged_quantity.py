@@ -11,6 +11,7 @@ import pyqtgraph as pg
 from inspect import signature
 from ScopeFoundry.widgets import MinMaxQSlider
 from numba.tests.test_conversion import addition
+import os
 
 #import threading
 
@@ -860,6 +861,11 @@ class FileLQ(LoggedQuantity):
     def connect_to_browse_widgets(self, lineEdit, pushButton):
         assert type(lineEdit) == QtWidgets.QLineEdit
         self.connect_to_widget(lineEdit)
+
+        if self.default_dir is not None:
+            lineEdit.setText(self.default_dir)
+        else:
+            lineEdit.setText(os.getcwd())
     
         assert type(pushButton) == QtWidgets.QPushButton
         pushButton.clicked.connect(self.file_browser)
