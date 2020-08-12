@@ -10,6 +10,7 @@ from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
 from ScopeFoundry.widgets import MinMaxQSlider
+import os
 
 #import threading
 
@@ -859,16 +860,20 @@ class FileLQ(LoggedQuantity):
     def connect_to_browse_widgets(self, lineEdit, pushButton):
         assert type(lineEdit) == QtWidgets.QLineEdit
         self.connect_to_widget(lineEdit)
+
+        if self.default_dir is not None:
+            lineEdit.setText(self.default_dir)
+        else:
+            lineEdit.setText(os.getcwd())
     
         assert type(pushButton) == QtWidgets.QPushButton
         pushButton.clicked.connect(self.file_browser)
     
     def file_browser(self):
-        # TODO add default directory, etc
         if self.is_dir:
-            fname = QtWidgets.QFileDialog.getExistingDirectory(None)
+            fname = QtWidgets.QFileDialog.getExistingDirectory(directory=self.default_dir)
         else:
-            fname, _ = QtWidgets.QFileDialog.getOpenFileName(None)
+            fname, _ = QtWidgets.QFileDialog.getOpenFileName(directory=self.default_dir)
         self.log.debug(repr(fname))
         if fname:
             self.update_value(fname)
@@ -1478,6 +1483,18 @@ class LQCollection(object):
                 lq.connect_to_widget(lineedit)
                 button.clicked.connect(lq.array_tableView.show)
                 button.clicked.connect(lq.array_tableView.raise_)
+            elif isinstance(lq,FileLQ):
+                lineedit = QtWidgets.QLineEdit()
+                button = QtWidgets.QPushButton('...')
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                widget.setLayout(layout)
+                layout.addWidget(lineedit)
+                layout.addWidget(button)
+                layout.setSpacing(0)
+                layout.setContentsMargins(0,0,0,0)
+                
+                lq.connect_to_browse_widgets(lineedit,button)
             else:
                 if lq.choices is not None:
                     widget = QtWidgets.QComboBox()
