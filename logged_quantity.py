@@ -10,7 +10,6 @@ from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
 from ScopeFoundry.widgets import MinMaxQSlider
-from numba.tests.test_conversion import addition
 
 #import threading
 
