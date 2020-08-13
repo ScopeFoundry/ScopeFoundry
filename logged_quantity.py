@@ -10,7 +10,7 @@ from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
 from ScopeFoundry.widgets import MinMaxQSlider
-from numba.tests.test_conversion import addition
+import os
 
 #import threading
 
@@ -83,7 +83,7 @@ class LoggedQuantity(QtCore.QObject):
             pass
         elif dtype in ['int', 'uint']:
             dtype = int
-        elif dtype in ['float', 'uint']:
+        elif dtype in ['float', 'float32']:
             dtype = float
         
         self.dtype = dtype
@@ -860,16 +860,20 @@ class FileLQ(LoggedQuantity):
     def connect_to_browse_widgets(self, lineEdit, pushButton):
         assert type(lineEdit) == QtWidgets.QLineEdit
         self.connect_to_widget(lineEdit)
+
+        if self.default_dir is not None:
+            lineEdit.setText(self.default_dir)
+        else:
+            lineEdit.setText(os.getcwd())
     
         assert type(pushButton) == QtWidgets.QPushButton
         pushButton.clicked.connect(self.file_browser)
     
     def file_browser(self):
-        # TODO add default directory, etc
         if self.is_dir:
-            fname = QtWidgets.QFileDialog.getExistingDirectory(None)
+            fname = QtWidgets.QFileDialog.getExistingDirectory(directory=self.default_dir)
         else:
-            fname, _ = QtWidgets.QFileDialog.getOpenFileName(None)
+            fname, _ = QtWidgets.QFileDialog.getOpenFileName(directory=self.default_dir)
         self.log.debug(repr(fname))
         if fname:
             self.update_value(fname)
@@ -1419,33 +1423,52 @@ class LQCollection(object):
             return lq_vector
     
     
-    def New_UI(self, include = None, exclude = []):
+    def New_UI(self, include = None, exclude = [], style='form'):
         """create a default Qt Widget that contains 
         widgets for all settings in the LQCollection
         """
 
-        ui_widget =  QtWidgets.QWidget()
-        formLayout = QtWidgets.QFormLayout()
-        ui_widget.setLayout(formLayout)
-        
         if include is None:
             lqnames = self.as_dict().keys()
         else:
             lqnames = include
+
+        ui_widget =  QtWidgets.QWidget()
+
+        if style == 'form':
+            formLayout = QtWidgets.QFormLayout()
+            ui_widget.setLayout(formLayout)
+            
+            
+            for lqname in lqnames:
+                if lqname in exclude:
+                    continue
+                lq = self.get_lq(lqname)
+                #: :type lq: LoggedQuantity
+                widget = lq.new_default_widget()
+                # Add to formlayout
+                formLayout.addRow(lqname, widget)
+                #lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
+                #self.tree_item.addChild(lq_tree_item)
+                #lq.hardware_tree_widget = widget
+                #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
+                #self.control_widgets[lqname] = widget  
         
-        for lqname in lqnames:
-            if lqname in exclude:
-                continue
-            lq = self.get_lq(lqname)
-            #: :type lq: LoggedQuantity
-            widget = lq.new_default_widget()
-            # Add to formlayout
-            formLayout.addRow(lqname, widget)
-            #lq_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [lqname, ""])
-            #self.tree_item.addChild(lq_tree_item)
-            #lq.hardware_tree_widget = widget
-            #tree.setItemWidget(lq_tree_item, 1, lq.hardware_tree_widget)
-            #self.control_widgets[lqname] = widget  
+        elif style == 'hbox':
+            hboxLayout = QtWidgets.QHBoxLayout()
+            ui_widget.setLayout(hboxLayout)
+            
+            for lqname in lqnames:
+                if lqname in exclude:
+                    continue
+                lq = self.get_lq(lqname)                
+                widget = lq.new_default_widget()
+
+                hboxLayout.addWidget(QtWidgets.QLabel(lqname))
+                hboxLayout.addWidget(widget)
+                
+
+        
         return ui_widget
     
     def add_widgets_to_subtree(self, tree_item):
@@ -1466,6 +1489,18 @@ class LQCollection(object):
                 lq.connect_to_widget(lineedit)
                 button.clicked.connect(lq.array_tableView.show)
                 button.clicked.connect(lq.array_tableView.raise_)
+            elif isinstance(lq,FileLQ):
+                lineedit = QtWidgets.QLineEdit()
+                button = QtWidgets.QPushButton('...')
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                widget.setLayout(layout)
+                layout.addWidget(lineedit)
+                layout.addWidget(button)
+                layout.setSpacing(0)
+                layout.setContentsMargins(0,0,0,0)
+                
+                lq.connect_to_browse_widgets(lineedit,button)
             else:
                 if lq.choices is not None:
                     widget = QtWidgets.QComboBox()
