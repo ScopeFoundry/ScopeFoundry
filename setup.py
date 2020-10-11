@@ -32,4 +32,10 @@ setup(
     install_requires = [
     	'numpy', 'h5py', 'qtpy', 'xreload', 'uuid7']
     
+    install_requires=['numpy', 'qtpy', 'h5py', 'pyqtgraph'],
+
+    extras_require={
+        'all' : ['qtconsole', 'pyqt5'],
+    }
+
     )
