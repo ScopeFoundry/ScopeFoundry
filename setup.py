@@ -28,4 +28,10 @@ setup(
         '':["*.ui"], # include QT ui files 
         },
     
+    install_requires=['numpy', 'qtpy', 'h5py', 'pyqtgraph'],
+
+    extras_require={
+        'all' : ['qtconsole', 'pyqt5'],
+    }
+
     )
