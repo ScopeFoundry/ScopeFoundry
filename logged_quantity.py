@@ -1466,8 +1466,26 @@ class LQCollection(object):
 
                 hboxLayout.addWidget(QtWidgets.QLabel(lqname))
                 hboxLayout.addWidget(widget)
-                
+        
+        elif style == 'scroll_form':
+            scroll_area = QtWidgets.QScrollArea()
+            formLayout = QtWidgets.QFormLayout()
+            ui_widget.setLayout(formLayout)
+            scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+            scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+            scroll_area.setWidgetResizable(True)
+            scroll_area.setWidget(ui_widget)
+            
+            for lqname in lqnames:
+                if lqname in exclude:
+                    continue
+                lq = self.get_lq(lqname)
+                #: :type lq: LoggedQuantity
+                widget = lq.new_default_widget()
+                # Add to formlayout
+                formLayout.addRow(lqname, widget)
 
+            return scroll_area
         
         return ui_widget
     
