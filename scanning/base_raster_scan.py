@@ -129,6 +129,9 @@ class BaseRaster2DScan(Measurement):
         self.scan_type.updated_value.connect(self.compute_scan_params)
         
         #connect events
+        self.settings.show_previous_scans.add_listener(
+            self.show_hide_previous_scans, argtype=(bool),)
+        
         self.ui.start_pushButton.clicked.connect(self.start)
         self.ui.interrupt_pushButton.clicked.connect(self.interrupt)
 
@@ -371,11 +374,10 @@ class BaseRaster2DScan(Measurement):
     def update_display(self):
         #self.log.debug('update_display')
         if self.initial_scan_setup_plotting:
-            if self.settings['show_previous_scans']:
-                self.img_item = pg.ImageItem()
-                self.img_items.append(self.img_item)
-                self.img_plot.addItem(self.img_item)
-                self.hist_lut.setImageItem(self.img_item)
+            self.img_item = pg.ImageItem()
+            self.img_items.append(self.img_item)
+            self.img_plot.addItem(self.img_item)
+            self.hist_lut.setImageItem(self.img_item)
     
             self.img_item.setImage(self.display_image_map[0,:,:])
             x0, x1, y0, y1 = self.imshow_extent
@@ -397,10 +399,17 @@ class BaseRaster2DScan(Measurement):
         ''' override this function to control display LUT scaling'''
         self.hist_lut.imageChanged(autoLevel=False)
         #DISABLE below because of crashing
-#        non_zero_index = np.nonzero(self.disp_img)
-#        if len(non_zero_index[0]) > 0:
-#            self.hist_lut.setLevels(*np.percentile(self.disp_img[non_zero_index],(1,99)))
-               
+#         non_zero_index = np.nonzero(self.disp_img)
+#         if len(non_zero_index[0]) > 0:
+#             self.hist_lut.setLevels(*np.percentile(self.disp_img[non_zero_index],(1,99)))
+
+    def show_hide_previous_scans(self, show):
+        print("show_hide_previous_scans", show)
+        if len(self.img_items) < 2:
+            return
+        for img_item in self.img_items[:-1]:
+            img_item.setVisible(show)
+              
     def clear_previous_scans(self):
         #current_img = img_items.pop()
         for img_item in self.img_items[:-1]:
