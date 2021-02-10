@@ -16,6 +16,7 @@ import logging
 import inspect
 from logging import Handler
 import json
+import qdarkstyle
 
 try:
     import configparser
@@ -72,7 +73,7 @@ sys.excepthook = log_unhandled_exception
 
 class BaseApp(QtCore.QObject):
     
-    def __init__(self, argv=[]):
+    def __init__(self, argv=[], dark_mode=False):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         
@@ -81,6 +82,9 @@ class BaseApp(QtCore.QObject):
         self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
             self.qtapp = QtWidgets.QApplication(argv)
+
+        if dark_mode:
+            self.qtapp.setStyleSheet(qdarkstyle.load_stylesheet())
         
         self.settings = LQCollection()
         
@@ -295,7 +299,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.show()
 
     def __init__(self, argv=[]):
-        BaseApp.__init__(self, argv)
+        BaseApp.__init__(self, argv, dark_mode=False)
         
         log_dir = os.path.abspath(os.path.join('.', 'log'))
         if not os.path.isdir(log_dir):
