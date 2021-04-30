@@ -271,14 +271,21 @@ class RegionSlicer(QtWidgets.QWidget):
         
     @property
     def mask(self):
-        X = self.x_array[self.slice]
-        return (self.x_array >= X.min()) * (self.x_array <= X.max())
+        Xmin = self.x_array[self.settings['start']]
+        Xmax = self.x_array[self.settings['stop']]
+        return (self.x_array >= Xmin) * (self.x_array <= Xmax)
     
     @property
-    def m_(self):  
-        X = self.x_array[np.s_]
-        return (self.x_array >= X.min()) * (self.x_array <= X.max())
-
+    def m_(self):
+        if self.activated.val:
+            return self.mask
+        else:
+            s = self.s_return_on_deactivated
+            Xmin = self.x_array[s.start]
+            Xmax = self.x_array[s.stop]
+            return (self.x_array >= Xmin) * (self.x_array <= Xmax)      
+            
+        
     @QtCore.Slot(object)
     def on_change_region(self):
         '''
