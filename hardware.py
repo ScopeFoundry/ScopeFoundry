@@ -90,6 +90,8 @@ class HardwareComponent(QtCore.QObject):
         self.connection_failed.connect(self.on_connection_failed)
         self.connection_succeeded.connect(self.on_connection_succeeded)
         
+        self.add_operation('Reload_Code', self.reload_code)
+        
     def setup(self):
         """
         Runs during __init__, before the hardware connection is established
@@ -267,3 +269,10 @@ class HardwareComponent(QtCore.QObject):
         for lq in self.settings.as_list():
             lq.old_lock = lq.lock
             lq.lock = self.lock
+            
+    def reload_code(self):
+        import inspect
+        import xreload
+        mod = inspect.getmodule(self)
+        x = xreload.xreload(mod)
+        print("Reloading from code", mod, x)

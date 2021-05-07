@@ -97,6 +97,8 @@ class Measurement(QtCore.QObject):
         #self.add_operation("setup_figure", self.setup_figure)
         self.add_operation("update_display", self.update_display)
         self.add_operation('show_ui', self.show_ui)
+        self.add_operation('Reload_Code', self.reload_code)
+
         
         if hasattr(self, 'ui_filename'):
             self.load_ui()
@@ -535,3 +537,10 @@ class Measurement(QtCore.QObject):
             
     def web_ui(self):
         return "Hardware {}".format(self.name)
+
+    def reload_code(self):
+        import inspect
+        import xreload
+        mod = inspect.getmodule(self)
+        x =  xreload.xreload(mod)
+        print("Reloading from code", mod, x)
