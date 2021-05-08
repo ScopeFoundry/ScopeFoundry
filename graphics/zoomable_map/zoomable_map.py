@@ -18,6 +18,15 @@ class TileItem(object):
         self.image_item = None
         self.zoom_tile_coord = zoom, ii, jj
         
+        self.update_data()
+        
+        self.transform = QtGui.QTransform()
+        
+        self.rebuild_data = False
+        self.visible = False
+    
+    def update_data(self):
+        zoom, ii,jj = self.zoom_tile_coord
         # zoom
         # zoom z=0 --> original size: tile slice (ii*tile_size : (ii+1)*tile_size : 1)
         # zoom z=1 --> half size: tile slice (ii*tile_size*2 : (ii+1)*tile_size*2 : 2)
@@ -25,6 +34,7 @@ class TileItem(object):
         z = zoom
         zf = 2**z
         Nt = self.zmi.tile_size
+
         tile_shape = list(self.zmi.image.shape)
         tile_shape[0] = Nt
         tile_shape[1] = Nt
@@ -33,15 +43,10 @@ class TileItem(object):
             self.data += self.zmi.fill
         
         #print("---", ii, jj, Nt, zoom, zf)
-        im = zmi.image[ii*Nt*zf:(ii+1)*Nt*zf:zf,
-                       jj*Nt*zf:(jj+1)*Nt*zf:zf]
-        self.data[:im.shape[0], :im.shape[1]] = im 
-        
-        self.transform = QtGui.QTransform()
-        
-        self.rebuild_data = False
-        self.visible = False
-    
+        im = self.zmi.image[ii*Nt*zf:(ii+1)*Nt*zf:zf,
+                            jj*Nt*zf:(jj+1)*Nt*zf:zf]
+        self.data[:im.shape[0], :im.shape[1]] = im
+
         
     def set_visible(self, vis=True, force_replacement=False):
         
@@ -59,7 +64,8 @@ class TileItem(object):
             self.image_item.setZValue(self.zmi.z_value-self.zoom_tile_coord[0])
             self.zmi.plot.addItem(self.image_item)
             self.visible = True
-            
+    
+    
     def recomputeTransform(self):
         zoom, ii, jj = self.zoom_tile_coord
         zf = 2**zoom
@@ -98,7 +104,7 @@ class ZoomableMapImageItem(QtCore.QObject):
         QtCore.QObject.__init__(self)
         
         """
-        A Zoomable Map (image pryamid) that acts like a pyqtgraph ImageItem
+        A Zoomable Map (image pyramid) that acts like a pyqtgraph ImageItem
         for high performance viewing of gigapixel-sized datasets
         
         plot_item: pyqtgraph PlotItem where Zoomable Map will appear
@@ -320,7 +326,28 @@ class ZoomableMapImageItem(QtCore.QObject):
             tile = self.visible_tiles[(zt, iit, jjt)]
             tile.recomputeTransform()
 
-    # TODO setImage()
+    def setImage(self, image=None, autoLevels=None, slice_changed=None, **kargs):
+
+        self.image = image
         
+        for tile_coord in list(self.tile_cache.keys()):
+            tile = self.tile_cache[tile_coord]
+            if tile.visible:
+                tile.update_data()
+                tile.set_visible(vis=True, force_replacement=True)
+            else:
+                del self.tile_cache[tile_coord]
+        
+        self.sigImageChanged.emit()
+
+        # TODO setImage use slice_changed to limit updates 
+
+    @property
+    def levels(self):
+        return self.getLevels()
+    
+    def getLevels(self):
+        z_max = self.get_max_zoom()
+        return self.get_tile(z_max,0,0).image_item.getLevels()
         
 
