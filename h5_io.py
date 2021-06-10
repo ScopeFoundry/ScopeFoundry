@@ -62,7 +62,7 @@ def h5_base_file(app, fname=None, measurement=None):
             ext='h5')
         fname = os.path.join(app.settings['save_dir'], f)        
         #fname = os.path.join(app.settings['save_dir'], "%i_%s.h5" % (t0, measurement.name) )
-    h5_file = h5py.File(fname)
+    h5_file = h5py.File(fname, 'w')
     root = h5_file['/']
     root.attrs["ScopeFoundry_version"] = 101
     root.attrs['time_id'] = t0
