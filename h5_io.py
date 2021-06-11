@@ -62,7 +62,7 @@ def h5_base_file(app, fname=None, measurement=None):
             ext='h5')
         fname = os.path.join(app.settings['save_dir'], f)        
         #fname = os.path.join(app.settings['save_dir'], "%i_%s.h5" % (t0, measurement.name) )
-    h5_file = h5py.File(fname, 'w')
+    h5_file = h5py.File(fname, 'a')
     root = h5_file['/']
     root.attrs["ScopeFoundry_version"] = 101
     root.attrs['time_id'] = t0
@@ -225,6 +225,36 @@ def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = No
     return emd_grp
     
 
+def create_extendable_h5_dataset(h5_group, name, shape, axis=0, dtype=None, **kwargs):
+    """
+    Create and return an empty HDF5 dataset of type *dtype* in h5_group that can store
+    an infinitely long log of along *axis* (defaults to axis=0). 
+    Dataset will have an initial shape *shape* but can be extended along *axis*
+            
+    creates reasonable defaults for chunksize
+    can be overridden with **kwargs that are sent directly to 
+    h5_group.create_dataset
+    """
+    maxshape = list(shape)
+    maxshape[axis] = None
+    
+    default_kwargs = dict(
+        name=name,
+        shape=shape,
+        dtype=dtype,
+        #chunks=(1,),
+        chunks=shape,
+        maxshape=maxshape,
+        compression=None,
+        #shuffle=True,
+        )
+    default_kwargs.update(kwargs)
+    h5_dataset =  h5_group.create_dataset(
+        **default_kwargs
+        )
+    return h5_dataset
+    
+    
 def create_extendable_h5_like(h5_group, name, arr, axis=0, **kwargs):
     """
     Create and return an empty HDF5 dataset in h5_group that can store
@@ -235,24 +265,8 @@ def create_extendable_h5_like(h5_group, name, arr, axis=0, **kwargs):
     can be overridden with **kwargs that are sent directly to 
     h5_group.create_dataset
     """
-    maxshape = list(arr.shape)
-    maxshape[axis] = None
-    
-    default_kwargs = dict(
-        name=name,
-        shape=arr.shape,
-        dtype=arr.dtype,
-        #chunks=(1,),
-        chunks=arr.shape,
-        maxshape=maxshape,
-        compression=None,
-        #shuffle=True,
-        )
-    default_kwargs.update(kwargs)
-    map_h5 =  h5_group.create_dataset(
-        **default_kwargs
-        )
-    return map_h5
+    return create_extendable_h5_dataset(
+        h5_group, name, arr.shape, axis, arr.dtype, **kwargs)
 
 def extend_h5_dataset_along_axis(ds, new_len, axis=0):
     newshape = list(ds.shape)

@@ -25,7 +25,10 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
         
         self.initial_scan_setup_plotting = True
         
-        self.display_image_map = np.zeros(self.scan_shape, dtype=float)
+        # Fill display image with NaN
+        # this allows for pyqtgraph histogram to ignore unfilled data
+        # pyqtgraph ImageItem also keeps unfilled data pixels transparent 
+        self.display_image_map = np.NaN*np.zeros(self.scan_shape, dtype=float)
 
 
         while not self.interrupt_measurement_called:        
