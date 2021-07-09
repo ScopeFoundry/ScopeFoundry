@@ -438,7 +438,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.setWindowTitle(self.name)
 
         # Set Icon
-        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2_1024.png"))
+        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2D_1024.png"))
         self.qtapp.setWindowIcon(logo_icon)
         self.ui.setWindowIcon(logo_icon)
         
