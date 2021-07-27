@@ -750,7 +750,7 @@ class BaseMicroscopeApp(BaseApp):
 
 
         
-    def settings_load_ini(self, fname, ignore_hw_connect=False):
+    def settings_load_ini(self, fname):
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -783,7 +783,7 @@ class BaseMicroscopeApp(BaseApp):
                     except Exception as err:
                         self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                 
-                if 'connected' in config[section_name] and not ignore_hw_connect:
+                if 'connected' in config[section_name]:
                     hc.settings['connected'] = config[section_name]['connected']
                         
         for meas_name, measurement in self.measurements.items():
