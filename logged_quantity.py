@@ -378,7 +378,13 @@ class LoggedQuantity(QtCore.QObject):
         :returns: None
 
         """
-
+        if self.description != None and type(self):
+        #    print(self.name, self.description)
+            try:
+                widget.setToolTip(f'<b>{self.name}</b> {self.description}')
+            except:
+                pass
+        
         if type(widget) == QtWidgets.QDoubleSpinBox:
 
             widget.setKeyboardTracking(False)
@@ -896,7 +902,8 @@ class ArrayLQ(LoggedQuantity):
                  initial=[], fmt="%g", si=True,
                  ro = False,
                  unit = None,
-                 vmin=-1e12, vmax=+1e12, choices=None):
+                 vmin=-1e12, vmax=+1e12, choices=None,
+                 description=None):
         QtCore.QObject.__init__(self)
         
         self.name = name
@@ -915,6 +922,7 @@ class ArrayLQ(LoggedQuantity):
         self.vmax = vmax
         self.ro = ro # Read-Only
         self.choices = choices
+        self.description = description
         
         self.log = get_logger_from_class(self)
 
