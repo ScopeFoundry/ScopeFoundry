@@ -607,6 +607,8 @@ class LoggedQuantity(QtCore.QObject):
             def on_widget_update(_widget):
                 self.update_value(_widget.value())
             widget.sigValueChanged.connect(on_widget_update)
+            
+
 
         elif type(widget) == QtWidgets.QLabel:
             self.updated_text_value.connect(widget.setText)
@@ -625,6 +627,28 @@ class LoggedQuantity(QtCore.QObject):
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
         
+    def connect_to_pushButton(self, pushButton, colors=['rgba( 0, 255, 0, 180)','rgba(255, 69, 0, 180)'], 
+                              texts=['START', 'INTERRUPT'],
+                              styleSheet_amendment = '''QPushButton{ padding:3px }
+                                                        QPushButton:hover:!pressed{ border: 1px solid black; }
+                                                         '''):
+        assert type(pushButton) == QtWidgets.QPushButton
+        assert self.dtype == bool
+        pushButton.setCheckable(True)
+        if self.description != None:
+            try:
+                pushButton.setToolTip(f'<b>{self.name}</b> {self.description}')
+            except:
+                pass
+        def update_pushButton_value(x):
+            lq = pushButton.sender()
+            pushButton.setChecked(lq.value)
+            pushButton.setText(texts[int(x)])              
+        self.updated_value[bool].connect(update_pushButton_value)
+        pushButton.toggled[bool].connect(self.update_value)
+        s = f"""QPushButton:!checked{{ background:{colors[0]}; border: 1px solid grey; }}
+                QPushButton:checked{{ background:{colors[1]}; border: 1px solid grey; }}"""
+        pushButton.setStyleSheet(pushButton.styleSheet() + s + styleSheet_amendment)
         
     def connect_to_lq(self, lq):
         self.updated_value[(self.dtype)].connect(lq.update_value)
@@ -983,8 +1007,6 @@ class ArrayLQ(LoggedQuantity):
         
         self._tableView = None
         
-    
-        
 
     def same_values(self, v1, v2):
         if v1.shape == v2.shape:
@@ -992,9 +1014,6 @@ class ArrayLQ(LoggedQuantity):
             self.log.debug("same_values %s %s" % (v2-v1, np.all(v1 == v2)))        
         else:
             return False
-            
-
-
 
     def change_shape(self, newshape):
         #TODO
