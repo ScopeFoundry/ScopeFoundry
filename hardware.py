@@ -68,13 +68,16 @@ class HardwareComponent(QtCore.QObject):
         self.settings = LQCollection()
         self.operations = OrderedDict()
 
-        self.connected = self.add_logged_quantity("connected", dtype=bool)
+        self.connected = self.settings.New("connected", dtype=bool, 
+                                           colors=['none','rgba( 0, 255, 0, 120)'],
+                                           description=f'to <i>{self.name}</i> hardware if checked.')
         self.connected.updated_value[bool].connect(self.enable_connection)
 
         self.connect_success = False
 
         
-        self.debug_mode = self.add_logged_quantity("debug_mode", dtype=bool, initial=debug)
+        self.debug_mode = self.settings.New("debug_mode", dtype=bool, initial=debug, 
+                                            colors=['none','yellow'])
         
         self.auto_thread_lock = True
         

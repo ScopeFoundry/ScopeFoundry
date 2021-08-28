@@ -82,7 +82,8 @@ class Measurement(QtCore.QObject):
         self.operations = OrderedDict()
         
         
-        self.activation = self.settings.New('activation', dtype=bool, ro=False) # does the user want to the thread to be running
+        self.activation = self.settings.New('activation', dtype=bool, ro=False,
+                                            description=f'<i>{self.name}</i>') # does the user want to the thread to be running
         #self.running    = self.settings.New('running', dtype=bool, ro=True) # is the thread actually running?
         self.run_state = self.settings.New('run_state', dtype=str, initial='stop_first')
         self.progress   = self.settings.New('progress', dtype=float, unit="%", si=False, ro=True)
