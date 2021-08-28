@@ -548,7 +548,7 @@ class LoggedQuantity(QtCore.QObject):
                         
                     def update_background_color(idx):
                         qcolor = self.qcolors[idx]
-                        s = widget.style() + f"""QComboBox{{
+                        s = f"""QComboBox{{
                                     selection-background-color: {qcolor.name()};
                                     selection-color: black;
                                     background: {qcolor.name()};
