@@ -1,5 +1,5 @@
 from __future__ import absolute_import, print_function
-from qtpy import  QtCore, QtWidgets
+from qtpy import  QtCore, QtWidgets, QtGui
 import pyqtgraph
 import numpy as np
 from collections import OrderedDict
@@ -73,7 +73,8 @@ class LoggedQuantity(QtCore.QObject):
                  spinbox_step=0.1,
                  vmin=-1e12, vmax=+1e12, choices=None,
                  reread_from_hardware_after_write = False,
-                 description = None
+                 description = None,
+                 colors = None,
                  ):
         QtCore.QObject.__init__(self)
         
@@ -102,6 +103,17 @@ class LoggedQuantity(QtCore.QObject):
         self.ro = ro # Read-Only
         self.is_array = False
         self.description = description
+        
+        self.colors = colors
+        self.qcolors = []
+        if self.colors != None:
+            for color in colors:
+                qcolor = QtGui.QColor(color)
+                if qcolor.isValid():
+                    self.qcolors.append(qcolor)
+                else:
+                    self.qcolors.append(QtGui.QColor('lightgrey'))
+                    #print(self.name, color, 'invalid color - used "lightgrey" instead')
         
         self.log = get_logger_from_class(self)
         
@@ -378,7 +390,7 @@ class LoggedQuantity(QtCore.QObject):
         :returns: None
 
         """
-        if self.description != None and type(self):
+        if self.description != None:
         #    print(self.name, self.description)
             try:
                 widget.setToolTip(f'<b>{self.name}</b> {self.description}')
@@ -473,6 +485,17 @@ class LoggedQuantity(QtCore.QObject):
                 #widget.setReadOnly(True)
                 widget.setEnabled(False)
                 
+            if self.colors != None:
+                if len(self.colors) in (2,3): # QCheckBoxes can have 3 states! (tristate)
+                    if len(self.colors) == 2:
+                        colors = [self.colors[0], 'lightgrey', self.colors[1]]
+                    elif len(self.qcolors) == 3:
+                        colors = self.colors
+                    s = f"""QCheckBox:!checked {{ background: {colors[0]} }}
+                            QCheckBox:checked  {{ background: {colors[2]} }}"""
+                    widget.setStyleSheet(widget.styleSheet() + s)
+                
+                                
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
             self.updated_value[str].connect(widget.setText)
@@ -518,6 +541,20 @@ class LoggedQuantity(QtCore.QObject):
                 widget.addItem(choice_name, choice_value)
             self.updated_choice_index_value[int].connect(widget.setCurrentIndex)
             widget.currentIndexChanged.connect(self.update_choice_index_value)
+            if self.colors != None:
+                if len(self.qcolors) == len(self.choices):
+                    for i,qcolor in enumerate(self.qcolors):
+                        widget.setItemData(i,  qcolor, QtCore.Qt.BackgroundRole )
+                        
+                    def update_background_color(idx):
+                        qcolor = self.qcolors[idx]
+                        s = widget.style() + f"""QComboBox{{
+                                    selection-background-color: {qcolor.name()};
+                                    selection-color: black;
+                                    background: {qcolor.name()};
+                                    }}"""                      
+                        widget.setStyleSheet(widget.styleSheet() + s)
+                    widget.currentIndexChanged.connect(update_background_color)
             
         elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
             #widget.setFocusPolicy(QtCore.Qt.StrongFocus)
