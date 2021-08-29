@@ -360,6 +360,19 @@ class LoggedQuantity(QtCore.QObject):
     def connect_bidir_to_widget(self, widget):
         # DEPRECATED
         return self.connect_to_widget(widget)
+    
+    
+    def set_widget_toolTip(self, widget, text=None):
+        try:
+            tips = [f'<b>{self.name}</b>']
+            for s in [self.description, widget.toolTip(), text]:
+                if s != None:
+                    tips.append(str(s))
+            widget.setToolTip(' '.join(tips))
+            return tips
+        except:
+            pass        
+
 
     def connect_to_widget(self, widget):
         """
@@ -390,13 +403,9 @@ class LoggedQuantity(QtCore.QObject):
         :returns: None
 
         """
-        if self.description != None:
-        #    print(self.name, self.description)
-            try:
-                widget.setToolTip(f'<b>{self.name}</b> {self.description}')
-            except:
-                pass
         
+        self.set_widget_toolTip(widget)
+       
         if type(widget) == QtWidgets.QDoubleSpinBox:
 
             widget.setKeyboardTracking(False)
@@ -635,11 +644,6 @@ class LoggedQuantity(QtCore.QObject):
         assert type(pushButton) == QtWidgets.QPushButton
         assert self.dtype == bool
         pushButton.setCheckable(True)
-        if self.description != None:
-            try:
-                pushButton.setToolTip(f'<b>{self.name}</b> {self.description}')
-            except:
-                pass
         def update_pushButton_value(x):
             lq = pushButton.sender()
             pushButton.setChecked(lq.value)
@@ -649,6 +653,10 @@ class LoggedQuantity(QtCore.QObject):
         s = f"""QPushButton:!checked{{ background:{colors[0]}; border: 1px solid grey; }}
                 QPushButton:checked{{ background:{colors[1]}; border: 1px solid grey; }}"""
         pushButton.setStyleSheet(pushButton.styleSheet() + s + styleSheet_amendment)
+
+        self.set_widget_toolTip(pushButton)
+        self.send_display_updates(force=True)
+        self.widget_list.append(pushButton)
         
     def connect_to_lq(self, lq):
         self.updated_value[(self.dtype)].connect(lq.update_value)
@@ -1138,10 +1146,6 @@ class LQCircularNetwork(QtCore.QObject):
             name = lq.name
         self.lq_dict[name] = lq
 
-    def add_lq(self, lq, name=None):
-        if name is None:
-            name = lq.name
-        self.lq_dict[name] = lq
 
 
 class LQRange(LQCircularNetwork):
