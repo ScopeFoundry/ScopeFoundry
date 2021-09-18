@@ -279,3 +279,14 @@ class HardwareComponent(QtCore.QObject):
         mod = inspect.getmodule(self)
         x = xreload.xreload(mod)
         print("Reloading from code", mod, x)
+        
+    def New_UI(self):
+        scroll_area = self.settings.New_UI(style='scroll_form')
+        for n,func in self.operations.items():
+            btn = QtWidgets.QPushButton(n)
+            btn.clicked.connect(func)
+            scroll_area.widget().layout().addRow(btn)
+        read_from_hardware_button = QtWidgets.QPushButton("Read From Hardware")
+        read_from_hardware_button.clicked.connect(self.read_from_hardware)
+        scroll_area.widget().layout().addRow(read_from_hardware_button)
+        return scroll_area
