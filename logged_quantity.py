@@ -365,6 +365,7 @@ class LoggedQuantity(QtCore.QObject):
     def set_widget_toolTip(self, widget, text=None):
         try:
             tips = [f'<b>{self.name}</b>']
+            if self.unit: tips.append(f'<i>({self.unit})</i>')
             for s in [self.description, widget.toolTip(), text]:
                 if s != None:
                     tips.append(str(s))
@@ -643,6 +644,8 @@ class LoggedQuantity(QtCore.QObject):
                                                          '''):
         assert type(pushButton) == QtWidgets.QPushButton
         assert self.dtype == bool
+        if colors==None and self.colors!=None:
+            colors = self.colors
         pushButton.setCheckable(True)
         def update_pushButton_value(x):
             lq = pushButton.sender()
@@ -654,6 +657,9 @@ class LoggedQuantity(QtCore.QObject):
                 QPushButton:checked{{ background:{colors[1]}; border: 1px solid grey; }}"""
         pushButton.setStyleSheet(pushButton.styleSheet() + s + styleSheet_amendment)
 
+
+        if self.ro:
+            pushButton.setEnabled(False)
         self.set_widget_toolTip(pushButton)
         self.send_display_updates(force=True)
         self.widget_list.append(pushButton)
@@ -879,6 +885,13 @@ class LoggedQuantity(QtCore.QObject):
         self.connect_to_widget(widget)
         
         return widget
+    
+    def new_pushButton(self, **kwargs):
+        '''kwargs is past to self.connect_to_pushButton(): '''        
+        assert self.dtype == bool
+        pushButton = QtWidgets.QPushButton()
+        self.connect_to_pushButton(pushButton, **kwargs)
+        return pushButton
     
     def new_pg_parameter(self):
         from pyqtgraph.parametertree import Parameter
