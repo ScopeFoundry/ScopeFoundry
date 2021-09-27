@@ -416,10 +416,12 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.action_save_ini.triggered.connect(self.settings_save_dialog)
         self.ui.action_console.triggered.connect(self.console_widget.show)
         self.ui.action_console.triggered.connect(self.console_widget.activateWindow)
-        
+        self.ui.action_load_window_positions.triggered.connect(self.window_positions_load_dialog)
+        self.ui.action_save_window_positions.triggered.connect(self.window_positions_save_dialog)
         
         #Refer to existing ui object:
         self.menubar = self.ui.menuWindow
+
 
         #Create new action group for switching between window and tab mode
         self.action_group = QtWidgets.QActionGroup(self)
@@ -844,6 +846,16 @@ class BaseMicroscopeApp(BaseApp):
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Settings file", "", "Settings File (*.ini *.h5)")
         self.settings_load_ini(fname)
         
+    def window_positions_load_dialog(self):
+        fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Window Position file", "", "position File (*.json)")
+        self.load_window_positions_json(fname)
+        
+    def window_positions_save_dialog(self):
+        """Opens a save as ini dialogue in the app user interface."""
+        fname, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Window Position file", "", "position File (*.json)")
+        if fname:
+            self.save_window_positions_json(fname)
+        
     def lq_path(self,path):
         """returns the lq based on path string of the form 'domain/[component/]setting'
         domain = "measurement", "hardware" or "app"
@@ -891,13 +903,15 @@ class BaseMicroscopeApp(BaseApp):
     
     def set_window_positions(self, positions):
         def restore_win_state(subwin, win_state):
+            subwin.showNormal()
             if win_state['maximized']:
                 subwin.showMaximized()
             elif win_state['minimized']:
                 subwin.showMinimized()
             else:
                 subwin.setGeometry(*win_state['geometry'])
-
+            
+        self.set_subwindow_mode()
         for name, win_state in positions.items():
             if name == 'log':
                 restore_win_state(self.logging_subwin, win_state)
@@ -911,6 +925,7 @@ class BaseMicroscopeApp(BaseApp):
                 restore_win_state(M.subwin, win_state)
             
         
+        
     def get_window_positions(self):
         positions = OrderedDict()
         
@@ -921,7 +936,8 @@ class BaseMicroscopeApp(BaseApp):
             window_state = dict(
                     geometry  = qrect_to_tuple(subwin.geometry()),
                     maximized = subwin.isMaximized(),
-                    minimized = subwin.isMinimized()
+                    minimized = subwin.isMinimized(),
+                    fullscreen = subwin.isFullScreen()
                     )
             return window_state
         
@@ -942,8 +958,11 @@ class BaseMicroscopeApp(BaseApp):
     def save_window_positions_json(self, fname):
         import json
         positions = self.get_window_positions()
-        with open(fname, 'w') as outfile:
+        with open(fname, 'w') as outfile:    
             json.dump(positions, outfile, indent=4)
+        import os
+        cwd = os.getcwd()
+        print(fname, cwd)
             
     def load_window_positions_json(self, fname):
         with open(fname, 'r') as infile:
