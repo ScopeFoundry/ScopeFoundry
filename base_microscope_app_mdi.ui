@@ -322,12 +322,12 @@
   </action>
   <action name="action_save_window_positions">
    <property name="text">
-    <string>Save Window Positions</string>
+    <string>Save Window Positions ...</string>
    </property>
   </action>
   <action name="action_load_window_positions">
    <property name="text">
-    <string>Load Window Positions</string>
+    <string>Load Window Positions ...</string>
    </property>
   </action>
  </widget>
