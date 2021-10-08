@@ -243,6 +243,8 @@ def get_logger_from_class(obj):
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
+def bool2str(v):
+    return {False:'False', True:'True'}[v]
 
 class QLock(QtCore.QMutex):
     def acquire(self):

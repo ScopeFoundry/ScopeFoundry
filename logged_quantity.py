@@ -5,7 +5,8 @@ import numpy as np
 from collections import OrderedDict
 import json
 import sys
-from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock
+from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock, \
+    bool2str
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
@@ -156,6 +157,16 @@ class LoggedQuantity(QtCore.QObject):
         if self.dtype==bool and isinstance(x, str):
             return str2bool(x)       
         return self.dtype(x)
+        
+    def coerce_to_str(self, x):
+        if self.dtype == bool:
+            return bool2str(x)
+        else:
+            return str(x)
+        
+    @property
+    def val_str(self):
+        self.coerce_to_str(self.val)
         
     def _expand_choices(self, choices):
         if choices is None:
