@@ -85,7 +85,12 @@ class BaseApp(QtCore.QObject):
         self.settings = LQCollection()
         
         # auto creation of console widget
-        self.setup_console_widget()
+        try:
+            self.setup_console_widget()
+        except Exception as err:
+            print("failed to setup console widget " + str(err))
+            self.console_widget = QtWidgets.QWidget()   
+
         
         # FIXME Breaks things for microscopes, but necessary for stand alone apps!
         #if hasattr(self, "setup"):
