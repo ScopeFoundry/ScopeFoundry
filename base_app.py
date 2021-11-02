@@ -752,7 +752,7 @@ class BaseMicroscopeApp(BaseApp):
 
 
         
-    def settings_load_ini(self, fname):
+    def settings_load_ini(self, fname, ignore_hw_connect=False):
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -770,22 +770,25 @@ class BaseMicroscopeApp(BaseApp):
             for lqname, new_val in config.items('app'):
                 lq = self.settings.get_lq(lqname)
                 lq.update_value(new_val)
+
+        self.log.info("sections in ini: {}".format(config.sections()))
         
         for hc_name, hc in self.hardware.items():
             section_name = 'hardware/'+hc_name
-            self.log.info(section_name)
+            self.log.info('settings section: {}'.format(section_name))
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
                     if lqname == 'connected':
                         continue # skip connected setting, use it at the end
                     try:
+                        self.log.info('settings update {} / {}-->{}'.format(section_name, lqname, new_val))
                         lq = hc.settings.get_lq(lqname)
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
                         self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                 
-                if 'connected' in config[section_name]:
+                if 'connected' in config[section_name] and not ignore_hw_connect:
                     hc.settings['connected'] = config[section_name]['connected']
                         
         for meas_name, measurement in self.measurements.items():
