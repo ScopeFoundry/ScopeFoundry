@@ -236,8 +236,11 @@ class HardwareComponent(QtCore.QObject):
     def run(self):
         if hasattr(self, 'threaded_update'):
             while not self.update_thread_interrupted:
-                self.threaded_update()
-                
+                try:
+                    self.threaded_update()
+                except Exception as err:
+                    print("threaded update failed", err)
+                    time.sleep(1.0)
             
     def on_connection_succeeded(self):
         print(self.name, "connection succeeded!")
