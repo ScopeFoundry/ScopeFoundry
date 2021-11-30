@@ -166,7 +166,7 @@ class LoggedQuantity(QtCore.QObject):
         
     @property
     def val_str(self):
-        self.coerce_to_str(self.val)
+        return self.coerce_to_str(self.val)
         
     def _expand_choices(self, choices):
         if choices is None:
