@@ -1,11 +1,12 @@
 from __future__ import absolute_import, print_function
-from qtpy import  QtCore, QtWidgets
+from qtpy import  QtCore, QtWidgets, QtGui
 import pyqtgraph
 import numpy as np
 from collections import OrderedDict
 import json
 import sys
-from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock
+from ScopeFoundry.helper_funcs import get_logger_from_class, str2bool, QLock, \
+    bool2str
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 import pyqtgraph as pg
 from inspect import signature
@@ -73,7 +74,8 @@ class LoggedQuantity(QtCore.QObject):
                  spinbox_step=0.1,
                  vmin=-1e12, vmax=+1e12, choices=None,
                  reread_from_hardware_after_write = False,
-                 description = None
+                 description = None,
+                 colors = None,
                  ):
         QtCore.QObject.__init__(self)
         
@@ -102,6 +104,17 @@ class LoggedQuantity(QtCore.QObject):
         self.ro = ro # Read-Only
         self.is_array = False
         self.description = description
+        
+        self.colors = colors
+        self.qcolors = []
+        if self.colors != None:
+            for color in colors:
+                qcolor = QtGui.QColor(color)
+                if qcolor.isValid():
+                    self.qcolors.append(qcolor)
+                else:
+                    self.qcolors.append(QtGui.QColor('lightgrey'))
+                    #print(self.name, color, 'invalid color - used "lightgrey" instead')
         
         self.log = get_logger_from_class(self)
         
@@ -144,6 +157,16 @@ class LoggedQuantity(QtCore.QObject):
         if self.dtype==bool and isinstance(x, str):
             return str2bool(x)       
         return self.dtype(x)
+        
+    def coerce_to_str(self, x):
+        if self.dtype == bool:
+            return bool2str(x)
+        else:
+            return str(x)
+        
+    @property
+    def val_str(self):
+        self.coerce_to_str(self.val)
         
     def _expand_choices(self, choices):
         if choices is None:
@@ -348,6 +371,20 @@ class LoggedQuantity(QtCore.QObject):
     def connect_bidir_to_widget(self, widget):
         # DEPRECATED
         return self.connect_to_widget(widget)
+    
+    
+    def set_widget_toolTip(self, widget, text=None):
+        try:
+            tips = [f'<b>{self.name}</b>']
+            if self.unit: tips.append(f'<i>({self.unit})</i>')
+            for s in [self.description, widget.toolTip(), text]:
+                if s != None:
+                    tips.append(str(s))
+            widget.setToolTip(' '.join(tips))
+            return tips
+        except:
+            pass        
+
 
     def connect_to_widget(self, widget):
         """
@@ -378,7 +415,9 @@ class LoggedQuantity(QtCore.QObject):
         :returns: None
 
         """
-
+        
+        self.set_widget_toolTip(widget)
+       
         if type(widget) == QtWidgets.QDoubleSpinBox:
 
             widget.setKeyboardTracking(False)
@@ -467,6 +506,17 @@ class LoggedQuantity(QtCore.QObject):
                 #widget.setReadOnly(True)
                 widget.setEnabled(False)
                 
+            if self.colors != None:
+                if len(self.colors) in (2,3): # QCheckBoxes can have 3 states! (tristate)
+                    if len(self.colors) == 2:
+                        colors = [self.colors[0], 'lightgrey', self.colors[1]]
+                    elif len(self.qcolors) == 3:
+                        colors = self.colors
+                    s = f"""QCheckBox:!checked {{ background: {colors[0]} }}
+                            QCheckBox:checked  {{ background: {colors[2]} }}"""
+                    widget.setStyleSheet(widget.styleSheet() + s)
+                
+                                
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
             self.updated_value[str].connect(widget.setText)
@@ -512,6 +562,20 @@ class LoggedQuantity(QtCore.QObject):
                 widget.addItem(choice_name, choice_value)
             self.updated_choice_index_value[int].connect(widget.setCurrentIndex)
             widget.currentIndexChanged.connect(self.update_choice_index_value)
+            if self.colors != None:
+                if len(self.qcolors) == len(self.choices):
+                    for i,qcolor in enumerate(self.qcolors):
+                        widget.setItemData(i,  qcolor, QtCore.Qt.BackgroundRole )
+                        
+                    def update_background_color(idx):
+                        qcolor = self.qcolors[idx]
+                        s = f"""QComboBox{{
+                                    selection-background-color: {qcolor.name()};
+                                    selection-color: black;
+                                    background: {qcolor.name()};
+                                    }}"""                      
+                        widget.setStyleSheet(widget.styleSheet() + s)
+                    widget.currentIndexChanged.connect(update_background_color)
             
         elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
             #widget.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -564,6 +628,216 @@ class LoggedQuantity(QtCore.QObject):
             def on_widget_update(_widget):
                 self.update_value(_widget.value())
             widget.sigValueChanged.connect(on_widget_update)
+            
+
+
+        elif type(widget) == QtWidgets.QLabel:
+            self.updated_text_value.connect(widget.setText)
+        elif type(widget) == QtWidgets.QProgressBar:
+            def set_progressbar(x, widget=widget):
+                self.log.debug("set_progressbar {}".format(x))
+                widget.setValue(int(x))
+            self.updated_value.connect(set_progressbar)
+        elif type(widget) == QtWidgets.QLCDNumber:
+            self.updated_value[(self.dtype)].connect(widget.display)
+        else:
+            raise ValueError("Unknown widget type")
+        
+        self.send_display_updates(force=True)
+        #self.widget = widget
+        self.widget_list.append(widget)
+        self.change_readonly(self.ro)
+
+    def connect_to_widget_one_way(self, widget):
+        """
+        Creates Qt signal-slot connections between LQ and the QtWidget *widget* ONLY IN ONE WAY. CHANGES IN WIDGET WILL NOT TRANSFER TO LQ!!!
+        rest is the same as connect_to_widget
+
+        """
+        
+        self.set_widget_toolTip(widget)
+       
+        if type(widget) == QtWidgets.QDoubleSpinBox:
+
+            widget.setKeyboardTracking(False)
+            if self.vmin is not None:
+                widget.setMinimum(self.vmin)
+            if self.vmax is not None:
+                widget.setMaximum(self.vmax)
+            if self.unit is not None:
+                widget.setSuffix(" "+self.unit)
+            widget.setDecimals(self.spinbox_decimals)
+            widget.setSingleStep(self.spinbox_step)
+            widget.setValue(self.val)
+            #events
+            def update_widget_value(x):
+                """
+                block signals from widget when value is set via lq.update_value.
+                This prevents signal-slot loops between widget and lq
+                """
+                try:
+                    widget.blockSignals(True)
+                    widget.setValue(x)
+                finally:
+                    widget.blockSignals(False)                    
+            #self.updated_value[float].connect(widget.setValue)
+            self.updated_value[float].connect(update_widget_value)
+        
+        elif type(widget) == MinMaxQSlider:
+            self.updated_value[float].connect(widget.update_value)
+            if self.unit is not None:
+                widget.setSuffix(self.unit)
+            widget.setSingleStep(self.spinbox_step)
+            widget.setDecimals(self.spinbox_decimals)
+            widget.setRange(self.vmin, self.vmax)
+            widget.set_name(self.name)
+        
+        elif type(widget) == QtWidgets.QSlider:
+            if self.dtype == float:
+                self.vrange = self.vmax - self.vmin
+                def transform_to_slider(x):
+                    pct = 100*(x-self.vmin)/self.vrange
+                    return int(pct)
+                def transform_from_slider(x):
+                    val = self.vmin + (x*self.vrange/100)
+                    return val
+                def update_widget_value(x):
+                    """
+                    block signals from widget when value is set via lq.update_value.
+                    This prevents signal-slot loops between widget and lq
+                    """
+                    try:
+                        widget.blockSignals(True)
+                        widget.setValue(transform_to_slider(x))
+                    finally:
+                        widget.blockSignals(False)
+                         
+                if self.vmin is not None:
+                    widget.setMinimum(transform_to_slider(self.vmin))
+                if self.vmax is not None:
+                    widget.setMaximum(transform_to_slider(self.vmax))
+                widget.setSingleStep(1)
+                widget.setValue(transform_to_slider(self.val))
+                self.updated_value[float].connect(update_widget_value)
+            elif self.dtype == int:
+                self.updated_value[int].connect(widget.setValue)
+                widget.setSingleStep(1)            
+                
+        elif type(widget) == QtWidgets.QCheckBox:
+
+            def update_widget_value(x):
+                lq = widget.sender()
+                #self.log.debug("LQ {} update qcheckbox: {} arg{} lq value{}".format(lq.name,   widget, x, lq.value))                
+                widget.setChecked(lq.value)                    
+
+            self.updated_value[bool].connect(update_widget_value)
+            if self.ro:
+                #widget.setReadOnly(True)
+                widget.setEnabled(False)
+                
+            if self.colors != None:
+                if len(self.colors) in (2,3): # QCheckBoxes can have 3 states! (tristate)
+                    if len(self.colors) == 2:
+                        colors = [self.colors[0], 'lightgrey', self.colors[1]]
+                    elif len(self.qcolors) == 3:
+                        colors = self.colors
+                    s = f"""QCheckBox:!checked {{ background: {colors[0]} }}
+                            QCheckBox:checked  {{ background: {colors[2]} }}"""
+                    widget.setStyleSheet(widget.styleSheet() + s)
+                
+                                
+        elif type(widget) == QtWidgets.QLineEdit:
+            self.updated_text_value[str].connect(widget.setText)
+            self.updated_value[str].connect(widget.setText)
+            if self.ro:
+                widget.setReadOnly(True)  # FIXME
+            
+        elif type(widget) == QtWidgets.QPlainTextEdit:
+            # TODO Read only
+            
+            def on_lq_changed(new_text):
+                current_cursor = widget.textCursor()
+                current_cursor_pos = current_cursor.position()
+                #print('current_cursor', current_cursor, current_cursor.position())
+                widget.document().setPlainText(new_text)
+                current_cursor.setPosition(current_cursor_pos)
+                widget.setTextCursor(current_cursor)
+                #print('current_cursor', current_cursor, current_cursor.position())
+
+            #self.updated_text_value[str].connect(widget.document().setPlainText)
+            self.updated_text_value[str].connect(on_lq_changed)
+            
+        elif type(widget) == QtWidgets.QComboBox:
+            # need to have a choice list to connect to a QComboBox
+            assert self.choices is not None 
+            widget.clear() # removes all old choices
+            for choice_name, choice_value in self.choices:
+                widget.addItem(choice_name, choice_value)
+            self.updated_choice_index_value[int].connect(widget.setCurrentIndex)
+            if self.colors != None:
+                if len(self.qcolors) == len(self.choices):
+                    for i,qcolor in enumerate(self.qcolors):
+                        widget.setItemData(i,  qcolor, QtCore.Qt.BackgroundRole )
+                        
+                    def update_background_color(idx):
+                        qcolor = self.qcolors[idx]
+                        s = f"""QComboBox{{
+                                    selection-background-color: {qcolor.name()};
+                                    selection-color: black;
+                                    background: {qcolor.name()};
+                                    }}"""                      
+                        widget.setStyleSheet(widget.styleSheet() + s)
+                    widget.currentIndexChanged.connect(update_background_color)
+            
+        elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
+            #widget.setFocusPolicy(QtCore.Qt.StrongFocus)
+            suffix = self.unit
+            if self.unit is None:
+                suffix = ""
+            if self.dtype == int:
+                integer = True
+                minStep=1
+                step=1
+            else:
+                integer = False
+                minStep=.1
+                step=.1
+            opts = dict(
+                        suffix=suffix,
+                        siPrefix=True,
+                        dec=True,
+                        step=step,
+                        minStep=minStep,
+                        bounds=[self.vmin, self.vmax],
+                        int=integer)
+            if self.si:
+                del opts['step']
+                del opts['minStep']
+            
+            widget.setOpts(**opts)
+                      
+            if self.ro:
+                widget.setEnabled(False)
+                widget.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+                widget.setReadOnly(True)
+            #widget.setDecimals(self.spinbox_decimals)
+            if not self.si:
+                widget.setSingleStep(self.spinbox_step)
+            #self.updated_value[float].connect(widget.setValue)
+            #if not self.ro:
+                #widget.valueChanged[float].connect(self.update_value)
+            def update_widget_value(x):
+                """
+                block signals from widget when value is set via lq.update_value.
+                This prevents signal loops
+                """
+                try:
+                    widget.blockSignals(True)
+                    widget.setValue(x)
+                finally:
+                    widget.blockSignals(False)                    
+            self.updated_value[float].connect(update_widget_value)
+            
 
         elif type(widget) == QtWidgets.QLabel:
             self.updated_text_value.connect(widget.setText)
@@ -582,6 +856,32 @@ class LoggedQuantity(QtCore.QObject):
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
         
+    def connect_to_pushButton(self, pushButton, colors=['rgba( 0, 255, 0, 180)','rgba(255, 69, 0, 180)'], 
+                              texts=['START', 'INTERRUPT'],
+                              styleSheet_amendment = '''QPushButton{ padding:3px }
+                                                        QPushButton:hover:!pressed{ border: 1px solid black; }
+                                                         '''):
+        assert type(pushButton) == QtWidgets.QPushButton
+        assert self.dtype == bool
+        if colors==None and self.colors!=None:
+            colors = self.colors
+        pushButton.setCheckable(True)
+        def update_pushButton_value(x):
+            lq = pushButton.sender()
+            pushButton.setChecked(lq.value)
+            pushButton.setText(texts[int(x)])              
+        self.updated_value[bool].connect(update_pushButton_value)
+        pushButton.toggled[bool].connect(self.update_value)
+        s = f"""QPushButton:!checked{{ background:{colors[0]}; border: 1px solid grey; }}
+                QPushButton:checked{{ background:{colors[1]}; border: 1px solid grey; }}"""
+        pushButton.setStyleSheet(pushButton.styleSheet() + s + styleSheet_amendment)
+
+
+        if self.ro:
+            pushButton.setEnabled(False)
+        self.set_widget_toolTip(pushButton)
+        self.send_display_updates(force=True)
+        self.widget_list.append(pushButton)
         
     def connect_to_lq(self, lq):
         self.updated_value[(self.dtype)].connect(lq.update_value)
@@ -805,6 +1105,13 @@ class LoggedQuantity(QtCore.QObject):
         
         return widget
     
+    def new_pushButton(self, **kwargs):
+        '''kwargs is past to self.connect_to_pushButton(): '''        
+        assert self.dtype == bool
+        pushButton = QtWidgets.QPushButton()
+        self.connect_to_pushButton(pushButton, **kwargs)
+        return pushButton
+    
     def new_pg_parameter(self):
         from pyqtgraph.parametertree import Parameter
         dtype_map = {str: 'str', float:'float', int:'int', bool:'bool'}
@@ -896,7 +1203,8 @@ class ArrayLQ(LoggedQuantity):
                  initial=[], fmt="%g", si=True,
                  ro = False,
                  unit = None,
-                 vmin=-1e12, vmax=+1e12, choices=None):
+                 vmin=-1e12, vmax=+1e12, choices=None,
+                 description=None):
         QtCore.QObject.__init__(self)
         
         self.name = name
@@ -915,6 +1223,7 @@ class ArrayLQ(LoggedQuantity):
         self.vmax = vmax
         self.ro = ro # Read-Only
         self.choices = choices
+        self.description = description
         
         self.log = get_logger_from_class(self)
 
@@ -938,8 +1247,6 @@ class ArrayLQ(LoggedQuantity):
         
         self._tableView = None
         
-    
-        
 
     def same_values(self, v1, v2):
         if v1.shape == v2.shape:
@@ -947,9 +1254,6 @@ class ArrayLQ(LoggedQuantity):
             self.log.debug("same_values %s %s" % (v2-v1, np.all(v1 == v2)))        
         else:
             return False
-            
-
-
 
     def change_shape(self, newshape):
         #TODO
@@ -1074,10 +1378,6 @@ class LQCircularNetwork(QtCore.QObject):
             name = lq.name
         self.lq_dict[name] = lq
 
-    def add_lq(self, lq, name=None):
-        if name is None:
-            name = lq.name
-        self.lq_dict[name] = lq
 
 
 class LQRange(LQCircularNetwork):
@@ -1466,8 +1766,26 @@ class LQCollection(object):
 
                 hboxLayout.addWidget(QtWidgets.QLabel(lqname))
                 hboxLayout.addWidget(widget)
-                
+        
+        elif style == 'scroll_form':
+            scroll_area = QtWidgets.QScrollArea()
+            formLayout = QtWidgets.QFormLayout()
+            ui_widget.setLayout(formLayout)
+            scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+            scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+            scroll_area.setWidgetResizable(True)
+            scroll_area.setWidget(ui_widget)
+            
+            for lqname in lqnames:
+                if lqname in exclude:
+                    continue
+                lq = self.get_lq(lqname)
+                #: :type lq: LoggedQuantity
+                widget = lq.new_default_widget()
+                # Add to formlayout
+                formLayout.addRow(lqname, widget)
 
+            return scroll_area
         
         return ui_widget
     

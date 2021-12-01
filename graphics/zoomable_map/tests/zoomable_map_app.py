@@ -1,7 +1,7 @@
 from pyqtgraph.Qt import QtGui, QtCore
 import numpy as np
 import pyqtgraph as pg
-from ScopeFoundry.graphics.zoomable_map.zoomable_map import ZoomableMapItems
+from ScopeFoundry.graphics.zoomable_map.zoomable_map import ZoomableMapImageItem
 import skimage.data
 import matplotlib.pyplot as plt
 
@@ -10,12 +10,16 @@ pg.setConfigOption('foreground', 'k')
 
 app = QtGui.QApplication([])
 
-plot = pg.PlotWidget()
+
+graph_layout = pg.GraphicsLayoutWidget()
+
+plot = pg.PlotItem()
+graph_layout.addItem(plot)
 plot.setAspectLocked(1)
 vb  = plot.getViewBox()
 
 
-zmi = ZoomableMapItems(plot_item=plot, 
+zmi = ZoomableMapImageItem(plot_item=plot, 
                        image=skimage.data.immunohistochemistry().swapaxes(0,1), rect=(-1,-1,6,2),
                        tile_size=64, z_value=100)
 
@@ -39,10 +43,10 @@ im = np.concatenate([im, alpha], axis=2)
 fill = np.zeros( (1,1,4), dtype=im.dtype)
 fill[0,0,3] = 0
 
-zmi2 = ZoomableMapItems(plot_item=plot, image=im, rect=(3,-0.5,2,2), tile_size=64, z_value=200, fill=fill)
+zmi2 = ZoomableMapImageItem(plot_item=plot, image=im, rect=(3,-0.5,2,2), tile_size=64, z_value=200, fill=fill)
 
-histlut2 = pg.HistogramLUTWidget(image=zmi2 )
-histlut2.show()
+histlut2 = pg.HistogramLUTItem(image=zmi2 )
+graph_layout.addItem(histlut2)
 
 
 x = np.arange(-5, 5, 0.03)
@@ -57,13 +61,13 @@ colormap._init()
 lut = (colormap._lut * 255).view(np.ndarray)  # Convert matplotlib colormap from 0-1 to 0 -255 for Qt
 
 
-zmi3 = ZoomableMapItems(plot_item=plot, image=z, rect=(3,3,4,4), 
+zmi3 = ZoomableMapImageItem(plot_item=plot, image=z, rect=(3,3,4,4), 
                         tile_size=1024, z_value=300, fill=np.NaN, 
                         levels=(-1.1,1.1), lut=lut)
                         
                         
-histlut = pg.HistogramLUTWidget(image=zmi3)
-histlut.show()
+histlut = pg.HistogramLUTItem(image=zmi3)
+graph_layout.addItem(histlut)
 
 imitem3 = pg.ImageItem(z)
 rect = (0,3,4,4)
@@ -72,7 +76,8 @@ plot.addItem(imitem3)
 
 
 plot.setTitle("Zoomable Map Test PyqtGraph")
-plot.show()
+
+graph_layout.show()
 
 
 

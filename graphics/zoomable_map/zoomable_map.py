@@ -18,6 +18,15 @@ class TileItem(object):
         self.image_item = None
         self.zoom_tile_coord = zoom, ii, jj
         
+        self.update_data()
+        
+        self.transform = QtGui.QTransform()
+        
+        self.rebuild_data = False
+        self.visible = False
+    
+    def update_data(self):
+        zoom, ii,jj = self.zoom_tile_coord
         # zoom
         # zoom z=0 --> original size: tile slice (ii*tile_size : (ii+1)*tile_size : 1)
         # zoom z=1 --> half size: tile slice (ii*tile_size*2 : (ii+1)*tile_size*2 : 2)
@@ -25,6 +34,7 @@ class TileItem(object):
         z = zoom
         zf = 2**z
         Nt = self.zmi.tile_size
+
         tile_shape = list(self.zmi.image.shape)
         tile_shape[0] = Nt
         tile_shape[1] = Nt
@@ -32,42 +42,11 @@ class TileItem(object):
         if self.zmi.fill is not None:
             self.data += self.zmi.fill
         
-        print("---", ii, jj, Nt, zoom, zf)
-        im = zmi.image[ii*Nt*zf:(ii+1)*Nt*zf:zf,
-                       jj*Nt*zf:(jj+1)*Nt*zf:zf]
-        self.data[:im.shape[0], :im.shape[1]] = im 
-        
-        # make border pixels
-        #self.data[0:5,:] = 0
-        #self.data[:,0:5] = 0
-                
-        #print("tile", self.zoom_tile_coord, self.data.shape)
-        
-        # Old way to compute tile rectangle based on zmi rectangle
-        """
-        x0, y0, w, h = self.zmi.rect        
-        orig_pixel_size_x = w / zmi.image.shape[0]
-        orig_pixel_size_y = h / zmi.image.shape[1]
+        #print("---", ii, jj, Nt, zoom, zf)
+        im = self.zmi.image[ii*Nt*zf:(ii+1)*Nt*zf:zf,
+                            jj*Nt*zf:(jj+1)*Nt*zf:zf]
+        self.data[:im.shape[0], :im.shape[1]] = im
 
-        x = x0 +ii*Nt*zf*orig_pixel_size_x
-        y = y0 +jj*Nt*zf*orig_pixel_size_y
-        
-        self.rect = (x,y, Nt*zf*orig_pixel_size_x, Nt*zf*orig_pixel_size_y)
-        """
-        self.transform = QtGui.QTransform()
-        
-        self.rebuild_data = False
-        self.visible = False
-    
-    # def create_image_item(self):
-    #
-        # if not self.image_item is None:
-            # self.zmi.plot.removeItem(self.image_item)
-            # del self.image_item
-        # self.image_item = pg.ImageItem(self.data, autoLevels=False)
-        # self.image_item.setRect(pg.QtCore.QRectF(*self.rect))
-        #
-        # self.zmi.plot.addItem(self.image_item)
         
     def set_visible(self, vis=True, force_replacement=False):
         
@@ -85,7 +64,8 @@ class TileItem(object):
             self.image_item.setZValue(self.zmi.z_value-self.zoom_tile_coord[0])
             self.zmi.plot.addItem(self.image_item)
             self.visible = True
-            
+    
+    
     def recomputeTransform(self):
         zoom, ii, jj = self.zoom_tile_coord
         zf = 2**zoom
@@ -112,7 +92,7 @@ class TileItem(object):
 
         
     
-class ZoomableMapItems(QtCore.QObject):
+class ZoomableMapImageItem(QtCore.QObject):
     
     sigImageChanged = QtCore.Signal()
 
@@ -124,8 +104,23 @@ class ZoomableMapItems(QtCore.QObject):
         QtCore.QObject.__init__(self)
         
         """
-        if rect=None, go by pixels
-        otherwise rect=(x0,y0,w,h)
+        A Zoomable Map (image pyramid) that acts like a pyqtgraph ImageItem
+        for high performance viewing of gigapixel-sized datasets
+        
+        plot_item: pyqtgraph PlotItem where Zoomable Map will appear
+        
+        image: large image array that will be shown        
+        
+        rect: Bounding rectangle for image
+            if rect=None, go by pixels otherwise rect=(x0,y0,w,h)
+    
+        transform: a QTransform that will override rect and allows for 
+            arbitrary matrix transforms of the coordinate system
+        
+        z_value: z-stacking value of highest resolution layer, 
+                    different zoom levels are at z_value - zoom
+        
+        fill: value to place on edge tiles that extend beyond original image
         
         kwargs are sent to setImage of imageItems
         """
@@ -145,7 +140,7 @@ class ZoomableMapItems(QtCore.QObject):
         
         
         #self.plot.sigRangeChanged.connect(self.on_range_changed)
-        
+        # Use a signalproxy to limit calls to recompute tiles
         self.sigprox = pg.SignalProxy(
                             signal=self.plot.sigRangeChanged,
                             #delay=0.1,
@@ -161,21 +156,11 @@ class ZoomableMapItems(QtCore.QObject):
                 self.setRect(rect)
         else: 
             self.transform = transform
-#            rect = (0,0, image.shape[0], image.shape[1])
-#        self.rect = tuple(rect)
-        
-        #self.base_imageitem = pg.ImageItem(self.image)
-        #self.base_imageitem.setRect(pg.QtCore.QRectF(*rect))
 
-        #self.plot.addItem(self.base_imageitem)
         self.lock = threading.Lock()
         
-        #self.on_range_changed(None, new_range=( (rect[0], rect[0]+rect[2]), (rect[1], rect[1]+rect[3])))
-        #zf_max  = np.max(self.image.shape[0:1])/self.tile_size
-        #z_max = int(math.ceil(math.log2(zf_max)))
-        #print(f"zf_max: {zf_max}, z_max {z_max}: {self.tiles_at_zoom(z_max)}")
-        z_max = self.get_max_zoom() # FIXME
-        print('z_max', z_max)
+        z_max = self.get_max_zoom()
+        #print('z_max', z_max)
         self.get_tile(z_max, 0,0).set_visible()
 
     def clear_tile_cache(self, clear_visible=False):
@@ -198,7 +183,7 @@ class ZoomableMapItems(QtCore.QObject):
 
     def get_max_zoom(self):
         
-        # FIXME!
+        # FIXME Need to check this
         
         # Find the zoom where Nx_tiles or Ny_tiles goes to 1
         # Nx_tiles = (im.shape[0]/zfi/Nt)
@@ -206,77 +191,11 @@ class ZoomableMapItems(QtCore.QObject):
         z_max = int(math.ceil(math.log2(zf_max)))
         
         z_max = max(0, z_max)
-        """
-        # compute zoom level
-        Nt = self.tile_size
-        x0, y0, w, h = self.rect
-        
-        orig_pixel_size_x = w / self.image.shape[0]
-        orig_pixel_size_y = h / self.image.shape[1]
-        
-        #print("Pixel Size", self.vb.viewPixelSize(), orig_pixel_size_x)
-        zf = self.vb.viewPixelSize()[0]/orig_pixel_size_x
-        zf_max  = np.min(self.image.shape[0:1])/self.tile_size
-        z_max = int(math.ceil(math.log2(zf_max)))
-        """
         return z_max
     
     def on_range_changed(self, src, new_range=None):
         if new_range is None:
             new_range = self.vb.viewRange()
-        
-        # OLD METHOD BASED ON Rectangles (not transforms)
-        """
-        # compute zoom level
-        Nt = self.tile_size
-        x0, y0, w, h = self.rect
-        
-        orig_pixel_size_x = w / self.image.shape[0]
-        orig_pixel_size_y = h / self.image.shape[1]
-        
-        #print("Pixel Size", self.vb.viewPixelSize(), orig_pixel_size_x)
-        zf = self.vb.viewPixelSize()[0]/orig_pixel_size_x
-        zf_max  = np.min(self.image.shape[0:1])/self.tile_size
-        z_max = int(math.ceil(math.log2(zf_max)))
-        z = min(max(int(np.floor(np.log2(zf))),0), z_max)
-        zfi = 2**z
-        
-        #print(f"zf={zf} z={z}, zfi={zfi}, zf_max={zf_max}, z_max={z_max}")
-        
-        
-        Nx_tiles = int(np.ceil(self.image.shape[0]/zfi/Nt))
-        Ny_tiles = int(np.ceil(self.image.shape[1]/zfi/Nt))
-        
-        #print("N data pixels per view pixel", self.vb.viewPixelSize()[0]/orig_pixel_size_x  )
-        #print("N view pixels per data pixel", orig_pixel_size_x / self.vb.viewPixelSize()[0])
-
-        # Update Tile Cache
-        
-        # which tiles should be visible?
-        #know z from above
-        
-        
-        
-        (xl,xr), (yb, yt) = new_range
-        
-        
-
-        
-        # tile corner formula
-        #x = x0 +ii*Nt*zf*orig_pixel_size_x
-        #y = y0 +jj*Nt*zf*orig_pixel_size_y
-        
-        # flipping this
-        ii0 = (xl - x0) / (Nt*zfi*orig_pixel_size_x)
-        ii0 = max(0, math.floor(ii0)) # clip at zero
-        ii1 = (xr - x0) / (Nt*zfi*orig_pixel_size_x)
-        ii1 = min(math.ceil(ii1), Nx_tiles)
-        
-        jj0 = (yb - y0) / (Nt*zfi*orig_pixel_size_y)
-        jj0 = max(0, math.floor(jj0))
-        jj1 = (yt - y0) / (Nt*zfi*orig_pixel_size_y)
-        jj1 = min(math.ceil(jj1), Ny_tiles)
-        """
         
         tr = self.transform
         tI,invertible = tr.inverted()
@@ -300,15 +219,15 @@ class ZoomableMapItems(QtCore.QObject):
         bl_tr_dist_view_px = np.sqrt( ((xr-xl)/px)**2 + ((yt-yb)/py)**2)
         bl_tr_dist_orig = np.sqrt( (x1-x0)**2 + (y1-y0)**2)
         
-        print("bl_tr_dist_view", bl_tr_dist_view)
-        print("bl_tr_dist_view_px", bl_tr_dist_view_px)
-        print("bl_tr_dist_orig", bl_tr_dist_orig)
+        # print("bl_tr_dist_view", bl_tr_dist_view)
+        # print("bl_tr_dist_view_px", bl_tr_dist_view_px)
+        # print("bl_tr_dist_orig", bl_tr_dist_orig)
 
         zf = bl_tr_dist_orig/bl_tr_dist_view_px
         
 
         z_max = self.get_max_zoom()
-        print("zoom factor", zf, 'z_max', z_max)
+        # print("zoom factor", zf, 'z_max', z_max)
         
         zoom = min(max(int(np.floor(np.log2(zf))),0), z_max)
         zfi = 2**zoom # integer power of two zoom factor    
@@ -317,7 +236,7 @@ class ZoomableMapItems(QtCore.QObject):
         Nx_tiles, Ny_tiles = self.tiles_at_zoom(zoom)
         Nt = self.tile_size        
         
-        print("zoom", zoom,'zfi', zfi, "Tiles at zoom", Nx_tiles, Ny_tiles )
+        #print("zoom", zoom,'zfi', zfi, "Tiles at zoom", Nx_tiles, Ny_tiles )
 
         # Tile limits ii0 to ii1, jj0 to jj1
         ii0 = x0 / (zfi*Nt)
@@ -331,7 +250,7 @@ class ZoomableMapItems(QtCore.QObject):
         jj1 = min(math.ceil(jj1), Ny_tiles)    
 
                 
-        print(f"allowed tiles zoom level {zoom}, x: {ii0} to {ii1}, y: {jj0} to {jj1}")
+        #print(f"allowed tiles zoom level {zoom}, x: {ii0} to {ii1}, y: {jj0} to {jj1}")
         
         if self.lock.locked():
             return
@@ -366,17 +285,15 @@ class ZoomableMapItems(QtCore.QObject):
                 self.get_tile(z_max, ii,jj).set_visible(True)
         
         N_visible = len(self.visible_tiles)
-        #self.plot.setTitle(
-        print(f"zf={zf} z={zoom}, zfi={zfi}. Tiles {Nx_tiles} x {Ny_tiles}, {N_visible} tiles shown")
+        #print(f"zf={zf} z={zoom}, zfi={zfi}. Tiles {Nx_tiles} x {Ny_tiles}, {N_visible} tiles shown")
+
+
+    # The following methods act like the equivalent single ImageItem methods 
 
     def getHistogram(self, bins='auto', step='auto', perChannel=False, targetImageSize=200,
                      targetHistogramSize=500, **kwds):
         z_max = self.get_max_zoom()
-        # Nx, Ny = self.tiles_at_zoom(z_max)
-        # for ii in range(Nx):
-            # for jj in range(Ny):
-                # tile = self.get_tile(z_max, ii,jj)
-                # return tile.image_item.getHistogram()
+        # Use biggest tile to get histogram
         return self.get_tile(z_max,0,0).image_item.getHistogram()
             
     def setLookupTable(self, lut, update=True):
@@ -409,6 +326,28 @@ class ZoomableMapItems(QtCore.QObject):
             tile = self.visible_tiles[(zt, iit, jjt)]
             tile.recomputeTransform()
 
+    def setImage(self, image=None, autoLevels=None, slice_changed=None, **kargs):
+
+        self.image = image
         
+        for tile_coord in list(self.tile_cache.keys()):
+            tile = self.tile_cache[tile_coord]
+            if tile.visible:
+                tile.update_data()
+                tile.set_visible(vis=True, force_replacement=True)
+            else:
+                del self.tile_cache[tile_coord]
+        
+        self.sigImageChanged.emit()
+
+        # TODO setImage use slice_changed to limit updates 
+
+    @property
+    def levels(self):
+        return self.getLevels()
+    
+    def getLevels(self):
+        z_max = self.get_max_zoom()
+        return self.get_tile(z_max,0,0).image_item.getLevels()
         
 

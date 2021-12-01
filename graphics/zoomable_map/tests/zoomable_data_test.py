@@ -1,7 +1,7 @@
 from pyqtgraph.Qt import QtGui, QtCore
 import numpy as np
 import pyqtgraph as pg
-from ScopeFoundry.graphics.zoomable_map.zoomable_map import ZoomableMapItems
+from ScopeFoundry.graphics.zoomable_map.zoomable_map import ZoomableMapImageItem
 import skimage.data
 import h5py
 
@@ -19,7 +19,7 @@ plot.setAspectLocked(1)
 vb  = plot.getViewBox()
 
 
-zmi = ZoomableMapItems(plot_item=plot, image=im, rect=None)
+zmi = ZoomableMapImageItem(plot_item=plot, image=im, rect=None)
 
 plot.setTitle("Zoomable Map Test PyqtGraph")
 plot.show()
