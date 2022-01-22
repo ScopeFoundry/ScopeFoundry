@@ -93,7 +93,12 @@ class BaseApp(QtCore.QObject):
         self.settings = LQCollection()
         
         # auto creation of console widget
-        self.setup_console_widget()
+        try:
+            self.setup_console_widget()
+        except Exception as err:
+            print("failed to setup console widget " + str(err))
+            self.console_widget = QtWidgets.QWidget()   
+
         
         # FIXME Breaks things for microscopes, but necessary for stand alone apps!
         #if hasattr(self, "setup"):
@@ -424,10 +429,12 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.action_save_ini.triggered.connect(self.settings_save_dialog)
         self.ui.action_console.triggered.connect(self.console_widget.show)
         self.ui.action_console.triggered.connect(self.console_widget.activateWindow)
-        
+        self.ui.action_load_window_positions.triggered.connect(self.window_positions_load_dialog)
+        self.ui.action_save_window_positions.triggered.connect(self.window_positions_save_dialog)
         
         #Refer to existing ui object:
         self.menubar = self.ui.menuWindow
+
 
         #Create new action group for switching between window and tab mode
         self.action_group = QtWidgets.QActionGroup(self)
@@ -758,7 +765,7 @@ class BaseMicroscopeApp(BaseApp):
 
 
         
-    def settings_load_ini(self, fname):
+    def settings_load_ini(self, fname, ignore_hw_connect=False):
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -776,22 +783,25 @@ class BaseMicroscopeApp(BaseApp):
             for lqname, new_val in config.items('app'):
                 lq = self.settings.get_lq(lqname)
                 lq.update_value(new_val)
+
+        self.log.info("sections in ini: {}".format(config.sections()))
         
         for hc_name, hc in self.hardware.items():
             section_name = 'hardware/'+hc_name
-            self.log.info(section_name)
+            self.log.info('settings section: {}'.format(section_name))
             if section_name in config.sections():
                 for lqname, new_val in config.items(section_name):
                     if lqname == 'connected':
                         continue # skip connected setting, use it at the end
                     try:
+                        self.log.info('settings update {} / {}-->{}'.format(section_name, lqname, new_val))
                         lq = hc.settings.get_lq(lqname)
                         if not lq.ro:
                             lq.update_value(new_val)
                     except Exception as err:
                         self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
                 
-                if 'connected' in config[section_name]:
+                if 'connected' in config[section_name] and not ignore_hw_connect:
                     hc.settings['connected'] = config[section_name]['connected']
                         
         for meas_name, measurement in self.measurements.items():
@@ -852,6 +862,16 @@ class BaseMicroscopeApp(BaseApp):
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Settings file", "", "Settings File (*.ini *.h5)")
         self.settings_load_ini(fname)
         
+    def window_positions_load_dialog(self):
+        fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Window Position file", "", "position File (*.json)")
+        self.load_window_positions_json(fname)
+        
+    def window_positions_save_dialog(self):
+        """Opens a save as ini dialogue in the app user interface."""
+        fname, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Window Position file", "", "position File (*.json)")
+        if fname:
+            self.save_window_positions_json(fname)
+        
     def lq_path(self,path):
         """returns the lq based on path string of the form 'domain/[component/]setting'
         domain = "measurement", "hardware" or "app"
@@ -899,13 +919,15 @@ class BaseMicroscopeApp(BaseApp):
     
     def set_window_positions(self, positions):
         def restore_win_state(subwin, win_state):
+            subwin.showNormal()
             if win_state['maximized']:
                 subwin.showMaximized()
             elif win_state['minimized']:
                 subwin.showMinimized()
             else:
                 subwin.setGeometry(*win_state['geometry'])
-
+            
+        self.set_subwindow_mode()
         for name, win_state in positions.items():
             if name == 'log':
                 restore_win_state(self.logging_subwin, win_state)
@@ -919,6 +941,7 @@ class BaseMicroscopeApp(BaseApp):
                 restore_win_state(M.subwin, win_state)
             
         
+        
     def get_window_positions(self):
         positions = OrderedDict()
         
@@ -929,7 +952,8 @@ class BaseMicroscopeApp(BaseApp):
             window_state = dict(
                     geometry  = qrect_to_tuple(subwin.geometry()),
                     maximized = subwin.isMaximized(),
-                    minimized = subwin.isMinimized()
+                    minimized = subwin.isMinimized(),
+                    fullscreen = subwin.isFullScreen()
                     )
             return window_state
         
@@ -950,8 +974,11 @@ class BaseMicroscopeApp(BaseApp):
     def save_window_positions_json(self, fname):
         import json
         positions = self.get_window_positions()
-        with open(fname, 'w') as outfile:
+        with open(fname, 'w') as outfile:    
             json.dump(positions, outfile, indent=4)
+        import os
+        cwd = os.getcwd()
+        print(fname, cwd)
             
     def load_window_positions_json(self, fname):
         with open(fname, 'r') as infile:

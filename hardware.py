@@ -68,13 +68,16 @@ class HardwareComponent(QtCore.QObject):
         self.settings = LQCollection()
         self.operations = OrderedDict()
 
-        self.connected = self.add_logged_quantity("connected", dtype=bool)
+        self.connected = self.settings.New("connected", dtype=bool, 
+                                           colors=['none','rgba( 0, 255, 0, 120)'],
+                                           description=f'to <i>{self.name}</i> hardware if checked.')
         self.connected.updated_value[bool].connect(self.enable_connection)
 
         self.connect_success = False
 
         
-        self.debug_mode = self.add_logged_quantity("debug_mode", dtype=bool, initial=debug)
+        self.debug_mode = self.settings.New("debug_mode", dtype=bool, initial=debug, 
+                                            colors=['none','yellow'])
         
         self.auto_thread_lock = True
         
@@ -236,8 +239,11 @@ class HardwareComponent(QtCore.QObject):
     def run(self):
         if hasattr(self, 'threaded_update'):
             while not self.update_thread_interrupted:
-                self.threaded_update()
-                
+                try:
+                    self.threaded_update()
+                except Exception as err:
+                    print("threaded update failed", err)
+                    time.sleep(1.0)
             
     def on_connection_succeeded(self):
         print(self.name, "connection succeeded!")
@@ -276,3 +282,14 @@ class HardwareComponent(QtCore.QObject):
         mod = inspect.getmodule(self)
         x = xreload.xreload(mod)
         print("Reloading from code", mod, x)
+        
+    def New_UI(self):
+        scroll_area = self.settings.New_UI(style='scroll_form')
+        for n,func in self.operations.items():
+            btn = QtWidgets.QPushButton(n)
+            btn.clicked.connect(func)
+            scroll_area.widget().layout().addRow(btn)
+        read_from_hardware_button = QtWidgets.QPushButton("Read From Hardware")
+        read_from_hardware_button.clicked.connect(self.read_from_hardware)
+        scroll_area.widget().layout().addRow(read_from_hardware_button)
+        return scroll_area
