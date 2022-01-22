@@ -70,6 +70,14 @@ def log_unhandled_exception(*exc_info):
     #print("Unhandled exception:" + text)
 sys.excepthook = log_unhandled_exception
 
+
+# To fix a bug with jupyter qtconsole for python 3.8
+# https://github.com/jupyter/notebook/issues/4613#issuecomment-548992047
+import asyncio
+import sys
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 class BaseApp(QtCore.QObject):
     
     def __init__(self, argv=[]):
@@ -438,7 +446,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.setWindowTitle(self.name)
 
         # Set Icon
-        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2D_1024.png"))
+        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2_1024.png"))
         self.qtapp.setWindowIcon(logo_icon)
         self.ui.setWindowIcon(logo_icon)
         
