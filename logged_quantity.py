@@ -227,7 +227,8 @@ class LoggedQuantity(QtCore.QObject):
             # sometimes a the sender is a textbox that does not send its new value,
             # grab the text() from it instead
             if new_val is None:
-                new_val = self.sender().text()
+                if hasattr(self.sender(), 'text'):
+                    new_val = self.sender().text()
     
             self.oldval = self.coerce_to_type(self.val)
             new_val = self.coerce_to_type(new_val)
