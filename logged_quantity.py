@@ -885,6 +885,7 @@ class LoggedQuantity(QtCore.QObject):
         self.widget_list.append(pushButton)
         
     def connect_to_lq(self, lq):
+        # FIXME, does not seem to work for dtype=int
         self.updated_value[(self.dtype)].connect(lq.update_value)
         lq.updated_value[(lq.dtype)].connect(self.update_value)
         
