@@ -15,12 +15,12 @@ class ExampleMicroscopeGUI(BaseMicroscopeGUI):
     
     def setup(self):
         #Add hardware components
-        print "Adding Hardware Components"
+        print("Adding Hardware Components")
         
         #self.picoharp_hc = self.add_hardware_component(PicoHarpHardwareComponent(self))
 
         #Add measurement components
-        print "Create Measurement objects"
+        print("Create Measurement objects")
         #self.apd_optimizer_measure = self.add_measurement_component(APDOptimizerMeasurement(self))
 
 

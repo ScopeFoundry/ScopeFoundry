@@ -948,7 +948,7 @@ def bin_y_average_x(x, y, binning = 2, axis = -1, datapoints_lost_warning = True
     new_len = int(x.__len__()/binning) * binning
     
     data_loss = x.__len__() - new_len
-    if data_loss is not 0 and datapoints_lost_warning:
+    if data_loss != 0 and datapoints_lost_warning:
         print('bin_y_average_x() warining: lost final', data_loss, 'datapoints')
     
     def bin_1Darray(arr, binning=binning, new_len=new_len):

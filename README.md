@@ -14,22 +14,24 @@ Edward S. Barnard <esbarnard@lbl.gov>
 Contributors
 ------------
 
-* Alan Buckley
-* Nick Borys
-* Frank Ogletree
 * Benedikt Ursprung
+* Nick Borys
+* Jonas Zipfel
+* Frank Ogletree
 * Clarice Aiello
 * Hao Wu
+* Alan Buckley
 
 
 Requirements
 ------------
 
 * Python 3.x
-* PyQt 4.7+, PySide, or PyQt5 (via qtpy shim package)
+* PySide, or PyQt5 (via qtpy shim package)
 * NumPy
 * PyQtGraph
 * h5py
+* xreload
 
 _Optional:_
 
@@ -53,7 +55,7 @@ setup.
 Alternatively:
 
 ```
-$ conda create -n scopefoundry python=3.6
+$ conda create -n scopefoundry python=3.9
 $ source activate scopefoundry
 (scopefoundry) $ conda install numpy pyqt qtpy h5py pyqtgraph
 (scopefoundry) $ pip install git+git://github.com/ScopeFoundry/ScopeFoundry.git

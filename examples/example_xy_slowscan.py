@@ -18,12 +18,12 @@ class ExampleXYSlowscanApp(BaseMicroscopeApp):
 
     def setup(self):
         #Add hardware components
-        print "Adding Hardware Components"
+        print("Adding Hardware Components")
         self.add_hardware_component(APDCounterHardwareComponent(self))
         self.add_hardware_component(DummyXYStageHW(self))
 
         #Add measurement components
-        print "Create Measurement objects"
+        print("Create Measurement objects")
         self.add_measurement_component(APDOptimizerMeasurement(self))
         self.add_measurement_component(SimpleXYScan(self))
         

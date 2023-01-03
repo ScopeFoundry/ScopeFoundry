@@ -1,3 +1,20 @@
+ScopeFoundry 1.2.0 2023-01-03
+
+	* Hardware components now have a background thread for updating state
+	* Reload Code buttons for Hardware and Measurements (uses xreload)
+	* Data Browser updates
+	* Add colors to UI elements connected to LoggedQuantities
+	* Base Raster 3D Scan Measurement
+	* Raster Scan GUI updates
+	* Logo and Icon
+	* Save and Load Window Positions
+	* Graphics: Zoomable Map 
+	* h5_io: create_extendable_h5_dataset
+	* Helper Functions: load_qt_ui_from_pkg, auto_connect_widget_in_ui
+	* Bug Fix: Jupyter qtconsole works with python 3.8
+	* Bug Fix: Measurement threading issues
+
+
 ScopeFoundry 1.1.1 2018-08-14
 	
 	* Bug Fix: QtConsole creates alerts instead of writing to console on Windows
