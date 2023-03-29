@@ -1,3 +1,8 @@
+ScopeFoundry 1.2.1 2023-03-29
+
+	* Initial version of Plug-in Manager
+	* Bug fix: for new QT version, display_update_timer, progressBars in Measurement
+
 ScopeFoundry 1.2.0 2023-01-03
 
 	* Hardware components now have a background thread for updating state
