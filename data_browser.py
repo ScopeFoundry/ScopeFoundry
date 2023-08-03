@@ -1,20 +1,23 @@
 from __future__ import division, print_function, absolute_import
+
+import os
+from pathlib import Path
+from collections import OrderedDict
+import argparse
+import time
+from datetime import datetime
+
 from ScopeFoundry import BaseApp
 from ScopeFoundry.helper_funcs import load_qt_ui_file, sibling_path,\
     load_qt_ui_from_pkg
 from ScopeFoundry.widgets import RegionSlicer
-from collections import OrderedDict
-import os
+from ScopeFoundry.logged_quantity import LQCollection
 from qtpy import QtCore, QtWidgets, QtGui
 import pyqtgraph as pg
 import pyqtgraph.dockarea as dockarea
 import numpy as np
-from ScopeFoundry.logged_quantity import LQCollection
 from scipy.stats import spearmanr
-import argparse
-import time
 import h5py
-from datetime import datetime
 
 
 class DataBrowser(BaseApp):
