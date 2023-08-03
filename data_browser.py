@@ -41,6 +41,9 @@ class DataBrowser(BaseApp):
         self.ui.show()
         self.ui.raise_()
         
+        self.ui.setWindowTitle("ScopeFoundry: Data Browser")
+        self.ui.setWindowIcon(QtGui.QIcon('scopefoundry_logo2C_1024.png'))
+        
         self.views = OrderedDict()        
         self.current_view = None        
 
