@@ -90,8 +90,6 @@ class DataBrowser(BaseApp):
         self.ui.log_pushButton.clicked.connect(self.logging_widget.show)
         self.ui.show()
         
-
-        
     def load_view(self, new_view):
         print("loading view", repr(new_view.name))
         
@@ -135,7 +133,6 @@ class DataBrowser(BaseApp):
         self.ui.treeView.setRootIndex(self.fs_model.index(self.settings['browse_dir']))
         self.fs_model.setRootPath(self.settings['browse_dir'])
 
-    
     def on_change_file_filter(self):
         self.log.debug("on_change_file_filter")
         filter_str = self.settings['file_filter']
@@ -145,7 +142,7 @@ class DataBrowser(BaseApp):
         filter_str_list = [x.strip() for x in filter_str.split(',')]
         self.log.debug(filter_str_list)
         self.fs_model.setNameFilters(filter_str_list)
-                    
+
     def on_change_view_name(self):
         #print('on_change_view_name')
         previous_view = self.current_view
@@ -206,7 +203,8 @@ class DataBrowserView(QtCore.QObject):
         return False
         
 class FileInfoView(DataBrowserView):
-    
+    """A general viewer to handle text files and
+    unsupported file types."""
     name = 'file_info'
     
     def setup(self):
@@ -229,7 +227,9 @@ class FileInfoView(DataBrowserView):
 
 
 class NPZView(DataBrowserView):
+    """Reads Numpy Z files (npz)
     
+    """
     name = 'npz_view'
     
     def setup(self):
@@ -267,8 +267,6 @@ class NPZView(DataBrowserView):
         
     def is_file_supported(self, fname):
         return os.path.splitext(fname)[1] == ".npz"
-    
-    
 
 
 class HyperSpectralBaseView(DataBrowserView):
@@ -1000,14 +998,11 @@ def peak_map(hyperspectral_data, wls, thres, min_dist, refinement, ignore_phony_
                                min_dist=min_dist, refinement=refinement,
                                ignore_phony_refinements=ignore_phony_refinements)
 
-    
-
-
-
 if __name__ == '__main__':
     import sys
     
     app = DataBrowser(sys.argv)
+    app.load_view(NPZView(app))
     app.load_view(HyperSpectralBaseView(app))
 
     sys.exit(app.exec_())
