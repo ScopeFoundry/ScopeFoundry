@@ -1000,6 +1000,7 @@ def peaks(spec, wls, thres=0.5, unique_solution=True,
         return peaks_x[0]
     else:
         return peaks_x
+
 def peak_map(hyperspectral_data, wls, thres, min_dist, refinement, ignore_phony_refinements):
     return np.apply_along_axis(peaks, -1, hyperspectral_data, 
                                wls=wls, thres=thres, 
