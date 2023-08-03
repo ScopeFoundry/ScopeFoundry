@@ -219,14 +219,17 @@ class FileInfoView(DataBrowserView):
     def on_change_data_filename(self, fname=None):
         if fname is None:
             fname = self.databrowser.settings['data_filename']
-
-        _, ext = os.path.splitext(fname)
+        
+        # Use pathlib
+        fname = Path(fname)
+        
+        ext = fname.suffix
         
         if ext in ('.py', '.ini', '.txt'):
             with open(fname, 'r') as f:
                 self.ui.setText(f.read())
         else:
-            self.ui.setText(fname)
+            self.ui.setText(str(fname))
         
     def is_file_supported(self, fname):
         return True
