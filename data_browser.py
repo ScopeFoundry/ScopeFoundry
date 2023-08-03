@@ -33,9 +33,7 @@ class DataBrowser(BaseApp):
                 val = getattr(args,lq.name)
                 if val is not None:
                     lq.update_value(val)
-        
-    
-    
+
     def setup(self):
 
         #self.ui = load_qt_ui_file(sibling_path(__file__, "data_browser.ui"))
@@ -55,7 +53,6 @@ class DataBrowser(BaseApp):
         self.settings.New('auto_select_view',dtype=bool, initial=True)
 
         self.settings.New('view_name', dtype=str, initial='0', choices=('0',))
-        
         
         # UI Connections
         self.settings.data_filename.connect_to_browse_widgets(self.ui.data_filename_lineEdit, 
@@ -77,14 +74,11 @@ class DataBrowser(BaseApp):
         self.tree_selectionModel = self.ui.treeView.selectionModel()
         self.tree_selectionModel.selectionChanged.connect(self.on_treeview_selection_change)
 
-
         self.settings.browse_dir.add_listener(self.on_change_browse_dir)
         self.settings['browse_dir'] = os.getcwd()
 
-        # set views
-        
+        # Load file information view as default view
         self.load_view(FileInfoView(self))
-        self.load_view(NPZView(self))
 
         self.settings.view_name.add_listener(self.on_change_view_name)
         self.settings['view_name'] = "file_info"
