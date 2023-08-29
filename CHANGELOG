@@ -1,3 +1,8 @@
+ScopeFoundry 1.2.2 2023-08-29
+
+	* Refactoring of Data Browser, including faster startup
+
+
 ScopeFoundry 1.2.1 2023-03-29
 
 	* Initial version of Plug-in Manager
