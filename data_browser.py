@@ -106,8 +106,8 @@ class DataBrowser(BaseApp):
         # add to views dict
         self.views[new_view.name] = new_view
         
-        self.ui.dataview_groupBox.layout().addWidget(new_view.ui)
-        new_view.ui.hide()
+        # self.ui.dataview_groupBox.layout().addWidget(new_view.ui)
+        # new_view.ui.hide()
         
         # update choices for view_name
         self.settings.view_name.change_choice_list(list(self.views.keys()))
@@ -162,6 +162,13 @@ class DataBrowser(BaseApp):
         else:
             self.ui.dataview_placeholder.hide()
         
+        # set up view if not already loaded
+        if not self.current_view.view_loaded:
+            print(f"setting up view {self.current_view.name}")
+            self.current_view.setup()
+            self.ui.dataview_groupBox.layout().addWidget(self.current_view.ui)
+            #new_view.ui.hide()            
+            self.current_view.view_loaded = True
         # show new view
         self.current_view.ui.show()
         
@@ -191,7 +198,8 @@ class DataBrowserView(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.databrowser =  databrowser
         self.settings = LQCollection()
-        self.setup()
+        self.view_loaded = False
+        #self.setup()
         
     def setup(self):
         pass
