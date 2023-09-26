@@ -30,6 +30,6 @@ setup(
         },
         
     install_requires = [
-    	'numpy', 'h5py', 'qtpy', 'xreload']
+    	'numpy', 'h5py', 'qtpy', 'xreload', 'uuid7']
     
     )
