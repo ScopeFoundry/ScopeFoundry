@@ -329,6 +329,7 @@ class BaseMicroscopeApp(BaseApp):
         self.settings.New('sample', dtype=str, initial='')
         self.settings.New('data_fname_format', dtype=str,
                           initial='{timestamp:%y%m%d_%H%M%S}_{measurement.name}.{ext}')
+                          # Potential new alternative default: '{unique_id_short}_{measurement.name}.{ext}'
         
         #self.settings.New('log_dir', dtype='file', is_dir=True, initial=initial_log_dir)
         
