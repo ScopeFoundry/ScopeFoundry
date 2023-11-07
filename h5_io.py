@@ -3,6 +3,7 @@ import h5py
 import time
 from datetime import datetime
 import os
+from .cb32_uuid import cb32_uuid
 
 """
 recommended HDF5 file format for ScopeFoundry
@@ -11,47 +12,48 @@ recommended HDF5 file format for ScopeFoundry
 D = data_set
 
 * /
-    - scope_foundry_version = 100
-    - emd_version = 102
-    * gui
-        - log_quant_1
-        - log_quant_1_unit
-        - ...
+    - scope_foundry_version = 130
+    - time_id = # unix epoch timestamp
+    - unique_id = # persistent identifer for dataset, 26 character
+    - uuid = # uuid string representation of unique_id
+    * app
+        - ScopeFoundry_Type = App
+        - name = test_app
+        * settings
+            - log_quant_1
+            - log_quant_1_unit
+            - ...
     * hardware
         * hardware_component_1
             - ScopeFoundry_Type = Hardware
             - name = hardware_component_1
-            - log_quant_1
-            - log_quant_1_unit
-            - ...
-            * units
-                - log_quant_1 = '[n_m]'
+            * settings
+                - log_quant_1
+                - ...
+                * units
+                    - log_quant_1 = '[n_m]'
         * ...
-    * measurement_1
-        - ScopeFoundry_Type = Measurement
-        - name = measurement_1
-        - log_quant_1
-        - ...
-        * units
-            - log_quant_1 = '[n_m]'
-        * image_like_data_set_1
-            - emd_group_type = 1
-            D data
-            D dim0
-                - name = 'x'
-                - unit = '[n_m]'
+    * measurement
+        * measurement_1
+            - ScopeFoundry_Type = Measurement
+            - name = measurement_1
+                * settings
+                    - log_quant_1
+                    - ...
+                    * units
+                        - log_quant_1 = '[n_m]'
+            D simple_data_set_2
             D ...
-            D dimN
-        D simple_data_set_2
-        D ...
 
 other thoughts:
     store git revision of code
     store git revision of ScopeFoundry
-
+    EMD compatibility, NeXUS compatibility
 """
 
+
 def h5_base_file(app, fname=None, measurement=None):
+    unique_id, u = cb32_uuid() # persistent identifier for dataset
     t0 = time.time()
     if fname is None and measurement is not None:
         
@@ -59,13 +61,17 @@ def h5_base_file(app, fname=None, measurement=None):
             app=app,
             measurement=measurement,
             timestamp=datetime.fromtimestamp(t0),
+            unique_id=unique_id,
+            unique_id_short = unique_id[0:13],
             ext='h5')
         fname = os.path.join(app.settings['save_dir'], f)        
         #fname = os.path.join(app.settings['save_dir'], "%i_%s.h5" % (t0, measurement.name) )
     h5_file = h5py.File(fname, 'a')
     root = h5_file['/']
-    root.attrs["ScopeFoundry_version"] = 101
-    root.attrs['time_id'] = t0
+    root.attrs["ScopeFoundry_version"] = 130
+    root.attrs['time_id'] = int(t0)
+    root.attrs['unique_id'] = unique_id
+    root.attrs['uuid'] = str(u)
 
     h5_save_app_lq(app, root)
     h5_save_hardware_lq(app, root)
@@ -122,6 +128,26 @@ def h5_save_measurement_settings(measurement, h5_meas_group):
     h5_meas_group.attrs['ScopeFoundry_type'] = "Measurement"
     settings_group = h5_meas_group.create_group("settings")
     h5_save_lqcoll_to_attrs(measurement.settings, settings_group)
+    
+    
+def h5_measurement_file(measurement,  fname=None):
+    """ Default way to create HDF5 file and fill with 
+    metadata for measurement and hardware
+    
+    filename of file is determined by app settings unless fname is specified
+    
+    creates an h5 file with groups: /app, /hardware, /measurement/<measurement_name>
+    
+    with all settings written to the file
+    
+    returns Measurement H5 group where additional data objects can be added during the measurment
+    """
+    h5f = h5_base_file(
+                    app=measurement.app,
+                    fname=fname,
+                    measurement=measurement)
+    M = h5_create_measurement_group(measurement, h5group=h5f)
+    return M
     
     
 def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = None, 
