@@ -107,14 +107,17 @@ class LoggedQuantity(QtCore.QObject):
         
         self.colors = colors
         self.qcolors = []
-        if self.colors != None:
+        if self.colors:
+            default_color = QtGui.QColor('lightgrey')
             for color in colors:
-                qcolor = QtGui.QColor(color)
+                try:
+                    qcolor = QtGui.QColor(color)
+                except TypeError:
+                    qcolor = default_color
                 if qcolor.isValid():
                     self.qcolors.append(qcolor)
                 else:
-                    self.qcolors.append(QtGui.QColor('lightgrey'))
-                    #print(self.name, color, 'invalid color - used "lightgrey" instead')
+                    self.qcolors.append(default_color)
         
         self.log = get_logger_from_class(self)
         
