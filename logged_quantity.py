@@ -1443,7 +1443,7 @@ class LQRange(LQCircularNetwork):
                                    'zig_zag':self.zig_zag_sweep_array, 'zag_zig':self.zag_zig_sweep_array}
             self.sweep_type = sweep_type_lq
             self.sweep_type.change_choice_list(self.sweep_type_map.keys())
-        
+            lq_dict["sweep_type"] = sweep_type_lq
 
     def calc_num(self, min_, max_, step):
         '''
