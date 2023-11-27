@@ -141,6 +141,9 @@ class LoggedQuantity(QtCore.QObject):
         #self.lock = DummyLock()
         self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
         
+        self._lq_path = ""
+
+
     def coerce_to_type(self, x):
         """
         Force x to dtype of the LQ
@@ -376,7 +379,7 @@ class LoggedQuantity(QtCore.QObject):
     
     def set_widget_toolTip(self, widget, text=None):
         try:
-            tips = [f'<b>{self.name}</b>']
+            tips = [f'<b>{self._lq_path}</b>']
             if self.unit: tips.append(f'<i>({self.unit})</i>')
             for s in [self.description, widget.toolTip(), text]:
                 if s != None:
@@ -1151,6 +1154,9 @@ class LoggedQuantity(QtCore.QObject):
             
             return p
         
+    def set_lq_path(self, lq_path:str):
+        self._lq_path = lq_path
+        
 
 class FileLQ(LoggedQuantity):
     """
@@ -1527,7 +1533,6 @@ class LQRange(LQCircularNetwork):
         
     @property
     def sweep_array(self):
-        print(self.sweep_type.val)
         if hasattr(self, 'sweep_type'):
             return self.sweep_type_map[self.sweep_type.val]()
         else:
