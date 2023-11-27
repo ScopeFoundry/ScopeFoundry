@@ -308,6 +308,9 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.show()
 
     def __init__(self, argv=[]):
+
+        self._lq_paths = {}
+
         BaseApp.__init__(self, argv)
         
         log_dir = os.path.abspath(os.path.join('.', 'log'))
@@ -351,6 +354,8 @@ class BaseMicroscopeApp(BaseApp):
                    
         self.setup()
         
+        self._setup_lq_paths()
+
         self.setup_default_ui()
         
         self.setup_ui()
@@ -873,37 +878,57 @@ class BaseMicroscopeApp(BaseApp):
         if fname:
             self.save_window_positions_json(fname)
         
-    def lq_path(self,path):
-        """returns the lq based on path string of the form 'domain/[component/]setting'
-        domain = "measurement", "hardware" or "app"
+    def get_lq(self, lq_path:str) -> LoggedQuantity:
+        """returns the LoggedQuantity defined by a path string of the form 'section/[component/]setting'
+        where section are "mm", "hw" or "app"
         """
-        try:
-            domain,component,setting = path.split('/')
-        except ValueError:#app settings do not have a component hierarchy
-            domain,setting = path.split('/')
-        try:
-            if domain in ['hardware','HW','hw']:
-                lq = getattr(self.hardware[component].settings, setting)
-            if domain in ['measurement','measure', 'measurements']:
-                lq = getattr(self.measurements[component].settings, setting)
-            if domain == 'app':
-                lq = getattr(self.settings, setting)
-            return lq
-        except UnboundLocalError:
-            print('WARNING:',domain,'does not exist')
-            
-    def lq_paths_list(self):
-        """returns all logged_quantity paths as a list"""
-        list = []
-        for hw_name,hw in self.hardware.items():
-            for lq_name in hw.settings.keys():
-                list.append('hardware/'+hw_name+"/"+lq_name)
-        for measure_name,measure in self.measurements.items():
-            for lq_name in measure.settings.keys():
-                list.append('measurement/'+measure_name+"/"+lq_name)
-        for lq_name in self.settings.keys():
-            list.append('app/'+lq_name)
-        return list
+        parts = lq_path.split("/")
+        section = parts[0]
+        if section in ("HW", "hardware"):
+            lq_path = f"hw/{parts[1]}/{parts[2]}"
+        elif section in ("measurement", "measure", "measurements"):
+            lq_path = f"mm/{parts[1]}/{parts[2]}"
+        if not lq_path in self._lq_paths:
+            print(f"WARNING: {'/'.join(parts)} does not exist")
+        else:
+            return self._lq_paths[lq_path]
+
+    def write_value(self, lq_path:str, value):
+        self.get_lq(lq_path).update_value(value)
+
+    def read_value(self, lq_path:str, read_from_hardware=True):
+        lq = self.get_lq(lq_path)
+        if read_from_hardware and lq.has_hardware_read:
+            return lq.read_from_hardware()
+        return lq.val
+
+    def _setup_lq_paths(self):
+        for hw_name, hw in self.hardware.items():
+            for lq_name, lq in hw.settings.as_dict().items():
+                self._add_lq_path(f"hw/{hw_name}/{lq_name}", lq)
+        for measure_name, measure in self.measurements.items():
+            for lq_name, lq in measure.settings.as_dict().items():
+                self._add_lq_path(f"mm/{measure_name}/{lq_name}", lq)
+        for lq_name in self.settings.as_dict().items():
+            self._add_lq_path(f"app/{lq_name}", lq)
+
+    def _add_lq_path(self, lq_path:str, lq: LoggedQuantity):
+        lq.set_lq_path(lq_path)
+        self._lq_paths[lq_path] = lq
+
+
+    def lq_path(self, path):
+        warnings.warn("App.lq_path deprecated, use App.get_lq instead", DeprecationWarning)
+        return self.get_lq(path)
+
+    def get_lq_paths(self, filter_has_hardware_read=False, filter_has_hardware_write=False):
+        if filter_has_hardware_read and filter_has_hardware_write:
+            return [path for path, lq in self._lq_paths.items() if lq.has_hardware_read() or lq.has_hardware_write()]
+        if filter_has_hardware_read:
+            return [path for path, lq in self._lq_paths.items() if lq.has_hardware_read()]
+        if filter_has_hardware_write:
+            return [path for path, lq in self._lq_paths.items() if lq.has_hardware_write()]
+        return list(self._lq_paths.keys())
         
     @property
     def hardware_components(self):
