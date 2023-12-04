@@ -17,7 +17,8 @@ class App(BaseMicroscopeApp):
 
         from ScopeFoundry.controlling import PIDFeedbackControl
         self.add_measurement(PIDFeedbackControl(self))
-
+        from ScopeFoundry.controlling import RangedOptimization
+        self.add_measurement(RangedOptimization(self))
         
     def setup_ui(self):
         from qtpy.QtWidgets import QWidget, QVBoxLayout
