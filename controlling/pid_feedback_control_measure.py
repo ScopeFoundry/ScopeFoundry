@@ -9,7 +9,7 @@ import numpy
 import pyqtgraph as pg
 from qtpy import QtWidgets
 
-from ScopeFoundry import Measurement
+from ScopeFoundry import Measurement, h5_io
 
 INDEF = "indefinite"
 TIMEOUT = "timeout"
@@ -64,29 +64,26 @@ class PIDFeedbackControl(Measurement):
             choices=(TIMEOUT, INDEF, ETOL_W_TIMEOUT, ETOL),
             description=f"condition for {self.name} to end.",
         )
+        s.New("save_h5", bool, initial=False)
         self.data = mk_data_dict(600, 1.0)
-
-        self.add_operation("update_choices", self.update_choices)
-        self.add_operation("filter_to_connected_hw", self.update_choices_filtered)
 
     def setup_figure(self):
         s = self.settings
 
-        v1_layout = QtWidgets.QVBoxLayout()
-        v1_layout.addWidget(s.New_UI(("setpoint", "plant_input", "sensor")))
-        op_button = QtWidgets.QPushButton("refresh list to all settings")
-        op_button.clicked.connect(self.update_choices)
-        v1_layout.addWidget(op_button)
-        op_button = QtWidgets.QPushButton("filtered to usable (connected) settings")
-        op_button.clicked.connect(self.update_choices_filtered)
-        v1_layout.addWidget(op_button)
-        v2_layout = QtWidgets.QVBoxLayout()
-        v2_layout.addWidget(s.New_UI(("terminate", "timeout", "error_tol")))
-        v2_layout.addWidget(s.get_lq("activation").new_pushButton())
         ctr_layout = QtWidgets.QHBoxLayout()
-        ctr_layout.addLayout(v1_layout)
+        ctr_layout.addWidget(s.New_UI(("setpoint", "plant_input", "sensor")))
         ctr_layout.addWidget(s.New_UI(("Kp", "Ki", "Kd")))
-        ctr_layout.addLayout(v2_layout)
+        ctr_layout.addWidget(s.New_UI(("terminate", "timeout", "error_tol")))
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        btn_layout.addWidget(s.get_lq("activation").new_pushButton())
+        op_button = QtWidgets.QPushButton("unfilter options")
+        op_button.clicked.connect(self.update_choices)
+        btn_layout.addWidget(op_button)
+        op_button = QtWidgets.QPushButton("filter options to available")
+        op_button.setToolTip("only settings that are connected to hardware")
+        op_button.clicked.connect(self.update_choices_filtered)
+        btn_layout.addWidget(op_button)
 
         graph_widget = pg.GraphicsLayoutWidget(border=(0, 0, 0))
         axes = graph_widget.addPlot(title=self.name)
@@ -97,12 +94,13 @@ class PIDFeedbackControl(Measurement):
         self.ui = QtWidgets.QWidget()
         self.layout = QtWidgets.QVBoxLayout(self.ui)
         self.layout.addLayout(ctr_layout)
+        self.layout.addLayout(btn_layout)
         self.layout.addWidget(graph_widget)
 
         self.update_choices()
 
     def run(self):
-        from simple_pid.PID import PID  # pip install simple-pid
+        from simple_pid.pid import PID  # pip install simple-pid (requires v>2)
 
         s = self.settings
 
@@ -131,6 +129,9 @@ class PIDFeedbackControl(Measurement):
 
             ii = (ii + 1) % wrap_around
             time.sleep(0.01)
+
+        if s["save_h5"]:
+            self.save_h5()
 
     def should_terminate(self, lab_time):
         s = self.settings
@@ -164,28 +165,35 @@ class PIDFeedbackControl(Measurement):
     def New_mini_UI(self):
         from qtpy.QtWidgets import QSizePolicy
 
-        widget = QtWidgets.QWidget()
-        layout = QtWidgets.QHBoxLayout(widget)
-        widget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
         s = self.settings
         cb = s.get_lq("activation").new_default_widget()
         cb.setText(self.name)
-        layout.addWidget(cb)
 
         spw = s.get_lq("setpoint").new_default_widget()
         spw.setMaximumWidth(80)
-        layout.addWidget(spw)
 
         erw = s.get_lq("error").new_default_widget()
         erw.setMaximumWidth(80)
-        layout.addWidget(erw)
 
         show_ui_btn = QtWidgets.QPushButton("ui")
-        show_ui_btn.setMaximumWidth(20)
+        show_ui_btn.setStyleSheet("QPushButton{font-weight: bold; color:blue};")
+        show_ui_btn.setMaximumWidth(25)
         show_ui_btn.clicked.connect(self.show_ui)
 
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(widget)
+        layout.addWidget(cb)
+        layout.addWidget(spw)
+        layout.addWidget(erw)
         layout.addWidget(show_ui_btn)
         return widget
+
+    def save_h5(self):
+        h5_file = h5_io.h5_base_file(app=self.app, measurement=self)
+        group = h5_io.h5_create_measurement_group(self, h5_file)
+        for k, v in self.data.items():
+            group[k] = v
+        h5_file.close()
 
 
 def mk_data_dict(N, setpoint):
