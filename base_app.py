@@ -909,7 +909,7 @@ class BaseMicroscopeApp(BaseApp):
         for measure_name, measure in self.measurements.items():
             for lq_name, lq in measure.settings.as_dict().items():
                 self._add_lq_path(f"mm/{measure_name}/{lq_name}", lq)
-        for lq_name in self.settings.as_dict().items():
+        for lq_name, lq in self.settings.as_dict().items():
             self._add_lq_path(f"app/{lq_name}", lq)
 
     def _add_lq_path(self, lq_path:str, lq: LoggedQuantity):
