@@ -158,9 +158,11 @@ class RangedOptimization(Measurement):
 
     def run(self):
         s = self.settings
+
         self._take_current_flag = False
         self.set_post_process_lines_visible(False)
         self.update_z_read()
+        self.try_connect_hws()
         self.update_z_center()
         z_ori = self.read_z()
         d = self.data = mk_data_dict(
@@ -232,7 +234,8 @@ class RangedOptimization(Measurement):
     def save_h5(self):
         h5_file = h5_io.h5_base_file(app=self.app, measurement=self)
         group = h5_io.h5_create_measurement_group(self, h5_file)
-        self.data["times_history"] = [int(t.timestamp()) for t in self.time_history]
+        self.data["times_history"] = [
+            int(t.timestamp()) for t in self.time_history]
         self.data["z0_history"] = self.z0_history
         for k, v in self.data.items():
             group[k] = np.array(v)
@@ -278,6 +281,24 @@ class RangedOptimization(Measurement):
         s = self.settings
         if s["use_current_z_as_center"]:
             s["z_center"] = self.read_z() - s["z_offset"]
+            
+    def try_connect_hws(self):
+        """in case user forgot to connect to corresponding hardware"""
+        self.connect_hw(self.settings["z"])
+        self.connect_hw(self.settings["z_read"])
+        self.connect_hw(self.settings["f"])
+
+    def connect_hw(self, lq_path):
+        if not lq_path.startswith("hw"):
+            return
+        try:
+            sec, hw_name, _ = lq_path.split("/")
+            print(self.name, "setting",
+                  "/".join([sec, hw_name, "connected"]), "to True")
+            self.app.write_value("/".join([sec, hw_name, "connected"]), True)
+        except (ValueError, KeyError) as e:
+            print(self.name, "could connect")
+            print(e)
 
     def take_current_optimal(self):
         self._take_current_flag = True
