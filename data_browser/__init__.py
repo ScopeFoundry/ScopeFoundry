@@ -51,19 +51,22 @@ class DataBrowser(BaseApp):
                                                               self.ui.data_filename_browse_pushButton)
         self.settings.browse_dir.connect_to_browse_widgets(self.ui.browse_dir_lineEdit, 
                                                               self.ui.browse_dir_browse_pushButton)
+        self.ui.data_filename_recycle_pushButton.clicked.connect(self.on_recycle)
         self.settings.view_name.connect_bidir_to_widget(self.ui.view_name_comboBox)
         self.settings.file_filter.connect_bidir_to_widget(self.ui.file_filter_lineEdit)
         
+        
+        
         # file system tree
+        self.tree_view = TreeView(self.on_recycle)
+        self.ui.file_system_layout.insertWidget(2, self.tree_view)
         self.fs_model = QtWidgets.QFileSystemModel()
         self.fs_model.setRootPath(QtCore.QDir.currentPath())
-        self.ui.treeView.setModel(self.fs_model)
-        self.ui.treeView.setIconSize(QtCore.QSize(16,16))
-        self.ui.treeView.setSortingEnabled(True)
-        #for i in (1,2,3):
-        #    self.ui.treeView.hideColumn(i)
-        #print("="*80, self.ui.treeView.selectionModel())
-        self.tree_selectionModel = self.ui.treeView.selectionModel()
+        self.tree_view.setModel(self.fs_model)
+        self.tree_view.setIconSize(QtCore.QSize(16,16))
+        self.tree_view.setSortingEnabled(True)
+        self.tree_view.setColumnWidth(0, 500) # make name column wider
+        self.tree_selectionModel = self.tree_view.selectionModel()
         self.tree_selectionModel.selectionChanged.connect(self.on_treeview_selection_change)
 
         self.settings.browse_dir.add_listener(self.on_change_browse_dir)
@@ -92,7 +95,7 @@ class DataBrowser(BaseApp):
         # add to views dict
         self.views[new_view.name] = new_view
         
-        # self.ui.dataview_groupBox.layout().addWidget(new_view.ui)
+        # self.ui.data_view_layout.addWidget(new_view.ui)
         # new_view.ui.hide()
         
         # update choices for view_name
@@ -122,7 +125,7 @@ class DataBrowser(BaseApp):
     @QtCore.Slot()
     def on_change_browse_dir(self):
         self.log.debug("on_change_browse_dir")
-        self.ui.treeView.setRootIndex(self.fs_model.index(self.settings['browse_dir']))
+        self.tree_view.setRootIndex(self.fs_model.index(self.settings['browse_dir']))
         self.fs_model.setRootPath(self.settings['browse_dir'])
 
     def on_change_file_filter(self):
@@ -152,7 +155,7 @@ class DataBrowser(BaseApp):
         if not self.current_view.view_loaded:
             print(f"setting up view {self.current_view.name}")
             self.current_view.setup()
-            self.ui.dataview_groupBox.layout().addWidget(self.current_view.ui)
+            self.ui.data_view_layout.addWidget(self.current_view.ui)
             #new_view.ui.hide()            
             self.current_view.view_loaded = True
         # show new view
@@ -175,8 +178,24 @@ class DataBrowser(BaseApp):
                 return view_name
         # return default file_info view if no others work
         return 'file_info'
+
+    def on_recycle(self):
+        import send2trash #decided to import here because send2trash is not a built in library.
+        send2trash.send2trash(Path(self.settings["data_filename"]))
+
+
+
+class TreeView(QtWidgets.QTreeView):
     
-    
+    def __init__(self, delete_func, parent=None) -> None:
+        QtWidgets.QTreeView.__init__(self, parent)
+        self.delete_func = delete_func
+        
+    def keyPressEvent(self, event:QtGui.QKeyEvent)->None:
+        QtWidgets.QTreeView.keyPressEvent(self, event)
+        if event.key() == QtCore.Qt.Key_Delete:
+            self.delete_func()
+
 class DataBrowserView(QtCore.QObject):
     """ Abstract class for DataBrowser Views"""
     
@@ -219,7 +238,7 @@ class FileInfoView(DataBrowserView):
         
         ext = fname.suffix
         
-        if ext in ('.py', '.ini', '.txt'):
+        if ext in ('.py', '.ini', '.txt', '.yml', '.yaml'):
             with open(fname, 'r') as f:
                 self.ui.setText(f.read())
         else:
