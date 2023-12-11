@@ -77,6 +77,26 @@
           <property name="bottomMargin">
            <number>4</number>
           </property>
+          <item row="1" column="2">
+           <widget class="QPushButton" name="console_pushButton">
+            <property name="maximumSize">
+             <size>
+              <width>60</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Console...</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="view_label">
+            <property name="text">
+             <string>View:</string>
+            </property>
+           </widget>
+          </item>
           <item row="0" column="0">
            <widget class="QLabel" name="file_label">
             <property name="text">
@@ -86,6 +106,12 @@
           </item>
           <item row="0" column="2">
            <widget class="QPushButton" name="data_filename_browse_pushButton">
+            <property name="maximumSize">
+             <size>
+              <width>60</width>
+              <height>16777215</height>
+             </size>
+            </property>
             <property name="text">
              <string>Browse...</string>
             </property>
@@ -94,11 +120,14 @@
           <item row="0" column="1">
            <widget class="QLineEdit" name="data_filename_lineEdit"/>
           </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="view_name_comboBox"/>
+          </item>
           <item row="0" column="3">
            <widget class="QPushButton" name="data_filename_recycle_pushButton">
             <property name="maximumSize">
              <size>
-              <width>35</width>
+              <width>50</width>
               <height>16777215</height>
              </size>
             </property>
@@ -114,28 +143,38 @@ font-weight:bold;</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="view_label">
+          <item row="0" column="4">
+           <widget class="QPushButton" name="data_filename_rename_pushButton">
+            <property name="minimumSize">
+             <size>
+              <width>45</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <underline>false</underline>
+             </font>
+            </property>
+            <property name="toolTip">
+             <string>&lt;R&gt; renames selected file.</string>
+            </property>
             <property name="text">
-             <string>View:</string>
+             <string>rename</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="1">
-           <widget class="QComboBox" name="view_name_comboBox"/>
-          </item>
-          <item row="1" column="2">
-           <widget class="QPushButton" name="console_pushButton">
-            <property name="text">
-             <string>Console...</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="3">
+          <item row="1" column="3" colspan="2">
            <widget class="QPushButton" name="log_pushButton">
             <property name="maximumSize">
              <size>
-              <width>35</width>
+              <width>16777215</width>
               <height>16777215</height>
              </size>
             </property>

@@ -52,13 +52,14 @@ class DataBrowser(BaseApp):
         self.settings.browse_dir.connect_to_browse_widgets(self.ui.browse_dir_lineEdit, 
                                                               self.ui.browse_dir_browse_pushButton)
         self.ui.data_filename_recycle_pushButton.clicked.connect(self.on_recycle)
+        self.ui.data_filename_rename_pushButton.clicked.connect(self.on_rename)
         self.settings.view_name.connect_bidir_to_widget(self.ui.view_name_comboBox)
         self.settings.file_filter.connect_bidir_to_widget(self.ui.file_filter_lineEdit)
         
         
         
         # file system tree
-        self.tree_view = TreeView(self.on_recycle)
+        self.tree_view = TreeView(self.on_recycle, self.on_rename)
         self.ui.file_system_layout.insertWidget(2, self.tree_view)
         self.fs_model = QtWidgets.QFileSystemModel()
         self.fs_model.setRootPath(QtCore.QDir.currentPath())
@@ -183,19 +184,59 @@ class DataBrowser(BaseApp):
         import send2trash #decided to import here because send2trash is not a built in library.
         send2trash.send2trash(Path(self.settings["data_filename"]))
 
+    def on_rename(self):
+        path = Path(self.settings["data_filename"])               
+        dialog = RenameDialog(prev_path_name=str(path))
+        if dialog.exec_():
+            if dialog.new_name is not None:
+                path.rename(dialog.new_name)
 
 
 class TreeView(QtWidgets.QTreeView):
     
-    def __init__(self, delete_func, parent=None) -> None:
+    def __init__(self, delete_func, rename_func, parent=None) -> None:
         QtWidgets.QTreeView.__init__(self, parent)
         self.delete_func = delete_func
+        self.rename_func = rename_func
         
     def keyPressEvent(self, event:QtGui.QKeyEvent)->None:
         QtWidgets.QTreeView.keyPressEvent(self, event)
         if event.key() == QtCore.Qt.Key_Delete:
             self.delete_func()
+            
+        if event.key() == QtCore.Qt.Key_R:
+            self.rename_func()
+            
+class RenameDialog(QtWidgets.QDialog):
+    def __init__(self, prev_path_name):
+        QtWidgets.QDialog.__init__(self)
 
+        self.new_name = None
+
+        rename_btn = QtWidgets.QPushButton("rename")
+        cancel_btn = QtWidgets.QPushButton("cancel")
+        self.new_name_w = QtWidgets.QLineEdit(prev_path_name)
+
+        cancel_btn.clicked.connect(self.on_cancel)
+        rename_btn.clicked.connect(self.on_rename)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.new_name_w)
+        layout.addWidget(rename_btn)
+        layout.addWidget(cancel_btn)
+        self.setLayout(layout)
+        
+        self.setWindowTitle("rename")
+        self.setMinimumWidth(500)
+        
+    def on_cancel(self):
+        self.new_name = None       
+        self.accept()
+        
+    def on_rename(self):
+        self.new_name = self.new_name_w.text()
+        self.accept()
+        
 class DataBrowserView(QtCore.QObject):
     """ Abstract class for DataBrowser Views"""
     
