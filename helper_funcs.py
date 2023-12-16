@@ -1,5 +1,5 @@
 from __future__ import absolute_import, print_function
-from typing_extensions import Protocol
+# from typing import Protocol
 from qtpy import QtCore, QtWidgets, uic
 from collections import OrderedDict
 import os
@@ -248,14 +248,14 @@ def bool2str(v):
     return {False:'False', True:'True'}[v]
 
 
-class LockProtocol(Protocol):
-    def acquire(self): ...
+# class LockProtocol(Protocol):
+#     def acquire(self): ...
 
-    def release(self): ...
+#     def release(self): ...
 
-    def __enter__(self): ...
+#     def __enter__(self): ...
 
-    def __exit__(self, *args): ...
+#     def __exit__(self, *args): ...
 
 
 class DummyLock():
@@ -268,7 +268,7 @@ class DummyLock():
     def __exit__(self, *args): ...
 
 
-def QLock(mode: int = 0) -> LockProtocol:
+def QLock(mode: int = 0):
     '''this function was introduced for backward compatibility as PyQt6 initializer no longer accepts a mode keyword, 
        in the future used either QNonReEntrantLock or QReEntrantLock'''
 
