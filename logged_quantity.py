@@ -76,6 +76,7 @@ class LoggedQuantity(QtCore.QObject):
                  reread_from_hardware_after_write = False,
                  description = None,
                  colors = None,
+                 protected = False,
                  ):
         QtCore.QObject.__init__(self)
         
@@ -145,6 +146,7 @@ class LoggedQuantity(QtCore.QObject):
         self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
         
         self._lq_path = ""
+        self.protected = protected # a guard that prevents from being updated, i.e. file loading
 
 
     def coerce_to_type(self, x):
