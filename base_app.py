@@ -53,6 +53,8 @@ from .logged_quantity import LoggedQuantity, LQCollection
 from .helper_funcs import confirm_on_close, ignore_on_close, load_qt_ui_file, \
     OrderedAttrDict, sibling_path, get_logger_from_class, str2bool
 
+from . import h5_io
+
 #from equipment.image_display import ImageDisplay
 
 
@@ -833,10 +835,10 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the h5 file.              
         ==============  =========  ====================================================================================
         """
-        # TODO finish this function
-        import h5py
-        with h5py.File(fname) as h5_file:
-            pass
+        lq_paths_dict = h5_io.load_lq_paths(fname)
+        # handle hardware connections first
+        self.write_protected({k:v for k,v in lq_paths_dict.items() if k.endswith("connected")})
+        self.write_protected(lq_paths_dict)
     
     def settings_auto_save_ini(self):
         """
@@ -866,7 +868,10 @@ class BaseMicroscopeApp(BaseApp):
     def settings_load_dialog(self):
         """Opens a load ini dialogue in the app user interface"""
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Settings file", "", "Settings File (*.ini *.h5)")
-        self.settings_load_ini(fname)
+        if fname.endswith(".ini"):
+            self.settings_load_ini(fname)
+        elif fname.endswith(".h5"):
+            self.settings_load_h5(fname)
         
     def window_positions_load_dialog(self):
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Window Position file", "", "position File (*.json)")
@@ -879,7 +884,8 @@ class BaseMicroscopeApp(BaseApp):
             self.save_window_positions_json(fname)
         
     def get_lq(self, lq_path:str) -> LoggedQuantity:
-        """returns the LoggedQuantity defined by a path string of the form 'section/[component/]setting'
+        """
+        returns the LoggedQuantity defined by a path string of the form 'section/[component/]setting'
         where section are "mm", "hw" or "app"
         """
         parts = lq_path.split("/")
@@ -895,6 +901,20 @@ class BaseMicroscopeApp(BaseApp):
 
     def write_value(self, lq_path:str, value):
         self.get_lq(lq_path).update_value(value)
+
+    def write_protected(self, lq_paths_dict):
+        """
+        updates settings based on a dictionary, ignores protected logged quantities
+
+        ==============  =========  ====================================================================================
+        **Arguments:**  **Type:**  **Description:**
+        lq_paths_dict   dict       (lq_path, value) map
+        ==============  =========  ====================================================================================
+        """
+        for lq_path, value in lq_paths_dict.items():
+            if self.get_lq(lq_path).protected:
+                continue
+            self.write_value(lq_path, value)
 
     def read_value(self, lq_path:str, read_from_hardware=True):
         lq = self.get_lq(lq_path)
