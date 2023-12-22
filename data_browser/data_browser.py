@@ -50,6 +50,8 @@ class DataBrowser(BaseApp):
 
         # add callbacks
         s.data_filename.add_listener(self.on_change_data_filename)
+        s.data_filename.add_listener(self.update_h5_search)
+
         s.browse_dir.add_listener(self.on_change_browse_dir)
         s['browse_dir'] = Path.cwd()
 
@@ -100,7 +102,6 @@ class DataBrowser(BaseApp):
 
         self.ui.show()
         self.ui.raise_()
-
 
     def add_view(self, new_view):
         print("loading view", repr(new_view.name))
@@ -214,6 +215,11 @@ class DataBrowser(BaseApp):
             self.views["h5_search"].ui.show()
             self.is_h5_search_showing = True
 
+    def update_h5_search(self):
+        view = self.views["h5_search"]
+        if view.view_loaded:
+            view.on_new_search_text()
+
 
 class TreeView(QtWidgets.QTreeView):
 
@@ -223,7 +229,7 @@ class TreeView(QtWidgets.QTreeView):
         self.rename_func = rename_func
         self.search_func = search_func
 
-    def keyPressEvent(self, event: QtGui.QKeyEvent)->None:
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         QtWidgets.QTreeView.keyPressEvent(self, event)
 
         if event.key() == QtCore.Qt.Key_Delete:
@@ -237,6 +243,7 @@ class TreeView(QtWidgets.QTreeView):
 
 
 class RenameDialog(QtWidgets.QDialog):
+
     def __init__(self, prev_path_name):
         QtWidgets.QDialog.__init__(self)
 

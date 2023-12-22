@@ -45,11 +45,15 @@ class H5SearchView(DataBrowserView):
 
     def on_new_search_text(self, x=None):
         fname = self.databrowser.settings["data_filename"]
-        if x is None or x.lower() == "":
+        search_text = self.search_lineEdit.text() if x is None else x
+        self.new_search(search_text, fname)
+        
+    def new_search(self, search_text, fname):
+        x = search_text.lower()
+        if x == "":
             text = "<br>".join(make_tree(fname))
         else:
-            search_text = x.lower()
-            text = "<br>".join(search_h5(fname, search_text))
+            text = "<br>".join(search_h5(fname, x))
             text = text.replace(
                 search_text, f"<font color='green'>{search_text}</font>")
         self.tree_textEdit.setText(text)
@@ -72,7 +76,7 @@ def _search_visitfunc(name, node, results, priority_results, search_text):
         return
 
     if isinstance(node, h5py.Dataset):
-        priority_results.append(f"<i>{name}, {node.shape}, {node.dtype}</i>")
+        priority_results.append(f"<i>{name}, {node.shape}, {node.dtype}</i> min={min(node[:].ravel()):1.1f} max={max(node[:].ravel()):1.1f}")
 
     elif name.endswith("settings"):
         for key, val in node.attrs.items():
