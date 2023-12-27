@@ -69,9 +69,8 @@ class DataBrowser(BaseApp):
 
         self.ui.setWindowTitle("ScopeFoundry: Data Browser")
 
-        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2C_1024.png"))
-        self.qtapp.setWindowIcon(logo_icon)
-        self.ui.setWindowIcon(logo_icon)
+        logo_path = sibling_path(__file__, "logo.png")
+        self.set_logo(logo_path)
 
         # file system tree
         self.tree_view = self.ui.treeView
@@ -107,6 +106,11 @@ class DataBrowser(BaseApp):
         self.ui.raise_()
 
         self.ui.keyPressEvent = self.handle_key_board
+
+    def set_logo(self, logo_path):
+        logo_icon = QtGui.QIcon(logo_path)
+        self.qtapp.setWindowIcon(logo_icon)
+        self.ui.setWindowIcon(logo_icon)
 
     def handle_key_board(self, event):
         if event.modifiers() != QtCore.Qt.ControlModifier:

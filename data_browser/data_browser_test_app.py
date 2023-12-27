@@ -1,8 +1,10 @@
 import sys
 
 from ScopeFoundry.data_browser import DataBrowser
+from ScopeFoundry.helper_funcs import sibling_path
 
 DEFAULT_PATH = r"C:\Users\bened\OneDrive"
+LOGO_PATH = sibling_path(__file__, "scopefoundry_logo2C_1024.png")
 
 if __name__ == "__main__":
     app = DataBrowser(sys.argv)
@@ -18,4 +20,7 @@ if __name__ == "__main__":
     app.add_view(RangedOptimizationH5View(app))
 
     app.settings.browse_dir.update_value(DEFAULT_PATH)
+    app.set_logo(LOGO_PATH)
+
     sys.exit(app.exec_())
+
