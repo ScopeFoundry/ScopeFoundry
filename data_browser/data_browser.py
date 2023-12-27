@@ -1,11 +1,11 @@
-from ScopeFoundry import BaseApp
-from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg
 import argparse
 from collections import OrderedDict
+from pathlib import Path
+
 from qtpy import QtCore, QtWidgets, QtGui
-import os
 
-
+from ScopeFoundry import BaseApp
+from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg
 from viewers.file_info import FileInfoView
 
 class DataBrowser(BaseApp):
@@ -68,7 +68,7 @@ class DataBrowser(BaseApp):
         self.tree_selectionModel.selectionChanged.connect(self.on_treeview_selection_change)
 
         self.settings.browse_dir.add_listener(self.on_change_browse_dir)
-        self.settings['browse_dir'] = os.getcwd()
+        self.settings['browse_dir'] = Path.cwd()
 
         # load file information view as default view
         self.current_view = FileInfoView(self)
@@ -119,7 +119,7 @@ class DataBrowser(BaseApp):
                 self.settings['view_name'] = view_name
             else:
                 # force update
-                if  os.path.isfile(fname):
+                if  Path(fname).is_file():
                     self.current_view.on_change_data_filename(fname)
 
     @QtCore.Slot()
@@ -156,7 +156,7 @@ class DataBrowser(BaseApp):
 
         # udpate
         fname = self.settings["data_filename"]
-        if os.path.isfile(fname):
+        if Path(fname).is_file():
             self.current_view.on_change_data_filename(fname)
 
     def on_treeview_selection_change(self, sel, desel):
