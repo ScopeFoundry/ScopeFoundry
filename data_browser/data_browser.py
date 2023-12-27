@@ -105,23 +105,21 @@ class DataBrowser(BaseApp):
         if func is not None:
             func()
 
-    def load_view(self, new_view):
-        print("loading view", repr(new_view.name))
-        
-        #instantiate view
-        #new_view = ViewClass(self)
-        
-        self.log.debug('load_view called {}'.format(new_view))
-        # add to views dict
+    def add_view(self, new_view):
+        self.log.debug("add_view called {}".format(new_view))
+
+        # Update views dict
         self.views[new_view.name] = new_view
-        
-        # self.ui.dataview_groupBox.layout().addWidget(new_view.ui)
-        # new_view.ui.hide()
-        
-        # update choices for view_name
         self.settings.view_name.change_choice_list(list(self.views.keys()))
-        self.log.debug('load_view done {}'.format(new_view))
+
+        self.log.debug("add_view done {}".format(new_view))
+        print("added view", repr(new_view.name))
+
         return new_view
+
+    def load_view(self, new_view):
+        # deprecated use DataBrowser.add_view(new_view) instead
+        self.add_view(new_view)
 
     def on_change_data_filename(self):
         fname = self.settings["data_filename"]
