@@ -104,23 +104,21 @@ class DataBrowser(BaseApp):
         return new_view
 
     def on_change_data_filename(self):
-        fname = self.settings['data_filename'] 
-        if fname == "0":
-            print("initial file 0")
+        fname = self.settings["data_filename"]
+        if not Path(fname).is_file():
+            print("invalid data_filename", fname)
             return
-        else:
-            print("file", fname)
-        if not self.settings['auto_select_view']:
-            self.current_view.on_change_data_filename(fname)
-        else:
+
+        print("file", fname)
+
+        # select view
+        if self.settings["auto_select_view"]:
             view_name = self.auto_select_view(fname)
             if view_name != self.current_view.name:
-                # update view (automatically calls on_change_data_filename)
-                self.settings['view_name'] = view_name
-            else:
-                # force update
-                if  Path(fname).is_file():
-                    self.current_view.on_change_data_filename(fname)
+                self.settings["view_name"] = view_name
+                self.setup_view(self.views[view_name])
+
+        self.current_view.on_change_data_filename(fname)
 
     @QtCore.Slot()
     def on_change_browse_dir(self):
