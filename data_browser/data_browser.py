@@ -26,6 +26,7 @@ class DataBrowser(BaseApp):
                     lq.update_value(val)
 
     def setup(self):
+        self.plugin_update_funcs = []
         self.keys = {
             QtCore.Qt.Key_Delete: self.on_recycle,
         }
@@ -38,6 +39,9 @@ class DataBrowser(BaseApp):
         self.ui.show()
         self.ui.raise_()
         
+
+
+
         self.ui.setWindowTitle("ScopeFoundry: Data Browser")
         self.ui.setWindowIcon(QtGui.QIcon('scopefoundry_logo2C_1024.png'))
         
@@ -117,6 +121,11 @@ class DataBrowser(BaseApp):
 
         return new_view
 
+    def add_plugin(self, plugin):
+        self.ui.plugin_buttons_layout.addWidget(plugin.get_show_hide_button())
+        self.plugin_update_funcs.append(plugin.update_if_showing)
+        self.ctrl_keys[plugin.show_keyboard_key] = plugin.toggle_show_hide
+
     def load_view(self, new_view):
         # deprecated use DataBrowser.add_view(new_view) instead
         self.add_view(new_view)
@@ -137,6 +146,11 @@ class DataBrowser(BaseApp):
                 self.setup_view(self.views[view_name])
 
         self.current_view.on_change_data_filename(fname)
+
+    def on_change_data_filename_handle_plugins(self):
+        fname = self.settings["data_filename"]
+        for func in self.plugin_update_funcs:
+            func(fname)
 
     @QtCore.Slot()
     def on_change_browse_dir(self):
