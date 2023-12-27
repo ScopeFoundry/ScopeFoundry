@@ -1,7 +1,7 @@
-from ScopeFoundry.data_browser import DataBrowserView
 from qtpy import QtWidgets
 import h5py
 
+from ScopeFoundry.data_browser import DataBrowserView
 
 class H5TreeView(DataBrowserView):
 
@@ -15,11 +15,10 @@ class H5TreeView(DataBrowserView):
     
     def on_change_data_filename(self, fname=None):
         self.ui.setText("loading {}".format(fname))
-        try:        
-            self.f = h5py.File(fname, 'r')
-            
+        try:
             self.tree_str = "{}\n{}\n".format(fname, "="*len(fname)) 
-            self.f.visititems(self._visitfunc)
+            with h5py.File(self.fname, 'r') as file:
+                file.visititems(self._visitfunc)
             self.ui.setText(self.tree_str)
             
         except Exception as err:
@@ -70,7 +69,6 @@ class H5TreeSearchView(DataBrowserView):
         self.tree_textEdit.setText("loading {}".format(fname))
         try:
             self.fname = fname        
-            self.f = h5py.File(fname, 'r')
             self.on_new_search_text()
             self.databrowser.ui.statusbar.showMessage("")
             
@@ -85,8 +83,10 @@ class H5TreeSearchView(DataBrowserView):
         if x is not None:
             self.search_text = x.lower()
         old_scroll_pos = self.tree_textEdit.verticalScrollBar().value()
-        self.tree_str = ""  
-        self.f.visititems(self._visitfunc)
+        self.tree_str = ""
+        
+        with h5py.File(self.fname, 'r') as file:
+            file.visititems(self._visitfunc)
         
         self.tree_text_html = \
         """<html><b>{}</b><hr/>
