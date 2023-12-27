@@ -66,10 +66,10 @@
         <item>
          <layout class="QGridLayout" name="configs_layout">
           <property name="leftMargin">
-           <number>6</number>
+           <number>4</number>
           </property>
           <property name="topMargin">
-           <number>6</number>
+           <number>4</number>
           </property>
           <property name="rightMargin">
            <number>4</number>
@@ -77,33 +77,25 @@
           <property name="bottomMargin">
            <number>4</number>
           </property>
-          <item row="0" column="1">
-           <widget class="QLineEdit" name="data_filename_lineEdit"/>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="file_label">
-            <property name="text">
-             <string>File:</string>
+          <item row="1" column="2">
+           <widget class="QCheckBox" name="auto_select_checkBox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
-           </widget>
-          </item>
-          <item row="0" column="3">
-           <widget class="QPushButton" name="data_filename_recycle_pushButton">
             <property name="maximumSize">
              <size>
-              <width>25</width>
+              <width>16777215</width>
               <height>16777215</height>
              </size>
             </property>
             <property name="toolTip">
-             <string>moves current file to trash. (requires pip install send2trash, viewer needs to close h5 file) &lt;DEL&gt;</string>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">color:red;
-font-weight:bold;</string>
+             <string/>
             </property>
             <property name="text">
-             <string>🗑</string>
+             <string>auto</string>
             </property>
            </widget>
           </item>
@@ -114,110 +106,136 @@ font-weight:bold;</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="5">
-           <widget class="QPushButton" name="log_pushButton">
-            <property name="maximumSize">
-             <size>
-              <width>50</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Log...</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="2">
-           <widget class="QCheckBox" name="auto_select_checkBox">
-            <property name="maximumSize">
-             <size>
-              <width>50</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>auto selects the view when file name is changed.</string>
-            </property>
-            <property name="text">
-             <string>auto</string>
-            </property>
-           </widget>
+          <item row="1" column="3" colspan="2">
+           <layout class="QHBoxLayout" name="plugin_buttons_layout">
+            <item>
+             <widget class="QPushButton" name="log_pushButton">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Log...</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="console_pushButton">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Console...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item row="1" column="1">
-           <widget class="QComboBox" name="view_name_comboBox"/>
-          </item>
-          <item row="0" column="2">
-           <widget class="QPushButton" name="data_filename_browse_pushButton">
-            <property name="maximumSize">
-             <size>
-              <width>50</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Browse...</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="3">
-           <widget class="QPushButton" name="search_h5_pushButton">
-            <property name="maximumSize">
-             <size>
-              <width>25</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>search h5 - &lt;F&gt;</string>
-            </property>
-            <property name="text">
-             <string>🔍</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="4">
-           <widget class="QPushButton" name="console_pushButton">
+           <widget class="QComboBox" name="view_name_comboBox">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <property name="maximumSize">
-             <size>
-              <width>50</width>
-              <height>16777215</height>
-             </size>
-            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="file_label">
             <property name="text">
-             <string>Console...</string>
+             <string>File:</string>
             </property>
            </widget>
           </item>
-          <item row="0" column="4" colspan="2">
-           <widget class="QPushButton" name="data_filename_rename_pushButton">
-            <property name="minimumSize">
-             <size>
-              <width>45</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <underline>false</underline>
-             </font>
-            </property>
-            <property name="toolTip">
-             <string>renames selected file. &lt;R&gt;</string>
-            </property>
-            <property name="text">
-             <string>rename</string>
+          <item row="0" column="3" colspan="2">
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+             <widget class="QPushButton" name="data_filename_recycle_pushButton">
+              <property name="maximumSize">
+               <size>
+                <width>25</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>moves current file to trash. (Delete)</string>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">color:red;
+font-weight:bold;</string>
+              </property>
+              <property name="text">
+               <string>🗑</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="data_filename_rename_pushButton">
+              <property name="minimumSize">
+               <size>
+                <width>45</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="font">
+               <font>
+                <underline>false</underline>
+               </font>
+              </property>
+              <property name="toolTip">
+               <string>renames selected file. (Ctrl + R)</string>
+              </property>
+              <property name="text">
+               <string>rename</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="data_filename_browse_pushButton">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Browse...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="0" column="1" colspan="2">
+           <widget class="QLineEdit" name="data_filename_lineEdit">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
            </widget>
           </item>
@@ -235,7 +253,7 @@ font-weight:bold;</string>
      <x>0</x>
      <y>0</y>
      <width>871</width>
-     <height>24</height>
+     <height>17</height>
     </rect>
    </property>
   </widget>
