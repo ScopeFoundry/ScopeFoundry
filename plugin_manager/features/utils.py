@@ -28,9 +28,13 @@ def decorate_info_text(text, info_type: InfoTypes):
     return text
 
 
-def run_subprocess(cmd: str, shell=True, capture_output=True):
+def run_subprocess(cmds: str, shell=True, capture_output=True):
     # logger.debug(f'run_subprocess: {cmd} {shell=}, {capture_output=}')
-    logger.debug(f'run_subprocess: {cmd}')
-    cp = subprocess.run(cmd.split(), shell=shell,
-                        capture_output=capture_output)
+    print(cmds)
+    logger.debug(f"run_subprocess: {cmds}")
+    if isinstance(cmds, str):
+        cmds = cmds.split()
+
+    cp = subprocess.run(cmds, shell=shell, capture_output=capture_output)
+    print(cp.stdout.decode(), cp.stderr.decode())
     return cp.stdout.decode(), cp.stderr.decode()

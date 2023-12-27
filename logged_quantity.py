@@ -899,25 +899,31 @@ class LoggedQuantity(QtCore.QObject):
         
     
     def change_choice_list(self, choices):
-        #widget = self.widget
+        prev_val = self.val
         with self.lock:
             self.choices = self._expand_choices(choices)
-            
+
             for widget in self.widget_list:
                 if type(widget) == QtWidgets.QComboBox:
                     # need to have a choice list to connect to a QComboBox
-                    assert self.choices is not None 
+                    assert self.choices is not None
                     try:
                         widget.blockSignals(True)
-                        widget.clear() # removes all old choices
+                        widget.clear()  # removes all old choices
                         for choice_name, choice_value in self.choices:
                             widget.addItem(choice_name, choice_value)
                     finally:
                         widget.blockSignals(False)
                 else:
                     raise RuntimeError("Invalid widget type.")
-        
+
         self.send_display_updates(force=True)
+        if prev_val in (x[1] for x in self.choices):
+            self.update_value(prev_val)
+        elif self.choices:
+            self.update_value(self.choices[0][1])
+        else:
+            self.update_value(f"{self._lq_path} INVALID VALUE!")
         
     
     def add_choices(self, choices, allow_duplicates=False, new_val=None):
@@ -1217,7 +1223,8 @@ class ArrayLQ(LoggedQuantity):
                  ro = False,
                  unit = None,
                  vmin=-1e12, vmax=+1e12, choices=None,
-                 description=None):
+                 description=None,
+                 protected=False):
         QtCore.QObject.__init__(self)
         
         self.name = name
@@ -1237,6 +1244,7 @@ class ArrayLQ(LoggedQuantity):
         self.ro = ro # Read-Only
         self.choices = choices
         self.description = description
+        self.protected = protected
         
         self.log = get_logger_from_class(self)
 

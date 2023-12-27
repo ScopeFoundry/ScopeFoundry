@@ -461,7 +461,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.setWindowTitle(self.name)
 
         # Set Icon
-        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2_1024.png"))
+        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2B_1024.png"))
         self.qtapp.setWindowIcon(logo_icon)
         self.ui.setWindowIcon(logo_icon)
         
@@ -904,7 +904,7 @@ class BaseMicroscopeApp(BaseApp):
 
     def write_protected(self, lq_paths_dict):
         """
-        updates settings based on a dictionary, ignores protected logged quantities
+        updates settings based on a dictionary, silently ignores protected logged quantities and non-existing.  
 
         ==============  =========  ====================================================================================
         **Arguments:**  **Type:**  **Description:**
@@ -912,7 +912,8 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ====================================================================================
         """
         for lq_path, value in lq_paths_dict.items():
-            if self.get_lq(lq_path).protected:
+            lq = self.get_lq(lq_path)
+            if lq is None or lq.protected:
                 continue
             self.write_value(lq_path, value)
 

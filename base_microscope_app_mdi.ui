@@ -126,6 +126,12 @@
        </layout>
       </widget>
       <widget class="QMdiArea" name="mdiArea">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="viewMode">
         <enum>QMdiArea::TabbedView</enum>
        </property>

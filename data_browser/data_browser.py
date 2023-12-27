@@ -7,7 +7,7 @@ from qtpy import QtCore, QtWidgets, QtGui
 from ScopeFoundry import BaseApp
 from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg, sibling_path
 
-from .viewers import H5SearchView, FileInfoView
+from .viewers import FileInfoView
 
 
 class DataBrowser(BaseApp):
@@ -28,10 +28,14 @@ class DataBrowser(BaseApp):
 
     def setup(self):
         self.views = OrderedDict()
-        self.current_view = None
 
         self.plugin_update_funcs = []
-        self.ctrl_keys = {QtCore.Qt.Key_R: self.on_rename}
+        self.keys = {
+            QtCore.Qt.Key_Delete: self.on_recycle,
+        }
+        self.ctrl_keys = {
+            QtCore.Qt.Key_R: self.on_rename,
+        }
 
         s = self.settings
         s.New("data_filename", dtype="file")
@@ -43,13 +47,12 @@ class DataBrowser(BaseApp):
             initial=True,
             description="auto selects the view when file name is changed.",
         )
-        s.New("view_name", dtype=str, initial="0", choices=("0",))
+        s.New("view_name", dtype=str, initial="file_info", choices=("0",))
 
         self.setup_ui()
 
-        # add default views
-        self.add_view(FileInfoView(self))
-        self.settings["view_name"] = "file_info"
+        self.current_view = self.add_view(FileInfoView(self))
+        self.setup_view(self.current_view)
 
         # add callbacks
         s.data_filename.add_listener(self.on_change_data_filename)
@@ -64,10 +67,10 @@ class DataBrowser(BaseApp):
         self.ui.keyPressEvent = self.handle_key_board
 
     def handle_key_board(self, event):
-        if event.key == QtCore.Qt.Key_Delete:
-            print("delete key pressed")
-
         if event.modifiers() != QtCore.Qt.ControlModifier:
+            func = self.keys.get(event.key(), None)
+            if func is not None:
+                func()
             return
 
         func = self.ctrl_keys.get(event.key(), None)
@@ -84,8 +87,7 @@ class DataBrowser(BaseApp):
         self.ui.setWindowIcon(logo_icon)
 
         # file system tree
-        self.tree_view = TreeView(self.on_recycle, self.on_rename)
-        self.ui.file_system_layout.insertWidget(2, self.tree_view)
+        self.tree_view = self.ui.treeView
         self.fs_model = QtWidgets.QFileSystemModel()
         self.fs_model.setRootPath(QtCore.QDir.currentPath())
         self.tree_view.setModel(self.fs_model)
@@ -118,32 +120,27 @@ class DataBrowser(BaseApp):
         self.ui.raise_()
 
     def add_view(self, new_view):
-        print("loading view", repr(new_view.name))
-        self.log.debug("load_view called {}".format(new_view))
+        self.log.debug("add_view called {}".format(new_view))
 
         # Update views dict
         self.views[new_view.name] = new_view
         self.settings.view_name.change_choice_list(list(self.views.keys()))
 
-        self.log.debug("load_view done {}".format(new_view))
+        self.log.debug("add_view done {}".format(new_view))
+        print("added view", repr(new_view.name))
 
         return new_view
 
     def add_plugin(self, plugin):
-        self.ui.plugin_buttons_layout.addWidget(plugin.get_hide_show_button())
+        self.ui.plugin_buttons_layout.addWidget(plugin.get_show_hide_button())
         self.plugin_update_funcs.append(plugin.update_if_showing)
         self.ctrl_keys[plugin.show_keyboard_key] = plugin.toggle_show_hide
-
-    def on_change_data_filename_handle_plugins(self):
-        fname = self.settings["data_filename"]
-        for func in self.plugin_update_funcs:
-            func(fname)
 
     def load_view(self, new_view):
         # deprecated use DataBrowser.add_view(new_view) instead
         self.add_view(new_view)
 
-    def load_view_ui(self, view):
+    def setup_view(self, view):
         if view.view_loaded:
             # view is already set-up / loaded
             return
@@ -155,19 +152,25 @@ class DataBrowser(BaseApp):
 
     def on_change_data_filename(self):
         fname = self.settings["data_filename"]
-        if fname == "0":
-            print("initial file 0")
+        if not Path(fname).is_file():
+            print("invalid data_filename", fname)
             return
-        else:
-            print("file", fname)
+
+        print("file", fname)
 
         # select view
         if self.settings["auto_select_view"]:
             view_name = self.auto_select_view(fname)
-            if self.current_view is None or view_name != self.current_view.name:
+            if view_name != self.current_view.name:
                 self.settings["view_name"] = view_name
-        if Path(fname).is_file():
-            self.current_view.on_change_data_filename(fname)
+                self.setup_view(self.views[view_name])
+
+        self.current_view.on_change_data_filename(fname)
+
+    def on_change_data_filename_handle_plugins(self):
+        fname = self.settings["data_filename"]
+        for func in self.plugin_update_funcs:
+            func(fname)
 
     @QtCore.Slot()
     def on_change_browse_dir(self):
@@ -192,7 +195,7 @@ class DataBrowser(BaseApp):
 
         # show new view
         self.current_view = self.views[self.settings["view_name"]]
-        self.load_view_ui(self.current_view)
+        self.setup_view(self.current_view)
         self.current_view.ui.show()
 
         # set data file for new (current) view
@@ -203,7 +206,6 @@ class DataBrowser(BaseApp):
     def on_treeview_selection_change(self, sel, desel):
         fname = self.fs_model.filePath(self.tree_selectionModel.currentIndex())
         self.settings["data_filename"] = fname
-        # print("on_treeview_selection_change", sel, desel)
 
     def auto_select_view(self, fname):
         "return the name of the last supported view for the given fname"
@@ -228,20 +230,21 @@ class DataBrowser(BaseApp):
             Path(fname).rename(dialog.new_name)
 
 
-class TreeView(QtWidgets.QTreeView):
-    def __init__(self, delete_func, rename_func, parent=None) -> None:
-        QtWidgets.QTreeView.__init__(self, parent)
-        self.delete_func = delete_func
-        self.rename_func = rename_func
+# class TreeView(QtWidgets.QTreeView):
+#     def __init__(self, delete_func, rename_func, parent=None) -> None:
+#         QtWidgets.QTreeView.__init__(self, parent)
+#         self.delete_func = delete_func
+#         self.rename_func = rename_func
 
-    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
-        QtWidgets.QTreeView.keyPressEvent(self, event)
+#     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+#         QtWidgets.QTreeView.keyPressEvent(self, event)
 
-        if event.key() == QtCore.Qt.Key_Delete:
-            self.delete_func()
+#         if event.key() == QtCore.Qt.Key_Delete:
+#             print("Tree")
+#             # self.delete_func()
 
-        elif event.key() == QtCore.Qt.Key_R:
-            self.rename_func()
+#         elif event.key() == QtCore.Qt.Key_R:
+#             self.rename_func()
 
 
 class RenameDialog(QtWidgets.QDialog):
