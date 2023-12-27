@@ -5,7 +5,7 @@ from pathlib import Path
 from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry import BaseApp
-from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg
+from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg, sibling_path
 from viewers.file_info import FileInfoView
 
 class DataBrowser(BaseApp):
@@ -26,6 +26,8 @@ class DataBrowser(BaseApp):
                     lq.update_value(val)
 
     def setup(self):
+        self.views = OrderedDict()
+
         self.plugin_update_funcs = []
         self.keys = {
             QtCore.Qt.Key_Delete: self.on_recycle,
@@ -34,70 +36,78 @@ class DataBrowser(BaseApp):
             QtCore.Qt.Key_R: self.on_rename,
         }
 
-        #self.ui = load_qt_ui_file(sibling_path(__file__, "data_browser.ui"))
-        self.ui = load_qt_ui_from_pkg('ScopeFoundry.data_browser', 'data_browser.ui')
-        self.ui.show()
-        self.ui.raise_()
-        
+        s = self.settings
+        s.New("data_filename", dtype="file")
+        s.New("browse_dir", dtype="file", is_dir=True, initial="/")
+        s.New("file_filter", dtype=str, initial="*.*,")
+        s.New(
+            "auto_select_view",
+            dtype=bool,
+            initial=True,
+            description="auto selects the view when file name is changed.",
+        )
+        s.New("view_name", dtype=str, initial="file_info", choices=("0",))
 
+        self.setup_ui()
 
-
-        self.ui.setWindowTitle("ScopeFoundry: Data Browser")
-        self.ui.setWindowIcon(QtGui.QIcon('scopefoundry_logo2C_1024.png'))
-        
-        self.views = OrderedDict()        
-
-        self.settings.New('data_filename', dtype='file')
-        self.settings.New('browse_dir', dtype='file', is_dir=True, initial='/')
-        self.settings.New('file_filter', dtype=str, initial='*.*,')
-        
-        self.settings.data_filename.add_listener(self.on_change_data_filename)
-
-        self.settings.New('auto_select_view',dtype=bool, initial=True)
-
-        self.settings.New('view_name', dtype=str, initial='0', choices=('0',))
-        
-        # UI Connections
-        self.settings.data_filename.connect_to_browse_widgets(self.ui.data_filename_lineEdit, 
-                                                              self.ui.data_filename_browse_pushButton)
-        self.settings.browse_dir.connect_to_browse_widgets(self.ui.browse_dir_lineEdit, 
-                                                              self.ui.browse_dir_browse_pushButton)
-        self.settings.view_name.connect_bidir_to_widget(self.ui.view_name_comboBox)
-        self.settings.file_filter.connect_bidir_to_widget(self.ui.file_filter_lineEdit)
-        
-        # file system tree
-        self.fs_model = QtWidgets.QFileSystemModel()
-        self.fs_model.setRootPath(QtCore.QDir.currentPath())
-        self.ui.treeView.setModel(self.fs_model)
-        self.ui.treeView.setIconSize(QtCore.QSize(16,16))
-        self.ui.treeView.setSortingEnabled(True)
-        #for i in (1,2,3):
-        #    self.ui.treeView.hideColumn(i)
-        #print("="*80, self.ui.treeView.selectionModel())
-        self.tree_selectionModel = self.ui.treeView.selectionModel()
-        self.tree_selectionModel.selectionChanged.connect(self.on_treeview_selection_change)
-
-        self.settings.browse_dir.add_listener(self.on_change_browse_dir)
-        self.settings['browse_dir'] = Path.cwd()
-
-        # load file information view as default view
-        self.current_view = FileInfoView(self)
-        self.load_view(self.current_view)
+        self.current_view = self.add_view(FileInfoView(self))
         self.setup_view(self.current_view)
 
-        self.settings.view_name.add_listener(self.on_change_view_name)
-        self.settings['view_name'] = "file_info"
-        
-        self.settings.file_filter.add_listener(self.on_change_file_filter)
-        
-        #self.console_widget.show()
+        # add callbacks
+        s.data_filename.add_listener(self.on_change_data_filename)
+        s.data_filename.add_listener(self.on_change_data_filename_handle_plugins)
+
+        s.browse_dir.add_listener(self.on_change_browse_dir)
+        s["browse_dir"] = Path.cwd()
+
+        s.file_filter.add_listener(self.on_change_file_filter)
+        s.view_name.add_listener(self.on_change_view_name)
+
+
+    def setup_ui(self):
+        self.ui = load_qt_ui_from_pkg("ScopeFoundry.data_browser", "data_browser.ui")
+
+        self.ui.setWindowTitle("ScopeFoundry: Data Browser")
+
+        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2C_1024.png"))
+        self.qtapp.setWindowIcon(logo_icon)
+        self.ui.setWindowIcon(logo_icon)
+
+        # file system tree
+        self.tree_view = self.ui.treeView
+        self.fs_model = QtWidgets.QFileSystemModel()
+        self.fs_model.setRootPath(QtCore.QDir.currentPath())
+        self.tree_view.setModel(self.fs_model)
+        self.tree_view.setIconSize(QtCore.QSize(16, 16))
+        self.tree_view.setSortingEnabled(True)
+        self.tree_view.setColumnWidth(0, 500)  # make name column wider
+        self.tree_selectionModel = self.tree_view.selectionModel()
+        self.tree_selectionModel.selectionChanged.connect(
+            self.on_treeview_selection_change
+        )
+
+        # UI Connections
+        s = self.settings
+        s.data_filename.connect_to_browse_widgets(
+            self.ui.data_filename_lineEdit, self.ui.data_filename_browse_pushButton
+        )
+        s.browse_dir.connect_to_browse_widgets(
+            self.ui.browse_dir_lineEdit, self.ui.browse_dir_browse_pushButton
+        )
+        self.ui.data_filename_recycle_pushButton.clicked.connect(self.on_recycle)
+        self.ui.data_filename_rename_pushButton.clicked.connect(self.on_rename)
+        s.view_name.connect_bidir_to_widget(self.ui.view_name_comboBox)
+        s.auto_select_view.connect_to_widget(self.ui.auto_select_checkBox)
+        s.file_filter.connect_bidir_to_widget(self.ui.file_filter_lineEdit)
+
         self.ui.console_pushButton.clicked.connect(self.console_widget.show)
         self.ui.log_pushButton.clicked.connect(self.logging_widget.show)
 
+        self.ui.show()
+        self.ui.raise_()
+
         self.ui.keyPressEvent = self.handle_key_board
 
-        self.ui.show()
-        
     def handle_key_board(self, event):
         if event.modifiers() != QtCore.Qt.ControlModifier:
             func = self.keys.get(event.key(), None)
