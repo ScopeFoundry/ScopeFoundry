@@ -1,10 +1,12 @@
-from ScopeFoundry import BaseApp, LQCollection
+from ScopeFoundry import BaseApp
 from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg
 import argparse
 from collections import OrderedDict
 from qtpy import QtCore, QtWidgets, QtGui
 import os
-from pathlib import Path
+
+
+from viewers.file_info import FileInfoView
 
 class DataBrowser(BaseApp):
     
@@ -34,7 +36,6 @@ class DataBrowser(BaseApp):
         self.ui.setWindowIcon(QtGui.QIcon('scopefoundry_logo2C_1024.png'))
         
         self.views = OrderedDict()        
-        self.current_view = None        
 
         self.settings.New('data_filename', dtype='file')
         self.settings.New('browse_dir', dtype='file', is_dir=True, initial='/')
@@ -69,8 +70,10 @@ class DataBrowser(BaseApp):
         self.settings.browse_dir.add_listener(self.on_change_browse_dir)
         self.settings['browse_dir'] = os.getcwd()
 
-        # Load file information view as default view
-        self.load_view(FileInfoView(self))
+        # load file information view as default view
+        self.current_view = FileInfoView(self)
+        self.load_view(self.current_view)
+        self.setup_view(self.current_view)
 
         self.settings.view_name.add_listener(self.on_change_view_name)
         self.settings['view_name'] = "file_info"
@@ -111,7 +114,7 @@ class DataBrowser(BaseApp):
             self.current_view.on_change_data_filename(fname)
         else:
             view_name = self.auto_select_view(fname)
-            if self.current_view is None or view_name != self.current_view.name:
+            if view_name != self.current_view.name:
                 # update view (automatically calls on_change_data_filename)
                 self.settings['view_name'] = view_name
             else:
@@ -135,33 +138,26 @@ class DataBrowser(BaseApp):
         self.log.debug(filter_str_list)
         self.fs_model.setNameFilters(filter_str_list)
 
+    def setup_view(self, view):
+        if view.view_loaded:
+            return
+        view.setup()
+        self.ui.data_view_layout.addWidget(self.current_view.ui)
+        view.view_loaded = True
+
     def on_change_view_name(self):
-        #print('on_change_view_name')
-        previous_view = self.current_view
-        
-        self.current_view = self.views[self.settings['view_name']]
-    
-        # hide current view 
-        # (handle the initial case where previous_view is None )
-        if previous_view:
-            previous_view.ui.hide() 
-        else:
-            self.ui.dataview_placeholder.hide()
-        
-        # set up view if not already loaded
-        if not self.current_view.view_loaded:
-            print(f"setting up view {self.current_view.name}")
-            self.current_view.setup()
-            self.ui.dataview_groupBox.layout().addWidget(self.current_view.ui)
-            #new_view.ui.hide()            
-            self.current_view.view_loaded = True
-        # show new view
+        # hide previous
+        self.current_view.ui.hide()
+
+        # setup, show new
+        self.current_view = self.views[self.settings["view_name"]]
+        self.setup_view(self.current_view)
         self.current_view.ui.show()
-        
-        # set datafile for new (current) view
-        fname = self.settings['data_filename']
-        if  os.path.isfile(fname):
-            self.current_view.on_change_data_filename(self.settings['data_filename'])
+
+        # udpate
+        fname = self.settings["data_filename"]
+        if os.path.isfile(fname):
+            self.current_view.on_change_data_filename(fname)
 
     def on_treeview_selection_change(self, sel, desel):
         fname = self.fs_model.filePath(self.tree_selectionModel.currentIndex())
@@ -177,53 +173,3 @@ class DataBrowser(BaseApp):
         return 'file_info'
     
     
-class DataBrowserView(QtCore.QObject):
-    """ Abstract class for DataBrowser Views"""
-    
-    def __init__(self, databrowser):
-        QtCore.QObject.__init__(self)
-        self.databrowser =  databrowser
-        self.settings = LQCollection()
-        self.view_loaded = False
-        #self.setup()
-        
-    def setup(self):
-        pass
-        # create view with no data file
-
-    def on_change_data_filename(self, fname=None):
-        pass
-        # load data file
-        
-        # update display
-        
-    def is_file_supported(self, fname):
-        # returns whether view can handle file, should return False early to avoid
-        # too much computation when selecting a file
-        return False
-        
-class FileInfoView(DataBrowserView):
-    """A general viewer to handle text files and
-    unsupported file types."""
-    name = 'file_info'
-    
-    def setup(self):
-        self.ui = QtWidgets.QTextEdit("file_info")
-        
-    def on_change_data_filename(self, fname=None):
-        if fname is None:
-            fname = self.databrowser.settings['data_filename']
-        
-        # Use pathlib
-        fname = Path(fname)
-        
-        ext = fname.suffix
-        
-        if ext in ('.py', '.ini', '.txt'):
-            with open(fname, 'r') as f:
-                self.ui.setText(f.read())
-        else:
-            self.ui.setText(str(fname))
-        
-    def is_file_supported(self, fname):
-        return True
