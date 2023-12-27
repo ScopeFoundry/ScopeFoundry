@@ -26,6 +26,12 @@ class DataBrowser(BaseApp):
                     lq.update_value(val)
 
     def setup(self):
+        self.keys = {
+            QtCore.Qt.Key_Delete: self.on_recycle,
+        }
+        self.ctrl_keys = {
+            QtCore.Qt.Key_R: self.on_rename,
+        }
 
         #self.ui = load_qt_ui_file(sibling_path(__file__, "data_browser.ui"))
         self.ui = load_qt_ui_from_pkg('ScopeFoundry.data_browser', 'data_browser.ui')
@@ -83,8 +89,22 @@ class DataBrowser(BaseApp):
         #self.console_widget.show()
         self.ui.console_pushButton.clicked.connect(self.console_widget.show)
         self.ui.log_pushButton.clicked.connect(self.logging_widget.show)
+
+        self.ui.keyPressEvent = self.handle_key_board
+
         self.ui.show()
         
+    def handle_key_board(self, event):
+        if event.modifiers() != QtCore.Qt.ControlModifier:
+            func = self.keys.get(event.key(), None)
+            if func is not None:
+                func()
+            return
+
+        func = self.ctrl_keys.get(event.key(), None)
+        if func is not None:
+            func()
+
     def load_view(self, new_view):
         print("loading view", repr(new_view.name))
         
@@ -167,7 +187,50 @@ class DataBrowser(BaseApp):
         for view_name, view in list(self.views.items())[::-1]:
             if view.is_file_supported(fname):
                 return view_name
-        # return default file_info view if no others work
-        return 'file_info'
-    
-    
+        return "file_info"
+
+    def on_recycle(self):
+        # import here because send2trash is not a built in library.
+        import send2trash
+
+        send2trash.send2trash(Path(self.settings["data_filename"]))
+
+    def on_rename(self):
+        fname = self.settings["data_filename"]
+        dialog = RenameDialog(prev_path_name=fname)
+        if not dialog.exec_():
+            return  # dialog was escaped
+
+        if dialog.new_name:
+            Path(fname).rename(dialog.new_name)
+
+
+class RenameDialog(QtWidgets.QDialog):
+    def __init__(self, prev_path_name):
+        QtWidgets.QDialog.__init__(self)
+
+        self.new_name = None
+
+        rename_btn = QtWidgets.QPushButton("rename")
+        cancel_btn = QtWidgets.QPushButton("cancel")
+        self.new_name_w = QtWidgets.QLineEdit(prev_path_name)
+
+        cancel_btn.clicked.connect(self.on_cancel)
+        rename_btn.clicked.connect(self.on_rename)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.new_name_w)
+        layout.addWidget(rename_btn)
+        layout.addWidget(cancel_btn)
+        self.setLayout(layout)
+
+        self.setWindowTitle("rename")
+        self.setMinimumWidth(500)
+
+    def on_cancel(self):
+        self.new_name = None
+        self.accept()
+
+    def on_rename(self):
+        self.new_name = self.new_name_w.text()
+        self.accept()
