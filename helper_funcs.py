@@ -246,16 +246,75 @@ def str2bool(v):
 def bool2str(v):
     return {False:'False', True:'True'}[v]
 
-class QLock(QtCore.QMutex):
-    def acquire(self):
-        self.lock()
-    def release(self):
-        self.unlock()
-    def __enter__(self):
-        self.acquire()
-        return self
-    def __exit__(self, *args):
-        self.release()
+
+class DummyLock():
+    def acquire(self): ...
+
+    def release(self): ...
+
+    def __enter__(self): return self
+
+    def __exit__(self, *args): ...
+
+
+def QLock(mode: int = 0):
+    '''this function was introduced for backward compatibility as PyQt6 initializer no longer accepts a mode keyword, 
+       in the future used either QNonReEntrantLock or QReEntrantLock'''
+
+    qt_version = os.environ['QT_API'].lower()[-1]
+    # print('detected qt_version', qt_version)
+    if qt_version in ('4', '5'):
+        class Q45Lock(QtCore.QMutex):
+            '''used if qt 4 or 5, mainly for backwards compatibility'''
+
+            def acquire(self):
+                self.lock()
+
+            def release(self):
+                self.unlock()
+
+            def __enter__(self):
+                self.acquire()
+                return self
+
+            def __exit__(self, *args):
+                self.release()
+        return Q45Lock(mode=mode)
+
+    elif qt_version in ('6',):
+        class QNonReEntrantLock(QtCore.QMutex):
+            def acquire(self):
+                self.lock()
+
+            def release(self):
+                self.unlock()
+
+            def __enter__(self):
+                self.acquire()
+                return self
+
+            def __exit__(self, *args):
+                self.release()
+
+        class QReEntrantLock(QtCore.QRecursiveMutex):
+            def acquire(self):
+                self.lock()
+
+            def release(self):
+                self.unlock()
+
+            def __enter__(self):
+                self.acquire()
+                return self
+
+            def __exit__(self, *args):
+                self.release()
+
+        if mode == 1:
+            return QReEntrantLock()
+        else:
+            return QNonReEntrantLock()
+    return DummyLock()
 
 
 # https://stackoverflow.com/questions/5327614/logging-lock-acquire-and-release-calls-in-multi-threaded-application
