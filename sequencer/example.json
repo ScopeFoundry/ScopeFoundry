@@ -1,0 +1,18 @@
+[
+ {
+  "type": "timeout",
+  "time": 0.1
+ },
+ {
+  "type": "timeout",
+  "time": 0.1
+ },
+ {
+  "type": "timeout",
+  "time": 0.1
+ },
+ {
+  "type": "timeout",
+  "time": 0.1
+ }
+]
