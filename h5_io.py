@@ -1,8 +1,11 @@
 from __future__ import absolute_import, print_function
-import h5py
+import functools
 import time
 from datetime import datetime
 import os
+
+import h5py
+
 from .cb32_uuid import cb32_uuid
 
 """
@@ -297,4 +300,29 @@ def create_extendable_h5_like(h5_group, name, arr, axis=0, **kwargs):
 def extend_h5_dataset_along_axis(ds, new_len, axis=0):
     newshape = list(ds.shape)
     newshape[axis] = new_len
-    ds.resize( newshape )
+    ds.resize( newshape )    
+
+    
+def load_settings(fname):
+    """
+    returns a dictionary (path, value) of all settings stored in a h5 file
+    """
+    if not fname.endswith(".h5"):
+        return {}
+    
+    settings = {}
+    visit_func = functools.partial(_settings_visitfunc, settings=settings)
+    
+    with h5py.File(fname) as file:
+        file.visititems(visit_func)    
+
+    return settings
+
+
+def _settings_visitfunc(name, node, settings):
+    if not name.endswith("settings"):
+        return
+    
+    for key, val in node.attrs.items():
+        lq_path = f"{name.replace('settings', key)}"
+        settings[lq_path] = val
