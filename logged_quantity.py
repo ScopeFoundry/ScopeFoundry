@@ -1406,7 +1406,7 @@ class LQRange(LQCircularNetwork):
     with changes to the 4 (or 6) LQ's
     """       
 
-    def __init__(self, min_lq, max_lq, step_lq, num_lq, center_lq=None, span_lq=None, sweep_type_lq=None):
+    def __init__(self, min_lq:LoggedQuantity, max_lq:LoggedQuantity, step_lq:LoggedQuantity, num_lq:LoggedQuantity, center_lq:LoggedQuantity=None, span_lq:LoggedQuantity=None, sweep_type_lq:LoggedQuantity=None):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         self.min = min_lq
@@ -1649,7 +1649,7 @@ class LQCollection(object):
         self.__dict__[name] = lq # allow attribute access
         return lq
 
-    def get_lq(self, key):
+    def get_lq(self, key) -> LoggedQuantity:
         return self._logged_quantities[key]
     
     def get_val(self, key):

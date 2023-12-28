@@ -5,6 +5,7 @@ from collections import OrderedDict
 import pyqtgraph as pg
 import warnings
 from ScopeFoundry.helper_funcs import get_logger_from_class, QLock
+from .base_app import BaseMicroscopeApp
 import time
 import threading
 
@@ -42,7 +43,7 @@ class HardwareComponent(QtCore.QObject):
         
         self.operations[name] = op_func   
             
-    def __init__(self, app, debug=False, name=None):
+    def __init__(self, app: BaseMicroscopeApp, debug=False, name:str=None):
         """
         create new HardwareComponent attached to *app*
         """
