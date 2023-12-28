@@ -308,6 +308,9 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.show()
 
     def __init__(self, argv=[]):
+
+        self._setting_paths = {}
+
         BaseApp.__init__(self, argv)
         
         log_dir = os.path.abspath(os.path.join('.', 'log'))
@@ -351,6 +354,8 @@ class BaseMicroscopeApp(BaseApp):
                    
         self.setup()
         
+        self.setup_settings_paths()
+
         self.setup_default_ui()
         
         self.setup_ui()
@@ -873,37 +878,82 @@ class BaseMicroscopeApp(BaseApp):
         if fname:
             self.save_window_positions_json(fname)
         
-    def lq_path(self,path):
-        """returns the lq based on path string of the form 'domain/[component/]setting'
-        domain = "measurement", "hardware" or "app"
+    def get_lq(self, path:str) -> LoggedQuantity:
         """
-        try:
-            domain,component,setting = path.split('/')
-        except ValueError:#app settings do not have a component hierarchy
-            domain,setting = path.split('/')
-        try:
-            if domain in ['hardware','HW','hw']:
-                lq = getattr(self.hardware[component].settings, setting)
-            if domain in ['measurement','measure', 'measurements']:
-                lq = getattr(self.measurements[component].settings, setting)
-            if domain == 'app':
-                lq = getattr(self.settings, setting)
-            return lq
-        except UnboundLocalError:
-            print('WARNING:',domain,'does not exist')
-            
+        returns the LoggedQuantity defined by a path string of the form 'section/[component/]setting'
+        where section are "mm", "hw" or "app"
+        """
+        parts = path.split("/")
+        section = parts[0]
+        if section in ("HW", "hardware"):
+            path = f"hw/{parts[1]}/{parts[2]}"
+        elif section in ("measurement", "measure", "measurements"):
+            path = f"mm/{parts[1]}/{parts[2]}"
+        if not path in self._setting_paths:
+            print(f"WARNING: {'/'.join(parts)} does not exist")
+        else:
+            return self._setting_paths[path]
+
+    def write_setting(self, path:str, value):
+        self.get_lq(path).update_value(value)
+
+    def write_setting_safe(self, path:str, value):
+        lq = self.get_lq(path)
+        if lq is None or lq.protected:
+            return
+        lq.update_value(value)      
+
+    def write_settings_safe(self, settings):
+        """
+        updates settings based on a dictionary, silently ignores protected logged quantities and non-existing.  
+
+        ==============  =========  ====================================================================================
+        **Arguments:**  **Type:**  **Description:**
+        settings        dict       (path, value) map
+        ==============  =========  ====================================================================================
+        """
+        for path, value in settings.items():
+            self.write_setting_safe(path, value)
+
+    def read_setting(self, path:str, read_from_hardware=True):
+        lq = self.get_lq(path)
+        if read_from_hardware and lq.has_hardware_read:
+            return lq.read_from_hardware()
+        return lq.val
+
+    def setup_settings_paths(self):
+        for hw_name, hw in self.hardware.items():
+            for name, lq in hw.settings.as_dict().items():
+                self.add_setting_path(f"hw/{hw_name}/{name}", lq)
+        for mm_name, mm in self.measurements.items():
+            for name, lq in mm.settings.as_dict().items():
+                self.add_setting_path(f"mm/{mm_name}/{name}", lq)
+        for name, lq in self.settings.as_dict().items():
+            self.add_setting_path(f"app/{name}", lq)
+
+    def add_setting_path(self, path:str, lq: LoggedQuantity):
+        lq.set_path(path)
+        self._setting_paths[path] = lq
+
+
+    def get_setting_paths(self, filter_has_hardware_read=False, filter_has_hardware_write=False):
+        if filter_has_hardware_read and filter_has_hardware_write:
+            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_read() or lq.has_hardware_write()]
+        if filter_has_hardware_read:
+            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_read()]
+        if filter_has_hardware_write:
+            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_write()]
+        return list(self._setting_paths.keys())
+
+
+    def lq_path(self, path):
+        warnings.warn("App.lq_path deprecated, use App.get_lq instead", DeprecationWarning)
+        return self.get_lq(path)
+
     def lq_paths_list(self):
-        """returns all logged_quantity paths as a list"""
-        list = []
-        for hw_name,hw in self.hardware.items():
-            for lq_name in hw.settings.keys():
-                list.append('hardware/'+hw_name+"/"+lq_name)
-        for measure_name,measure in self.measurements.items():
-            for lq_name in measure.settings.keys():
-                list.append('measurement/'+measure_name+"/"+lq_name)
-        for lq_name in self.settings.keys():
-            list.append('app/'+lq_name)
-        return list
+        warnings.warn("App.lq_paths_list deprecated, use App.get_settings_paths instead", DeprecationWarning)
+        return self.get_setting_paths()
+
         
     @property
     def hardware_components(self):
