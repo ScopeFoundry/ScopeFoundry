@@ -221,7 +221,8 @@ class Measurement(QtCore.QObject):
         This function governs the behavior of the measurement thread. 
         """
         print(self.name, "_thread_run thread_id:", threading.get_ident())
-        self.set_progress(50.) # set progress bars to default run position at 50%
+        self.progress.update_value(50.) # set progress bars to default 50% w/o time remaining estimation
+        self._t0 = time.time()
         try:
             if self.settings['profile']:
                 import cProfile
@@ -272,7 +273,16 @@ class Measurement(QtCore.QObject):
         ==============  ==============================================================================================
         """
         self.progress.update_value(pct)
-                
+        
+        if pct:
+            text = f"{self.name} (in {to_etr_str((100 - pct)/pct * (time.time() - self._t0))})"
+        else:
+            text = self.name
+            
+        if hasattr(self, "subwin"):
+            self.subwin.setWindowTitle(text)
+        self.tree_item.setText(0, text)
+        
     @QtCore.Slot()
     def _interrupt(self):
         """
@@ -546,3 +556,16 @@ class Measurement(QtCore.QObject):
         mod = inspect.getmodule(self)
         x =  xreload.xreload(mod)
         print("Reloading from code", mod, x)
+        
+        
+def to_etr_str(secs):
+    mins, mins_rem = divmod(secs, 60)
+    if not mins:
+        return f"{int(secs)}s"
+    hours, hours_rem = divmod(secs, 3600)
+    if not hours:
+        return f"{mins + mins_rem/60:0.1f}min"
+    days, days_rem = divmod(secs, 86400)
+    if not days:
+        return f"{hours + hours_rem/3600:0.1f}h"
+    return f"{secs/86400:0.1f}d"
