@@ -145,6 +145,7 @@ class LoggedQuantity(QtCore.QObject):
         #self.lock = DummyLock()
         self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
         
+        self.path = ""
         self.protected = protected # a guard that prevents from being updated, i.e. file loading
 
 
@@ -383,7 +384,7 @@ class LoggedQuantity(QtCore.QObject):
     
     def set_widget_toolTip(self, widget, text=None):
         try:
-            tips = [f'<b>{self.name}</b>']
+            tips = [f'<b>{self.path}</b>']
             if self.unit: tips.append(f'<i>({self.unit})</i>')
             for s in [self.description, widget.toolTip(), text]:
                 if s != None:
@@ -1157,6 +1158,9 @@ class LoggedQuantity(QtCore.QObject):
             p.sigValueChanged.connect(lambda p,v: self.update_value(v))
             
             return p
+        
+    def set_path(self, path:str):
+        self.path = path
         
 
 class FileLQ(LoggedQuantity):
