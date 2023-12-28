@@ -83,10 +83,11 @@ class Measurement(QtCore.QObject):
         
         
         self.activation = self.settings.New('activation', dtype=bool, ro=False,
-                                            description=f'<i>{self.name}</i>') # does the user want to the thread to be running
+                                            description=f'<i>{self.name}</i>',
+                                            protected = True) # does the user want to the thread to be running
         #self.running    = self.settings.New('running', dtype=bool, ro=True) # is the thread actually running?
-        self.run_state = self.settings.New('run_state', dtype=str, initial='stop_first')
-        self.progress   = self.settings.New('progress', dtype=float, unit="%", si=False, ro=True)
+        self.run_state = self.settings.New('run_state', dtype=str, initial='stop_first', protected=True)
+        self.progress = self.settings.New('progress', dtype=float, unit="%", si=False, ro=True, protected=True)
         self.settings.New('profile', dtype=bool, initial=False) # Run a profile on the run to find performance problems
 
         self.activation.updated_value[bool].connect(self.start_stop)
