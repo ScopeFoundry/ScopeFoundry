@@ -8,8 +8,10 @@ from __future__ import absolute_import, print_function
 from qtpy import QtCore, QtWidgets
 import threading
 import time
+
 from .logged_quantity import LQCollection
 from .helper_funcs import load_qt_ui_file
+from .base_app import BaseMicroscopeApp
 from collections import OrderedDict
 import pyqtgraph as pg
 from ScopeFoundry.helper_funcs import get_logger_from_class
@@ -53,11 +55,7 @@ class Measurement(QtCore.QObject):
 
     #measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
     
-    def __init__(self, app, name=None):
-        """
-        :type app: BaseMicroscopeApp
-                
-        """
+    def __init__(self, app:BaseMicroscopeApp, name:str=None):
         
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
