@@ -53,6 +53,8 @@ from .logged_quantity import LoggedQuantity, LQCollection
 from .helper_funcs import confirm_on_close, ignore_on_close, load_qt_ui_file, \
     OrderedAttrDict, sibling_path, get_logger_from_class, str2bool
 
+from . import h5_io
+
 #from equipment.image_display import ImageDisplay
 
 
@@ -833,10 +835,10 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the h5 file.              
         ==============  =========  ====================================================================================
         """
-        # TODO finish this function
-        import h5py
-        with h5py.File(fname) as h5_file:
-            pass
+        settings = h5_io.load_settings(fname)
+        # handle hardware connections first
+        self.write_settings_safe({k:v for k,v in settings.items() if k.endswith("connected")})
+        self.write_settings_safe(settings)
     
     def settings_auto_save_ini(self):
         """
@@ -866,7 +868,10 @@ class BaseMicroscopeApp(BaseApp):
     def settings_load_dialog(self):
         """Opens a load ini dialogue in the app user interface"""
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Settings file", "", "Settings File (*.ini *.h5)")
-        self.settings_load_ini(fname)
+        if fname.endswith(".ini"):
+            self.settings_load_ini(fname)
+        elif fname.endswith(".h5"):
+            self.settings_load_h5(fname)
         
     def window_positions_load_dialog(self):
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self.ui,"Open Window Position file", "", "position File (*.json)")
