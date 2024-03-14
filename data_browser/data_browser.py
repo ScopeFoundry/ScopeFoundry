@@ -6,7 +6,7 @@ from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry import BaseApp
 from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg, sibling_path
-from viewers.file_info import FileInfoView
+from .viewers.file_info import FileInfoView
 
 class DataBrowser(BaseApp):
     
