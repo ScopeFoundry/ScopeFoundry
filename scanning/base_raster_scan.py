@@ -53,6 +53,7 @@ class BaseRaster2DScan(Measurement):
         self.v_unit = v_unit
         self.use_external_range_sync = use_external_range_sync
         self.circ_roi_size=circ_roi_size
+        self.img_items = []
         Measurement.__init__(self, app)
         
     def setup(self):
@@ -167,6 +168,7 @@ class BaseRaster2DScan(Measurement):
             self.clear_previous_scans)
         
         self.compute_scan_params()
+        
         
     def set_details_widget(self, widget = None, ui_filename=None):
         #print('LOADING DETAIL UI')

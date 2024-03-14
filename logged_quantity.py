@@ -76,6 +76,7 @@ class LoggedQuantity(QtCore.QObject):
                  reread_from_hardware_after_write = False,
                  description = None,
                  colors = None,
+                 protected = False,
                  ):
         QtCore.QObject.__init__(self)
         
@@ -107,14 +108,17 @@ class LoggedQuantity(QtCore.QObject):
         
         self.colors = colors
         self.qcolors = []
-        if self.colors != None:
+        if self.colors:
+            default_color = QtGui.QColor('lightgrey')
             for color in colors:
-                qcolor = QtGui.QColor(color)
+                try:
+                    qcolor = QtGui.QColor(color)
+                except TypeError:
+                    qcolor = default_color
                 if qcolor.isValid():
                     self.qcolors.append(qcolor)
                 else:
-                    self.qcolors.append(QtGui.QColor('lightgrey'))
-                    #print(self.name, color, 'invalid color - used "lightgrey" instead')
+                    self.qcolors.append(default_color)
         
         self.log = get_logger_from_class(self)
         
@@ -141,6 +145,9 @@ class LoggedQuantity(QtCore.QObject):
         #self.lock = DummyLock()
         self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
         
+        self.protected = protected # a guard that prevents from being updated, i.e. file loading
+
+
     def coerce_to_type(self, x):
         """
         Force x to dtype of the LQ
@@ -1206,7 +1213,8 @@ class ArrayLQ(LoggedQuantity):
                  ro = False,
                  unit = None,
                  vmin=-1e12, vmax=+1e12, choices=None,
-                 description=None):
+                 description=None,
+                 protected=False):
         QtCore.QObject.__init__(self)
         
         self.name = name
@@ -1226,6 +1234,7 @@ class ArrayLQ(LoggedQuantity):
         self.ro = ro # Read-Only
         self.choices = choices
         self.description = description
+        self.protected = protected
         
         self.log = get_logger_from_class(self)
 
@@ -1437,7 +1446,7 @@ class LQRange(LQCircularNetwork):
                                    'zig_zag':self.zig_zag_sweep_array, 'zag_zig':self.zag_zig_sweep_array}
             self.sweep_type = sweep_type_lq
             self.sweep_type.change_choice_list(self.sweep_type_map.keys())
-        
+            lq_dict["sweep_type"] = sweep_type_lq
 
     def calc_num(self, min_, max_, step):
         '''
@@ -1527,7 +1536,6 @@ class LQRange(LQCircularNetwork):
         
     @property
     def sweep_array(self):
-        print(self.sweep_type.val)
         if hasattr(self, 'sweep_type'):
             return self.sweep_type_map[self.sweep_type.val]()
         else:
