@@ -1,3 +1,13 @@
+ScopeFoundry 1.4.0 2024-03-14
+
+	* Thanks to Benedikt Ursprung for lots of useful changes in this version!
+	* Type Hinting. Note: this means Python < 3.7 no longer is compatible
+	* Sequencer for building custom measurement flows
+	* Settings can be protected during INI load with protected flag
+	* Settings can be loaded from H5 files
+	* QT6 compatibility 
+	* Dark Mode Option
+
 ScopeFoundry 1.3.0 2023-09-26
 
 	* Updated HDF5 data file format to include a unqiue identifier

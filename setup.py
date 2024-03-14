@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name = 'ScopeFoundry',
     
-    version = '1.3.0',
+    version = '1.4.0',
     
     description = 'a platform for laboratory equipment control and scientific data analysis',
     long_description =open('README.md', 'r').read(),
@@ -30,6 +30,10 @@ setup(
         },
         
     install_requires = [
-    	'numpy', 'h5py', 'qtpy', 'xreload', 'uuid7']
+    	'numpy', 'h5py', 'qtpy', 'xreload', 'uuid7'],
     
+    extras_require={
+        'all' : ['qtconsole', 'pyqtdarktheme'],
+    }
+
     )
