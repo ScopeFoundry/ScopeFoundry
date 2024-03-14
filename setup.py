@@ -33,7 +33,7 @@ setup(
     	'numpy', 'h5py', 'qtpy', 'xreload', 'uuid7'],
     
     extras_require={
-        'all' : ['qtconsole'],
+        'all' : ['qtconsole', 'pyqtdarktheme'],
     }
 
     )

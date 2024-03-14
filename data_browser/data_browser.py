@@ -12,8 +12,8 @@ class DataBrowser(BaseApp):
     
     name = "DataBrowser"
     
-    def __init__(self, argv):
-        BaseApp.__init__(self, argv)
+    def __init__(self, argv,dark_mode=False):
+        BaseApp.__init__(self, argv, dark_mode)
         self.setup()
         parser = argparse.ArgumentParser()
         for lq in self.settings.as_list():

@@ -79,10 +79,18 @@ import asyncio
 import sys
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    
+# Dark mode
+try:
+    import qdarktheme # pip install pyqtdarktheme
+    darktheme_available = True
+except Exception as err:
+    darktheme_available = False
+    print(f"pyqdarktheme unavailable: {err}")
 
 class BaseApp(QtCore.QObject):
     
-    def __init__(self, argv=[]):
+    def __init__(self, argv=[], dark_mode=False):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         
@@ -91,6 +99,9 @@ class BaseApp(QtCore.QObject):
         self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
             self.qtapp = QtWidgets.QApplication(argv)
+        
+        if dark_mode and darktheme_available:
+            qdarktheme.setup_theme()
         
         self.settings = LQCollection()
         
@@ -309,11 +320,11 @@ class BaseMicroscopeApp(BaseApp):
         #self.ui.exec_()
         self.ui.show()
 
-    def __init__(self, argv=[]):
+    def __init__(self, argv=[], dark_mode=False):
 
         self._setting_paths = {}
 
-        BaseApp.__init__(self, argv)
+        BaseApp.__init__(self, argv, dark_mode)
         
         log_dir = os.path.abspath(os.path.join('.', 'log'))
         if not os.path.isdir(log_dir):
