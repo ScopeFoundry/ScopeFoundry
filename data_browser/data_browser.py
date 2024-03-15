@@ -26,9 +26,13 @@ class DataBrowser(BaseApp):
                     lq.update_value(val)
 
     def setup(self):
+        
+        self._setting_paths = {}
+
         self.views = OrderedDict()
 
         self.plugin_update_funcs = []
+        self.plugins = {}
         self.keys = {
             QtCore.Qt.Key_Delete: self.on_recycle,
         }
@@ -47,6 +51,8 @@ class DataBrowser(BaseApp):
             description="auto selects the view when file name is changed.",
         )
         s.New("view_name", dtype=str, initial="file_info", choices=("0",))
+
+        self._setting_paths.update(construct_lq_paths(self.settings, "app"))
 
         self.setup_ui()
 
@@ -139,6 +145,7 @@ class DataBrowser(BaseApp):
         self.ui.plugin_buttons_layout.addWidget(plugin.get_show_hide_button())
         self.plugin_update_funcs.append(plugin.update_if_showing)
         self.ctrl_keys[plugin.show_keyboard_key] = plugin.toggle_show_hide
+        self.plugins[plugin.name] = plugin
 
     def load_view(self, new_view):
         # deprecated use DataBrowser.add_view(new_view) instead
@@ -188,6 +195,7 @@ class DataBrowser(BaseApp):
         view.setup()
         self.ui.data_view_layout.addWidget(self.current_view.ui)
         view.view_loaded = True
+        self._setting_paths.update(construct_lq_paths(view.settings, f"app/{view.name}"))
 
     def on_change_view_name(self):
         # hide previous
@@ -229,7 +237,41 @@ class DataBrowser(BaseApp):
 
         if dialog.new_name:
             Path(fname).rename(dialog.new_name)
+            
+    def read_setting(self, path:str):
+        return self._setting_paths[path].value
+    
+    def write_setting(self, path:str, value):
+        lq = self.get_lq(path)
+        if lq is not None:
+            lq.update_value(value)
+        else:
+            print(path, "does not exist")
 
+    def get_lq(self, path:str) -> LoggedQuantity:
+        """
+        returns the LoggedQuantity defined by a path string of the form 'section/[component/]setting'
+        where section are "views" or "app"
+        """
+        parts = path.split("/")
+        
+        settings = self.settings
+        if parts[0] in ("views"):
+            view = self.views.get(parts[1], None)
+            if view is not None:
+                self.load_view(view)
+                settings = view.settings        
+        elif parts[0] == "plugins":
+            plugin = self.plugins.get(parts[1], None)
+            if plugin is not None:
+                settings = plugin.settings
+                
+        if parts[-1] in settings: 
+            return self.settings.get_lq(parts[1])
+    def read_settings(self):
+        """returns a dictionary (path, value) of registered settings"""
+        return {p:self.read_setting(p) for p in self._setting_paths}
+    
 
 class RenameDialog(QtWidgets.QDialog):
     def __init__(self, prev_path_name):
@@ -260,3 +302,12 @@ class RenameDialog(QtWidgets.QDialog):
     def on_rename(self):
         self.new_name = self.new_name_w.text()
         self.accept()
+
+        
+def construct_lq_paths(lq_collection, pre="app"):
+    new = {}
+    for name, lq in lq_collection.as_dict().items():
+        path = f"{pre}/{name}"
+        lq.set_path(path)
+        new[path] = lq
+    return new
