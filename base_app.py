@@ -967,6 +967,17 @@ class BaseMicroscopeApp(BaseApp):
         if exclude_patterns:
             paths = (path for path in paths if not any(pattern in path for pattern in exclude_patterns))        
         return list(paths)
+    
+    def read_settings(self, paths=None, read_from_hardware=False):
+        """returns a dictionary (path, value):
+        ================== =========  =============================================================================
+        **Arguments:**     **Type:**  **Description:**
+        paths              list[str]  paths to setting, if None(default) all paths are used
+        read_from_hardware bool       if True, values are read from hardware, else the current value is used
+        ================== =========  =============================================================================
+        """
+        paths = self.get_setting_paths() if paths is None else paths
+        return {p:self.read_setting(p, read_from_hardware) for p in paths}
 
     def lq_path(self, path):
         warnings.warn("App.lq_path deprecated, use App.get_lq instead", DeprecationWarning)
