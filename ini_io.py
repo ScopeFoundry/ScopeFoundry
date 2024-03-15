@@ -1,7 +1,6 @@
 """helpers for handling .ini files"""
 import configparser
 
-
 TRANSLATIONS = {"True": True, "False": False}
 REV_TRANSLATIONS = {v: k for k, v in TRANSLATIONS.items()}
 
@@ -16,6 +15,7 @@ def to_path_settings(config):
 
 def from_path_settings(settings):
     config = configparser.ConfigParser(interpolation=None)
+    config.optionxform = str
 
     for path, value in settings.items():
         parts = path.split("/")
