@@ -4,15 +4,16 @@ from pathlib import Path
 
 from qtpy import QtCore, QtWidgets, QtGui
 
-from ScopeFoundry import BaseApp
+from ScopeFoundry import BaseApp, LoggedQuantity, ini_io
 from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg, sibling_path
 from .viewers.file_info import FileInfoView
+
 
 class DataBrowser(BaseApp):
     
     name = "DataBrowser"
     
-    def __init__(self, argv,dark_mode=False):
+    def __init__(self, argv, dark_mode=False):
         BaseApp.__init__(self, argv, dark_mode)
         self.setup()
         parser = argparse.ArgumentParser()
@@ -21,7 +22,7 @@ class DataBrowser(BaseApp):
         args = parser.parse_args()
         for lq in self.settings.as_list():
             if lq.name in args:
-                val = getattr(args,lq.name)
+                val = getattr(args, lq.name)
                 if val is not None:
                     lq.update_value(val)
 
@@ -69,7 +70,6 @@ class DataBrowser(BaseApp):
         s.file_filter.add_listener(self.on_change_file_filter)
         s.view_name.add_listener(self.on_change_view_name)
 
-
     def setup_ui(self):
         self.ui = load_qt_ui_from_pkg("ScopeFoundry.data_browser", "data_browser.ui")
 
@@ -107,6 +107,9 @@ class DataBrowser(BaseApp):
 
         self.ui.console_pushButton.clicked.connect(self.console_widget.show)
         self.ui.log_pushButton.clicked.connect(self.logging_widget.show)
+
+        self.ui.action_save_as_ini.triggered.connect(self.settings_save_dialog)        
+        self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)     
 
         self.ui.show()
         self.ui.raise_()
@@ -268,12 +271,43 @@ class DataBrowser(BaseApp):
                 
         if parts[-1] in settings: 
             return self.settings.get_lq(parts[1])
+    
+    def settings_load_ini(self, fname):
+        """
+        ==============  =========  ==============================================
+        **Arguments:**  **Type:**  **Description:**
+        fname           str        relative path to the filename of the ini file.              
+        ==============  =========  ==============================================
+        """
+        settings = ini_io.load_settings(fname)
+        for path, value in settings.items():
+            self.write_setting(path, value)
+            
+    def settings_save_ini(self, fname):
+        settings = self.read_settings()
+        ini_io.save_settings(fname, settings)
+        
     def read_settings(self):
         """returns a dictionary (path, value) of registered settings"""
         return {p:self.read_setting(p) for p in self._setting_paths}
     
+    def settings_save_dialog(self):
+        """Opens a save as ini dialogue in the app user interface."""
+        fname, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Settings file", "", "Settings File (*.ini)")
+        if fname:
+            self.settings_save_ini(fname)
+    
+    def settings_load_dialog(self):
+        """Opens a load ini dialogue in the app user interface"""
+        fname, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Settings file", "", "Settings File (*.ini)")
+        if fname.endswith(".ini"):
+            self.settings_load_ini(fname)
+        # elif fname.endswith(".h5"):
+        #     self.settings_load_h5(fname)
+        
 
 class RenameDialog(QtWidgets.QDialog):
+
     def __init__(self, prev_path_name):
         QtWidgets.QDialog.__init__(self)
 
