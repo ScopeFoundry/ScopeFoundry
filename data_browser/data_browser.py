@@ -241,8 +241,11 @@ class DataBrowser(BaseApp):
         if dialog.new_name:
             Path(fname).rename(dialog.new_name)
             
-    def read_setting(self, path:str):
-        return self._setting_paths[path].value
+    def read_setting(self, path, ini_string_value=False):
+        lq = self.get_lq(path)
+        if ini_string_value:
+            return lq.ini_string_value()
+        return lq.val
     
     def write_setting(self, path:str, value):
         lq = self.get_lq(path)
@@ -284,12 +287,12 @@ class DataBrowser(BaseApp):
             self.write_setting(path, value)
             
     def settings_save_ini(self, fname):
-        settings = self.read_settings()
+        settings = self.read_settings(ini_string_value=True)
         ini_io.save_settings(fname, settings)
         
-    def read_settings(self):
+    def read_settings(self, ini_string_value=False):
         """returns a dictionary (path, value) of registered settings"""
-        return {p:self.read_setting(p) for p in self._setting_paths}
+        return {p:self.read_setting(p, ini_string_value) for p in self._setting_paths}
     
     def settings_save_dialog(self):
         """Opens a save as ini dialogue in the app user interface."""
