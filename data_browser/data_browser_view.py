@@ -13,6 +13,7 @@ class DataBrowserView(QtCore.QObject):
         self.databrowser = databrowser
         self.settings = LQCollection()
         self.view_loaded = False
+        self.ui = None
 
     def setup(self):
         pass
