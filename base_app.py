@@ -74,7 +74,7 @@ sys.excepthook = log_unhandled_exception
 # To fix a bug with jupyter qtconsole for python 3.8
 # https://github.com/jupyter/notebook/issues/4613#issuecomment-548992047
 import asyncio
-import sys
+
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     
