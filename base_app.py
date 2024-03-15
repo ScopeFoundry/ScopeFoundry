@@ -5,8 +5,9 @@ Modified by Ed Barnard
 UI enhancements by Ed Barnard, Alan Buckley
 '''
 from __future__ import print_function, division, absolute_import
+from pathlib import Path
 
-import sys, os
+import sys
 import time
 import datetime
 import numpy as np
@@ -92,7 +93,9 @@ class BaseApp(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         
-        self.this_dir, self.this_filename = os.path.split(__file__)
+        path = Path(__file__)
+        self.this_path = path.parent
+        self.this_filename = path.name
 
         self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
@@ -324,22 +327,21 @@ class BaseMicroscopeApp(BaseApp):
 
         BaseApp.__init__(self, argv, dark_mode)
         
-        log_dir = os.path.abspath(os.path.join('.', 'log'))
-        if not os.path.isdir(log_dir):
-            os.makedirs(log_dir)
-        self.log_file_handler = logging.FileHandler(
-            os.path.join(log_dir,"{}_log_{:%y%m%d_%H%M%S}.txt".format(self.name, datetime.datetime.fromtimestamp(time.time()))))
+        log_path = Path.cwd() / 'log'
+        if not log_path.is_dir():
+            log_path.mkdir()
+        log_fname = str(log_path / "{}_log_{:%y%m%d_%H%M%S}.txt".format(self.name, datetime.datetime.fromtimestamp(time.time())))
+        self.log_file_handler = logging.FileHandler(log_fname)
         formatter = logging.Formatter('%(asctime)s|%(levelname)s|%(name)s|%(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
         self.log_file_handler.setFormatter(formatter)
 
         logging.getLogger().addHandler(self.log_file_handler)
         
-        initial_data_save_dir = os.path.abspath(os.path.join('.', 'data'))
-        if not os.path.isdir(initial_data_save_dir):
-            os.makedirs(initial_data_save_dir)
+        initial_save_path = Path.cwd() / 'data'
+        if not initial_save_path.is_dir():
+            initial_save_path.mkdir()
         
-        
-        self.settings.New('save_dir', dtype='file', is_dir=True, initial=initial_data_save_dir)
+        self.settings.New('save_dir', dtype='file', is_dir=True, initial=initial_save_path.as_posix())
         self.settings.New('sample', dtype=str, initial='')
         self.settings.New('data_fname_format', dtype=str,
                           initial='{timestamp:%y%m%d_%H%M%S}_{measurement.name}.{ext}')
@@ -370,9 +372,7 @@ class BaseMicroscopeApp(BaseApp):
         self.setup_default_ui()
         
         self.setup_ui()
-
-
-        
+      
         
 
     def setup_default_ui(self):
@@ -740,7 +740,6 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the h5 file.              
         ==============  =========  =============================================
         """
-        from . import h5_io
         with h5_io.h5_base_file(self, fname) as h5_file:
             for measurement in self.measurements.values():
                 h5_io.h5_create_measurement_group(measurement, h5_file)
@@ -796,21 +795,18 @@ class BaseMicroscopeApp(BaseApp):
     
     def settings_auto_save_ini(self):
         """
-        Saves the ini file to the pre-defined directory with a time stamp in the filename.
+        Saves the ini file to app/save_dir directory with a time stamp in the filename.
         """
-        #fname = "%i_settings.h5" % time.time()
-        #self.settings_save_h5(fname)
-        self.settings_save_ini(os.path.join(self.settings['save_dir'], "%i_settings.ini" % time.time()))
+        fname = Path(self.settings["save_dir"]) / f"{datetime.datetime.now():%y%m%d_%H%M%S}_settings.ini"
+        self.settings_save_ini(fname)
 
     def settings_load_last(self):
         """
         Loads last saved ini file.
         """
-        import glob
-        #fname = sorted(glob.glob("*_settings.h5"))[-1]
-        #self.settings_load_h5(fname)
-        fname = sorted(glob.glob("*_settings.ini"))[-1]
-        self.settings_load_ini(fname)
+        fnames = Path.cwd().glob("*_settings.ini")
+        fnames.extend( Path(self.settings["save_dir"]).glob("*_settings.ini"))
+        self.settings_load_ini(sorted(fnames)[-1])
     
     
     def settings_save_dialog(self):
@@ -995,19 +991,13 @@ class BaseMicroscopeApp(BaseApp):
         for name, M in self.measurements.items():
             if hasattr(M, 'ui'):
                 positions['measurement/'+name] = win_state_from_subwin(M.subwin)
-
-
-        
-        return positions 
+       
+        return positions
     
     def save_window_positions_json(self, fname):
-        import json
         positions = self.get_window_positions()
         with open(fname, 'w') as outfile:    
             json.dump(positions, outfile, indent=4)
-        import os
-        cwd = os.getcwd()
-        print(fname, cwd)
             
     def load_window_positions_json(self, fname):
         with open(fname, 'r') as infile:
@@ -1043,8 +1033,7 @@ class BaseMicroscopeApp(BaseApp):
             measurement=measurement,
             timestamp=datetime.datetime.fromtimestamp(t),
             ext=ext)
-        fname = os.path.join(self.settings['save_dir'], f)
-        return fname
+        return Path(self.settings['save_dir']) / f
 
 
 
