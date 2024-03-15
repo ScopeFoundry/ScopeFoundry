@@ -42,6 +42,9 @@
          </widget>
         </item>
         <item>
+         <widget class="QTreeView" name="treeView"/>
+        </item>
+        <item>
          <widget class="QLineEdit" name="file_filter_lineEdit"/>
         </item>
        </layout>
@@ -253,7 +256,7 @@ font-weight:bold;</string>
      <x>0</x>
      <y>0</y>
      <width>871</width>
-     <height>17</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>

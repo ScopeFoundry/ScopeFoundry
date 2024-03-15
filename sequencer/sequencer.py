@@ -108,7 +108,7 @@ class Sequencer(Measurement):
         self.show_editor_checkBox.stateChanged.connect(self.editor_widget.setVisible)
         self.show_editor_checkBox.setChecked(True)
 
-        paths = self.app.get_lq_paths()
+        paths = self.app.get_setting_paths()
         funcs = get_all_functions(self.app)
         self.editors: Dict[str, EditorBaseController] = {}
         self.add_editor(ReadFromHardWareEditorUI(self, paths))

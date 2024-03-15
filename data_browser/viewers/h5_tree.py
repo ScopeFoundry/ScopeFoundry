@@ -1,7 +1,7 @@
-from ScopeFoundry.data_browser import DataBrowserView
 from qtpy import QtWidgets
 import h5py
 
+from ScopeFoundry.data_browser import DataBrowserView
 
 class H5TreeView(DataBrowserView):
 

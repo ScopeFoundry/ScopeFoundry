@@ -303,26 +303,26 @@ def extend_h5_dataset_along_axis(ds, new_len, axis=0):
     ds.resize( newshape )    
 
     
-def load_lq_paths(fname):
+def load_settings(fname):
     """
-    returns a dictionary (lq_path, value) of all settings stored in a h5 file
+    returns a dictionary (path, value) of all settings stored in a h5 file
     """
     if not fname.endswith(".h5"):
         return {}
     
-    lq_paths_dict = {}
-    visit_func = functools.partial(_lq_paths_dict_visitfunc, lq_paths_dict=lq_paths_dict)
+    settings = {}
+    visit_func = functools.partial(_settings_visitfunc, settings=settings)
     
     with h5py.File(fname) as file:
         file.visititems(visit_func)    
 
-    return lq_paths_dict
+    return settings
 
 
-def _lq_paths_dict_visitfunc(name, node, lq_paths_dict):
+def _settings_visitfunc(name, node, settings):
     if not name.endswith("settings"):
         return
     
     for key, val in node.attrs.items():
         lq_path = f"{name.replace('settings', key)}"
-        lq_paths_dict[lq_path] = val
+        settings[lq_path] = val

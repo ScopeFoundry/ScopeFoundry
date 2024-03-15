@@ -145,7 +145,7 @@ class LoggedQuantity(QtCore.QObject):
         #self.lock = DummyLock()
         self.lock = QLock(mode=1) # mode 0 is non-reentrant lock
         
-        self._lq_path = ""
+        self.path = ""
         self.protected = protected # a guard that prevents from being updated, i.e. file loading
 
 
@@ -384,7 +384,7 @@ class LoggedQuantity(QtCore.QObject):
     
     def set_widget_toolTip(self, widget, text=None):
         try:
-            tips = [f'<b>{self._lq_path}</b>']
+            tips = [f'<b>{self.path}</b>']
             if self.unit: tips.append(f'<i>({self.unit})</i>')
             for s in [self.description, widget.toolTip(), text]:
                 if s != None:
@@ -1159,8 +1159,8 @@ class LoggedQuantity(QtCore.QObject):
             
             return p
         
-    def set_lq_path(self, lq_path:str):
-        self._lq_path = lq_path
+    def set_path(self, path:str):
+        self.path = path
         
 
 class FileLQ(LoggedQuantity):
@@ -1217,7 +1217,8 @@ class ArrayLQ(LoggedQuantity):
                  ro = False,
                  unit = None,
                  vmin=-1e12, vmax=+1e12, choices=None,
-                 description=None):
+                 description=None,
+                 protected=False):
         QtCore.QObject.__init__(self)
         
         self.name = name
@@ -1237,6 +1238,7 @@ class ArrayLQ(LoggedQuantity):
         self.ro = ro # Read-Only
         self.choices = choices
         self.description = description
+        self.protected = protected
         
         self.log = get_logger_from_class(self)
 

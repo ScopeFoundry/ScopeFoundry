@@ -2,32 +2,40 @@ import functools
 import h5py
 from qtpy import QtCore, QtWidgets
 
-from ScopeFoundry.data_browser.plug_in import DataBrowserPlugin
+from ScopeFoundry.data_browser.data_browser_plug_in import DataBrowserPlugIn
 
 
-class H5SearchPlugin(DataBrowserPlugin):
+class H5SearchPlugIn(DataBrowserPlugIn):
     name = "h5_search"
     button_text = "🔍h5"
     show_keyboard_key = QtCore.Qt.Key_F
+    description = "used to inspect data sets and attributes of .h5 files (Ctrl+F)"
 
     def setup(self):
-        self.ui = QtWidgets.QWidget()
-        self.ui.setLayout(QtWidgets.QVBoxLayout())
-        self.search_lineEdit = QtWidgets.QLineEdit()
-        self.tree_textEdit = QtWidgets.QTextEdit()
+        self.search_line = QtWidgets.QLineEdit()
+        self.search_line.setText("measurement")
+        self.text_edit = QtWidgets.QTextEdit()
 
-        self.ui.layout().addWidget(self.search_lineEdit)
-        self.ui.layout().addWidget(self.tree_textEdit)
+        search_layout = QtWidgets.QHBoxLayout()
+        search_layout.addWidget(QtWidgets.QLabel("🔍 text"))
+        search_layout.addWidget(self.search_line)
 
-        self.search_lineEdit.textChanged.connect(self.update)
-        self.search_lineEdit.setText("measurement")
+        self.ui = QtWidgets.QWidget(objectName="SearchWidget")
+        layout = QtWidgets.QVBoxLayout(self.ui)
+        layout.addLayout(search_layout)
+        layout.addWidget(self.text_edit)
+        self.ui.setStyleSheet(
+            "QWidget#SearchWidget{background-color:rgba(0, 166, 237, 0.1)}"
+        )
+
+        self.search_line.textChanged.connect(self.update)
 
     def update(self, fname: str = None) -> None:
         fname = self.new_fname
         if not fname.endswith(".h5"):
-            self.tree_textEdit.setText(f"{fname} is not supported")
+            self.text_edit.setText(f"{fname} is not supported")
             return
-        search_text = self.search_lineEdit.text()
+        search_text = self.search_line.text()
         self.new_search(search_text, fname)
 
     def new_search(self, search_text, fname):
@@ -39,7 +47,7 @@ class H5SearchPlugin(DataBrowserPlugin):
             text = text.replace(
                 search_text, f"<font color='green'>{search_text}</font>"
             )
-        self.tree_textEdit.setText(text)
+        self.text_edit.setText(text)
 
 
 def search_h5(fname, search_text):

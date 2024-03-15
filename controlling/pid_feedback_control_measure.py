@@ -154,13 +154,13 @@ class PIDFeedbackControl(Measurement):
 
     def update_choices(self):
         s = self.settings
-        s.get_lq("sensor").change_choice_list(self.app.get_lq_paths())
-        s.get_lq("plant_input").change_choice_list(self.app.get_lq_paths())
+        s.get_lq("sensor").change_choice_list(self.app.get_setting_paths())
+        s.get_lq("plant_input").change_choice_list(self.app.get_setting_paths())
 
     def update_choices_filtered(self):
         s = self.settings
-        s.get_lq("sensor").change_choice_list(self.app.get_lq_paths(True, False))
-        s.get_lq("plant_input").change_choice_list(self.app.get_lq_paths(False, True))
+        s.get_lq("sensor").change_choice_list(self.app.get_setting_paths(True, False))
+        s.get_lq("plant_input").change_choice_list(self.app.get_setting_paths(False, True))
 
     def New_mini_UI(self):
         from qtpy.QtWidgets import QSizePolicy

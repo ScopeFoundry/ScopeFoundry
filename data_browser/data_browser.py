@@ -1,20 +1,19 @@
-from pathlib import Path
 import argparse
 from collections import OrderedDict
+from pathlib import Path
 
 from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry import BaseApp
 from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg, sibling_path
-
-from .viewers import H5SearchView, FileInfoView
-
+from .viewers.file_info import FileInfoView
 
 class DataBrowser(BaseApp):
+    
     name = "DataBrowser"
-
-    def __init__(self, argv):
-        BaseApp.__init__(self, argv)
+    
+    def __init__(self, argv,dark_mode=False):
+        BaseApp.__init__(self, argv, dark_mode)
         self.setup()
         parser = argparse.ArgumentParser()
         for lq in self.settings.as_list():
@@ -22,16 +21,20 @@ class DataBrowser(BaseApp):
         args = parser.parse_args()
         for lq in self.settings.as_list():
             if lq.name in args:
-                val = getattr(args, lq.name)
+                val = getattr(args,lq.name)
                 if val is not None:
                     lq.update_value(val)
 
     def setup(self):
         self.views = OrderedDict()
-        self.current_view = None
 
         self.plugin_update_funcs = []
-        self.ctrl_keys = {QtCore.Qt.Key_R: self.on_rename}
+        self.keys = {
+            QtCore.Qt.Key_Delete: self.on_recycle,
+        }
+        self.ctrl_keys = {
+            QtCore.Qt.Key_R: self.on_rename,
+        }
 
         s = self.settings
         s.New("data_filename", dtype="file")
@@ -43,13 +46,12 @@ class DataBrowser(BaseApp):
             initial=True,
             description="auto selects the view when file name is changed.",
         )
-        s.New("view_name", dtype=str, initial="0", choices=("0",))
+        s.New("view_name", dtype=str, initial="file_info", choices=("0",))
 
         self.setup_ui()
 
-        # add default views
-        self.add_view(FileInfoView(self))
-        self.settings["view_name"] = "file_info"
+        self.current_view = self.add_view(FileInfoView(self))
+        self.setup_view(self.current_view)
 
         # add callbacks
         s.data_filename.add_listener(self.on_change_data_filename)
@@ -61,31 +63,17 @@ class DataBrowser(BaseApp):
         s.file_filter.add_listener(self.on_change_file_filter)
         s.view_name.add_listener(self.on_change_view_name)
 
-        self.ui.keyPressEvent = self.handle_key_board
-
-    def handle_key_board(self, event):
-        if event.key == QtCore.Qt.Key_Delete:
-            print("delete key pressed")
-
-        if event.modifiers() != QtCore.Qt.ControlModifier:
-            return
-
-        func = self.ctrl_keys.get(event.key(), None)
-        if func is not None:
-            func()
 
     def setup_ui(self):
         self.ui = load_qt_ui_from_pkg("ScopeFoundry.data_browser", "data_browser.ui")
 
         self.ui.setWindowTitle("ScopeFoundry: Data Browser")
 
-        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2C_1024.png"))
-        self.qtapp.setWindowIcon(logo_icon)
-        self.ui.setWindowIcon(logo_icon)
+        logo_path = sibling_path(__file__, "logo.png")
+        self.set_logo(logo_path)
 
         # file system tree
-        self.tree_view = TreeView(self.on_recycle, self.on_rename)
-        self.ui.file_system_layout.insertWidget(2, self.tree_view)
+        self.tree_view = self.ui.treeView
         self.fs_model = QtWidgets.QFileSystemModel()
         self.fs_model.setRootPath(QtCore.QDir.currentPath())
         self.tree_view.setModel(self.fs_model)
@@ -117,93 +105,108 @@ class DataBrowser(BaseApp):
         self.ui.show()
         self.ui.raise_()
 
+        self.ui.keyPressEvent = self.handle_key_board
+
+    def set_logo(self, logo_path):
+        logo_icon = QtGui.QIcon(logo_path)
+        self.qtapp.setWindowIcon(logo_icon)
+        self.ui.setWindowIcon(logo_icon)
+
+    def handle_key_board(self, event):
+        if event.modifiers() != QtCore.Qt.ControlModifier:
+            func = self.keys.get(event.key(), None)
+            if func is not None:
+                func()
+            return
+
+        func = self.ctrl_keys.get(event.key(), None)
+        if func is not None:
+            func()
+
     def add_view(self, new_view):
-        print("loading view", repr(new_view.name))
-        self.log.debug("load_view called {}".format(new_view))
+        self.log.debug("add_view called {}".format(new_view))
 
         # Update views dict
         self.views[new_view.name] = new_view
         self.settings.view_name.change_choice_list(list(self.views.keys()))
 
-        self.log.debug("load_view done {}".format(new_view))
+        self.log.debug("add_view done {}".format(new_view))
+        print("added view", repr(new_view.name))
 
         return new_view
 
     def add_plugin(self, plugin):
-        self.ui.plugin_buttons_layout.addWidget(plugin.get_hide_show_button())
+        self.ui.plugin_buttons_layout.addWidget(plugin.get_show_hide_button())
         self.plugin_update_funcs.append(plugin.update_if_showing)
         self.ctrl_keys[plugin.show_keyboard_key] = plugin.toggle_show_hide
+
+    def load_view(self, new_view):
+        # deprecated use DataBrowser.add_view(new_view) instead
+        self.add_view(new_view)
+
+    def on_change_data_filename(self):
+        fname = self.settings["data_filename"]
+        if not Path(fname).is_file():
+            print("invalid data_filename", fname)
+            return
+
+        print("file", fname)
+
+        # select view
+        if self.settings["auto_select_view"]:
+            view_name = self.auto_select_view(fname)
+            if view_name != self.current_view.name:
+                self.settings["view_name"] = view_name
+                self.setup_view(self.views[view_name])
+
+        self.current_view.on_change_data_filename(fname)
 
     def on_change_data_filename_handle_plugins(self):
         fname = self.settings["data_filename"]
         for func in self.plugin_update_funcs:
             func(fname)
 
-    def load_view(self, new_view):
-        # deprecated use DataBrowser.add_view(new_view) instead
-        self.add_view(new_view)
-
-    def load_view_ui(self, view):
-        if view.view_loaded:
-            # view is already set-up / loaded
-            return
-
-        print(f"setting up view {self.current_view.name}")
-        view.setup()
-        self.ui.data_view_layout.addWidget(view.ui)
-        view.view_loaded = True
-
-    def on_change_data_filename(self):
-        fname = self.settings["data_filename"]
-        if fname == "0":
-            print("initial file 0")
-            return
-        else:
-            print("file", fname)
-
-        # select view
-        if self.settings["auto_select_view"]:
-            view_name = self.auto_select_view(fname)
-            if self.current_view is None or view_name != self.current_view.name:
-                self.settings["view_name"] = view_name
-        if Path(fname).is_file():
-            self.current_view.on_change_data_filename(fname)
-
     @QtCore.Slot()
     def on_change_browse_dir(self):
         self.log.debug("on_change_browse_dir")
-        self.tree_view.setRootIndex(self.fs_model.index(self.settings["browse_dir"]))
-        self.fs_model.setRootPath(self.settings["browse_dir"])
+        self.ui.treeView.setRootIndex(self.fs_model.index(self.settings['browse_dir']))
+        self.fs_model.setRootPath(self.settings['browse_dir'])
 
     def on_change_file_filter(self):
         self.log.debug("on_change_file_filter")
-        filter_str = self.settings["file_filter"]
+        filter_str = self.settings['file_filter']
         if filter_str == "":
             filter_str = "*"
-            self.settings["file_filter"] = "*"
-        filter_str_list = [x.strip() for x in filter_str.split(",")]
+            self.settings['file_filter'] = "*"
+        filter_str_list = [x.strip() for x in filter_str.split(',')]
         self.log.debug(filter_str_list)
         self.fs_model.setNameFilters(filter_str_list)
 
-    def on_change_view_name(self):
-        # hide previous view
-        if self.current_view:
-            self.current_view.ui.hide()
+    def setup_view(self, view):
+        if view.view_loaded:
+            return
+        view.setup()
+        self.ui.data_view_layout.addWidget(self.current_view.ui)
+        view.view_loaded = True
 
-        # show new view
+    def on_change_view_name(self):
+        # hide previous
+        self.current_view.ui.hide()
+
+        # setup, show new
         self.current_view = self.views[self.settings["view_name"]]
-        self.load_view_ui(self.current_view)
+        self.setup_view(self.current_view)
         self.current_view.ui.show()
 
-        # set data file for new (current) view
+        # udpate
         fname = self.settings["data_filename"]
         if Path(fname).is_file():
             self.current_view.on_change_data_filename(fname)
 
     def on_treeview_selection_change(self, sel, desel):
         fname = self.fs_model.filePath(self.tree_selectionModel.currentIndex())
-        self.settings["data_filename"] = fname
-        # print("on_treeview_selection_change", sel, desel)
+        self.settings['data_filename'] = fname
+#        print( 'on_treeview_selection_change' , fname, sel, desel)
 
     def auto_select_view(self, fname):
         "return the name of the last supported view for the given fname"
@@ -226,22 +229,6 @@ class DataBrowser(BaseApp):
 
         if dialog.new_name:
             Path(fname).rename(dialog.new_name)
-
-
-class TreeView(QtWidgets.QTreeView):
-    def __init__(self, delete_func, rename_func, parent=None) -> None:
-        QtWidgets.QTreeView.__init__(self, parent)
-        self.delete_func = delete_func
-        self.rename_func = rename_func
-
-    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
-        QtWidgets.QTreeView.keyPressEvent(self, event)
-
-        if event.key() == QtCore.Qt.Key_Delete:
-            self.delete_func()
-
-        elif event.key() == QtCore.Qt.Key_R:
-            self.rename_func()
 
 
 class RenameDialog(QtWidgets.QDialog):

@@ -79,10 +79,18 @@ import asyncio
 import sys
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    
+# Dark mode
+try:
+    import qdarktheme # pip install pyqtdarktheme
+    darktheme_available = True
+except Exception as err:
+    darktheme_available = False
+    print(f"pyqdarktheme unavailable: {err}")
 
 class BaseApp(QtCore.QObject):
     
-    def __init__(self, argv=[]):
+    def __init__(self, argv=[], dark_mode=False):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         
@@ -91,6 +99,9 @@ class BaseApp(QtCore.QObject):
         self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
             self.qtapp = QtWidgets.QApplication(argv)
+        
+        if dark_mode and darktheme_available:
+            qdarktheme.setup_theme()
         
         self.settings = LQCollection()
         
@@ -309,11 +320,11 @@ class BaseMicroscopeApp(BaseApp):
         #self.ui.exec_()
         self.ui.show()
 
-    def __init__(self, argv=[]):
+    def __init__(self, argv=[], dark_mode=False):
 
-        self._lq_paths = {}
+        self._setting_paths = {}
 
-        BaseApp.__init__(self, argv)
+        BaseApp.__init__(self, argv, dark_mode)
         
         log_dir = os.path.abspath(os.path.join('.', 'log'))
         if not os.path.isdir(log_dir):
@@ -356,7 +367,7 @@ class BaseMicroscopeApp(BaseApp):
                    
         self.setup()
         
-        self._setup_lq_paths()
+        self.setup_settings_paths()
 
         self.setup_default_ui()
         
@@ -461,7 +472,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.setWindowTitle(self.name)
 
         # Set Icon
-        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2_1024.png"))
+        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2B_1024.png"))
         self.qtapp.setWindowIcon(logo_icon)
         self.ui.setWindowIcon(logo_icon)
         
@@ -835,10 +846,10 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the h5 file.              
         ==============  =========  ====================================================================================
         """
-        lq_paths_dict = h5_io.load_lq_paths(fname)
+        settings = h5_io.load_settings(fname)
         # handle hardware connections first
-        self.write_protected({k:v for k,v in lq_paths_dict.items() if k.endswith("connected")})
-        self.write_protected(lq_paths_dict)
+        self.write_settings_safe({k:v for k,v in settings.items() if k.endswith("connected")})
+        self.write_settings_safe(settings)
     
     def settings_auto_save_ini(self):
         """
@@ -883,72 +894,82 @@ class BaseMicroscopeApp(BaseApp):
         if fname:
             self.save_window_positions_json(fname)
         
-    def get_lq(self, lq_path:str) -> LoggedQuantity:
+    def get_lq(self, path:str) -> LoggedQuantity:
         """
         returns the LoggedQuantity defined by a path string of the form 'section/[component/]setting'
         where section are "mm", "hw" or "app"
         """
-        parts = lq_path.split("/")
+        parts = path.split("/")
         section = parts[0]
         if section in ("HW", "hardware"):
-            lq_path = f"hw/{parts[1]}/{parts[2]}"
+            path = f"hw/{parts[1]}/{parts[2]}"
         elif section in ("measurement", "measure", "measurements"):
-            lq_path = f"mm/{parts[1]}/{parts[2]}"
-        if not lq_path in self._lq_paths:
+            path = f"mm/{parts[1]}/{parts[2]}"
+        if not path in self._setting_paths:
             print(f"WARNING: {'/'.join(parts)} does not exist")
         else:
-            return self._lq_paths[lq_path]
+            return self._setting_paths[path]
 
-    def write_value(self, lq_path:str, value):
-        self.get_lq(lq_path).update_value(value)
+    def write_setting(self, path:str, value):
+        self.get_lq(path).update_value(value)
 
-    def write_protected(self, lq_paths_dict):
+    def write_setting_safe(self, path:str, value):
+        lq = self.get_lq(path)
+        if lq is None or lq.protected:
+            return
+        lq.update_value(value)      
+
+    def write_settings_safe(self, settings):
         """
-        updates settings based on a dictionary, ignores protected logged quantities
+        updates settings based on a dictionary, silently ignores protected logged quantities and non-existing.  
 
         ==============  =========  ====================================================================================
         **Arguments:**  **Type:**  **Description:**
-        lq_paths_dict   dict       (lq_path, value) map
+        settings        dict       (path, value) map
         ==============  =========  ====================================================================================
         """
-        for lq_path, value in lq_paths_dict.items():
-            if self.get_lq(lq_path).protected:
-                continue
-            self.write_value(lq_path, value)
+        for path, value in settings.items():
+            self.write_setting_safe(path, value)
 
-    def read_value(self, lq_path:str, read_from_hardware=True):
-        lq = self.get_lq(lq_path)
+    def read_setting(self, path:str, read_from_hardware=True):
+        lq = self.get_lq(path)
         if read_from_hardware and lq.has_hardware_read:
             return lq.read_from_hardware()
         return lq.val
 
-    def _setup_lq_paths(self):
+    def setup_settings_paths(self):
         for hw_name, hw in self.hardware.items():
-            for lq_name, lq in hw.settings.as_dict().items():
-                self._add_lq_path(f"hw/{hw_name}/{lq_name}", lq)
-        for measure_name, measure in self.measurements.items():
-            for lq_name, lq in measure.settings.as_dict().items():
-                self._add_lq_path(f"mm/{measure_name}/{lq_name}", lq)
-        for lq_name, lq in self.settings.as_dict().items():
-            self._add_lq_path(f"app/{lq_name}", lq)
+            for name, lq in hw.settings.as_dict().items():
+                self.add_setting_path(f"hw/{hw_name}/{name}", lq)
+        for mm_name, mm in self.measurements.items():
+            for name, lq in mm.settings.as_dict().items():
+                self.add_setting_path(f"mm/{mm_name}/{name}", lq)
+        for name, lq in self.settings.as_dict().items():
+            self.add_setting_path(f"app/{name}", lq)
 
-    def _add_lq_path(self, lq_path:str, lq: LoggedQuantity):
-        lq.set_lq_path(lq_path)
-        self._lq_paths[lq_path] = lq
+    def add_setting_path(self, path:str, lq: LoggedQuantity):
+        lq.set_path(path)
+        self._setting_paths[path] = lq
+
+
+    def get_setting_paths(self, filter_has_hardware_read=False, filter_has_hardware_write=False):
+        if filter_has_hardware_read and filter_has_hardware_write:
+            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_read() or lq.has_hardware_write()]
+        if filter_has_hardware_read:
+            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_read()]
+        if filter_has_hardware_write:
+            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_write()]
+        return list(self._setting_paths.keys())
 
 
     def lq_path(self, path):
         warnings.warn("App.lq_path deprecated, use App.get_lq instead", DeprecationWarning)
         return self.get_lq(path)
 
-    def get_lq_paths(self, filter_has_hardware_read=False, filter_has_hardware_write=False):
-        if filter_has_hardware_read and filter_has_hardware_write:
-            return [path for path, lq in self._lq_paths.items() if lq.has_hardware_read() or lq.has_hardware_write()]
-        if filter_has_hardware_read:
-            return [path for path, lq in self._lq_paths.items() if lq.has_hardware_read()]
-        if filter_has_hardware_write:
-            return [path for path, lq in self._lq_paths.items() if lq.has_hardware_write()]
-        return list(self._lq_paths.keys())
+    def lq_paths_list(self):
+        warnings.warn("App.lq_paths_list deprecated, use App.get_settings_paths instead", DeprecationWarning)
+        return self.get_setting_paths()
+
         
     @property
     def hardware_components(self):

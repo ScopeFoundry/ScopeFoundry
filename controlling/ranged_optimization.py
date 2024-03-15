@@ -256,19 +256,19 @@ class RangedOptimization(Measurement):
     def read_f(self):
         x = 0.0
         for _ in range(self.settings["N_samples"]):
-            x += self.app.read_value(self.settings["f"])
+            x += self.app.read_setting(self.settings["f"])
             time.sleep(self.settings["sampling_period"])
 
         return x / self.settings["N_samples"]
 
     def write_z_target(self, value, timeout=0, msg=None):
-        self.app.write_value(self.settings["z"], value)
+        self.app.write_setting(self.settings["z"], value)
         if msg:
             print(msg)
         time.sleep(timeout)
 
     def read_z(self):
-        return self.app.read_value(self.z_read_path)
+        return self.app.read_setting(self.z_read_path)
 
     def update_z_read(self):
         s = self.settings
@@ -295,7 +295,7 @@ class RangedOptimization(Measurement):
             sec, hw_name, _ = lq_path.split("/")
             print(self.name, "setting",
                   "/".join([sec, hw_name, "connected"]), "to True")
-            self.app.write_value("/".join([sec, hw_name, "connected"]), True)
+            self.app.write_setting("/".join([sec, hw_name, "connected"]), True)
         except (ValueError, KeyError) as e:
             print(self.name, "could connect")
             print(e)
@@ -343,13 +343,13 @@ class RangedOptimization(Measurement):
         self.settings[name] = before
 
     def filter_choices(self):
-        self._set_choices("f", self.app.get_lq_paths(True, False))
-        self._set_choices("z", self.app.get_lq_paths(False, True))
+        self._set_choices("f", self.app.get_setting_paths(True, False))
+        self._set_choices("z", self.app.get_setting_paths(False, True))
         self._set_choices("z_read", [SAME_AS_Z] +
-                          self.app.get_lq_paths(True, False))
+                          self.app.get_setting_paths(True, False))
 
     def unfilter_choices(self):
-        choices = self.app.get_lq_paths()
+        choices = self.app.get_setting_paths()
         self._set_choices("f", choices)
         self._set_choices("z", choices)
         self._set_choices("z_read", [SAME_AS_Z] + choices)

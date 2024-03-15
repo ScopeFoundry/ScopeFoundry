@@ -1,5 +1,4 @@
 from __future__ import absolute_import, print_function
-# from typing import Protocol
 from qtpy import QtCore, QtWidgets, uic
 from collections import OrderedDict
 import os
@@ -246,16 +245,6 @@ def str2bool(v):
 
 def bool2str(v):
     return {False:'False', True:'True'}[v]
-
-
-# class LockProtocol(Protocol):
-#     def acquire(self): ...
-
-#     def release(self): ...
-
-#     def __enter__(self): ...
-
-#     def __exit__(self, *args): ...
 
 
 class DummyLock():
