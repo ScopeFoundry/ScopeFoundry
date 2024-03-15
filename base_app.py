@@ -49,11 +49,9 @@ except Exception as err:
 #from matplotlib.figure import Figure
 
 from .logged_quantity import LoggedQuantity, LQCollection
-
 from .helper_funcs import confirm_on_close, ignore_on_close, load_qt_ui_file, \
     OrderedAttrDict, sibling_path, get_logger_from_class, str2bool
-
-from . import h5_io
+from . import h5_io, ini_io
 
 #from equipment.image_display import ImageDisplay
 
@@ -755,35 +753,20 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the ini file.              
         ==============  =========  ==============================================
         """
-        config = configparser.ConfigParser(interpolation=None)
-        config.optionxform = str
-        if save_app:
-            config.add_section('app')
-            for lqname, lq in self.settings.as_dict().items():
-                print(lq.ini_string_value())                
-                config.set('app', lqname, lq.ini_string_value(), )
-        if save_hardware:
-            for hc_name, hc in self.hardware.items():
-                section_name = 'hardware/'+hc_name
-                config.add_section(section_name)
-                for lqname, lq in hc.settings.as_dict().items():
-                    if not lq.ro or save_ro:
-                        print(lq.ini_string_value())
-                        config.set(section_name, lqname, lq.ini_string_value())
-        if save_measurements:
-            for meas_name, measurement in self.measurements.items():
-                section_name = 'measurement/'+meas_name            
-                config.add_section(section_name)
-                for lqname, lq in measurement.settings.as_dict().items():
-                    if not lq.ro or save_ro:
-                        config.set(section_name, lqname, lq.ini_string_value())
-        with open(fname, 'w') as configfile:
-            config.write(configfile)
-        
-        self.log.info("ini settings saved to {} {}".format( fname, config.optionxform))
+        exclude_patterns = []
+        if not save_app:
+            exclude_patterns.append("app")
+        if not save_hardware:
+            exclude_patterns.append("measurement")
+        if not save_measurements:
+            exclude_patterns.append("hardware")
+        paths = self.get_setting_paths(exclude_patterns, exclude_ro = not save_ro)
 
+        settings = self.read_settings(paths)
+        ini_io.save_settings(fname, settings)
 
-        
+        self.log.info(f"ini settings saved to {fname} str")
+
     def settings_load_ini(self, fname, ignore_hw_connect=False):
         """
         ==============  =========  ==============================================
@@ -791,53 +774,13 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the ini file.              
         ==============  =========  ==============================================
         """
+        settings = ini_io.load_settings(fname)
+        if not ignore_hw_connect:
+            self.write_settings_safe({k:v for k,v in settings.items() if k.endswith("connected")})
+        self.write_settings_safe({k:v for k,v in settings.items() if not k.endswith("connected")})       
 
-        self.log.info("ini settings loading from {}".format(fname))
-        config = configparser.ConfigParser(interpolation=None)
-        #config = configparser.ConfigParser()
-        config.optionxform = str
-        config.read(fname)
-
-        if 'app' in config.sections():
-            for lqname, new_val in config.items('app'):
-                lq = self.settings.get_lq(lqname)
-                lq.update_value(new_val)
-
-        self.log.info("sections in ini: {}".format(config.sections()))
         
-        for hc_name, hc in self.hardware.items():
-            section_name = 'hardware/'+hc_name
-            self.log.info('settings section: {}'.format(section_name))
-            if section_name in config.sections():
-                for lqname, new_val in config.items(section_name):
-                    if lqname == 'connected':
-                        continue # skip connected setting, use it at the end
-                    try:
-                        self.log.info('settings update {} / {}-->{}'.format(section_name, lqname, new_val))
-                        lq = hc.settings.get_lq(lqname)
-                        if not lq.ro:
-                            lq.update_value(new_val)
-                    except Exception as err:
-                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
-                
-                if 'connected' in config[section_name] and not ignore_hw_connect:
-                    hc.settings['connected'] = config[section_name]['connected']
-                        
-        for meas_name, measurement in self.measurements.items():
-            section_name = 'measurement/'+meas_name            
-            if section_name in config.sections():
-                for lqname, new_val in config.items(section_name):
-                    try:
-                        lq = measurement.settings.get_lq(lqname)
-                        if not lq.ro:
-                            lq.update_value(new_val)
-                    except Exception as err:
-                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
-                            
-        
-        self.log.info("ini settings loaded from: {}".format(fname))
-        
-    def settings_load_h5(self, fname):
+    def settings_load_h5(self, fname, ignore_hw_connect=False):
         """
         Loads h5 settings given a filename.
 
@@ -847,9 +790,9 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ====================================================================================
         """
         settings = h5_io.load_settings(fname)
-        # handle hardware connections first
-        self.write_settings_safe({k:v for k,v in settings.items() if k.endswith("connected")})
-        self.write_settings_safe(settings)
+        if not ignore_hw_connect:
+            self.write_settings_safe({k:v for k,v in settings.items() if k.endswith("connected")})
+        self.write_settings_safe({k:v for k,v in settings.items() if not k.endswith("connected")})
     
     def settings_auto_save_ini(self):
         """
