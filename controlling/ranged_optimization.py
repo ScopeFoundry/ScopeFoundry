@@ -168,35 +168,18 @@ class RangedOptimization(Measurement):
         d = self.data = mk_data_dict(
             s["z_center"], s["z_span"], s["z_num"], z_ori)
 
+        self.ii = 0
+        self.total_dpt = (1 + 2 * s["use_fine_optimization"]) * s["z_num"]
+
         # coarse sweep
-        z_coarse = d["z_coarse"]
-        self.write_z_target(z_coarse[0], s["z_span_travel_time"])
-        for i, z in enumerate(z_coarse):
-            self.set_progress(i * 100.0 / s["z_num"] / 3)
-            self.write_z_target(z, s["z_span_travel_time"] / s["z_num"])
-            d["f_coarse"][i] = self.read_f()
-            d["z0"] = d["z0_coarse"] = z_coarse[np.argmax(d["f_coarse"])]
-            if self.interrupt_measurement_called:
-                break
+        self.sweep("coarse")
 
         # fine sweep
         if s["use_fine_optimization"] and not self.interrupt_measurement_called:
             r = self.settings["coarse_to_fine_span_ratio"]
-            z_fine = self.data["z_fine"] = mk_z_array(
-                d["z0_coarse"], s["z_span"] / r, 2 * s["z_num"])
-            self.data["f_fine"] = np.ones_like(
-                self.data["z_fine"]) * max(self.data["f_coarse"])
-
-            self.write_z_target(
-                self.data["f_fine"][0], s["z_span_travel_time"])
-            for i, z in enumerate(z_fine):
-                self.set_progress((s["z_num"] + i) * 100.0 / s["z_num"] / 3)
-                self.write_z_target(
-                    z, s["z_span_travel_time"] / s["z_num"] / 4)
-                self.data["f_fine"][i] = self.read_f()
-                d["z0"] = d["z0_fine"] = z_fine[np.argmax(self.data["f_fine"])]
-                if self.interrupt_measurement_called:
-                    break
+            d["z_fine"] = mk_z_array(d["z0_coarse"], s["z_span"] / r, 2 * s["z_num"])
+            d["f_fine"] = np.ones_like(d["z_fine"]) * max(d["f_coarse"])
+            self.sweep("fine")
 
         # go to final position
         if self.interrupt_measurement_called:
@@ -216,7 +199,22 @@ class RangedOptimization(Measurement):
             self.update_history(d["z0"])
             self.save_h5()
             self.print_history()
-
+            
+    def sweep(self, name="coarse"):
+        s = self.settings
+        d = self.data
+        
+        self.write_z_target(d[f"z_{name}"][0], s["z_span_travel_time"])
+        for i, z in enumerate(d[f"z_{name}"]):
+            self.set_progress((self.ii + 1) * 100 / self.total_dpt)
+            self.write_z_target(
+                z, s["z_span_travel_time"] / s["z_num"] / 4)
+            d[f"f_{name}"][i] = self.read_f()
+            d["z0"] = d[f"z0_{name}"] = d[f"z_{name}"][np.argmax(d[f"f_{name}"])]
+            if self.interrupt_measurement_called:
+                break
+            self.ii += 1
+            
     def update_display(self):
         s = self.settings
         d = self.data
@@ -345,7 +343,7 @@ class RangedOptimization(Measurement):
     def filter_choices(self):
         self._set_choices("f", self.app.get_setting_paths(True, False))
         self._set_choices("z", self.app.get_setting_paths(False, True))
-        self._set_choices("z_read", [SAME_AS_Z] +
+        self._set_choices("z_read", [SAME_AS_Z] + 
                           self.app.get_setting_paths(True, False))
 
     def unfilter_choices(self):
