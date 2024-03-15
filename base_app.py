@@ -762,7 +762,7 @@ class BaseMicroscopeApp(BaseApp):
             exclude_patterns.append("hardware")
         paths = self.get_setting_paths(exclude_patterns, exclude_ro = not save_ro)
 
-        settings = self.read_settings(paths)
+        settings = self.read_settings(paths, ini_string_value=True)
         ini_io.save_settings(fname, settings)
 
         self.log.info(f"ini settings saved to {fname} str")
@@ -874,10 +874,12 @@ class BaseMicroscopeApp(BaseApp):
         for path, value in settings.items():
             self.write_setting_safe(path, value)
 
-    def read_setting(self, path:str, read_from_hardware=True):
+    def read_setting(self, path:str, read_from_hardware=True, ini_string_value=False):
         lq = self.get_lq(path)
         if read_from_hardware and lq.has_hardware_read:
-            return lq.read_from_hardware()
+            lq.read_from_hardware()
+        if ini_string_value:
+            return lq.ini_string_value()
         return lq.val
 
     def setup_settings_paths(self):
@@ -911,7 +913,7 @@ class BaseMicroscopeApp(BaseApp):
             paths = (path for path in paths if not any(pattern in path for pattern in exclude_patterns))        
         return list(paths)
     
-    def read_settings(self, paths=None, read_from_hardware=False):
+    def read_settings(self, paths=None, read_from_hardware=False, ini_string_value=False):
         """returns a dictionary (path, value):
         ================== =========  =============================================================================
         **Arguments:**     **Type:**  **Description:**
@@ -920,7 +922,7 @@ class BaseMicroscopeApp(BaseApp):
         ================== =========  =============================================================================
         """
         paths = self.get_setting_paths() if paths is None else paths
-        return {p:self.read_setting(p, read_from_hardware) for p in paths}
+        return {p:self.read_setting(p, read_from_hardware, ini_string_value) for p in paths}
 
     def lq_path(self, path):
         warnings.warn("App.lq_path deprecated, use App.get_lq instead", DeprecationWarning)
