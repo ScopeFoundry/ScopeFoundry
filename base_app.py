@@ -952,15 +952,21 @@ class BaseMicroscopeApp(BaseApp):
         self._setting_paths[path] = lq
 
 
-    def get_setting_paths(self, filter_has_hardware_read=False, filter_has_hardware_write=False):
+    def get_setting_paths(self, filter_has_hardware_read=False, filter_has_hardware_write=False, exclude_patterns=None, exclude_ro=False):        
         if filter_has_hardware_read and filter_has_hardware_write:
-            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_read() or lq.has_hardware_write()]
-        if filter_has_hardware_read:
-            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_read()]
-        if filter_has_hardware_write:
-            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_write()]
-        return list(self._setting_paths.keys())
-
+            paths = (path for path, lq in self._setting_paths.items() if lq.has_hardware_read() or lq.has_hardware_write())
+        elif filter_has_hardware_read:
+            paths = (path for path, lq in self._setting_paths.items() if lq.has_hardware_read())
+        elif filter_has_hardware_write:
+            paths = (path for path, lq in self._setting_paths.items() if lq.has_hardware_write())
+        else:
+            paths = self._setting_paths.keys()
+        if exclude_ro:
+            ro_paths = [path for path in paths if self.get_lq(path).ro]
+            exclude_patterns = ro_paths if not exclude_patterns else list(exclude_patterns) + ro_paths
+        if exclude_patterns:
+            paths = (path for path in paths if not any(pattern in path for pattern in exclude_patterns))        
+        return list(paths)
 
     def lq_path(self, path):
         warnings.warn("App.lq_path deprecated, use App.get_lq instead", DeprecationWarning)
