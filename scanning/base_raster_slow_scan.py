@@ -102,7 +102,7 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                     if self.settings['save_h5']:
                         self.pixel_time_h5[kk, jj, ii] = pixel_t0
                     self.collect_pixel(self.pixel_i, kk, jj, ii)
-                    S['progress'] = 100.0*self.pixel_i / (self.Npixels)
+                    self.set_progress(100.0*self.pixel_i / (self.Npixels))
             except Exception as err:
                 self.last_err = err
                 self.log.error('Failed to Scan {}'.format(repr(err)))
