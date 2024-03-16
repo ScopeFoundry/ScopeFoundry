@@ -892,7 +892,6 @@ class BaseMicroscopeApp(BaseApp):
         lq.set_path(path)
         self._setting_paths[path] = lq
 
-
     def get_setting_paths(self, filter_has_hardware_read=False, filter_has_hardware_write=False, exclude_patterns=None, exclude_ro=False):        
         if filter_has_hardware_read and filter_has_hardware_write:
             paths = (path for path, lq in self._setting_paths.items() if lq.has_hardware_read() or lq.has_hardware_write())
@@ -925,18 +924,19 @@ class BaseMicroscopeApp(BaseApp):
         return self.get_lq(path)
 
     def lq_paths_list(self):
-        warnings.warn("App.lq_paths_list deprecated, use App.get_settings_paths instead", DeprecationWarning)
+        warnings.warn("App.lq_paths_list deprecated, use App.get_setting_paths instead", DeprecationWarning)
         return self.get_setting_paths()
-
         
     @property
     def hardware_components(self):
         warnings.warn("App.hardware_components deprecated, used App.hardware", DeprecationWarning)
         return self.hardware
+
     @property
     def measurement_components(self):
         warnings.warn("App.measurement_components deprecated, used App.measurements", DeprecationWarning)
         return self.measurements
+    
     @property
     def logged_quantities(self):
         warnings.warn('app.logged_quantities deprecated use app.settings', DeprecationWarning)
