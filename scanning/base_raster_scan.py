@@ -133,8 +133,7 @@ class BaseRaster2DScan(Measurement):
         self.settings.show_previous_scans.add_listener(
             self.show_hide_previous_scans, argtype=(bool),)
         
-        self.ui.start_pushButton.clicked.connect(self.start)
-        self.ui.interrupt_pushButton.clicked.connect(self.interrupt)
+        self.activation.connect_to_pushButton(self.ui.start_pushButton)
 
         self.h0.connect_to_widget(self.ui.h0_doubleSpinBox)
         self.h1.connect_to_widget(self.ui.h1_doubleSpinBox)
@@ -725,8 +724,7 @@ class BaseRaster3DScan(Measurement):
         self.scan_type.updated_value.connect(self.compute_scan_params)
         
         #connect events
-        self.ui.start_pushButton.clicked.connect(self.start)
-        self.ui.interrupt_pushButton.clicked.connect(self.interrupt)
+        self.activation.connect_to_pushButton(self.ui.start_pushButton)
 
         self.h0.connect_to_widget(self.ui.h0_doubleSpinBox)
         self.h1.connect_to_widget(self.ui.h1_doubleSpinBox)
