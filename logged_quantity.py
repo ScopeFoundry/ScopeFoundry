@@ -88,8 +88,14 @@ class LoggedQuantity(QtCore.QObject):
             dtype = int
         elif dtype in ['float', 'float32']:
             dtype = float
-        
+
         self.dtype = dtype
+
+        # choices should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
+        self.choices = self._expand_choices(choices)
+        if self.choices and not initial in (x[1] for x in self.choices):
+            initial = self.choices[0][1]
+        
         self.val = dtype(initial)
         self.hardware_read_func = None
         self.hardware_set_func = None
@@ -100,8 +106,8 @@ class LoggedQuantity(QtCore.QObject):
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
-        # choices should be tuple [ ('name', val) ... ] or simple list [val, val, ...]
-        self.choices = self._expand_choices(choices) 
+
+        # self.change_choice_list(choices)
         self.ro = ro # Read-Only
         self.is_array = False
         self.description = description
