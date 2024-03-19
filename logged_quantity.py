@@ -903,69 +903,81 @@ class LoggedQuantity(QtCore.QObject):
         self.updated_value[(self.dtype)].connect(lq.update_value)
         lq.updated_value[(lq.dtype)].connect(self.update_value)
         
-    
-    def change_choice_list(self, choices):
-        #widget = self.widget
+    def change_choice_list(self, choices, new_val=None):
+        """       
+        =============  =================================================
+        **Arguments**  **Description**
+        *choices*      list of new choices
+                       Either of the form [val_1, val_2, ...]
+                       or [(name_1, val_1), ...]
+        *new_val*      the value that is set after choices have been 
+                       changed. If None, the previous value is retained, 
+                       otherwise the last element of *choices*.
+        =============  =================================================   
+        """
+
         with self.lock:
             self.choices = self._expand_choices(choices)
-            
             for widget in self.widget_list:
-                if type(widget) == QtWidgets.QComboBox:
-                    # need to have a choice list to connect to a QComboBox
-                    assert self.choices is not None 
-                    try:
-                        widget.blockSignals(True)
-                        widget.clear() # removes all old choices
-                        for choice_name, choice_value in self.choices:
-                            widget.addItem(choice_name, choice_value)
-                    finally:
-                        widget.blockSignals(False)
-                else:
-                    raise RuntimeError("Invalid widget type.")
+                if not isinstance(widget, QtWidgets.QComboBox):
+                    continue
+                widget.blockSignals(True)
+                widget.clear()
+                if self.choices is not None:
+                    for choice_name, choice_value in self.choices:
+                        widget.addItem(choice_name, choice_value)
+                widget.blockSignals(False)
+    
+        if not self.choices:
+            return
         
+        # set a value
+        if new_val is None:
+            new_val = self.val
+        values = [x[1] for x in self.choices]
+        if not new_val in values:
+            new_val = values[0]
+        self.update_value(new_val)
+
         self.send_display_updates(force=True)
-        
     
     def add_choices(self, choices, allow_duplicates=False, new_val=None):
         if not isinstance(choices, (list, tuple)):
             choices = [choices]
-        choices = self._expand_choices(choices)
-        if not allow_duplicates:
-            choices = list( set(choices) - set(self.choices) )
-        if len(choices) > 0:
-            new_choices_list = self.choices + choices
-            self.change_choice_list(new_choices_list)
-            if new_val is None:
-                new_val = new_choices_list[-1][1]
-            self.update_value(new_val)
-            return True
-        else:
+        if len(choices) <= 0:
             return False
         
+        choices = self._expand_choices(choices)
+        if allow_duplicates:
+            new_choices = self.choices + choices
+        else:
+            new_choices = list(set(self.choices + choices))
+
+        if new_val is None:
+            new_val = self.val
+
+        self.change_choice_list(new_choices, new_val)       
+        return True
+
     def remove_choices(self, choices, new_val=None):
-        '''
-        *choices*   list of choices to be removed.
-        *new_val*   the value the function tries to update to (if still exists)
-                    if None (default), *new_val* is replaced by current value.
-        '''
-        v0 = self.val
+        """       
+        =============  =================================================
+        **Arguments**  **Description**
+        *choices*      list of choices to be removed. 
+                       Either of the form [val_1, val_2, ...]
+                       or [(name_1, val_1), ...]
+                       
+        *new_val*      the value that is set after choices have been 
+                       changed. If None, the previous value is retained, 
+                       otherwise the last element of *choices*.
+        =============  =================================================        
+        """
         if not isinstance(choices, (list, tuple)):
             choices = [choices]
-        choices = self._expand_choices(choices)
-        new_choices_list = list( set(self.choices) - set(choices) )
-        if len(new_choices_list) < len(self.choices):
-            self.change_choice_list(new_choices_list)
-            if new_val == None:
-                new_val = v0
-            for c,v in new_choices_list:
-                if v==self.dtype(new_val):
-                    self.update_value(self.dtype(new_val))
-                    break
-                else:
-                    self.update_value(new_choices_list[-1][1])
-            return True
-        else:
-            return False
+        choices_2_remove = self._expand_choices(choices)
+        new_choices = list(set(self.choices) - set(choices_2_remove))       
+        self.change_choice_list(new_choices, new_val)
+        return True
     
     def change_min_max(self, vmin=-1e12, vmax=+1e12):
         # TODO  setRange should be a slot for the updated_min_max signal
