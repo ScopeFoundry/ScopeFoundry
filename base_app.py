@@ -5,8 +5,9 @@ Modified by Ed Barnard
 UI enhancements by Ed Barnard, Alan Buckley
 '''
 from __future__ import print_function, division, absolute_import
+from pathlib import Path
 
-import sys, os
+import sys
 import time
 import datetime
 import numpy as np
@@ -49,11 +50,9 @@ except Exception as err:
 #from matplotlib.figure import Figure
 
 from .logged_quantity import LoggedQuantity, LQCollection
-
 from .helper_funcs import confirm_on_close, ignore_on_close, load_qt_ui_file, \
     OrderedAttrDict, sibling_path, get_logger_from_class, str2bool
-
-from . import h5_io
+from . import h5_io, ini_io
 
 #from equipment.image_display import ImageDisplay
 
@@ -76,7 +75,7 @@ sys.excepthook = log_unhandled_exception
 # To fix a bug with jupyter qtconsole for python 3.8
 # https://github.com/jupyter/notebook/issues/4613#issuecomment-548992047
 import asyncio
-import sys
+
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     
@@ -94,7 +93,9 @@ class BaseApp(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         
-        self.this_dir, self.this_filename = os.path.split(__file__)
+        path = Path(__file__)
+        self.this_path = path.parent
+        self.this_filename = path.name
 
         self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
@@ -326,22 +327,21 @@ class BaseMicroscopeApp(BaseApp):
 
         BaseApp.__init__(self, argv, dark_mode)
         
-        log_dir = os.path.abspath(os.path.join('.', 'log'))
-        if not os.path.isdir(log_dir):
-            os.makedirs(log_dir)
-        self.log_file_handler = logging.FileHandler(
-            os.path.join(log_dir,"{}_log_{:%y%m%d_%H%M%S}.txt".format(self.name, datetime.datetime.fromtimestamp(time.time()))))
+        log_path = Path.cwd() / 'log'
+        if not log_path.is_dir():
+            log_path.mkdir()
+        log_fname = str(log_path / "{}_log_{:%y%m%d_%H%M%S}.txt".format(self.name, datetime.datetime.fromtimestamp(time.time())))
+        self.log_file_handler = logging.FileHandler(log_fname)
         formatter = logging.Formatter('%(asctime)s|%(levelname)s|%(name)s|%(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
         self.log_file_handler.setFormatter(formatter)
 
         logging.getLogger().addHandler(self.log_file_handler)
         
-        initial_data_save_dir = os.path.abspath(os.path.join('.', 'data'))
-        if not os.path.isdir(initial_data_save_dir):
-            os.makedirs(initial_data_save_dir)
+        initial_save_path = Path.cwd() / 'data'
+        if not initial_save_path.is_dir():
+            initial_save_path.mkdir()
         
-        
-        self.settings.New('save_dir', dtype='file', is_dir=True, initial=initial_data_save_dir)
+        self.settings.New('save_dir', dtype='file', is_dir=True, initial=initial_save_path.as_posix())
         self.settings.New('sample', dtype=str, initial='')
         self.settings.New('data_fname_format', dtype=str,
                           initial='{timestamp:%y%m%d_%H%M%S}_{measurement.name}.{ext}')
@@ -372,9 +372,7 @@ class BaseMicroscopeApp(BaseApp):
         self.setup_default_ui()
         
         self.setup_ui()
-
-
-        
+      
         
 
     def setup_default_ui(self):
@@ -742,7 +740,6 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the h5 file.              
         ==============  =========  =============================================
         """
-        from . import h5_io
         with h5_io.h5_base_file(self, fname) as h5_file:
             for measurement in self.measurements.values():
                 h5_io.h5_create_measurement_group(measurement, h5_file)
@@ -755,35 +752,20 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the ini file.              
         ==============  =========  ==============================================
         """
-        config = configparser.ConfigParser(interpolation=None)
-        config.optionxform = str
-        if save_app:
-            config.add_section('app')
-            for lqname, lq in self.settings.as_dict().items():
-                print(lq.ini_string_value())                
-                config.set('app', lqname, lq.ini_string_value(), )
-        if save_hardware:
-            for hc_name, hc in self.hardware.items():
-                section_name = 'hardware/'+hc_name
-                config.add_section(section_name)
-                for lqname, lq in hc.settings.as_dict().items():
-                    if not lq.ro or save_ro:
-                        print(lq.ini_string_value())
-                        config.set(section_name, lqname, lq.ini_string_value())
-        if save_measurements:
-            for meas_name, measurement in self.measurements.items():
-                section_name = 'measurement/'+meas_name            
-                config.add_section(section_name)
-                for lqname, lq in measurement.settings.as_dict().items():
-                    if not lq.ro or save_ro:
-                        config.set(section_name, lqname, lq.ini_string_value())
-        with open(fname, 'w') as configfile:
-            config.write(configfile)
-        
-        self.log.info("ini settings saved to {} {}".format( fname, config.optionxform))
+        exclude_patterns = []
+        if not save_app:
+            exclude_patterns.append("app")
+        if not save_hardware:
+            exclude_patterns.append("measurement")
+        if not save_measurements:
+            exclude_patterns.append("hardware")
+        paths = self.get_setting_paths(exclude_patterns, exclude_ro = not save_ro)
 
+        settings = self.read_settings(paths, ini_string_value=True)
+        ini_io.save_settings(fname, settings)
 
-        
+        self.log.info(f"ini settings saved to {fname} str")
+
     def settings_load_ini(self, fname, ignore_hw_connect=False):
         """
         ==============  =========  ==============================================
@@ -791,53 +773,13 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the ini file.              
         ==============  =========  ==============================================
         """
+        settings = ini_io.load_settings(fname)
+        if not ignore_hw_connect:
+            self.write_settings_safe({k:v for k,v in settings.items() if k.endswith("connected")})
+        self.write_settings_safe({k:v for k,v in settings.items() if not k.endswith("connected")})       
 
-        self.log.info("ini settings loading from {}".format(fname))
-        config = configparser.ConfigParser(interpolation=None)
-        #config = configparser.ConfigParser()
-        config.optionxform = str
-        config.read(fname)
-
-        if 'app' in config.sections():
-            for lqname, new_val in config.items('app'):
-                lq = self.settings.get_lq(lqname)
-                lq.update_value(new_val)
-
-        self.log.info("sections in ini: {}".format(config.sections()))
         
-        for hc_name, hc in self.hardware.items():
-            section_name = 'hardware/'+hc_name
-            self.log.info('settings section: {}'.format(section_name))
-            if section_name in config.sections():
-                for lqname, new_val in config.items(section_name):
-                    if lqname == 'connected':
-                        continue # skip connected setting, use it at the end
-                    try:
-                        self.log.info('settings update {} / {}-->{}'.format(section_name, lqname, new_val))
-                        lq = hc.settings.get_lq(lqname)
-                        if not lq.ro:
-                            lq.update_value(new_val)
-                    except Exception as err:
-                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
-                
-                if 'connected' in config[section_name] and not ignore_hw_connect:
-                    hc.settings['connected'] = config[section_name]['connected']
-                        
-        for meas_name, measurement in self.measurements.items():
-            section_name = 'measurement/'+meas_name            
-            if section_name in config.sections():
-                for lqname, new_val in config.items(section_name):
-                    try:
-                        lq = measurement.settings.get_lq(lqname)
-                        if not lq.ro:
-                            lq.update_value(new_val)
-                    except Exception as err:
-                        self.log.info("-->Failed to load config for {}/{}, new val {}: {}".format(section_name, lqname, new_val, repr(err)))
-                            
-        
-        self.log.info("ini settings loaded from: {}".format(fname))
-        
-    def settings_load_h5(self, fname):
+    def settings_load_h5(self, fname, ignore_hw_connect=False):
         """
         Loads h5 settings given a filename.
 
@@ -847,27 +789,24 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ====================================================================================
         """
         settings = h5_io.load_settings(fname)
-        # handle hardware connections first
-        self.write_settings_safe({k:v for k,v in settings.items() if k.endswith("connected")})
-        self.write_settings_safe(settings)
+        if not ignore_hw_connect:
+            self.write_settings_safe({k:v for k,v in settings.items() if k.endswith("connected")})
+        self.write_settings_safe({k:v for k,v in settings.items() if not k.endswith("connected")})
     
     def settings_auto_save_ini(self):
         """
-        Saves the ini file to the pre-defined directory with a time stamp in the filename.
+        Saves the ini file to app/save_dir directory with a time stamp in the filename.
         """
-        #fname = "%i_settings.h5" % time.time()
-        #self.settings_save_h5(fname)
-        self.settings_save_ini(os.path.join(self.settings['save_dir'], "%i_settings.ini" % time.time()))
+        fname = Path(self.settings["save_dir"]) / f"{datetime.datetime.now():%y%m%d_%H%M%S}_settings.ini"
+        self.settings_save_ini(fname)
 
     def settings_load_last(self):
         """
         Loads last saved ini file.
         """
-        import glob
-        #fname = sorted(glob.glob("*_settings.h5"))[-1]
-        #self.settings_load_h5(fname)
-        fname = sorted(glob.glob("*_settings.ini"))[-1]
-        self.settings_load_ini(fname)
+        fnames = Path.cwd().glob("*_settings.ini")
+        fnames.extend( Path(self.settings["save_dir"]).glob("*_settings.ini"))
+        self.settings_load_ini(sorted(fnames)[-1])
     
     
     def settings_save_dialog(self):
@@ -931,10 +870,12 @@ class BaseMicroscopeApp(BaseApp):
         for path, value in settings.items():
             self.write_setting_safe(path, value)
 
-    def read_setting(self, path:str, read_from_hardware=True):
+    def read_setting(self, path:str, read_from_hardware=True, ini_string_value=False):
         lq = self.get_lq(path)
         if read_from_hardware and lq.has_hardware_read:
-            return lq.read_from_hardware()
+            lq.read_from_hardware()
+        if ini_string_value:
+            return lq.ini_string_value()
         return lq.val
 
     def setup_settings_paths(self):
@@ -951,34 +892,51 @@ class BaseMicroscopeApp(BaseApp):
         lq.set_path(path)
         self._setting_paths[path] = lq
 
-
-    def get_setting_paths(self, filter_has_hardware_read=False, filter_has_hardware_write=False):
+    def get_setting_paths(self, filter_has_hardware_read=False, filter_has_hardware_write=False, exclude_patterns=None, exclude_ro=False):        
         if filter_has_hardware_read and filter_has_hardware_write:
-            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_read() or lq.has_hardware_write()]
-        if filter_has_hardware_read:
-            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_read()]
-        if filter_has_hardware_write:
-            return [path for path, lq in self._setting_paths.items() if lq.has_hardware_write()]
-        return list(self._setting_paths.keys())
-
+            paths = (path for path, lq in self._setting_paths.items() if lq.has_hardware_read() or lq.has_hardware_write())
+        elif filter_has_hardware_read:
+            paths = (path for path, lq in self._setting_paths.items() if lq.has_hardware_read())
+        elif filter_has_hardware_write:
+            paths = (path for path, lq in self._setting_paths.items() if lq.has_hardware_write())
+        else:
+            paths = self._setting_paths.keys()
+        if exclude_ro:
+            ro_paths = [path for path in paths if self.get_lq(path).ro]
+            exclude_patterns = ro_paths if not exclude_patterns else list(exclude_patterns) + ro_paths
+        if exclude_patterns:
+            paths = (path for path in paths if not any(pattern in path for pattern in exclude_patterns))        
+        return list(paths)
+    
+    def read_settings(self, paths=None, read_from_hardware=False, ini_string_value=False):
+        """returns a dictionary (path, value):
+        ================== =========  =============================================================================
+        **Arguments:**     **Type:**  **Description:**
+        paths              list[str]  paths to setting, if None(default) all paths are used
+        read_from_hardware bool       if True, values are read from hardware, else the current value is used
+        ================== =========  =============================================================================
+        """
+        paths = self.get_setting_paths() if paths is None else paths
+        return {p:self.read_setting(p, read_from_hardware, ini_string_value) for p in paths}
 
     def lq_path(self, path):
         warnings.warn("App.lq_path deprecated, use App.get_lq instead", DeprecationWarning)
         return self.get_lq(path)
 
     def lq_paths_list(self):
-        warnings.warn("App.lq_paths_list deprecated, use App.get_settings_paths instead", DeprecationWarning)
+        warnings.warn("App.lq_paths_list deprecated, use App.get_setting_paths instead", DeprecationWarning)
         return self.get_setting_paths()
-
         
     @property
     def hardware_components(self):
         warnings.warn("App.hardware_components deprecated, used App.hardware", DeprecationWarning)
         return self.hardware
+
     @property
     def measurement_components(self):
         warnings.warn("App.measurement_components deprecated, used App.measurements", DeprecationWarning)
         return self.measurements
+    
     @property
     def logged_quantities(self):
         warnings.warn('app.logged_quantities deprecated use app.settings', DeprecationWarning)
@@ -1033,19 +991,13 @@ class BaseMicroscopeApp(BaseApp):
         for name, M in self.measurements.items():
             if hasattr(M, 'ui'):
                 positions['measurement/'+name] = win_state_from_subwin(M.subwin)
-
-
-        
-        return positions 
+       
+        return positions
     
     def save_window_positions_json(self, fname):
-        import json
         positions = self.get_window_positions()
         with open(fname, 'w') as outfile:    
             json.dump(positions, outfile, indent=4)
-        import os
-        cwd = os.getcwd()
-        print(fname, cwd)
             
     def load_window_positions_json(self, fname):
         with open(fname, 'r') as infile:
@@ -1081,8 +1033,7 @@ class BaseMicroscopeApp(BaseApp):
             measurement=measurement,
             timestamp=datetime.datetime.fromtimestamp(t),
             ext=ext)
-        fname = os.path.join(self.settings['save_dir'], f)
-        return fname
+        return Path(self.settings['save_dir']) / f
 
 
 

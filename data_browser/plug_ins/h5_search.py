@@ -21,6 +21,8 @@ class H5SearchPlugIn(DataBrowserPlugIn):
         search_layout.addWidget(self.search_line)
 
         self.ui = QtWidgets.QWidget(objectName="SearchWidget")
+        self.ui.setMaximumHeight(1200)
+
         layout = QtWidgets.QVBoxLayout(self.ui)
         layout.addLayout(search_layout)
         layout.addWidget(self.text_edit)
@@ -39,13 +41,14 @@ class H5SearchPlugIn(DataBrowserPlugIn):
         self.new_search(search_text, fname)
 
     def new_search(self, search_text, fname):
-        x = search_text.lower()
-        if x == "":
+        # x = search_text.lower()
+        if search_text == "":
             text = "<br>".join(make_tree(fname))
         else:
-            text = "<br>".join(search_h5(fname, x))
+            text = "<br>".join(search_h5(fname, search_text))
             text = text.replace(
-                search_text, f"<font color='green'>{search_text}</font>"
+                search_text,
+                f"<font color='green'>{search_text}</font>",
             )
         self.text_edit.setText(text)
 
@@ -65,25 +68,31 @@ def search_h5(fname, search_text):
 
 
 def _search_visitfunc(name, node, results, priority_results, search_text):
-    if not (
-        search_text in name or any(search_text in attr for attr in node.attrs.keys())
-    ):
-        return
-
     if isinstance(node, h5py.Dataset):
+        if not search_text in name:
+            return
         try:
-            stats = f"min={min(node[:].ravel()):1.1f} max={max(node[:].ravel()):1.1f}"
+            vals = node[:].ravel()
+            if len(vals) < 4:
+                stats = str(vals)
+            else:
+                stats = f"min={min(vals):1.1f} max={max(vals):1.1f}"
         except ValueError:
             stats = ""
-        priority_results.append(f"<i>{name}, {node.shape}, {node.dtype}</i> {stats}")
+        res = f"<i>{name}, {node.shape}, {node.dtype}</i> {stats}"
 
-    elif name.endswith("settings"):
+        if search_text in res:
+            priority_results.append(res)
+        elif search_text.lower() in res.lower():
+            results.append(res)
+
+    if name.endswith("settings"):
         for key, val in node.attrs.items():
             units = node["units"].attrs[key] if key in node["units"].attrs else ""
             res = f"<b>{name.replace('settings', key)}</b>: {str(val)} {units}"
-            if search_text in key or search_text in name:
+            if search_text in res:
                 priority_results.append(res)
-            else:
+            elif search_text.lower() in res.lower():
                 results.append(res)
 
 

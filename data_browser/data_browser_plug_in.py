@@ -74,6 +74,7 @@ class DataBrowserPlugIn(QtCore.QObject):
     def on_show_toggle(self, show):
         if show:
             self.show()
+            self.update(self.new_fname)
         else:
             self.hide()
 
