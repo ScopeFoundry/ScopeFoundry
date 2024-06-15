@@ -64,6 +64,20 @@ class PIDFeedbackControl(Measurement):
             choices=(TIMEOUT, INDEF, ETOL_W_TIMEOUT, ETOL),
             description=f"condition for {self.name} to end.",
         )
+        s.New(
+            "min_plant_input",
+            float,
+            initial=-1e-99,
+            si=True,
+            description=f"minimum plant input value.",
+        )
+        s.New(
+            "max_plant_input",
+            float,
+            initial=1e-99,
+            si=True,
+            description=f"maximum plant input value.",
+        )
         s.New("save_h5", bool, initial=False)
         self.data = mk_data_dict(600, 1.0)
 
@@ -72,6 +86,7 @@ class PIDFeedbackControl(Measurement):
 
         ctr_layout = QtWidgets.QHBoxLayout()
         ctr_layout.addWidget(s.New_UI(("setpoint", "plant_input", "sensor")))
+        ctr_layout.addWidget(s.New_UI(("min_plant_input", "max_plant_input")))
         ctr_layout.addWidget(s.New_UI(("Kp", "Ki", "Kd")))
         ctr_layout.addWidget(s.New_UI(("terminate", "timeout", "error_tol")))
 
@@ -103,8 +118,13 @@ class PIDFeedbackControl(Measurement):
         from simple_pid.pid import PID  # pip install simple-pid (requires v>2)
 
         s = self.settings
-
-        pid = PID(s["Kp"], s["Ki"], s["Kd"], setpoint=s["setpoint"])
+        
+        pid = PID(Kp=s["Kp"],
+                  Ki=s["Ki"],
+                  Kd=s["Kd"],
+                  setpoint=s["setpoint"],
+                  starting_output=apply_min_max(self.app.get_lq(s["plant_input"]).val, s["min_plant_input"], s["max_plant_input"]),
+                  )
 
         ii = 0
         wrap_around = 600
@@ -116,7 +136,8 @@ class PIDFeedbackControl(Measurement):
             pid.tunings = s["Kp"], s["Ki"], s["Kd"]
             pid.setpoint = s["setpoint"]
             sensor_value = self.app.get_lq(s["sensor"]).read_from_hardware()
-            self.app.get_lq(s["plant_input"]).update_value(pid(sensor_value))
+            plant_input = apply_min_max(pid(sensor_value), s["min_plant_input"], s["max_plant_input"])
+            self.app.get_lq(s["plant_input"]).update_value(plant_input)
             s["error"] = 100.0 * (1 - sensor_value / s["setpoint"])
             lab_time = time.time() - t0
 
@@ -149,8 +170,9 @@ class PIDFeedbackControl(Measurement):
 
     def update_display(self):
         t = self.data["lab_times"]
-        self.sensor_values_plotline.setData(t, self.data["sensor_values"])
-        self.setpoints_plotline.setData(t, self.data["setpoints"])
+        indices = numpy.argsort(t)
+        self.sensor_values_plotline.setData(t[indices], self.data["sensor_values"][indices])
+        self.setpoints_plotline.setData(t[indices], self.data["setpoints"][indices])
 
     def update_choices(self):
         s = self.settings
@@ -163,8 +185,6 @@ class PIDFeedbackControl(Measurement):
         s.get_lq("plant_input").change_choice_list(self.app.get_setting_paths(False, True))
 
     def New_mini_UI(self):
-        from qtpy.QtWidgets import QSizePolicy
-
         s = self.settings
         cb = s.get_lq("activation").new_default_widget()
         cb.setText(self.name)
@@ -196,9 +216,13 @@ class PIDFeedbackControl(Measurement):
         h5_file.close()
 
 
+def apply_min_max(value, min_value, max_value):
+    return min(max(value, min_value), max_value)
+
+
 def mk_data_dict(N, setpoint):
     return {
         "setpoints": numpy.ones(N) * setpoint,
-        "sensor_values": numpy.zeros(N),
+        "sensor_values": numpy.ones(N) * numpy.nan,
         "lab_times": numpy.arange(N),
     }
