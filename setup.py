@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name = 'ScopeFoundry',
     
-    version = '1.4.0',
+    version = '1.4.1',
     
     description = 'a platform for laboratory equipment control and scientific data analysis',
     long_description =open('README.md', 'r').read(),
