@@ -1,3 +1,7 @@
+ScopeFoundry 1.4.2 2024-07-03
+
+	* Add CI/CD for GitHub to auto-build releases and publish to PyPI
+
 ScopeFoundry 1.4.1 2024-07-01
 
 	* Fixes bug with Data Browser and other sub-package imports (#47)
