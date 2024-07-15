@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name = 'ScopeFoundry',
     
-    version = '1.4.0',
+    version = '1.4.2',
     
     description = 'a platform for laboratory equipment control and scientific data analysis',
     long_description =open('README.md', 'r').read(),
@@ -20,7 +20,21 @@ setup(
 
     package_dir={'ScopeFoundry': '.'},
     
-    packages=['ScopeFoundry', 'ScopeFoundry.scanning','ScopeFoundry.examples','ScopeFoundry.graphics', 'ScopeFoundry.data_browser' ],
+    packages=['ScopeFoundry',
+              'ScopeFoundry.controlling',
+              'ScopeFoundry.data_browser',
+                  'ScopeFoundry.data_browser.viewers',
+                  'ScopeFoundry.data_browser.plug_ins',
+              'ScopeFoundry.examples',
+              'ScopeFoundry.graphics',
+              'ScopeFoundry.graphics.zoomable_map',
+              'ScopeFoundry.plugin_manager',  
+              'ScopeFoundry.plugin_manager.features',
+              'ScopeFoundry.plugin_manager.templates',
+              'ScopeFoundry.scanning',
+              'ScopeFoundry.sequencer',
+              'ScopeFoundry.sequencer.item_types',              
+            ],
     
     #packages=find_packages('.', exclude=['contrib', 'docs', 'tests']),
     #include_package_data=True,  
