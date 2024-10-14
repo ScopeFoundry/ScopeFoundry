@@ -13,7 +13,7 @@ from .helper_funcs import QLock, get_logger_from_class
 from .logged_quantity import LQCollection
 
 
-class HardwareComponent(QtCore.QObject):
+class HardwareComponent:
     """
     :class:`HardwareComponent`
 
@@ -23,15 +23,10 @@ class HardwareComponent(QtCore.QObject):
 
     """
 
-    connection_succeeded = QtCore.Signal()
-    connection_failed = QtCore.Signal()
-
     def __init__(self, app: BaseMicroscopeApp, debug: bool = False, name: str = None):
         """
         create new HardwareComponent attached to *app*
         """
-        super().__init__()
-
         if not hasattr(self, "name"):
             self.name = self.__class__.__name__
 
@@ -73,14 +68,17 @@ class HardwareComponent(QtCore.QObject):
 
         self.has_been_connected_once = False
 
-        self.is_connected = False
+        self.q_object = HardwareQObject()
+        self.connection_succeeded = self.q_object.connection_succeeded
+        self.connection_failed = self.q_object.connection_failed
 
-        self.connection_failed.connect(self.on_connection_failed)
-        self.connection_succeeded.connect(self.on_connection_succeeded)
+        self.add_operation("Reload Code", self.reload_code)
+        self.add_operation("Read from\nHardware", self.read_from_hardware)
 
-        self.add_operation("Reload_Code", self.reload_code)
+        self.q_object.connection_failed.connect(self.on_connection_failed)
+        self.q_object.connection_succeeded.connect(self.on_connection_succeeded)
+        self.connected.updated_value[bool].connect(self.enable_connection)
 
-    @QtCore.Slot(bool)
     def enable_connection(self, enable=True):
         if enable:
             try:
@@ -122,7 +120,6 @@ class HardwareComponent(QtCore.QObject):
                     print("threaded update failed", err)
                     time.sleep(1.0)
 
-    @QtCore.Slot()
     def read_from_hardware(self):
         """
         Read all settings (:class:`LoggedQuantity`) connected to hardware states
@@ -304,3 +301,10 @@ class HardwareComponent(QtCore.QObject):
         """
 
         raise NotImplementedError()
+
+
+class HardwareQObject(QtCore.QObject):
+
+    connection_succeeded = QtCore.Signal()
+    connection_failed = QtCore.Signal()
+
