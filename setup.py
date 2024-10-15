@@ -21,6 +21,7 @@ setup(
     package_dir={'ScopeFoundry': '.'},
     
     packages=['ScopeFoundry',
+              'ScopeFoundry.base_app',
               'ScopeFoundry.controlling',
               'ScopeFoundry.data_browser',
                   'ScopeFoundry.data_browser.viewers',
@@ -28,6 +29,7 @@ setup(
               'ScopeFoundry.examples',
               'ScopeFoundry.graphics',
               'ScopeFoundry.graphics.zoomable_map',
+              'ScopeFoundry.logged_quantity',
               'ScopeFoundry.plugin_manager',  
               'ScopeFoundry.plugin_manager.features',
               'ScopeFoundry.plugin_manager.templates',
