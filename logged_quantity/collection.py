@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from warnings import warn
 
 from qtpy import QtCore, QtWidgets
 
@@ -41,25 +42,77 @@ class LQCollection:
         self._logged_quantities = OrderedDict()
         self.ranges = OrderedDict()
         self.vectors = OrderedDict()
-
         self.log = get_logger_from_class(self)
         self.q_object = LQCollectionQObject(self)
         self.path = path
 
-    def New(self, name, dtype=float, **kwargs) -> LoggedQuantity:
+    def New(
+        self,
+        name: str,
+        dtype: type = float,
+        initial=0.0,
+        unit: str = None,
+        ro: bool = False,  # read only flag
+        si: bool = False,
+        choices=None,
+        spinbox_decimals: int = 2,
+        spinbox_step: float = 0.1,
+        vmin: float = -1e12,
+        vmax: float = +1e12,
+        description: str = None,
+        colors=None,
+        protected: bool = False,  # a guard that prevents from being updated, i.e. file loading
+        is_dir: bool = False,
+        default_dir: str = None,
+        reread_from_hardware_after_write: bool = False,
+        is_array: bool = False,
+        fmt="%g",
+        **kwargs,
+    ) -> LoggedQuantity:
         """
         Create a new LoggedQuantity with name and dtype
         """
+        if "array" in kwargs:
+            warn(
+                f"New(array=...) is deprecated, use New(is_array=...) instead. Seen in creation of setting {name}",
+                DeprecationWarning,
+            )
+            is_array = is_array or kwargs.pop("array", False)
 
-        is_array = kwargs.pop("array", False)
-        # self.log.debug("{} is_array? {}".format(name, is_array))
+        kwargs.update(
+            {
+                "initial": initial,
+                "unit": unit,
+                "si": si,
+                "ro": ro,
+                "choices": choices,
+                "vmin": vmin,
+                "vmax": vmax,
+                "fmt": fmt,
+                "description": description,
+                "protected": protected,
+            }
+        )
+
         if is_array:
             lq = ArrayLQ(name=name, dtype=dtype, **kwargs)
+        elif dtype == "file":
+            lq = FileLQ(
+                name=name,
+                default_dir=default_dir,
+                is_dir=is_dir,
+                **kwargs,
+            )
         else:
-            if dtype == "file":
-                lq = FileLQ(name=name, **kwargs)
-            else:
-                lq = LoggedQuantity(name=name, dtype=dtype, **kwargs)
+            lq = LoggedQuantity(
+                name=name,
+                dtype=dtype,
+                spinbox_decimals=spinbox_decimals,
+                spinbox_step=spinbox_step,
+                reread_from_hardware_after_write=reread_from_hardware_after_write,
+                colors=colors,
+                **kwargs,
+            )
 
         return self.Add(lq)
 
