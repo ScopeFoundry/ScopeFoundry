@@ -18,7 +18,7 @@ from ScopeFoundry.helper_funcs import (
     confirm_on_close,
     ignore_on_close,
 )
-from ScopeFoundry.logged_quantity import LQCollection, LoggedQuantity, new_tree
+from ScopeFoundry.logged_quantity import LoggedQuantity, new_tree
 
 
 from .base_app import BaseApp
@@ -40,8 +40,6 @@ class BaseMicroscopeApp(BaseApp):
 
     def __init__(self, argv=[], dark_mode=False):
         super().__init__(argv, dark_mode)
-
-        self._setting_paths = {}
 
         log_path = Path.cwd() / "log"
         if not log_path.is_dir():
@@ -96,8 +94,6 @@ class BaseMicroscopeApp(BaseApp):
 
         self.setup()
 
-        self.setup_settings_paths()
-
         self.setup_default_ui()
 
         self.setup_ui()
@@ -116,7 +112,7 @@ class BaseMicroscopeApp(BaseApp):
 
         # Tree
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
-        settings_layout: QtWidgets.QGridLayout = self.ui.tree_layout
+        settings_layout: QtWidgets.QVBoxLayout = self.ui.tree_layout
         settings_layout.addWidget(splitter)
 
         mm_tree = new_tree(self.measurements.values(), ["Measurements", "Value"])
@@ -395,6 +391,8 @@ class BaseMicroscopeApp(BaseApp):
 
         self.hardware.add(hw.name, hw)
 
+        self.add_lq_collection_to_settings_path(hw.settings)
+
         return hw
 
     def add_hardware_component(self, hw):
@@ -415,6 +413,8 @@ class BaseMicroscopeApp(BaseApp):
         assert not measure.name in self.measurements.keys()
 
         self.measurements.add(measure.name, measure)
+
+        self.add_lq_collection_to_settings_path(measure.settings)
 
         return measure
 
@@ -538,20 +538,6 @@ class BaseMicroscopeApp(BaseApp):
         elif fname.endswith(".h5"):
             self.settings_load_h5(fname)
 
-    def window_positions_load_dialog(self):
-        fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(
-            self.ui, "Open Window Position file", "", "position File (*.json)"
-        )
-        self.load_window_positions_json(fname)
-
-    def window_positions_save_dialog(self):
-        """Opens a save as ini dialogue in the app user interface."""
-        fname, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(
-            self.ui, "Save Window Position file", "", "position File (*.json)"
-        )
-        if fname:
-            self.save_window_positions_json(fname)
-
     def get_lq(self, path: str) -> LoggedQuantity:
         """
         returns the LoggedQuantity defined by a path string of the form 'section/[component/]setting'
@@ -565,29 +551,7 @@ class BaseMicroscopeApp(BaseApp):
             path = f"mm/{parts[1]}/{parts[2]}"
         if not path in self._setting_paths:
             print(f"WARNING: {'/'.join(parts)} does not exist")
-        else:
-            return self._setting_paths[path]
-
-    def write_setting(self, path: str, value):
-        self.get_lq(path).update_value(value)
-
-    def write_setting_safe(self, path: str, value):
-        lq = self.get_lq(path)
-        if lq is None or lq.protected:
-            return
-        lq.update_value(value)
-
-    def write_settings_safe(self, settings):
-        """
-        updates settings based on a dictionary, silently ignores protected logged quantities and non-existing.
-
-        ==============  =========  ====================================================================================
-        **Arguments:**  **Type:**  **Description:**
-        settings        dict       (path, value) map
-        ==============  =========  ====================================================================================
-        """
-        for path, value in settings.items():
-            self.write_setting_safe(path, value)
+        return self._setting_paths.get(path, None)
 
     def read_setting(self, path: str, read_from_hardware=True, ini_string_value=False):
         lq = self.get_lq(path)
@@ -596,27 +560,6 @@ class BaseMicroscopeApp(BaseApp):
         if ini_string_value:
             return lq.ini_string_value()
         return lq.val
-
-    def setup_settings_paths(self):
-        for hw_name, hw in self.hardware.items():
-            self.add_lq_collection_to_settings_path(hw.settings)
-        for mm_name, mm in self.measurements.items():
-            self.add_lq_collection_to_settings_path(mm.settings)
-        self.add_lq_collection_to_settings_path(self.settings)
-
-    def add_lq_collection_to_settings_path(self, settings: LQCollection):
-        settings.q_object.new_lq_added.connect(self.add_setting_path)
-        settings.q_object.lq_removed.connect(self.remove_setting_path)
-        for lq in settings.as_dict().values():
-            self.add_setting_path(lq)
-
-    def add_setting_path(self, lq: LoggedQuantity):
-        self._setting_paths[lq.path] = lq
-
-    def remove_setting_path(self, lq: LoggedQuantity):
-        if lq.path in self._setting_paths:
-            path = lq.path
-        self._setting_paths.pop(path)
 
     def get_setting_paths(
         self,
@@ -768,6 +711,20 @@ class BaseMicroscopeApp(BaseApp):
             positions = json.load(infile)
         self.set_window_positions(positions)
 
+    def window_positions_load_dialog(self):
+        fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(
+            self.ui, "Open Window Position file", "", "position File (*.json)"
+        )
+        self.load_window_positions_json(fname)
+
+    def window_positions_save_dialog(self):
+        """Opens a save as ini dialogue in the app user interface."""
+        fname, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(
+            self.ui, "Save Window Position file", "", "position File (*.json)"
+        )
+        if fname:
+            self.save_window_positions_json(fname)
+
     def generate_data_path(self, measurement, ext, t=None):
         if t is None:
             t = time.time()
@@ -782,26 +739,14 @@ class BaseMicroscopeApp(BaseApp):
     def propose_settings_values_from_file(self, fname=None):
         """
         Adds to proposed_values of LQs.
-        proposed_values can be inspected with right click corresponding widget
         """
         if fname is None:
             fname = self.settings["inspect file"]
-        fname = Path(fname)
-        ext = fname.suffix
-        if fname.exists() and ext in (".ini", ".h5"):
-            if ext == ".ini":
-                settings = ini_io.load_settings(fname)
-            elif ext == ".h5":
-                settings = h5_io.load_settings(fname)
-            self.propose_settings_values(fname.name, settings)
-
-    def propose_settings_values(self, name, settings):
-        """
-        Adds to proposed_values of LQs.
-        proposed_values can be inspected with right click corresponding widget
-        """
-        for path, val in settings.items():
-            lq = self.get_lq(path)
-            if lq is None:
-                continue
-            lq.propose_value(name, val)
+        path = Path(fname)
+        if not path.exists() or path.suffix not in (".ini", ".h5"):
+            return
+        if path.suffix == ".ini":
+            settings = ini_io.load_settings(path)
+        elif path.suffix == ".h5":
+            settings = h5_io.load_settings(path)
+        self.propose_settings_values(path.name, settings)
