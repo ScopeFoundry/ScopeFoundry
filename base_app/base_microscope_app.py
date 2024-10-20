@@ -5,6 +5,7 @@ import logging
 import time
 import warnings
 from collections import OrderedDict
+from functools import partial
 from pathlib import Path
 
 import pyqtgraph as pg
@@ -191,6 +192,12 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.action_save_window_positions.triggered.connect(
             self.window_positions_save_dialog
         )
+        self.ui.action_docs.triggered.connect(
+            partial(
+                self.launch_browser, url="https://www.scopefoundry.org/#documentation"
+            )
+        )
+        self.ui.action_about.triggered.connect(self.on_about)
 
         # Refer to existing ui object:
         self.menubar = self.ui.menuWindow
@@ -750,3 +757,30 @@ class BaseMicroscopeApp(BaseApp):
         elif path.suffix == ".h5":
             settings = h5_io.load_settings(path)
         self.propose_settings_values(path.name, settings)
+
+    def launch_browser(self, url):
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+
+    def on_about(self):
+
+        # There must be a better way to extract the version
+        version = ""
+        with open(Path(__file__).parent.parent / "setup.py") as f:
+            for l in f.readlines():
+                if "version" in l:
+                    import re
+
+                    version = ".".join(re.findall(r"\d+", l))
+                    break
+
+        readme = QtWidgets.QTextEdit()
+        with open(Path(__file__).parent.parent / "README.md") as f:
+            readme.setMarkdown(
+                f.read().replace("ScopeFoundry", f"ScopeFoundry {version}", 1)
+            )
+
+        dialog = QtWidgets.QDialog()
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(readme)
+        dialog.setLayout(layout)
+        dialog.exec_()
