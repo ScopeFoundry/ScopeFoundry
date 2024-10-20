@@ -501,39 +501,30 @@ class Measurement(QtCore.QObject):
         """
         self.app.bring_measure_ui_to_front(self)
 
+    def New_UI(
+        self,
+        include=None,
+        exclude=None,
+        style="form",
+        include_operations=None,
+        title=None,
+    ):
+
+        additional_widgets = {}
+
+        if include_operations is None:
+            include_operations = self.operations.keys()
+
+        for op_name in include_operations:
+            btn = QtWidgets.QPushButton(op_name)
+            btn.clicked.connect(self.operations[op_name])
+            additional_widgets[op_name] = btn
+
+        return self.settings.New_UI(include, exclude, style, additional_widgets, title)
+
     def new_control_widgets(self):
-
-        self.controls_groupBox = QtWidgets.QGroupBox(self.name)
-        self.controls_formLayout = QtWidgets.QFormLayout()
-        self.controls_groupBox.setLayout(self.controls_formLayout)
-
-        self.control_widgets = OrderedDict()
-        for lqname, lq in self.settings.as_dict().items():
-            #: :type lq: LoggedQuantity
-            if lq.choices is not None:
-                widget = QtWidgets.QComboBox()
-            elif lq.dtype in [int, float]:
-                if lq.si:
-                    widget = pg.SpinBox()
-                else:
-                    widget = QtWidgets.QDoubleSpinBox()
-            elif lq.dtype in [bool]:
-                widget = QtWidgets.QCheckBox()
-            elif lq.dtype in [str]:
-                widget = QtWidgets.QLineEdit()
-            lq.connect_to_widget(widget)
-
-            # Add to formlayout
-            self.controls_formLayout.addRow(lqname, widget)
-            self.control_widgets[lqname] = widget
-
-        self.op_buttons = OrderedDict()
-        for op_name, op_func in self.operations.items():
-            op_button = QtWidgets.QPushButton(op_name)
-            op_button.clicked.connect(op_func)
-            self.controls_formLayout.addRow(op_name, op_button)
-
-        return self.controls_groupBox
+        """use Measurement.New_UI for more control"""
+        return self.New_UI(None, None, "form", None, self.name)
 
     def add_widgets_to_tree(self, tree):
         """
