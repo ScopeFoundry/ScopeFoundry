@@ -49,81 +49,20 @@
           <x>0</x>
           <y>0</y>
           <width>398</width>
-          <height>736</height>
+          <height>744</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2"/>
        </widget>
       </widget>
-      <widget class="QGroupBox" name="lq_trees_groupBox">
+      <widget class="QWidget" name="lq_trees_widget" native="true">
        <property name="minimumSize">
         <size>
          <width>325</width>
          <height>0</height>
         </size>
        </property>
-       <property name="title">
-        <string>Logged Quantities</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout">
-        <item row="1" column="1">
-         <widget class="QSplitter" name="splitter">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-          <widget class="QTreeWidget" name="hardware_treeWidget">
-           <column>
-            <property name="text">
-             <string>Hardware</string>
-            </property>
-           </column>
-          </widget>
-          <widget class="QTreeWidget" name="measurements_treeWidget">
-           <column>
-            <property name="text">
-             <string>Measurements</string>
-            </property>
-           </column>
-          </widget>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QGroupBox" name="groupBox">
-          <property name="title">
-           <string>App</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout_3">
-           <item row="1" column="1" colspan="2">
-            <widget class="QLineEdit" name="sample_lineEdit"/>
-           </item>
-           <item row="0" column="1">
-            <widget class="QLineEdit" name="save_dir_lineEdit"/>
-           </item>
-           <item row="0" column="2">
-            <widget class="QPushButton" name="save_dir_browse_pushButton">
-             <property name="text">
-              <string>Browse...</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="save_dir_label">
-             <property name="text">
-              <string>Save Dir:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="sample_label">
-             <property name="text">
-              <string>Sample:</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-       </layout>
+       <layout class="QVBoxLayout" name="tree_layout"/>
       </widget>
       <widget class="QMdiArea" name="mdiArea">
        <property name="viewMode">
@@ -146,7 +85,7 @@
      <x>0</x>
      <y>0</y>
      <width>1105</width>
-     <height>21</height>
+     <height>17</height>
     </rect>
    </property>
    <property name="nativeMenuBar">

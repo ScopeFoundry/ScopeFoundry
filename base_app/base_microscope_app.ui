@@ -23,28 +23,7 @@
       <property name="title">
        <string>Logged Quantities</string>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <widget class="QSplitter" name="splitter">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <widget class="QTreeWidget" name="hardware_treeWidget">
-          <column>
-           <property name="text">
-            <string>Hardware</string>
-           </property>
-          </column>
-         </widget>
-         <widget class="QTreeWidget" name="measurements_treeWidget">
-          <column>
-           <property name="text">
-            <string>Measurements</string>
-           </property>
-          </column>
-         </widget>
-        </widget>
-       </item>
+      <layout class="QVBoxLayout" name="tree_layout">
        <item>
         <widget class="QGroupBox" name="settings_groupBox">
          <property name="title">
@@ -100,7 +79,7 @@
      <x>0</x>
      <y>0</y>
      <width>438</width>
-     <height>22</height>
+     <height>17</height>
     </rect>
    </property>
   </widget>

@@ -4,6 +4,7 @@ Created on Jul 23, 2014
 Modified by Ed Barnard
 UI enhancements by Ed Barnard, Alan Buckley
 """
+
 from __future__ import absolute_import, division, print_function
 
 import asyncio
@@ -11,6 +12,7 @@ import logging
 import sys
 import time
 import traceback
+from collections import OrderedDict
 from logging import Handler
 from pathlib import Path
 
@@ -25,6 +27,7 @@ try:
     import configparser
 except:  # python 2
     import ConfigParser as configparser
+
 
 try:
     import IPython
@@ -49,9 +52,6 @@ except Exception as err:
     import pyqtgraph.console
 
     CONSOLE_TYPE = "pyqtgraph.console"
-
-
-# from equipment.image_display import ImageDisplay
 
 
 # See https://riverbankcomputing.com/pipermail/pyqt/2016-March/037136.html
@@ -102,6 +102,7 @@ class BaseApp(QtCore.QObject):
             qdarktheme.setup_theme()
 
         self.settings = LQCollection(path="app")
+        self.operations = OrderedDict()
 
         # auto creation of console widget
         try:
@@ -273,6 +274,9 @@ class BaseApp(QtCore.QObject):
             self.logging_widget.log_textEdit, level=logging.DEBUG
         )
         logging.getLogger().addHandler(self.logging_widget_handler)
+
+    def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree): ...
+    def on_right_click(self): ...
 
 
 class LoggingQTextEditHandler(Handler, QtCore.QObject):

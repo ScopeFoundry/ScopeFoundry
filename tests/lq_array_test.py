@@ -1,28 +1,30 @@
-from ScopeFoundry import BaseApp
-from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
+import logging
+
 from qtpy import QtWidgets
 
-import logging
+from ScopeFoundry import BaseApp, new_tree
+from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
+
 logging.basicConfig(level='DEBUG')
 
 class LQArrayTestApp(BaseApp):
-    
+
     name = 'LQArrayTestApp'
-    
-    def __init__(self,argv):
-        BaseApp.__init__(self,argv)
-        
+
+    def __init__(self, argv):
+        BaseApp.__init__(self, argv)
+
         self.settings.New('test_array', dtype=float, array=True,  ro=False, fmt="%1.2f",
                   initial=[[147, 111 , 100]])#,[208, 8 , 100],[218, 45 , 100],[345, 1500 , 100,],[517, 8 , 100],[772, 300, 100]])
 
         self.test_array_model = ArrayLQ_QTableModel(
             self.settings.test_array, 
             col_names=['Center','FWHM', 'Amplitude'])
-        
+
         self.ui = QtWidgets.QScrollArea()
         self.ui.setWidgetResizable(True)
         self.ui.setLayout(QtWidgets.QVBoxLayout())
-        
+
         self.tableView1 = QtWidgets.QTableView()
         self.tableView1.setModel(self.test_array_model)
         self.ui.layout().addWidget(self.tableView1)
@@ -30,7 +32,6 @@ class LQArrayTestApp(BaseApp):
         self.tableView2 = QtWidgets.QTableView()
         self.tableView2.setModel(self.test_array_model)
         self.ui.layout().addWidget(self.tableView2)
-
 
         self.test_array_model3 = ArrayLQ_QTableModel(self.settings.test_array )
         self.tableView3 = QtWidgets.QTableView()
@@ -59,34 +60,27 @@ class LQArrayTestApp(BaseApp):
             tableView = QtWidgets.QTableView()
             tableView.setModel(tableModel)
             self.ui.layout().addWidget(tableView)
-            
+
         #  int does not round
         self.settings.New("test_int", dtype=int, initial=124)
-        
+
         self.settings_ui = self.settings.New_UI()
         self.ui.layout().addWidget(self.settings_ui)
-        
-        
-        self.treeWidget = QtWidgets.QTreeWidget()
-        self.treeWidget.setColumnCount(2)
-        self.ui.layout().addWidget(self.treeWidget)
-        self.tree_item = QtWidgets.QTreeWidgetItem(self.treeWidget, ["asdf", 'jkl;'])
-        self.settings.add_widgets_to_subtree(self.tree_item)
-        
-        
+
+        self.ui.layout().addWidget(new_tree((self,), ["asdf", "jkl;"]))
+
         self.load_ini_button = QtWidgets.QPushButton("Load INI file")
         self.ui.layout().addWidget(self.load_ini_button)
-        
+
         self.load_ini_button.clicked.connect(self.on_load_ini_button)
-        
 
         self.ui.show()
-        self.setup_console_widget().show()
-        
+        self.console_widget.show()
+
     def on_load_ini_button(self):
         self.settings_load_ini('lq_array_test.ini')
-        
-        
+
+
 if __name__ == '__main__':
     app = LQArrayTestApp([])
     app.exec_()
