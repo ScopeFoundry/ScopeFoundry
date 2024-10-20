@@ -649,6 +649,8 @@ class BaseMicroscopeApp(BaseApp):
         self.add_lq_collection_to_settings_path(self.settings)
 
     def add_lq_collection_to_settings_path(self, settings: LQCollection):
+        settings.q_object.new_lq_added.connect(self.add_setting_path)
+        settings.q_object.lq_removed.connect(self.remove_setting_path)
         for lq in settings.as_dict().values():
             self.add_setting_path(lq)
 

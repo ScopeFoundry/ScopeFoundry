@@ -73,7 +73,7 @@ class Measurement(QtCore.QObject):
 
         self.interrupt_measurement_called = False
 
-        self.settings = LQCollection()
+        self.settings = LQCollection(path=f"mm/{self.name}")
         self.operations = OrderedDict()
 
         self.activation = self.settings.New(

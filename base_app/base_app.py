@@ -101,7 +101,7 @@ class BaseApp(QtCore.QObject):
         if dark_mode and darktheme_available:
             qdarktheme.setup_theme()
 
-        self.settings = LQCollection()
+        self.settings = LQCollection(path="app")
 
         # auto creation of console widget
         try:
