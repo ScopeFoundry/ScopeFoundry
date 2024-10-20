@@ -4,5 +4,4 @@ from .file_lq import FileLQ
 from .lq_3_vector import LQ3Vector
 from .lq_range import LQRange
 from .collection import LQCollection
-
-# from .tree import new_tree
+from .tree import new_tree

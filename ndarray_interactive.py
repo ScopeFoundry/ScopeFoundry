@@ -1,10 +1,11 @@
+import numpy as np
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt
-import numpy as np
+
 from ScopeFoundry.helper_funcs import str2bool
 
 
-#https://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17575.html
+# https://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17575.html
 # plus more
 class NumpyQTableModel(QtCore.QAbstractTableModel):
     def __init__(self, narray, col_names=None, row_names=None, fmt="%g", copy=True, transpose=False, parent=None):
@@ -14,14 +15,17 @@ class NumpyQTableModel(QtCore.QAbstractTableModel):
         self.col_names = col_names
         self.row_names = row_names
         self.fmt=fmt
-        
+
         self.set_array(narray)
 
-
     def rowCount(self, parent=None):
+        if len(self._array.shape) < 1:
+            return 0
         return self._array.shape[0]
 
     def columnCount(self, parent=None):
+        if len(self._array.shape) < 2:
+            return 0
         return self._array.shape[1]
 
     def data(self, index, role=Qt.DisplayRole):
@@ -35,10 +39,10 @@ class NumpyQTableModel(QtCore.QAbstractTableModel):
     def setData(self, index, value, role=Qt.EditRole):
         print(index,value, role)
         jj,ii = index.row(), index.column()
-                     
+
         print('setData', ii,jj)
-        #return QtCore.QAbstractTableModel.setData(self, *args, **kwargs)
-        
+        # return QtCore.QAbstractTableModel.setData(self, *args, **kwargs)
+
         try:
             if self._array.dtype == bool:
                 value = str2bool(value)
@@ -50,7 +54,7 @@ class NumpyQTableModel(QtCore.QAbstractTableModel):
             return False
 
     def set_array(self, narray):
-        #print "set_array"
+        # print "set_array"
         self.original_shape = narray.shape
         if self.copy:
             self._array = narray.copy()
@@ -61,7 +65,7 @@ class NumpyQTableModel(QtCore.QAbstractTableModel):
         if self.transpose:
             self._array = self._array.T
         self.layoutChanged.emit()
-        #self.dataChanged.emit(self.index(0,0), 
+        # self.dataChanged.emit(self.index(0,0),
         #                      self.index(self.rowCount(), self.columnCount()))
 
     @property    
@@ -71,20 +75,19 @@ class NumpyQTableModel(QtCore.QAbstractTableModel):
         if self.transpose:
             return self._array.T
         return self._array
-        
-    
+
     def flags(self, *args, **kwargs):
-        #return QtCore.QAbstractTableModel.flags(self, *args, **kwargs)
+        # return QtCore.QAbstractTableModel.flags(self, *args, **kwargs)
         return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
-    
+
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal and self.col_names:
             return self.col_names[section]
         if role == Qt.DisplayRole and orientation == Qt.Vertical and self.row_names:
             return self.row_names[section]
         return QtCore.QAbstractTableModel.headerData(self, section-1, orientation, role)    
-        #return None
-    
+        # return None
+
 class ArrayLQ_QTableModel(NumpyQTableModel):
     def __init__(self, lq, col_names=None, row_names=None, parent=None, **kwargs):
         print(lq.val)
@@ -96,16 +99,15 @@ class ArrayLQ_QTableModel(NumpyQTableModel):
         self.dataChanged.connect(self.on_dataChanged)
 
     def on_lq_updated_value(self):
-        #print "ArrayLQ_QTableModel", self.lq.name, 'on_lq_updated_value'
+        # print "ArrayLQ_QTableModel", self.lq.name, 'on_lq_updated_value'
         self.set_array(self.lq.val)
-    
+
     def on_dataChanged(self,topLeft=None, bottomRight=None):
-        #print "ArrayLQ_QTableModel", self.lq.name, 'on_dataChanged'
+        # print "ArrayLQ_QTableModel", self.lq.name, 'on_dataChanged'
         self.lq.update_value(np.array(self.array))
-        #self.lq.send_display_updates(force=True)
-    
-    
-    
+        # self.lq.send_display_updates(force=True)
+
+
 if __name__ == '__main__':
     qtapp = QtWidgets.QApplication([])
     

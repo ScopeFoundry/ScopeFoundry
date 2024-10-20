@@ -4,7 +4,13 @@ import numpy as np
 import pyqtgraph as pg
 from qtpy import QtCore, QtWidgets
 
-from ScopeFoundry import BaseApp, BaseMicroscopeApp, HardwareComponent, Measurement
+from ScopeFoundry import (
+    BaseApp,
+    BaseMicroscopeApp,
+    HardwareComponent,
+    Measurement,
+    new_tree,
+)
 
 
 class LQWidgetTestApp(BaseApp):
@@ -55,6 +61,15 @@ class Measure(Measurement):
         self.settings.New("pre_run_crash", dtype=bool, initial=False)
         self.settings.New("post_run_crash", dtype=bool, initial=False)
 
+        self.add_operation("add_setting", self.add_setting)
+        self.add_operation("remove_setting", self.remove_setting)
+
+    def add_setting(self):
+        self.settings.New("test", str, "generated")
+
+    def remove_setting(self):
+        self.settings.remove("test")
+
     def setup_figure(self):
 
         self.plot = pg.PlotWidget()
@@ -72,9 +87,12 @@ class Measure(Measurement):
 
         self.ui = pg.QtWidgets.QWidget()
         layout = pg.QtWidgets.QVBoxLayout(self.ui)
-        # layout.addWidget(
-        #     new_tree((self.app.measurements["measure1"], self), ("hello", "world"))
-        # )
+        layout.addWidget(
+            new_tree(
+                (self.app.measurements["measure"], self.app.hardware["hardware"]),
+                ("hello", "world"),
+            )
+        )
         layout.addWidget(self.plot)
         layout.addWidget(splitter)
 
@@ -125,12 +143,11 @@ class LQWidgetMicroscopeTestApp(BaseMicroscopeApp):
     def setup(self):
 
         self.add_hardware(Hardware(self))
-
         self.add_measurement(Measure(self))
 
 
 if __name__ == '__main__':
     import sys
-    app = LQWidgetTestApp(sys.argv)
+    # app = LQWidgetTestApp(sys.argv)
     app = LQWidgetMicroscopeTestApp(sys.argv)
     app.exec_()

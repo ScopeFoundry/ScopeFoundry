@@ -6,8 +6,9 @@ import warnings
 from collections import OrderedDict
 
 import pyqtgraph as pg
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtWidgets, QtGui
 
+from ScopeFoundry.logged_quantity.tree import ObjSubtree
 from .base_app import BaseMicroscopeApp
 from .helper_funcs import QLock, get_logger_from_class
 from .logged_quantity import LQCollection
@@ -35,6 +36,9 @@ class HardwareComponent:
 
         self.settings = LQCollection(path=f"hw/{self.name}")
         self.operations = OrderedDict()
+        self.sub_trees = []
+
+        self.tree_item = None
 
         self.log = get_logger_from_class(self)
 
@@ -51,14 +55,12 @@ class HardwareComponent:
             colors=["none", "rgba( 0, 255, 0, 120)"],
             description=f"to <i>{self.name}</i> hardware if checked.",
         )
-        self.connected.updated_value[bool].connect(self.enable_connection)
-
-        self.connect_success = False
 
         self.debug_mode = self.settings.New(
             "debug_mode", dtype=bool, initial=debug, colors=["none", "yellow"]
         )
 
+        # self.connect_success = False # ever used?
         self.auto_thread_lock = True
 
         self.setup()
@@ -66,7 +68,8 @@ class HardwareComponent:
         if self.auto_thread_lock:
             self.thread_lock_all_lq()
 
-        self.has_been_connected_once = False
+        # self.has_been_connected_once = False # ever used?
+        # self.is_connected = False # ever used?
 
         self.q_object = HardwareQObject()
         self.connection_succeeded = self.q_object.connection_succeeded
@@ -103,12 +106,9 @@ class HardwareComponent:
                         del self._update_thread
                 finally:
                     self.disconnect()
-                    self.tree_item.setText(1, "X")
-                    self.tree_item.setForeground(1, QtGui.QColor("red"))
+                    self.update_sub_trees(1, "X", "orange")
             except Exception as err:
-                # disconnect failed
-                self.tree_item.setText(1, "?")
-                self.tree_item.setForeground(1, QtGui.QColor("red"))
+                self.update_sub_trees(1, "?", "red")
                 raise err
 
     def run(self):
@@ -147,55 +147,14 @@ class HardwareComponent:
 
         self.operations[name] = op_func
 
-    def add_widgets_to_tree(self, tree):
-        # tree = self.app.ui.hardware_treeWidget
-        # tree = QTreeWidget()
-        tree.setColumnCount(2)
-        tree.setHeaderLabels(["Hardware", "Value"])
-
-        self.tree_item = QtWidgets.QTreeWidgetItem(tree, [self.name, "o"])
-        tree.insertTopLevelItem(0, self.tree_item)
-        self.tree_item.setFirstColumnSpanned(False)
-        self.tree_item.setForeground(1, QtGui.QColor("red"))
-
-        # Add logged quantities to tree
-        self.settings.add_widgets_to_subtree(self.tree_item)
-
-        # Add oepration buttons to tree
-        self.op_buttons = OrderedDict()
-        for op_name, op_func in self.operations.items():
-            op_button = QtWidgets.QPushButton(op_name)
-            op_button.clicked.connect(lambda checked, f=op_func: f())
-            self.op_buttons[op_name] = op_button
-            # self.controls_formLayout.addRow(op_name, op_button)
-            op_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [op_name, ""])
-            tree.setItemWidget(op_tree_item, 1, op_button)
-
-        self.tree_read_from_hardware_button = QtWidgets.QPushButton(
-            "Read From\nHardware"
-        )
-        self.tree_read_from_hardware_button.clicked.connect(self.read_from_hardware)
-        # self.controls_formLayout.addRow("Logged Quantities:", self.read_from_hardware_button)
-        self.read_from_hardware_button_tree_item = QtWidgets.QTreeWidgetItem(
-            self.tree_item, ["Logged Quantities:", ""]
-        )
-        self.tree_item.addChild(self.read_from_hardware_button_tree_item)
-        tree.setItemWidget(
-            self.read_from_hardware_button_tree_item,
-            1,
-            self.tree_read_from_hardware_button,
-        )
-
     def on_connection_succeeded(self):
         print(self.name, "connection succeeded!")
-        self.tree_item.setText(1, "O")
-        self.tree_item.setForeground(1, QtGui.QColor("green"))
+        self.update_sub_trees(1, "O", "green")
 
     def on_connection_failed(self):
         print(self.name, "connection failed!")
-        self.settings.connected.update_value(False)
-        self.tree_item.setText(1, "!")
-        self.tree_item.setForeground(1, QtGui.QColor("red"))
+        self.connected.update_value(False)
+        self.update_sub_trees(1, "X", "red")
 
     @property
     def gui(self):
@@ -249,6 +208,27 @@ class HardwareComponent:
     def new_control_widgets(self):
         """use Measurement.New_UI for more control"""
         return self.New_UI(None, None, "form", None, self.name)
+
+    def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree: ObjSubtree):
+        self.sub_trees.append(sub_tree)
+
+    def update_sub_trees(self, col, text, color):
+        for tree in self.sub_trees:
+            tree: ObjSubtree
+            tree.set_header(col, text, color)
+
+    def on_right_click(self):
+        cmenu = QtWidgets.QMenu()
+        a = cmenu.addAction(self.name)
+        a.setEnabled(False)
+        connect_action = cmenu.addAction("Connect")
+        disconnect_action = cmenu.addAction("Disconnect")
+
+        action = cmenu.exec_(QtGui.QCursor.pos())
+        if action == connect_action:
+            self.settings["connected"] = True
+        elif action == disconnect_action:
+            self.settings["connected"] = False
 
     def setup(self):
         """

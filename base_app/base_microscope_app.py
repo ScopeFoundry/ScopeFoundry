@@ -18,7 +18,8 @@ from ScopeFoundry.helper_funcs import (
     confirm_on_close,
     ignore_on_close,
 )
-from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
+from ScopeFoundry.logged_quantity import LQCollection, LoggedQuantity, new_tree
+
 
 from .base_app import BaseApp
 
@@ -113,27 +114,23 @@ class BaseMicroscopeApp(BaseApp):
             func_on_close=self.on_close,
         )
 
-        # Hardware and Measurement Settings Trees
-        self.ui.hardware_treeWidget.setColumnWidth(0, 175)
-        self.ui.measurements_treeWidget.setColumnWidth(0, 175)
+        # Tree
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
+        settings_layout: QtWidgets.QGridLayout = self.ui.tree_layout
+        settings_layout.addWidget(splitter)
 
-        self.ui.measurements_treeWidget.setContextMenuPolicy(
-            QtCore.Qt.CustomContextMenu
-        )
-        self.ui.measurements_treeWidget.customContextMenuRequested.connect(
-            self.on_measure_tree_context_menu
-        )
+        mm_tree = new_tree(self.measurements.values(), ["Measurements", "Value"])
+        hw_tree = new_tree(self.hardware.values(), ["Hardware", "Value"])
+        app_tree = new_tree((self,), ["App", "Value"])
+        app_tree.expandToDepth(3)
 
-        self.ui.hardware_treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.ui.hardware_treeWidget.customContextMenuRequested.connect(
-            self.on_hardware_tree_context_menu
-        )
+        splitter.addWidget(hw_tree)
+        splitter.addWidget(mm_tree)
+        splitter.addWidget(app_tree)
 
-        for name, hw in self.hardware.items():
-            hw.add_widgets_to_tree(tree=self.ui.hardware_treeWidget)
-
-        for name, measure in self.measurements.items():
-            measure.add_widgets_to_tree(tree=self.ui.measurements_treeWidget)
+        splitter.setStretchFactor(0, 2)
+        splitter.setStretchFactor(1, 2)
+        splitter.setStretchFactor(2, 1)
 
         # Add log widget to mdiArea
         self.logging_subwin = self.add_mdi_subwin(self.logging_widget, "Log")
@@ -163,12 +160,12 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.action_set_data_dir.triggered.connect(
             self.settings.save_dir.file_browser
         )
-        self.settings.save_dir.connect_to_browse_widgets(
-            self.ui.save_dir_lineEdit, self.ui.save_dir_browse_pushButton
-        )
+        # self.settings.save_dir.connect_to_browse_widgets(
+        #     self.ui.save_dir_lineEdit, self.ui.save_dir_browse_pushButton
+        # )
 
         # Sample meta data
-        self.settings.sample.connect_to_widget(self.ui.sample_lineEdit)
+        # self.settings.sample.connect_to_widget(self.ui.sample_lineEdit)
 
         # settings button events
         if hasattr(self.ui, "settings_autosave_pushButton"):
@@ -327,57 +324,6 @@ class BaseMicroscopeApp(BaseApp):
                     hw.disconnect()
                 except Exception as err:
                     self.log.error("tried to disconnect {}: {}".format(hw.name, err))
-
-    def on_measure_tree_context_menu(self, position):
-        #         indexes =  self.ui.measurements_treeWidget.selectedIndexes()
-        #         if len(indexes) > 0:
-        #             level = 0
-        #             index = indexes[0]
-        #             while index.parent().isValid():
-        #                 index = index.parent()
-        #                 level += 1
-        #         if level == 0:
-        #             startAction = menu.addAction(self.tr("Start Measurement"))
-        #             interruptAction = menu.addAction(self.tr("Interrupt Measurement"))
-        selected_items = self.ui.measurements_treeWidget.selectedItems()
-        if len(selected_items) < 1:
-            return
-        selected_measurement_name = selected_items[0].text(0)
-        if selected_measurement_name not in self.measurements:
-            return
-        M = self.measurements[selected_measurement_name]
-
-        cmenu = QtWidgets.QMenu()
-        a = cmenu.addAction(selected_measurement_name)
-        a.setEnabled(False)
-        cmenu.addSeparator()
-        cmenu.addAction("Start", M.start)
-        cmenu.addAction("Interrupt", M.interrupt)
-        cmenu.addSeparator()
-        cmenu.addAction("Show", lambda M=M: self.bring_measure_ui_to_front(M))
-
-        action = cmenu.exec_(QtGui.QCursor.pos())
-
-    def on_hardware_tree_context_menu(self, position):
-        selected_items = self.ui.hardware_treeWidget.selectedItems()
-        if len(selected_items) < 1:
-            return
-        selected_hw_name = selected_items[0].text(0)
-        if selected_hw_name not in self.hardware:
-            return
-        H = self.hardware[selected_hw_name]
-
-        cmenu = QtWidgets.QMenu()
-        a = cmenu.addAction(selected_hw_name)
-        a.setEnabled(False)
-        connect_action = cmenu.addAction("Connect")
-        disconnect_action = cmenu.addAction("Disconnect")
-
-        action = cmenu.exec_(QtGui.QCursor.pos())
-        if action == connect_action:
-            H.settings["connected"] = True
-        elif action == disconnect_action:
-            H.settings["connected"] = False
 
     def setup(self):
         """Override to add Hardware and Measurement Components"""

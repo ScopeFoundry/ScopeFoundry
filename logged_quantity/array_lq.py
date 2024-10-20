@@ -1,3 +1,4 @@
+from collections import deque
 import json
 
 import numpy as np
@@ -69,6 +70,9 @@ class ArrayLQ(LoggedQuantity):
         self.is_array = True
 
         self._tableView = None
+
+        self.prev_vals = deque([], 3)
+        self.proposed_values = deque([], 7)
 
     def same_values(self, v1, v2):
         if v1.shape == v2.shape:

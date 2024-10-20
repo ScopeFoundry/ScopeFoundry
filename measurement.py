@@ -12,11 +12,12 @@ import traceback
 from collections import OrderedDict
 
 import pyqtgraph as pg
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets, QtGui
 
 from .base_app import BaseMicroscopeApp
 from .helper_funcs import get_logger_from_class, load_qt_ui_file
 from .logged_quantity import LQCollection
+from .logged_quantity.tree import ObjSubtree
 
 
 class MeasurementQThread(QtCore.QThread):
@@ -75,6 +76,7 @@ class Measurement(QtCore.QObject):
 
         self.settings = LQCollection(path=f"mm/{self.name}")
         self.operations = OrderedDict()
+        self.sub_trees = []
 
         self.activation = self.settings.New(
             name="activation",
@@ -212,7 +214,6 @@ class Measurement(QtCore.QObject):
         self.run_state.update_value("run_post_run")
         try:
             self.post_run()
-            self.end_state = "stop_interrupted"
         except Exception as err:
             raise
         finally:
@@ -288,7 +289,9 @@ class Measurement(QtCore.QObject):
 
         if hasattr(self, "subwin"):
             self.subwin.setWindowTitle(text)
-        self.tree_item.setText(0, text)
+
+        for tree in self.sub_trees:
+            tree.set_header(0, text, None)
 
     @QtCore.Slot()
     def _interrupt(self):
@@ -567,6 +570,23 @@ class Measurement(QtCore.QObject):
         mod = inspect.getmodule(self)
         x = xreload.xreload(mod)
         print("Reloading from code", mod, x)
+
+    def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree: ObjSubtree):
+        self.sub_trees.append(sub_tree)
+        self.tree_progressBar = QtWidgets.QProgressBar()
+        tree.setItemWidget(sub_tree.top_item, 1, self.tree_progressBar)
+        self.progress.connect_to_widget(self.tree_progressBar)
+
+    def on_right_click(self):
+        cmenu = QtWidgets.QMenu()
+        a = cmenu.addAction(self.name)
+        a.setEnabled(False)
+        cmenu.addSeparator()
+        cmenu.addAction("Start", self.start)
+        cmenu.addAction("Interrupt", self.interrupt)
+        cmenu.addSeparator()
+        cmenu.addAction("Show", self.show_ui)
+        cmenu.exec_(QtGui.QCursor.pos())
 
 
 def to_etr_str(secs):

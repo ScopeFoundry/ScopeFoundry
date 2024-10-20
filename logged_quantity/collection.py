@@ -1,6 +1,5 @@
 from collections import OrderedDict
 
-import pyqtgraph as pg
 from qtpy import QtCore, QtWidgets
 
 from ScopeFoundry.helper_funcs import get_logger_from_class
@@ -241,58 +240,6 @@ class LQCollection:
             return scroll_area
 
         assert style in ("form", "hbox", "scroll_form")
-
-    def add_widgets_to_subtree(self, tree_item):
-        lq_tree_items = []
-        for lqname, lq in self.as_dict().items():
-            #: :type lq: LoggedQuantity
-            if isinstance(lq, ArrayLQ):
-                lineedit = QtWidgets.QLineEdit()
-                button = QtWidgets.QPushButton("...")
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                widget.setLayout(layout)
-                layout.addWidget(lineedit)
-                layout.addWidget(button)
-                layout.setSpacing(0)
-                layout.setContentsMargins(0, 0, 0, 0)
-
-                lq.connect_to_widget(lineedit)
-                button.clicked.connect(lq.array_tableView.show)
-                button.clicked.connect(lq.array_tableView.raise_)
-            elif isinstance(lq, FileLQ):
-                lineedit = QtWidgets.QLineEdit()
-                button = QtWidgets.QPushButton("...")
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                widget.setLayout(layout)
-                layout.addWidget(lineedit)
-                layout.addWidget(button)
-                layout.setSpacing(0)
-                layout.setContentsMargins(0, 0, 0, 0)
-
-                lq.connect_to_browse_widgets(lineedit, button)
-            else:
-                if lq.choices is not None:
-                    widget = QtWidgets.QComboBox()
-                elif lq.dtype in [int, float]:
-                    if lq.si:
-                        widget = pg.SpinBox()
-                    else:
-                        widget = QtWidgets.QDoubleSpinBox()
-                elif lq.dtype in [bool]:
-                    widget = QtWidgets.QCheckBox()
-                elif lq.dtype in [str]:
-                    widget = QtWidgets.QLineEdit()
-                lq.connect_to_widget(widget)
-
-            lq_tree_item = QtWidgets.QTreeWidgetItem(tree_item, [lqname, ""])
-            lq_tree_items.append(lq_tree_item)
-            tree_item.addChild(lq_tree_item)
-            lq.tree_widget = widget
-            tree_item.treeWidget().setItemWidget(lq_tree_item, 1, lq.tree_widget)
-            # self.control_widgets[lqname] = widget
-        return lq_tree_items
 
     def disconnect_all_from_hardware(self):
         for lq in self.as_list():
