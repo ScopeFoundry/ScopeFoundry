@@ -1,4 +1,6 @@
 import sys
+from collections import deque
+from functools import partial
 from inspect import signature
 
 import pyqtgraph
@@ -139,6 +141,9 @@ class LoggedQuantity(QtCore.QObject):
         self.path = ""
 
         self.protected = protected
+
+        self.prev_vals = deque([], 3)
+        self.proposed_values = deque([], 7)
 
     def coerce_to_type(self, x):
         """
@@ -284,6 +289,7 @@ class LoggedQuantity(QtCore.QObject):
                 )
 
             # actually change internal state value
+            self.prev_vals.appendleft(self.val)
             self.val = new_val
 
         # Read from Hardware
@@ -432,6 +438,8 @@ class LoggedQuantity(QtCore.QObject):
         """
 
         self.set_widget_toolTip(widget)
+        widget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        widget.customContextMenuRequested.connect(self.on_right_click)
 
         if type(widget) == QtWidgets.QDoubleSpinBox:
 
@@ -1225,3 +1233,32 @@ class LoggedQuantity(QtCore.QObject):
 
     def set_path(self, path: str):
         self.path = path
+
+    def propose_value(self, name: str, value):
+        self.proposed_values.appendleft((name, value))
+
+    def on_right_click(self, position=None):
+        cmenu = QtWidgets.QMenu()
+        cmenu.addAction(f"{self.path}")
+        cmenu.addSeparator()
+
+        # prev. values
+        a = cmenu.addAction("prev. values")
+        a.setEnabled(False)
+        for val in self.prev_vals:
+            if self.ro:
+                cmenu.addAction(f"{val}")
+            else:
+                cmenu.addAction(f"{val}", partial(self.update_value, new_val=val))
+
+        # proposed values
+        for proposed_name, val in self.proposed_values:
+            cmenu.addSeparator()
+            a = cmenu.addAction(proposed_name)
+            a.setEnabled(False)
+            if self.ro:
+                cmenu.addAction(f"{val}")
+            else:
+                cmenu.addAction(f"{val}", partial(self.update_value, new_val=val))
+
+        cmenu.exec_(QtGui.QCursor.pos())

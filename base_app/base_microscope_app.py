@@ -69,6 +69,12 @@ class BaseMicroscopeApp(BaseApp):
         )
         # Potential new alternative default: '{unique_id_short}_{measurement.name}.{ext}'
 
+        self.settings.New(
+            "inspect file",
+            dtype="file",
+            description="right click on setting widget to see and load value from a file",
+        ).add_listener(self.propose_settings_values_from_file)
+
         # self.settings.New('log_dir', dtype='file', is_dir=True, initial=initial_log_dir)
 
         if not hasattr(self, "ui_filename"):
@@ -510,6 +516,8 @@ class BaseMicroscopeApp(BaseApp):
         settings = self.read_settings(paths, ini_string_value=True)
         ini_io.save_settings(fname, settings)
 
+        self.propose_settings_values(Path(fname).name, settings)
+
         self.log.info(f"ini settings saved to {fname} str")
 
     def settings_load_ini(self, fname, ignore_hw_connect=False):
@@ -527,6 +535,7 @@ class BaseMicroscopeApp(BaseApp):
         self.write_settings_safe(
             {k: v for k, v in settings.items() if not k.endswith("connected")}
         )
+        self.propose_settings_values(Path(fname).name, settings)
 
     def settings_load_h5(self, fname, ignore_hw_connect=False):
         """
@@ -545,6 +554,7 @@ class BaseMicroscopeApp(BaseApp):
         self.write_settings_safe(
             {k: v for k, v in settings.items() if not k.endswith("connected")}
         )
+        self.propose_settings_values(Path(fname).name, settings)
 
     def settings_auto_save_ini(self):
         """
@@ -822,3 +832,30 @@ class BaseMicroscopeApp(BaseApp):
             ext=ext,
         )
         return Path(self.settings["save_dir"]) / f
+
+    def propose_settings_values_from_file(self, fname=None):
+        """
+        Adds to proposed_values of LQs.
+        proposed_values can be inspected with right click corresponding widget
+        """
+        if fname is None:
+            fname = self.settings["inspect file"]
+        fname = Path(fname)
+        ext = fname.suffix
+        if fname.exists() and ext in (".ini", ".h5"):
+            if ext == ".ini":
+                settings = ini_io.load_settings(fname)
+            elif ext == ".h5":
+                settings = h5_io.load_settings(fname)
+            self.propose_settings_values(fname.name, settings)
+
+    def propose_settings_values(self, name, settings):
+        """
+        Adds to proposed_values of LQs.
+        proposed_values can be inspected with right click corresponding widget
+        """
+        for path, val in settings.items():
+            lq = self.get_lq(path)
+            if lq is None:
+                continue
+            lq.propose_value(name, val)

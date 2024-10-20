@@ -1,8 +1,10 @@
 from __future__ import absolute_import, print_function
+
 import functools
+import os
 import time
 from datetime import datetime
-import os
+from pathlib import Path
 
 import h5py
 
@@ -131,8 +133,8 @@ def h5_save_measurement_settings(measurement, h5_meas_group):
     h5_meas_group.attrs['ScopeFoundry_type'] = "Measurement"
     settings_group = h5_meas_group.create_group("settings")
     h5_save_lqcoll_to_attrs(measurement.settings, settings_group)
-    
-    
+
+
 def h5_measurement_file(measurement,  fname=None):
     """ Default way to create HDF5 file and fill with 
     metadata for measurement and hardware
@@ -151,8 +153,8 @@ def h5_measurement_file(measurement,  fname=None):
                     measurement=measurement)
     M = h5_create_measurement_group(measurement, h5group=h5f)
     return M
-    
-    
+
+
 def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = None, 
                           dim_arrays = None, dim_names= None, dim_units = None,  **kwargs):
     """
@@ -203,25 +205,25 @@ def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = No
     emd_grp : h5 group containing dataset and dimension arrays, see hierarchy below
     
     """
-    #set the emd version tag at root of h5 file
+    # set the emd version tag at root of h5 file
     h5parent.file['/'].attrs['version_major'] = 0
     h5parent.file['/'].attrs['version_minor'] = 2
-        
+
     # create the EMD data group
     emd_grp = h5parent.create_group(name)
     emd_grp.attrs['emd_group_type'] = 1
-    
+
     if data is not None:
         shape = data.shape
-    
+
     # data set where the N-dim data is stored
     data_dset = emd_grp.create_dataset("data", shape=shape, maxshape=maxshape, data=data, **kwargs)
-    
+
     if dim_arrays is not None: assert len(dim_arrays) == len(shape)
     if dim_names  is not None: assert len(dim_names)  == len(shape)
     if dim_units  is not None: assert len(dim_units)  == len(shape)
     if maxshape   is not None: assert len(maxshape)   == len(shape)
-    
+
     # Create the dimension array datasets
     for ii in range(len(shape)):
         if dim_arrays is not None:
@@ -242,7 +244,7 @@ def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = No
             dim_maxshape = (maxshape[ii],)
         else:
             dim_maxshape = None
-        
+
         # create dimension array dataset
         dim_dset = emd_grp.create_dataset("dim" + str(ii+1), shape=(shape[ii],), 
                                            dtype=dim_dtype, data=dim_array, 
@@ -250,9 +252,9 @@ def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = No
         dim_dset.attrs['name'] = dim_name
         if dim_unit is not None:
             dim_dset.attrs['unit'] = dim_unit
-            
+
     return emd_grp
-    
+
 
 def create_extendable_h5_dataset(h5_group, name, shape, axis=0, dtype=None, **kwargs):
     """
@@ -266,7 +268,7 @@ def create_extendable_h5_dataset(h5_group, name, shape, axis=0, dtype=None, **kw
     """
     maxshape = list(shape)
     maxshape[axis] = None
-    
+
     default_kwargs = dict(
         name=name,
         shape=shape,
@@ -282,8 +284,8 @@ def create_extendable_h5_dataset(h5_group, name, shape, axis=0, dtype=None, **kw
         **default_kwargs
         )
     return h5_dataset
-    
-    
+
+
 def create_extendable_h5_like(h5_group, name, arr, axis=0, **kwargs):
     """
     Create and return an empty HDF5 dataset in h5_group that can store
@@ -302,17 +304,18 @@ def extend_h5_dataset_along_axis(ds, new_len, axis=0):
     newshape[axis] = new_len
     ds.resize( newshape )    
 
-    
+
 def load_settings(fname):
     """
     returns a dictionary (path, value) of all settings stored in a h5 file
     """
-    if not fname.endswith(".h5"):
+    path = Path(fname)
+    if not path.suffix == ".h5":
         return {}
-    
+
     settings = {}
     visit_func = functools.partial(_settings_visitfunc, settings=settings)
-    
+
     with h5py.File(fname) as file:
         file.visititems(visit_func)    
 
