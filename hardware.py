@@ -38,7 +38,7 @@ class HardwareComponent(QtCore.QObject):
         if name is not None:
             self.name = name
 
-        self.settings = LQCollection()
+        self.settings = LQCollection(path=f"hw/{self.name}")
         self.operations = OrderedDict()
 
         self.log = get_logger_from_class(self)

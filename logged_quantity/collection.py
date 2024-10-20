@@ -12,6 +12,16 @@ from .lq_3_vector import LQ3Vector
 from .lq_range import LQRange
 
 
+class LQCollectionQObject(QtCore.QObject):
+
+    new_lq_added = QtCore.Signal((LoggedQuantity,))
+    lq_removed = QtCore.Signal((LoggedQuantity,))
+
+    def __init__(self, settings, parent: QtCore.QObject | None = None) -> None:
+        super().__init__(parent)
+        self.settings = settings
+
+
 class LQCollection:
     """
     LQCollection is a smart dictionary of LoggedQuantity objects.
@@ -28,12 +38,14 @@ class LQCollection:
 
     """
 
-    def __init__(self) -> None:
+    def __init__(self, path="") -> None:
         self._logged_quantities = OrderedDict()
         self.ranges = OrderedDict()
         self.vectors = OrderedDict()
 
         self.log = get_logger_from_class(self)
+        self.q_object = LQCollectionQObject(self)
+        self.path = path
 
     def New(self, name, dtype=float, **kwargs) -> LoggedQuantity:
         """
@@ -61,6 +73,9 @@ class LQCollection:
         assert not (name in self.__dict__)
         self._logged_quantities[name] = lq
         self.__dict__[name] = lq  # allow attribute access
+
+        lq.set_path(f"{self.path}/{name}")
+        self.q_object.new_lq_added[LoggedQuantity].emit(lq)
         return lq
 
     def get_lq(self, key) -> LoggedQuantity:
@@ -89,6 +104,7 @@ class LQCollection:
 
     def remove(self, name):
         lq = self._logged_quantities.pop(name)
+        self.q_object.lq_removed.emit(lq)
         del self.__dict__[name]
         del lq
 
