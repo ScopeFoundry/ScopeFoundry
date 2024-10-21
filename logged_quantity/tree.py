@@ -6,15 +6,22 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ScopeFoundry.logged_quantity import ArrayLQ, FileLQ, LoggedQuantity, LQCollection
 
 
+class SubtreeAblesQObject(Protocol):
+
+    operation_added: QtCore.Signal
+    operation_removed: QtCore.Signal
+
+
 class SubtreeAbleObj(Protocol):
 
     name: str
     settings: LQCollection
     operations: OrderedDict
+    q_object: SubtreeAblesQObject
 
     def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree): ...
 
-    def on_right_click(self): ...
+    def on_right_click(self): ...  # optional
 
 
 def new_tree(objs: list[SubtreeAbleObj], header=["col0", ""]) -> QtWidgets.QTreeWidget:
@@ -32,7 +39,7 @@ def new_tree(objs: list[SubtreeAbleObj], header=["col0", ""]) -> QtWidgets.QTree
 
 class SFQTreeWidgetItem(QtWidgets.QTreeWidgetItem):
 
-    obj: SubtreeAbleObj | LoggedQuantity
+    obj: SubtreeAbleObj | LoggedQuantity | OrderedDict
 
 
 class ObjSubtree:
@@ -50,12 +57,16 @@ class ObjSubtree:
         self.operations = obj.operations
         self.settings.q_object.new_lq_added.connect(self.add_lq_child_item)
         self.settings.q_object.lq_removed.connect(self.remove_lq_child_item)
+        obj.q_object.operation_added.connect(self.add_operation_child_item)
+        obj.q_object.operation_removed.connect(self.remove_operation_child_item)
 
         self.settings_items = {}
         self.operation_items = {}
 
         self.top_item = SFQTreeWidgetItem(tree, [obj.name, ""])
-        obj.add_sub_tree(tree, self)
+
+        if hasattr(obj, "add_sub_tree"):
+            obj.add_sub_tree(tree, self)
 
         tree.insertTopLevelItem(0, self.top_item)
         update_settings(self.settings, self.top_item, self.settings_items)
@@ -67,6 +78,12 @@ class ObjSubtree:
 
     def remove_lq_child_item(self, lq: LoggedQuantity):
         remove_from_tree(lq.name, self.top_item, self.settings_items)
+
+    def add_operation_child_item(self, name: str):
+        update_operations(self.operations, self.top_item, self.operation_items)
+
+    def remove_operation_child_item(self, name: str):
+        remove_from_tree(name, self.top_item, self.operation_items)
 
     def set_header(self, col=1, text="", color=None):
         self.top_item.setText(col, text)
@@ -91,6 +108,8 @@ def update_operations(
     children: dict[str, QtWidgets.QTreeWidgetItem],
 ) -> None:
     for op_name, op_func in operations.items():
+        if op_name in children:
+            continue
         op_button = QtWidgets.QPushButton(op_name)
         op_button.clicked.connect(lambda checked, f=op_func: f())
         new_item = QtWidgets.QTreeWidgetItem(root_item, [op_name, ""])
@@ -140,4 +159,5 @@ def on_right_click(position, tree: QtWidgets.QTreeWidget) -> None:
     if len(selected_items) < 1:
         return
     selected_item: SFQTreeWidgetItem = selected_items[0]
-    selected_item.obj.on_right_click()
+    if hasattr(selected_item, "on_right_click"):
+        selected_item.obj.on_right_click()

@@ -369,17 +369,25 @@ class Measurement:
         lq = self.settings.New(name=name, **kwargs)
         return lq
 
-    def add_operation(self, name, op_func):
+    def add_operation(self, name: str, op_func):
         """
-        Used to create a logged quantity connection between a button in the Measurement tree
-        and a function.
+        Create an operation for the HardwareComponent.
 
-        ==============  =================
-        **type name:**  **type op_func:**
-        str             QtCore.Slot
-        ==============  =================
+        *op_func* is a function that will be called upon operation activation
+
+        operations are typically exposed in the default ScopeFoundry gui via a pushButton
+
+        :type name: str
+        :type op_func: QtCore.Slot or Callable without Argument
         """
         self.operations[name] = op_func
+        self.q_object.operation_added.emit(name)
+
+    def remove_operation(self, name):
+        if name not in self.operations:
+            return
+        del self.operations[name]
+        self.q_object.operation_removed.emit(name)
 
     def start_nested_measure_and_wait(
         self, measure, nested_interrupt=True, polling_func=None, polling_time=0.1

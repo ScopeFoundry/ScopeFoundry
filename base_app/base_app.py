@@ -15,6 +15,7 @@ import traceback
 from collections import OrderedDict
 from logging import Handler
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import pyqtgraph as pg
@@ -86,6 +87,8 @@ class BaseApp(QtCore.QObject):
     def __init__(self, argv=[], dark_mode=False):
 
         super().__init__()
+
+        self.q_object = BaseAppQbject()
 
         self.log = get_logger_from_class(self)
 
@@ -346,6 +349,26 @@ class BaseApp(QtCore.QObject):
             return lq.ini_string_value()
         return lq.val
 
+    def add_operation(self, name: str, op_func: Callable[[], None]):
+        """
+        Create an operation for the App.
+
+        *op_func* is a function that will be called upon operation activation
+
+        operations are typically exposed in the default ScopeFoundry gui via a pushButton
+
+        :type name: str
+        :type op_func: QtCore.Slot or Callable without Argument
+        """
+        self.operations[name] = op_func
+        self.q_object.operation_added.emit(name)
+
+    def remove_operation(self, name):
+        if name not in self.operations:
+            return
+        del self.operations[name]
+        self.q_object.operation_removed.emit(name)
+
 
 class LoggingQTextEditHandler(Handler, QtCore.QObject):
 
@@ -391,6 +414,12 @@ class LoggingQTextEditHandler(Handler, QtCore.QObject):
         return """{} - <span style="{}">{}</span>: <i>{}</i> :{}<br>""".format(
             timestamp, style, record.levelname, record.name, record.msg
         )
+
+
+class BaseAppQbject(QtCore.QObject):
+
+    operation_added = QtCore.Signal(str)
+    operation_removed = QtCore.Signal(str)
 
 
 class TestBaseApp(BaseApp):
