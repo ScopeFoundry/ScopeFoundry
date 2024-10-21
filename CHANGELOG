@@ -1,3 +1,18 @@
+ScopeFoundry 1.5.0 2024-10-21
+
+	* Measurement bugfixes:
+		- ranged_optimization: bugfix in "fine" optimization
+		- scanning: testing added, start button replacement, test for BaseRaster3DSlowScan added
+	* INI file handling refactored:
+		- MicroscopeBaseApp: Loading .ini file follows now follows logic similar to loading .h5
+		- DataBrowser: added support for saving and loading .ini files.
+	* Improved consistencies:
+		- removed unused/duplicate imports
+		- replaced os.path dependence with pathlib.Path
+	* LoggedQuantity dynamic change of choices:
+		- unit test added
+		- improved consistency of set and displayed value.
+
 ScopeFoundry 1.4.2 2024-07-03
 
 	* Add CI/CD for GitHub to auto-build releases and publish to PyPI
