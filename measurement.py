@@ -11,7 +11,6 @@ import time
 import traceback
 from collections import OrderedDict
 
-import pyqtgraph as pg
 from qtpy import QtCore, QtWidgets, QtGui
 
 from .base_app import BaseMicroscopeApp
@@ -29,7 +28,7 @@ class MeasurementQThread(QtCore.QThread):
         self.measurement._thread_run()
 
 
-class Measurement(QtCore.QObject):
+class Measurement:
     """
     Base class for ScopeFoundry Measurement objects
 
@@ -47,16 +46,14 @@ class Measurement(QtCore.QObject):
 
     """
 
-    measurement_sucessfully_completed = QtCore.Signal(())
-    """signal sent when full measurement is complete"""
-    measurement_interrupted = QtCore.Signal(())
-    """signal sent when  measurement is complete due to an interruption"""
-
-    # measurement_state_changed = QtCore.Signal(bool) # signal sent when measurement started or stopped
-
     def __init__(self, app: BaseMicroscopeApp, name: str = None):
 
-        QtCore.QObject.__init__(self)
+        self.q_object = MeasurementQbject(self)
+        self.measurement_sucessfully_completed = (
+            self.q_object.measurement_sucessfully_completed
+        )
+        self.measurement_interrupted = self.q_object.measurement_interrupted
+
         self.log = get_logger_from_class(self)
 
         if not hasattr(self, "name"):
@@ -68,8 +65,7 @@ class Measurement(QtCore.QObject):
         self.app = app
 
         self.display_update_period = 0.1  # seconds
-        self.display_update_timer = QtCore.QTimer(self)
-        self.display_update_timer.timeout.connect(self._on_display_update_timer)
+
         self.acq_thread = None
 
         self.interrupt_measurement_called = False
@@ -182,7 +178,7 @@ class Measurement(QtCore.QObject):
         self.acq_thread.start()
         self.run_state.update_value("run_thread_run")
         self.t_start = time.time()
-        self.display_update_timer.start(int(self.display_update_period * 1000))
+        self.q_object.display_update_timer.start(int(self.display_update_period * 1000))
 
     def pre_run(self):
         """Override this method to enable main-thread initialization prior to measurement thread start"""
@@ -206,7 +202,6 @@ class Measurement(QtCore.QObject):
                 "Measurement {}.run() not defined".format(self.name)
             )
 
-    @QtCore.Slot()
     def _call_post_run(self):
         """
         Don't call this directly!
@@ -293,7 +288,6 @@ class Measurement(QtCore.QObject):
         for tree in self.sub_trees:
             tree.set_header(0, text, None)
 
-    @QtCore.Slot()
     def _interrupt(self):
         """
         Kindly ask the measurement to stop.
@@ -311,7 +305,7 @@ class Measurement(QtCore.QObject):
             self.interrupt_measurement_called = True
         # self.activation.update_value(False)
         # Make sure display is up to date
-        # self._on_display_update_timer()
+        # self.q_object._on_display_update_timer()
 
     def interrupt(self):
         self.activation.update_value(False)
@@ -366,23 +360,6 @@ class Measurement(QtCore.QObject):
     def update_display(self):
         "Override this function to provide figure updates when the display timer runs"
         pass
-
-    @QtCore.Slot()
-    def _on_display_update_timer(self):
-        try:
-            self.update_display()
-        except Exception as err:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            self.log.error(
-                "{} Failed to update figure1: {}. {}".format(
-                    self.name,
-                    err,
-                    traceback.format_exception(exc_type, exc_value, exc_traceback),
-                )
-            )
-        finally:
-            if not self.is_measuring():
-                self.display_update_timer.stop()
 
     def add_logged_quantity(self, name, **kwargs):
         """
@@ -529,36 +506,6 @@ class Measurement(QtCore.QObject):
         """use Measurement.New_UI for more control"""
         return self.New_UI(None, None, "form", None, self.name)
 
-    def add_widgets_to_tree(self, tree):
-        """
-        Adds Measurement items and their controls to Measurements tree in the user interface.
-        """
-        # if tree is None:
-        #    tree = self.app.ui.measurements_treeWidget
-        tree.setColumnCount(2)
-        tree.setHeaderLabels(["Measurements", "Value"])
-
-        self.tree_item = QtWidgets.QTreeWidgetItem(tree, [self.name, ""])
-        tree.insertTopLevelItem(0, self.tree_item)
-        # self.tree_item.setFirstColumnSpanned(True)
-        self.tree_progressBar = QtWidgets.QProgressBar()
-        tree.setItemWidget(self.tree_item, 1, self.tree_progressBar)
-        # self.progress.updated_value.connect(self.tree_progressBar.setValue)
-        self.progress.connect_to_widget(self.tree_progressBar)
-
-        # Add logged quantities to tree
-        self.settings.add_widgets_to_subtree(self.tree_item)
-
-        # Add operation buttons to tree
-        self.op_buttons = OrderedDict()
-        for op_name, op_func in self.operations.items():
-            op_button = QtWidgets.QPushButton(op_name)
-            op_button.clicked.connect(op_func)
-            self.op_buttons[op_name] = op_button
-            # self.controls_formLayout.addRow(op_name, op_button)
-            op_tree_item = QtWidgets.QTreeWidgetItem(self.tree_item, [op_name, ""])
-            tree.setItemWidget(op_tree_item, 1, op_button)
-
     def web_ui(self):
         return "Hardware {}".format(self.name)
 
@@ -587,6 +534,42 @@ class Measurement(QtCore.QObject):
         cmenu.addSeparator()
         cmenu.addAction("Show", self.show_ui)
         cmenu.exec_(QtGui.QCursor.pos())
+
+
+class MeasurementQbject(QtCore.QObject):
+
+    measurement_sucessfully_completed = QtCore.Signal(())
+    """signal sent when full measurement is complete"""
+    measurement_interrupted = QtCore.Signal(())
+    """signal sent when  measurement is complete due to an interruption"""
+
+    operation_added = QtCore.Signal(str)
+    operation_removed = QtCore.Signal(str)
+
+    def __init__(
+        self, measurement: Measurement, parent: QtCore.QObject | None = None
+    ) -> None:
+        super().__init__(parent)
+        self.m = measurement
+        self.display_update_timer = QtCore.QTimer()
+        self.display_update_timer.timeout.connect(self._on_display_update_timer)
+
+    @QtCore.Slot()
+    def _on_display_update_timer(self):
+        try:
+            self.m.update_display()
+        except Exception as err:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            self.m.log.error(
+                "{} Failed to update figure1: {}. {}".format(
+                    self.m.name,
+                    err,
+                    traceback.format_exception(exc_type, exc_value, exc_traceback),
+                )
+            )
+        finally:
+            if not self.m.is_measuring():
+                self.display_update_timer.stop()
 
 
 def to_etr_str(secs):
