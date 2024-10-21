@@ -15,17 +15,24 @@ from ScopeFoundry import (
 
 class LQWidgetTestApp(BaseApp):
 
-    name = 'LQWidgetTestApp'
+    name = "LQWidgetTestApp"
 
-    def __init__(self,argv):
-        BaseApp.__init__(self,argv)
+    def __init__(self, argv):
+        BaseApp.__init__(self, argv)
 
-        self.settings.New('long_string_test',  dtype=str, initial="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam accumsan, ligula a tristique luctus, felis est blandit libero, nec placerat justo diam at lacus. Fusce volutpat vitae lacus non lobortis. Fusce porttitor varius placerat. Curabitur et varius urna, sit amet gravida leo. Etiam eleifend luctus erat, vel maximus libero lacinia at. Pellentesque mattis pulvinar sem, sit amet porttitor mi maximus in. Sed venenatis orci sit amet nulla luctus, vitae pulvinar neque facilisis. Donec in felis sodales libero fringilla aliquam eu non urna. Praesent ac elit ac lorem cursus aliquam eu venenatis mauris. Proin sed aliquet nunc. Duis venenatis mi dapibus.", ro=False)
+        self.settings.New(
+            "long_string_test",
+            dtype=str,
+            initial="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam accumsan, ligula a tristique luctus, felis est blandit libero, nec placerat justo diam at lacus. Fusce volutpat vitae lacus non lobortis. Fusce porttitor varius placerat. Curabitur et varius urna, sit amet gravida leo. Etiam eleifend luctus erat, vel maximus libero lacinia at. Pellentesque mattis pulvinar sem, sit amet porttitor mi maximus in. Sed venenatis orci sit amet nulla luctus, vitae pulvinar neque facilisis. Donec in felis sodales libero fringilla aliquam eu non urna. Praesent ac elit ac lorem cursus aliquam eu venenatis mauris. Proin sed aliquet nunc. Duis venenatis mi dapibus.",
+            ro=False,
+        )
 
         self.ui = self.settings.New_UI()
 
         long_string_test_plainTextEdit = QtWidgets.QPlainTextEdit()
-        self.ui.layout().addRow("long_string_test_plainTextEdit", long_string_test_plainTextEdit)
+        self.ui.layout().addRow(
+            "long_string_test_plainTextEdit", long_string_test_plainTextEdit
+        )
 
         self.settings.long_string_test.connect_to_widget(long_string_test_plainTextEdit)
 
@@ -60,15 +67,30 @@ class Measure(Measurement):
         self.settings.New("run_crash_middle", dtype=bool, initial=False)
         self.settings.New("pre_run_crash", dtype=bool, initial=False)
         self.settings.New("post_run_crash", dtype=bool, initial=False)
+        self.settings.New("name", dtype=str, initial="cool_op_name")
 
-        self.add_operation("add_setting", self.add_setting)
-        self.add_operation("remove_setting", self.remove_setting)
+        self.add_operation("add_setting", self.on_add_setting)
+        self.add_operation("remove_setting", self.on_remove_setting)
 
-    def add_setting(self):
-        self.settings.New("test", str, "generated")
+        self.add_operation("add_operation", self.on_add_operation)
+        self.add_operation("remove_operation", self.on_remove_operation)
 
-    def remove_setting(self):
-        self.settings.remove("test")
+    def on_add_setting(self):
+        self.settings.New(self.settings["name"], str, "generated")
+
+    def on_remove_setting(self):
+        self.settings.remove(self.settings["name"])
+
+    def on_add_operation(self):
+        self.add_operation(
+            self.settings["name"],
+            lambda: print("operation called"),
+        )
+        print(list(self.operations.keys()))
+
+    def on_remove_operation(self):
+        self.remove_operation(self.settings["name"])
+        print(list(self.operations.keys()))
 
     def setup_figure(self):
 
@@ -86,15 +108,17 @@ class Measure(Measurement):
         )
 
         self.ui = pg.QtWidgets.QWidget()
+        vsplitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
         layout = pg.QtWidgets.QVBoxLayout(self.ui)
-        layout.addWidget(
+        layout.addWidget(vsplitter)
+        vsplitter.addWidget(
             new_tree(
                 (self.app.measurements["measure"], self.app.hardware["hardware"]),
                 ("hello", "world"),
             )
         )
-        layout.addWidget(self.plot)
-        layout.addWidget(splitter)
+        vsplitter.addWidget(self.plot)
+        vsplitter.addWidget(splitter)
 
     def run(self):
 
@@ -146,8 +170,9 @@ class LQWidgetMicroscopeTestApp(BaseMicroscopeApp):
         self.add_measurement(Measure(self))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     # app = LQWidgetTestApp(sys.argv)
     app = LQWidgetMicroscopeTestApp(sys.argv)
     app.exec_()

@@ -4,14 +4,16 @@ import threading
 import time
 import warnings
 from collections import OrderedDict
+from typing import Callable
 
 import pyqtgraph as pg
-from qtpy import QtCore, QtWidgets, QtGui
+from qtpy import QtCore, QtGui, QtWidgets
 
-from ScopeFoundry.logged_quantity.tree import ObjSubtree
+
 from .base_app import BaseMicroscopeApp
 from .helper_funcs import QLock, get_logger_from_class
 from .logged_quantity import LQCollection
+from .logged_quantity.tree import ObjSubtree
 
 
 class HardwareComponent:
@@ -133,7 +135,7 @@ class HardwareComponent:
     def add_logged_quantity(self, name, **kwargs):
         return self.settings.New(name, **kwargs)
 
-    def add_operation(self, name, op_func):
+    def add_operation(self, name: str, op_func: Callable[[], None]):
         """
         Create an operation for the HardwareComponent.
 
@@ -142,10 +144,17 @@ class HardwareComponent:
         operations are typically exposed in the default ScopeFoundry gui via a pushButton
 
         :type name: str
-        :type op_func: QtCore.Slot
+        :type op_func: QtCore.Slot or Callable without Argument
         """
 
         self.operations[name] = op_func
+        self.q_object.operation_added.emit(name)
+
+    def remove_operation(self, name):
+        if name not in self.operations:
+            return
+        del self.operations[name]
+        self.q_object.operation_removed.emit(name)
 
     def on_connection_succeeded(self):
         print(self.name, "connection succeeded!")
@@ -257,7 +266,8 @@ class HardwareQObject(QtCore.QObject):
 
     connection_succeeded = QtCore.Signal()
     connection_failed = QtCore.Signal()
-
+    operation_added = QtCore.Signal(str)
+    operation_removed = QtCore.Signal(str)
 
 def new_control_widgets(name, settings: LQCollection, operations: dict):
     controls_groupBox = QtWidgets.QGroupBox(name)
