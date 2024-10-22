@@ -110,6 +110,7 @@ class Measure(Measurement):
         self.ui = pg.QtWidgets.QWidget()
         vsplitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
         layout = pg.QtWidgets.QVBoxLayout(self.ui)
+        layout.addWidget(self.activation.new_pushButton())
         layout.addWidget(vsplitter)
         vsplitter.addWidget(
             new_tree(

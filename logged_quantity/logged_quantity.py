@@ -270,25 +270,17 @@ class LoggedQuantity(QtCore.QObject):
             new_val = self.coerce_to_type(new_val)
 
             self.log.debug(
-                "{}: update_value {} --> {}    sender={}".format(
-                    self.name, repr(self.oldval), repr(new_val), repr(self.sender())
-                )
+                f"{self.path}: update_value {repr(self.oldval)} --> {repr(new_val)}  from sender:{repr(self.sender())}"
             )
 
             # check for equality of new vs old, do not proceed if they are same
             if self.same_values(self.oldval, new_val):
-                self.log.debug(
-                    "{}: same_value so returning {} {}".format(
-                        self.name, self.oldval, new_val
-                    )
-                )
+                self.log.debug(f"{self.path}: same_value so returning")
                 return
-            else:
-                self.log.debug(
-                    "{}: different values {} {}".format(self.name, self.oldval, new_val)
-                )
+            # else:
+            #     self.log.debug(f"{self.path}: different values {self.oldval} {new_val}")
 
-            # actually change internal state value
+            # actually change internal state value and store prev. values
             self.prev_vals.appendleft(self.val)
             self.val = new_val
 
@@ -454,15 +446,15 @@ class LoggedQuantity(QtCore.QObject):
             widget.setSingleStep(self.spinbox_step)
             widget.setValue(self.val)
 
-            # events
-            def update_widget_value(x):
+            @QtCore.Slot(float)
+            def update_widget_value(x=None):
                 """
                 block signals from widget when value is set via lq.update_value.
                 This prevents signal-slot loops between widget and lq
                 """
                 try:
                     widget.blockSignals(True)
-                    widget.setValue(x)
+                    widget.setValue(self.val)
                 finally:
                     widget.blockSignals(False)
 
@@ -524,32 +516,30 @@ class LoggedQuantity(QtCore.QObject):
 
         elif type(widget) == QtWidgets.QCheckBox:
 
-            def update_widget_value(x):
-                lq = widget.sender()
-                # self.log.debug("LQ {} update qcheckbox: {} arg{} lq value{}".format(lq.name,   widget, x, lq.value))
-                widget.setChecked(lq.value)
+            @QtCore.Slot(bool)
+            def update_widget_value(x=None):
+                try:
+                    widget.blockSignals(True)
+                    widget.setChecked(self.val)
+                finally:
+                    widget.blockSignals(False)
 
             self.updated_value[bool].connect(update_widget_value)
-            widget.clicked[bool].connect(
-                self.update_value
-            )  # another option is stateChanged signal
-            if self.ro:
-                # widget.setReadOnly(True)
-                widget.setEnabled(False)
 
-            if self.colors != None:
-                if len(self.colors) in (2, 3):  # QCheckBoxes can have 3 states
-                    if len(self.colors) == 2:
-                        colors = [self.colors[0], "lightgrey", self.colors[1]]
-                    elif len(self.qcolors) == 3:
-                        colors = self.colors
-                    s = f"""QCheckBox:!checked {{ background: {colors[0]} }}
-                            QCheckBox:checked  {{ background: {colors[2]} }}"""
-                    widget.setStyleSheet(widget.styleSheet() + s)
+            if self.ro:
+                widget.setEnabled(False)
+            else:
+                widget.clicked[bool].connect(self.update_value)
+
+            if self.colors is not None:
+                s = f"""QCheckBox:!checked {{ background: {self.colors[0]} }}
+                        QCheckBox:checked  {{ background: {self.colors[-1]} }}"""
+                widget.setStyleSheet(widget.styleSheet() + s)
 
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
             self.updated_value[str].connect(widget.setText)
+
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
 
@@ -768,25 +758,23 @@ class LoggedQuantity(QtCore.QObject):
 
         elif type(widget) == QtWidgets.QCheckBox:
 
-            def update_widget_value(x):
-                lq = widget.sender()
-                # self.log.debug("LQ {} update qcheckbox: {} arg{} lq value{}".format(lq.name,   widget, x, lq.value))
-                widget.setChecked(lq.value)
+            @QtCore.Slot(bool)
+            def update_widget_value(x=None):
+                try:
+                    widget.blockSignals(True)
+                    widget.setChecked(self.val)
+                finally:
+                    widget.blockSignals(False)
 
             self.updated_value[bool].connect(update_widget_value)
+
             if self.ro:
-                # widget.setReadOnly(True)
                 widget.setEnabled(False)
 
-            if self.colors != None:
-                if len(self.colors) in (2, 3):  # QCheckBoxes can have 3 states
-                    if len(self.colors) == 2:
-                        colors = [self.colors[0], "lightgrey", self.colors[1]]
-                    elif len(self.qcolors) == 3:
-                        colors = self.colors
-                    s = f"""QCheckBox:!checked {{ background: {colors[0]} }}
-                            QCheckBox:checked  {{ background: {colors[2]} }}"""
-                    widget.setStyleSheet(widget.styleSheet() + s)
+            if self.colors is not None:
+                s = f"""QCheckBox:!checked {{ background: {self.colors[0]} }}
+                        QCheckBox:checked  {{ background: {self.colors[-1]} }}"""
+                widget.setStyleSheet(widget.styleSheet() + s)
 
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
@@ -905,25 +893,33 @@ class LoggedQuantity(QtCore.QObject):
 
     def connect_to_pushButton(
         self,
-        pushButton,
-        colors=["rgba( 0, 255, 0, 180)", "rgba(255, 69, 0, 180)"],
-        texts=["START", "INTERRUPT"],
-        styleSheet_amendment="""QPushButton{ padding:3px }
-                                                        QPushButton:hover:!pressed{ border: 1px solid black; }
-                                                         """,
+        pushButton: QtWidgets.QPushButton,
+        colors=("rgba( 0, 255, 0, 180)", "rgba(255, 69, 0, 180)"),
+        texts=("▶ START", "🛑 INTERRUPT"),
+        styleSheet_amendment="""
+        QPushButton{ padding:3px }
+        QPushButton:hover:!pressed{ border: 1px solid black; }
+        """,
     ):
-        assert type(pushButton) == QtWidgets.QPushButton
+        assert isinstance(pushButton, QtWidgets.QPushButton)
         assert self.dtype == bool
-        if colors == None and self.colors != None:
-            colors = self.colors
+
         pushButton.setCheckable(True)
 
-        def update_pushButton_value(x):
-            lq = pushButton.sender()
-            pushButton.setChecked(lq.value)
-            pushButton.setText(texts[int(x)])
+        @QtCore.Slot(bool)
+        def update_widget_value(x=None):
+            try:
+                pushButton.blockSignals(True)
+                pushButton.setChecked(self.val)
+                pushButton.setText(texts[int(x)])
+            finally:
+                pushButton.blockSignals(False)
 
-        self.updated_value[bool].connect(update_pushButton_value)
+        self.updated_value[bool].connect(update_widget_value)
+
+        if colors is None:
+            colors = (None, None) if self.colors is None else self.colors
+
         pushButton.toggled[bool].connect(self.update_value)
         s = f"""QPushButton:!checked{{ background:{colors[0]}; border: 1px solid grey; }}
                 QPushButton:checked{{ background:{colors[1]}; border: 1px solid grey; }}"""
@@ -931,6 +927,7 @@ class LoggedQuantity(QtCore.QObject):
 
         if self.ro:
             pushButton.setEnabled(False)
+
         self.set_widget_toolTip(pushButton)
         self.send_display_updates(force=True)
         self.widget_list.append(pushButton)
