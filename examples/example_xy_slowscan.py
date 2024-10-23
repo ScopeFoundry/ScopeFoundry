@@ -1,44 +1,33 @@
 import sys
-from PySide import QtGui
 
 from ScopeFoundry import BaseMicroscopeApp
-
-# Import Hardware Components
-from hardware_components.apd_counter import  APDCounterHardwareComponent
+from ScopeFoundry.examples.hardware.dummy_detector import DummyDetector
 from ScopeFoundry.examples.hardware.dummy_xy_stage import DummyXYStageHW
+from ScopeFoundry.scanning import BaseRaster2DSlowScan
 
-# Import Measurement Components
-from measurement_components.apd_optimizer_simple import APDOptimizerMeasurement
-from ScopeFoundry.scanning.xy_scan_base import SimpleXYScan
+
+class DummyXYScanMeasure(BaseRaster2DSlowScan):
+
+    name = "dummy_xy_scan"
+
+    def scan_specific_setup(self):
+        self.stage = self.app.hardware["dummy_xy_stage"]
+        self.detector = self.app.hardware["dummy_detector"]
+
+    def collect_pixel(self, pixel_num, k, j, i):
+        self.display_image_map[k, j, i] = self.detector.signal.read_from_hardware()
 
 
 class ExampleXYSlowscanApp(BaseMicroscopeApp):
 
-    #ui_filename = "../../ScopeFoundry/base_gui.ui"
-
     def setup(self):
-        #Add hardware components
-        print("Adding Hardware Components")
-        self.add_hardware_component(APDCounterHardwareComponent(self))
-        self.add_hardware_component(DummyXYStageHW(self))
+        self.add_hardware(DummyXYStageHW(self))
+        self.add_hardware(DummyDetector(self))
 
-        #Add measurement components
-        print("Create Measurement objects")
-        self.add_measurement_component(APDOptimizerMeasurement(self))
-        self.add_measurement_component(SimpleXYScan(self))
-        
-        #set some default logged quantities
-        self.hardware_components['apd_counter'].debug_mode.update_value(True)
-        self.hardware_components['apd_counter'].dummy_mode.update_value(True)
-        self.hardware_components['apd_counter'].connected.update_value(True)
-
-        #Add additional logged quantities
-
-        # Connect to custom gui
-        self.ui.show()
-        self.ui.activateWindow()
+        self.add_measurement(DummyXYScanMeasure(self))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = ExampleXYSlowscanApp(sys.argv)
+    app.settings_load_ini("default_settings.ini")
     sys.exit(app.exec_())
