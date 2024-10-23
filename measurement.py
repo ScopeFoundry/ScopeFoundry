@@ -567,10 +567,12 @@ class MeasurementQbject(QtCore.QObject):
         except Exception as err:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             self.m.log.error(
-                "{} Failed to update figure1: {}. {}".format(
+                "{} Failed to update display: {}. {}".format(
                     self.m.name,
                     err,
-                    traceback.format_exception(exc_type, exc_value, exc_traceback),
+                    "\n".join(
+                        traceback.format_exception(exc_type, exc_value, exc_traceback)
+                    ),
                 )
             )
         finally:

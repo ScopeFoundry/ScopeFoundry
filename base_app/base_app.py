@@ -10,20 +10,20 @@ from __future__ import absolute_import, division, print_function
 import asyncio
 import logging
 import sys
-import time
 import traceback
 from collections import OrderedDict
-from logging import Handler
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
 import pyqtgraph as pg
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtWidgets
 
 from ScopeFoundry import ini_io
 from ScopeFoundry.helper_funcs import get_logger_from_class
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
+
+from .logging_handlers import LoggingQTextEditHandler
 
 try:
     import IPython
@@ -216,14 +216,11 @@ class BaseApp(QtCore.QObject):
 
     def setup_logging(self):
 
-        logging.basicConfig(
-            level=logging.WARN
-        )  # , filename='example.log', stream=sys.stdout)
+        logging.basicConfig(level=logging.WARN)
         logging.getLogger("traitlets").setLevel(logging.WARN)
         logging.getLogger("ipykernel.inprocess").setLevel(logging.WARN)
         logging.getLogger("LoggedQuantity").setLevel(logging.WARN)
         logging.getLogger("PyQt5").setLevel(logging.WARN)
-        logger = logging.getLogger("FoundryDataBrowser")
 
         self.logging_widget = QtWidgets.QWidget()
         self.logging_widget.setWindowTitle("Log")
@@ -368,52 +365,6 @@ class BaseApp(QtCore.QObject):
             return
         del self.operations[name]
         self.q_object.operation_removed.emit(name)
-
-
-class LoggingQTextEditHandler(Handler, QtCore.QObject):
-
-    new_log_signal = QtCore.Signal((str,))
-
-    def __init__(self, textEdit, level=logging.NOTSET, buffer_len=500):
-        self.textEdit = textEdit
-        self.buffer_len = buffer_len
-        self.messages = []
-        Handler.__init__(self, level=level)
-        QtCore.QObject.__init__(self)
-        self.new_log_signal.connect(self.on_new_log)
-
-    def emit(self, record):
-        log_entry = self.format(record)
-        self.new_log_signal.emit(log_entry)
-
-    def on_new_log(self, log_entry):
-        # self.textEdit.moveCursor(QtGui.QTextCursor.End)
-        # self.textEdit.insertHtml(log_entry)
-        # self.textEdit.moveCursor(QtGui.QTextCursor.End)
-        self.messages.append(log_entry)
-        if len(self.messages) > self.buffer_len:
-            self.messages = [
-                "...<br>",
-            ] + self.messages[-self.buffer_len :]
-        self.textEdit.setHtml("\n".join(self.messages))
-        self.textEdit.moveCursor(QtGui.QTextCursor.End)
-
-    level_styles = dict(
-        CRITICAL="color: red;",
-        ERROR="color: red;",
-        WARNING="color: orange;",
-        INFO="color: green;",
-        DEBUG="color: green;",
-        NOTSET="",
-    )
-
-    def format(self, record):
-        # timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(record.created))
-        style = self.level_styles.get(record.levelname, "")
-        return """{} - <span style="{}">{}</span>: <i>{}</i> :{}<br>""".format(
-            timestamp, style, record.levelname, record.name, record.msg
-        )
 
 
 class BaseAppQbject(QtCore.QObject):

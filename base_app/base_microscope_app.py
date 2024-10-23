@@ -22,6 +22,7 @@ from ScopeFoundry.helper_funcs import (
 from ScopeFoundry.logged_quantity import LoggedQuantity, new_tree
 
 from .base_app import BaseApp
+from .logging_handlers import new_log_file_handler
 
 
 class BaseMicroscopeApp(BaseApp):
@@ -45,11 +46,7 @@ class BaseMicroscopeApp(BaseApp):
         if not log_path.is_dir():
             log_path.mkdir()
         _fname = f"{self.name}_log_{datetime.datetime.now():%y%m%d_%H%M%S}.txt"
-        self.log_file_handler = logging.FileHandler(str(log_path / _fname))
-        fmt = "%(asctime)s|%(levelname)s|%(name)s|%(message)s"
-        datefmt = "%Y-%m-%dT%H:%M:%S"
-        formatter = logging.Formatter(fmt, datefmt)
-        self.log_file_handler.setFormatter(formatter)
+        self.log_file_handler = new_log_file_handler(log_path / _fname)
 
         logging.getLogger().addHandler(self.log_file_handler)
 
