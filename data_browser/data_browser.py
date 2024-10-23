@@ -5,14 +5,14 @@ from pathlib import Path
 from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry import BaseApp, LoggedQuantity, ini_io
-from ScopeFoundry.helper_funcs import load_qt_ui_from_pkg, sibling_path
+from ScopeFoundry.helper_funcs import load_qt_ui_file, load_qt_ui_from_pkg, sibling_path
 from .viewers.file_info import FileInfoView
 
 
 class DataBrowser(BaseApp):
-    
+
     name = "DataBrowser"
-    
+
     def __init__(self, argv, dark_mode=False):
         BaseApp.__init__(self, argv, dark_mode)
         self.setup()
@@ -27,7 +27,7 @@ class DataBrowser(BaseApp):
                     lq.update_value(val)
 
     def setup(self):
-        
+
         self._setting_paths = {}
 
         self.views = OrderedDict()
@@ -101,9 +101,9 @@ class DataBrowser(BaseApp):
         )
         self.ui.data_filename_recycle_pushButton.clicked.connect(self.on_recycle)
         self.ui.data_filename_rename_pushButton.clicked.connect(self.on_rename)
-        s.view_name.connect_bidir_to_widget(self.ui.view_name_comboBox)
+        s.view_name.connect_to_widget(self.ui.view_name_comboBox)
         s.auto_select_view.connect_to_widget(self.ui.auto_select_checkBox)
-        s.file_filter.connect_bidir_to_widget(self.ui.file_filter_lineEdit)
+        s.file_filter.connect_to_widget(self.ui.file_filter_lineEdit)
 
         self.ui.console_pushButton.clicked.connect(self.console_widget.show)
         self.ui.log_pushButton.clicked.connect(self.logging_widget.show)
@@ -137,10 +137,10 @@ class DataBrowser(BaseApp):
 
         # Update views dict
         self.views[new_view.name] = new_view
+
         self.settings.view_name.change_choice_list(list(self.views.keys()))
 
         self.log.debug("add_view done {}".format(new_view))
-        print("added view", repr(new_view.name))
 
         return new_view
 
@@ -217,7 +217,7 @@ class DataBrowser(BaseApp):
     def on_treeview_selection_change(self, sel, desel):
         fname = self.fs_model.filePath(self.tree_selectionModel.currentIndex())
         self.settings['data_filename'] = fname
-#        print( 'on_treeview_selection_change' , fname, sel, desel)
+    #        print( 'on_treeview_selection_change' , fname, sel, desel)
 
     def auto_select_view(self, fname):
         "return the name of the last supported view for the given fname"
@@ -240,13 +240,13 @@ class DataBrowser(BaseApp):
 
         if dialog.new_name:
             Path(fname).rename(dialog.new_name)
-            
+
     def read_setting(self, path, ini_string_value=False):
         lq = self.get_lq(path)
         if ini_string_value:
             return lq.ini_string_value()
         return lq.val
-    
+
     def write_setting(self, path:str, value):
         lq = self.get_lq(path)
         if lq is not None:
@@ -260,7 +260,7 @@ class DataBrowser(BaseApp):
         where section are "views" or "app"
         """
         parts = path.split("/")
-        
+
         settings = self.settings
         if parts[0] in ("views"):
             view = self.views.get(parts[1], None)
@@ -271,10 +271,10 @@ class DataBrowser(BaseApp):
             plugin = self.plugins.get(parts[1], None)
             if plugin is not None:
                 settings = plugin.settings
-                
+
         if parts[-1] in settings: 
             return self.settings.get_lq(parts[1])
-    
+
     def settings_load_ini(self, fname):
         """
         ==============  =========  ==============================================
@@ -285,21 +285,21 @@ class DataBrowser(BaseApp):
         settings = ini_io.load_settings(fname)
         for path, value in settings.items():
             self.write_setting(path, value)
-            
+
     def settings_save_ini(self, fname):
         settings = self.read_settings(ini_string_value=True)
         ini_io.save_settings(fname, settings)
-        
+
     def read_settings(self, ini_string_value=False):
         """returns a dictionary (path, value) of registered settings"""
         return {p:self.read_setting(p, ini_string_value) for p in self._setting_paths}
-    
+
     def settings_save_dialog(self):
         """Opens a save as ini dialogue in the app user interface."""
         fname, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Settings file", "", "Settings File (*.ini)")
         if fname:
             self.settings_save_ini(fname)
-    
+
     def settings_load_dialog(self):
         """Opens a load ini dialogue in the app user interface"""
         fname, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Settings file", "", "Settings File (*.ini)")
@@ -307,7 +307,7 @@ class DataBrowser(BaseApp):
             self.settings_load_ini(fname)
         # elif fname.endswith(".h5"):
         #     self.settings_load_h5(fname)
-        
+
 
 class RenameDialog(QtWidgets.QDialog):
 
@@ -340,7 +340,7 @@ class RenameDialog(QtWidgets.QDialog):
         self.new_name = self.new_name_w.text()
         self.accept()
 
-        
+
 def construct_lq_paths(lq_collection, pre="app"):
     new = {}
     for name, lq in lq_collection.as_dict().items():

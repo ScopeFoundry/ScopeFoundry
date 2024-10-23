@@ -62,6 +62,12 @@ class Measure(Measurement):
 
     def setup(self):
 
+        self.settings.New(
+            "color test",
+            str,
+            choices=("yellow", "blue", "grey"),
+            colors=("yellow", "blue"),
+        )
         self.settings.New("amplitude", dtype=float, initial=1.0)
         self.settings.New("run_crash_immediately", dtype=bool, initial=False)
         self.settings.New("run_crash_middle", dtype=bool, initial=False)
@@ -107,9 +113,9 @@ class Measure(Measurement):
             )
         )
 
-        self.ui = pg.QtWidgets.QWidget()
+        self.ui = QtWidgets.QWidget()
         vsplitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
-        layout = pg.QtWidgets.QVBoxLayout(self.ui)
+        layout = QtWidgets.QVBoxLayout(self.ui)
         layout.addWidget(self.activation.new_pushButton())
         layout.addWidget(vsplitter)
         vsplitter.addWidget(

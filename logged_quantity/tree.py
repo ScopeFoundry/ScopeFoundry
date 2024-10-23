@@ -1,5 +1,5 @@
 from functools import partial
-from typing import OrderedDict, Protocol
+from typing import OrderedDict, Protocol, List, Union
 
 from qtpy import QtCore, QtGui, QtWidgets
 
@@ -19,15 +19,16 @@ class SubtreeAbleObj(Protocol):
     operations: OrderedDict
     q_object: SubtreeAblesQObject
 
-    def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree): ...
+    def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree): ...  # optional
 
     def on_right_click(self): ...  # optional
 
 
-def new_tree(objs: list[SubtreeAbleObj], header=["col0", ""]) -> QtWidgets.QTreeWidget:
+def new_tree(objs: List[SubtreeAbleObj], header=["col0", ""]) -> QtWidgets.QTreeWidget:
     tree = QtWidgets.QTreeWidget()
     tree.setColumnCount(len(header))
     tree.setHeaderLabels(header)
+    tree.setColumnWidth(0, 180)
     tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
     tree.customContextMenuRequested.connect(partial(on_right_click, tree=tree))
 
@@ -39,7 +40,7 @@ def new_tree(objs: list[SubtreeAbleObj], header=["col0", ""]) -> QtWidgets.QTree
 
 class SFQTreeWidgetItem(QtWidgets.QTreeWidgetItem):
 
-    obj: SubtreeAbleObj | LoggedQuantity | OrderedDict
+    obj: Union[SubtreeAbleObj, LoggedQuantity, OrderedDict]
 
 
 class ObjSubtree:
@@ -94,7 +95,7 @@ class ObjSubtree:
 def remove_from_tree(
     name: str,
     root_item: SFQTreeWidgetItem,
-    children: dict[str, SFQTreeWidgetItem],
+    children,  # dict[str, SFQTreeWidgetItem],
 ) -> None:
     item = children.pop(name, None)
     if item is None:
@@ -103,9 +104,9 @@ def remove_from_tree(
 
 
 def update_operations(
-    operations: dict[str, None],
+    operations: OrderedDict,
     root_item: QtWidgets.QTreeWidgetItem,
-    children: dict[str, QtWidgets.QTreeWidgetItem],
+    children,  #: dict[str, QtWidgets.QTreeWidgetItem],
 ) -> None:
     for op_name, op_func in operations.items():
         if op_name in children:
@@ -121,7 +122,7 @@ def update_operations(
 def update_settings(
     settings: LQCollection,
     root_item: SFQTreeWidgetItem,
-    children: dict[str, SFQTreeWidgetItem],
+    children,  #: dict[str, SFQTreeWidgetItem],
 ) -> None:
     for lqname, lq in tuple(settings.iter(exclude=children.keys())):
         if isinstance(lq, ArrayLQ):
@@ -159,5 +160,5 @@ def on_right_click(position, tree: QtWidgets.QTreeWidget) -> None:
     if len(selected_items) < 1:
         return
     selected_item: SFQTreeWidgetItem = selected_items[0]
-    if hasattr(selected_item, "on_right_click"):
+    if hasattr(selected_item.obj, "on_right_click"):
         selected_item.obj.on_right_click()

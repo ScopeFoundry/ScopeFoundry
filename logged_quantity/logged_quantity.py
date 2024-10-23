@@ -102,18 +102,10 @@ class LoggedQuantity(QtCore.QObject):
         self.description = description
 
         self.colors = colors
-        self.qcolors = []
-        if self.colors:
-            default_color = QtGui.QColor("lightgrey")
-            for color in colors:
-                try:
-                    qcolor = QtGui.QColor(color)
-                except TypeError:
-                    qcolor = default_color
-                if qcolor.isValid():
-                    self.qcolors.append(qcolor)
-                else:
-                    self.qcolors.append(default_color)
+        if colors:
+            self.qcolors = [to_q_color(color) for color in colors]
+        else:
+            self.qcolors = []
 
         self.log = get_logger_from_class(self)
 
@@ -577,28 +569,32 @@ class LoggedQuantity(QtCore.QObject):
             widget.textChanged.connect(on_widget_textChanged)
 
         elif type(widget) == QtWidgets.QComboBox:
-            # need to have a choice list to connect to a QComboBox
             assert self.choices is not None
             widget.clear()  # removes all old choices
+
             for choice_name, choice_value in self.choices:
                 widget.addItem(choice_name, choice_value)
             self.updated_choice_index_value[int].connect(widget.setCurrentIndex)
             widget.currentIndexChanged.connect(self.update_choice_index_value)
-            if self.colors != None:
-                if len(self.qcolors) == len(self.choices):
-                    for i, qcolor in enumerate(self.qcolors):
-                        widget.setItemData(i, qcolor, QtCore.Qt.BackgroundRole)
 
-                    def update_background_color(idx):
-                        qcolor = self.qcolors[idx]
-                        s = f"""QComboBox{{
-                                    selection-background-color: {qcolor.name()};
-                                    selection-color: black;
-                                    background: {qcolor.name()};
-                                    }}"""
-                        widget.setStyleSheet(widget.styleSheet() + s)
+            if self.colors is not None:
+                for i, qcolor in enumerate(self.qcolors):
+                    widget.setItemData(i, qcolor, QtCore.Qt.BackgroundRole)
 
-                    widget.currentIndexChanged.connect(update_background_color)
+                def update_background_color(idx):
+                    if idx < len(self.qcolors):
+                        qc = self.qcolors[idx]
+                    else:
+                        qc = QtGui.QColor("white")
+
+                    s = f"""QComboBox{{
+                                selection-background-color: {qc.name()};
+                                selection-color: black;
+                                background: {qc.name()};
+                                }}"""
+                    widget.setStyleSheet(widget.styleSheet() + s)
+
+                widget.currentIndexChanged.connect(update_background_color)
 
         elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
             # widget.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -804,21 +800,25 @@ class LoggedQuantity(QtCore.QObject):
             for choice_name, choice_value in self.choices:
                 widget.addItem(choice_name, choice_value)
             self.updated_choice_index_value[int].connect(widget.setCurrentIndex)
-            if self.colors != None:
-                if len(self.qcolors) == len(self.choices):
-                    for i, qcolor in enumerate(self.qcolors):
-                        widget.setItemData(i, qcolor, QtCore.Qt.BackgroundRole)
 
-                    def update_background_color(idx):
-                        qcolor = self.qcolors[idx]
-                        s = f"""QComboBox{{
-                                    selection-background-color: {qcolor.name()};
-                                    selection-color: black;
-                                    background: {qcolor.name()};
-                                    }}"""
-                        widget.setStyleSheet(widget.styleSheet() + s)
+            if self.colors is not None:
+                for i, qcolor in enumerate(self.qcolors):
+                    widget.setItemData(i, qcolor, QtCore.Qt.BackgroundRole)
 
-                    widget.currentIndexChanged.connect(update_background_color)
+                def update_background_color(idx):
+                    if idx < len(self.qcolors):
+                        qc = self.qcolors[idx]
+                    else:
+                        qc = QtGui.QColor("white")
+
+                    s = f"""QComboBox{{
+                                selection-background-color: {qc.name()};
+                                selection-color: black;
+                                background: {qc.name()};
+                                }}"""
+                    widget.setStyleSheet(widget.styleSheet() + s)
+
+                widget.currentIndexChanged.connect(update_background_color)
 
         elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
             # widget.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -1259,3 +1259,12 @@ class LoggedQuantity(QtCore.QObject):
                 cmenu.addAction(f"{val}", partial(self.update_value, new_val=val))
 
         cmenu.exec_(QtGui.QCursor.pos())
+
+
+def to_q_color(color):
+    try:
+        qcolor = QtGui.QColor(color)
+        if qcolor.isValid():
+            return qcolor
+    except TypeError:
+        return QtGui.QColor("lightgrey")

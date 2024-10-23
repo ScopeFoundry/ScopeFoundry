@@ -14,13 +14,12 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ScopeFoundry import h5_io, ini_io
 from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
-    sibling_path,
-    load_qt_ui_file,
     confirm_on_close,
     ignore_on_close,
+    load_qt_ui_file,
+    sibling_path,
 )
 from ScopeFoundry.logged_quantity import LoggedQuantity, new_tree
-
 
 from .base_app import BaseApp
 
@@ -271,11 +270,11 @@ class BaseMicroscopeApp(BaseApp):
 
     def set_subwindow_mode(self):
         """Switches Multiple Document Interface to Subwindowed viewing mode."""
-        self.ui.mdiArea.setViewMode(self.ui.mdiArea.SubWindowView)
+        self.ui.mdiArea.setViewMode(QtWidgets.QMdiArea.ViewMode.SubWindowView)
 
     def set_tab_mode(self):
         """Switches Multiple Document Interface to Tabbed viewing mode."""
-        self.ui.mdiArea.setViewMode(self.ui.mdiArea.TabbedView)
+        self.ui.mdiArea.setViewMode(QtWidgets.QMdiArea.ViewMode.TabbedView)
 
     def tile_layout(self):
         """Tiles subwindows in user interface. Specifically in the Multi Document Interface."""
@@ -291,11 +290,11 @@ class BaseMicroscopeApp(BaseApp):
         self.bring_mdi_subwin_to_front(measure.subwin)
 
     def bring_mdi_subwin_to_front(self, subwin):
-        viewMode = self.ui.mdiArea.viewMode()
-        if viewMode == self.ui.mdiArea.SubWindowView:
+        view_mode = self.ui.mdiArea.viewMode()
+        if view_mode == QtWidgets.QMdiArea.ViewMode.SubWindowView:
             subwin.showNormal()
             subwin.raise_()
-        elif viewMode == self.ui.mdiArea.TabbedView:
+        elif view_mode == QtWidgets.QMdiArea.ViewMode.TabbedView:
             subwin.showMaximized()
             subwin.raise_()
 
