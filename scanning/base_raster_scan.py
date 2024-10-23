@@ -54,6 +54,7 @@ class BaseRaster2DScan(Measurement):
         self.use_external_range_sync = use_external_range_sync
         self.circ_roi_size=circ_roi_size
         self.img_items = []
+        self.current_scan_index = (0, 0, 0)
         Measurement.__init__(self, app)
         
     def setup(self):
