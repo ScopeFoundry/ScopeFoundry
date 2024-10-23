@@ -17,7 +17,7 @@ class LQCollectionQObject(QtCore.QObject):
     new_lq_added = QtCore.Signal((LoggedQuantity,))
     lq_removed = QtCore.Signal((LoggedQuantity,))
 
-    def __init__(self, settings, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, settings, parent: QtCore.QObject = None) -> None:
         super().__init__(parent)
         self.settings = settings
 

@@ -554,9 +554,7 @@ class MeasurementQbject(QtCore.QObject):
     operation_added = QtCore.Signal(str)
     operation_removed = QtCore.Signal(str)
 
-    def __init__(
-        self, measurement: Measurement, parent: QtCore.QObject | None = None
-    ) -> None:
+    def __init__(self, measurement: Measurement, parent: QtCore.QObject = None) -> None:
         super().__init__(parent)
         self.m = measurement
         self.display_update_timer = QtCore.QTimer()
