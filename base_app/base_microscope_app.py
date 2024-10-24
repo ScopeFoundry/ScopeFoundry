@@ -22,6 +22,8 @@ from ScopeFoundry.helper_funcs import (
 from ScopeFoundry.logged_quantity import LoggedQuantity, new_tree
 
 from .base_app import BaseApp
+from .logging_handlers import new_log_file_handler
+from .show_io_report_dialog import show_io_report_dialog
 
 
 class BaseMicroscopeApp(BaseApp):
@@ -472,7 +474,7 @@ class BaseMicroscopeApp(BaseApp):
 
         self.log.info(f"ini settings saved to {fname} str")
 
-    def settings_load_ini(self, fname, ignore_hw_connect=False):
+    def settings_load_ini(self, fname, ignore_hw_connect=False, show_report=True):
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -480,16 +482,21 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ==============================================
         """
         settings = ini_io.load_settings(fname)
-        if not ignore_hw_connect:
-            self.write_settings_safe(
-                {k: v for k, v in settings.items() if k.endswith("connected")}
-            )
-        self.write_settings_safe(
-            {k: v for k, v in settings.items() if not k.endswith("connected")}
-        )
+
+        if ignore_hw_connect:
+            settings = {
+                k: v for k, v in settings.items() if not k.endswith("connected")
+            }
+
+        report = self.write_settings_safe(settings)
+        self._report = report  # _report for test purpose
+
+        if show_report:
+            show_io_report_dialog(fname, report, self.settings_load_ini)
+
         self.propose_settings_values(Path(fname).name, settings)
 
-    def settings_load_h5(self, fname, ignore_hw_connect=False):
+    def settings_load_h5(self, fname, ignore_hw_connect=False, show_report=True):
         """
         Loads h5 settings given a filename.
 
@@ -499,13 +506,17 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ====================================================================================
         """
         settings = h5_io.load_settings(fname)
-        if not ignore_hw_connect:
-            self.write_settings_safe(
-                {k: v for k, v in settings.items() if k.endswith("connected")}
-            )
-        self.write_settings_safe(
-            {k: v for k, v in settings.items() if not k.endswith("connected")}
-        )
+        if ignore_hw_connect:
+            settings = {
+                k: v for k, v in settings.items() if not k.endswith("connected")
+            }
+
+        report = self.write_settings_safe(settings)
+        self._report = report  # _report for test purpose
+
+        if show_report:
+            show_io_report_dialog(fname, report, self.settings_load_h5)
+
         self.propose_settings_values(Path(fname).name, settings)
 
     def settings_auto_save_ini(self):
