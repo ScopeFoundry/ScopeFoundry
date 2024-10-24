@@ -8,6 +8,7 @@ UI enhancements by Ed Barnard, Alan Buckley
 from __future__ import absolute_import, division, print_function
 
 import asyncio
+import enum
 import logging
 import sys
 import traceback
@@ -52,6 +53,12 @@ try:
 except Exception as err:
     darktheme_available = False
     print(f"pyqdarktheme unavailable: {err}")
+
+
+class WRITE_RES(enum.Enum):
+    SUCCESS = enum.auto()
+    MISSING = enum.auto()
+    PROTECTED = enum.auto()
 
 
 class BaseApp(QtCore.QObject):
@@ -149,17 +156,18 @@ class BaseApp(QtCore.QObject):
     def write_setting(self, path: str, value):
         lq = self.get_lq(path)
         if lq is None:
-            return
+            return WRITE_RES.MISSING
         lq.update_value(value)
+        return WRITE_RES.SUCCESS
 
     def write_setting_safe(self, path: str, value):
         lq = self.get_lq(path)
         if lq is None:
-            return None
+            return WRITE_RES.MISSING
         elif lq.protected:
-            return "PROTECTED"
+            return WRITE_RES.PROTECTED
         lq.update_value(value)
-        return True
+        return WRITE_RES.SUCCESS
 
     def get_lq(self, path: str) -> LoggedQuantity:
         """
@@ -279,6 +287,8 @@ class TestBaseApp(BaseApp):
         self.ui = QtWidgets.QWidget()
         # self.ui = new_tree((self,), ["test", ""])
         self.ui.show()
+        self.console_widget.show()
+        # self.logging_widget.show()
 
 
 if __name__ == "__main__":

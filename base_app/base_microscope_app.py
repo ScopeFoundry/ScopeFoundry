@@ -23,7 +23,7 @@ from ScopeFoundry.logged_quantity import LoggedQuantity, new_tree
 
 from .base_app import BaseApp
 from .logging_handlers import new_log_file_handler
-
+from .show_io_report_dialog import show_io_report_dialog
 
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
@@ -487,7 +487,7 @@ class BaseMicroscopeApp(BaseApp):
         self._report = report  # _report for test purpose
 
         if show_report:
-            display_failed_report(fname, report, self.settings_load_ini)
+            show_io_report_dialog(fname, report, self.settings_load_ini)
 
         self.propose_settings_values(Path(fname).name, settings)
 
@@ -510,7 +510,7 @@ class BaseMicroscopeApp(BaseApp):
         self._report = report  # _report for test purpose
 
         if show_report:
-            display_failed_report(fname, report, self.settings_load_h5)
+            show_io_report_dialog(fname, report, self.settings_load_h5)
 
         self.propose_settings_values(Path(fname).name, settings)
 
@@ -789,67 +789,3 @@ class BaseMicroscopeApp(BaseApp):
         layout.addWidget(readme)
         dialog.setLayout(layout)
         dialog.exec_()
-
-
-def display_failed_report(fname: str, report, retry_func):
-    failures = [f" - `{path}`" for path, v in report.items() if v is None]
-    protecteds = [f" - `{path}`" for path, v in report.items() if v == "PROTECTED"]
-
-    name = Path(fname).name
-
-    if not failures:
-        if protecteds:
-            print(f"{name} has protected settings that were not updated:")
-            for p in protecteds:
-                print(p)
-        return
-
-    successes = [path for path, v in report.items() if v is True]
-    lines = (
-        ["## failed to update:"]
-        + failures
-        + ["  ", "  ", f"## number of sucesses:", f"{len(successes)}"]
-    )
-
-    if protecteds:
-        lines += [
-            "  ",
-            "  ",
-            "## protected",
-            "the following are `protected` and can not be update by a file",
-            "  ",
-        ]
-        lines += protecteds
-
-    text_edit = QtWidgets.QTextEdit()
-    text_edit.setMarkdown("\n".join(lines))
-
-    dialog = QtWidgets.QDialog()
-    dialog.setWindowTitle(f"{name} failed to update ({len(failures)}):")
-    layout = QtWidgets.QVBoxLayout()
-    dialog.setLayout(layout)
-    layout.addWidget(text_edit)
-
-    if name.endswith(".ini"):
-        proc = QtCore.QProcess()
-
-        def on_fix():
-            proc.start("notepad.exe", (fname,))
-
-        btn = QtWidgets.QPushButton("fix")
-        btn.clicked.connect(on_fix)
-        layout.addWidget(btn)
-
-        def on_retry():
-            dialog.close()
-            retry_func(fname)
-
-        btn = QtWidgets.QPushButton("retry")
-        btn.clicked.connect(on_retry)
-        layout.addWidget(btn)
-
-    btn = QtWidgets.QPushButton(f"close")
-    btn.clicked.connect(dialog.close)
-    layout.addWidget(btn)
-
-    dialog.exec_()
