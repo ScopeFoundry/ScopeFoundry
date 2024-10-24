@@ -102,18 +102,10 @@ class LoggedQuantity(QtCore.QObject):
         self.description = description
 
         self.colors = colors
-        self.qcolors = []
-        if self.colors:
-            default_color = QtGui.QColor("lightgrey")
-            for color in colors:
-                try:
-                    qcolor = QtGui.QColor(color)
-                except TypeError:
-                    qcolor = default_color
-                if qcolor.isValid():
-                    self.qcolors.append(qcolor)
-                else:
-                    self.qcolors.append(default_color)
+        if colors:
+            self.qcolors = [to_q_color(color) for color in colors]
+        else:
+            self.qcolors = []
 
         self.log = get_logger_from_class(self)
 
@@ -525,31 +517,28 @@ class LoggedQuantity(QtCore.QObject):
         elif type(widget) == QtWidgets.QCheckBox:
 
             def update_widget_value(x):
-                lq = widget.sender()
-                # self.log.debug("LQ {} update qcheckbox: {} arg{} lq value{}".format(lq.name,   widget, x, lq.value))
-                widget.setChecked(lq.value)
+                try:
+                    widget.blockSignals(True)
+                    widget.setChecked(x)
+                finally:
+                    widget.blockSignals(False)
 
             self.updated_value[bool].connect(update_widget_value)
-            widget.clicked[bool].connect(
-                self.update_value
-            )  # another option is stateChanged signal
-            if self.ro:
-                # widget.setReadOnly(True)
-                widget.setEnabled(False)
 
-            if self.colors != None:
-                if len(self.colors) in (2, 3):  # QCheckBoxes can have 3 states
-                    if len(self.colors) == 2:
-                        colors = [self.colors[0], "lightgrey", self.colors[1]]
-                    elif len(self.qcolors) == 3:
-                        colors = self.colors
-                    s = f"""QCheckBox:!checked {{ background: {colors[0]} }}
-                            QCheckBox:checked  {{ background: {colors[2]} }}"""
-                    widget.setStyleSheet(widget.styleSheet() + s)
+            if self.ro:
+                widget.setEnabled(False)
+            else:
+                widget.clicked[bool].connect(self.update_value)
+
+            if self.colors is not None:
+                s = f"""QCheckBox:!checked {{ background: {self.colors[0]} }}
+                        QCheckBox:checked  {{ background: {self.colors[-1]} }}"""
+                widget.setStyleSheet(widget.styleSheet() + s)
 
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
             self.updated_value[str].connect(widget.setText)
+
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
 
@@ -587,28 +576,32 @@ class LoggedQuantity(QtCore.QObject):
             widget.textChanged.connect(on_widget_textChanged)
 
         elif type(widget) == QtWidgets.QComboBox:
-            # need to have a choice list to connect to a QComboBox
             assert self.choices is not None
             widget.clear()  # removes all old choices
+
             for choice_name, choice_value in self.choices:
                 widget.addItem(choice_name, choice_value)
             self.updated_choice_index_value[int].connect(widget.setCurrentIndex)
             widget.currentIndexChanged.connect(self.update_choice_index_value)
-            if self.colors != None:
-                if len(self.qcolors) == len(self.choices):
-                    for i, qcolor in enumerate(self.qcolors):
-                        widget.setItemData(i, qcolor, QtCore.Qt.BackgroundRole)
 
-                    def update_background_color(idx):
-                        qcolor = self.qcolors[idx]
-                        s = f"""QComboBox{{
-                                    selection-background-color: {qcolor.name()};
-                                    selection-color: black;
-                                    background: {qcolor.name()};
-                                    }}"""
-                        widget.setStyleSheet(widget.styleSheet() + s)
+            if self.colors is not None:
+                for i, qcolor in enumerate(self.qcolors):
+                    widget.setItemData(i, qcolor, QtCore.Qt.BackgroundRole)
 
-                    widget.currentIndexChanged.connect(update_background_color)
+                def update_background_color(idx):
+                    if idx < len(self.qcolors):
+                        qc = self.qcolors[idx]
+                    else:
+                        qc = QtGui.QColor("white")
+
+                    s = f"""QComboBox{{
+                                selection-background-color: {qc.name()};
+                                selection-color: black;
+                                background: {qc.name()};
+                                }}"""
+                    widget.setStyleSheet(widget.styleSheet() + s)
+
+                widget.currentIndexChanged.connect(update_background_color)
 
         elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
             # widget.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -769,24 +762,21 @@ class LoggedQuantity(QtCore.QObject):
         elif type(widget) == QtWidgets.QCheckBox:
 
             def update_widget_value(x):
-                lq = widget.sender()
-                # self.log.debug("LQ {} update qcheckbox: {} arg{} lq value{}".format(lq.name,   widget, x, lq.value))
-                widget.setChecked(lq.value)
+                try:
+                    widget.blockSignals(True)
+                    widget.setChecked(x)
+                finally:
+                    widget.blockSignals(False)
 
             self.updated_value[bool].connect(update_widget_value)
+
             if self.ro:
-                # widget.setReadOnly(True)
                 widget.setEnabled(False)
 
-            if self.colors != None:
-                if len(self.colors) in (2, 3):  # QCheckBoxes can have 3 states
-                    if len(self.colors) == 2:
-                        colors = [self.colors[0], "lightgrey", self.colors[1]]
-                    elif len(self.qcolors) == 3:
-                        colors = self.colors
-                    s = f"""QCheckBox:!checked {{ background: {colors[0]} }}
-                            QCheckBox:checked  {{ background: {colors[2]} }}"""
-                    widget.setStyleSheet(widget.styleSheet() + s)
+            if self.colors is not None:
+                s = f"""QCheckBox:!checked {{ background: {self.colors[0]} }}
+                        QCheckBox:checked  {{ background: {self.colors[-1]} }}"""
+                widget.setStyleSheet(widget.styleSheet() + s)
 
         elif type(widget) == QtWidgets.QLineEdit:
             self.updated_text_value[str].connect(widget.setText)
@@ -816,21 +806,25 @@ class LoggedQuantity(QtCore.QObject):
             for choice_name, choice_value in self.choices:
                 widget.addItem(choice_name, choice_value)
             self.updated_choice_index_value[int].connect(widget.setCurrentIndex)
-            if self.colors != None:
-                if len(self.qcolors) == len(self.choices):
-                    for i, qcolor in enumerate(self.qcolors):
-                        widget.setItemData(i, qcolor, QtCore.Qt.BackgroundRole)
 
-                    def update_background_color(idx):
-                        qcolor = self.qcolors[idx]
-                        s = f"""QComboBox{{
-                                    selection-background-color: {qcolor.name()};
-                                    selection-color: black;
-                                    background: {qcolor.name()};
-                                    }}"""
-                        widget.setStyleSheet(widget.styleSheet() + s)
+            if self.colors is not None:
+                for i, qcolor in enumerate(self.qcolors):
+                    widget.setItemData(i, qcolor, QtCore.Qt.BackgroundRole)
 
-                    widget.currentIndexChanged.connect(update_background_color)
+                def update_background_color(idx):
+                    if idx < len(self.qcolors):
+                        qc = self.qcolors[idx]
+                    else:
+                        qc = QtGui.QColor("white")
+
+                    s = f"""QComboBox{{
+                                selection-background-color: {qc.name()};
+                                selection-color: black;
+                                background: {qc.name()};
+                                }}"""
+                    widget.setStyleSheet(widget.styleSheet() + s)
+
+                widget.currentIndexChanged.connect(update_background_color)
 
         elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
             # widget.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -905,25 +899,32 @@ class LoggedQuantity(QtCore.QObject):
 
     def connect_to_pushButton(
         self,
-        pushButton,
-        colors=["rgba( 0, 255, 0, 180)", "rgba(255, 69, 0, 180)"],
-        texts=["START", "INTERRUPT"],
-        styleSheet_amendment="""QPushButton{ padding:3px }
-                                                        QPushButton:hover:!pressed{ border: 1px solid black; }
-                                                         """,
+        pushButton: QtWidgets.QPushButton,
+        colors=("rgba( 0, 255, 0, 180)", "rgba(255, 69, 0, 180)"),
+        texts=("START", "INTERRUPT"),
+        styleSheet_amendment="""
+        QPushButton{ padding:3px }
+        QPushButton:hover:!pressed{ border: 1px solid black; }
+        """,
     ):
         assert type(pushButton) == QtWidgets.QPushButton
         assert self.dtype == bool
-        if colors == None and self.colors != None:
-            colors = self.colors
+
         pushButton.setCheckable(True)
 
-        def update_pushButton_value(x):
-            lq = pushButton.sender()
-            pushButton.setChecked(lq.value)
-            pushButton.setText(texts[int(x)])
+        def update_widget_value(x):
+            try:
+                pushButton.blockSignals(True)
+                pushButton.setChecked(x)
+                pushButton.setText(texts[int(x)])
+            finally:
+                pushButton.blockSignals(False)
 
-        self.updated_value[bool].connect(update_pushButton_value)
+        self.updated_value[bool].connect(update_widget_value)
+
+        if colors is None:
+            colors = (None, None) if self.colors is None else self.colors
+
         pushButton.toggled[bool].connect(self.update_value)
         s = f"""QPushButton:!checked{{ background:{colors[0]}; border: 1px solid grey; }}
                 QPushButton:checked{{ background:{colors[1]}; border: 1px solid grey; }}"""
@@ -931,6 +932,7 @@ class LoggedQuantity(QtCore.QObject):
 
         if self.ro:
             pushButton.setEnabled(False)
+
         self.set_widget_toolTip(pushButton)
         self.send_display_updates(force=True)
         self.widget_list.append(pushButton)
@@ -1262,3 +1264,12 @@ class LoggedQuantity(QtCore.QObject):
                 cmenu.addAction(f"{val}", partial(self.update_value, new_val=val))
 
         cmenu.exec_(QtGui.QCursor.pos())
+
+
+def to_q_color(color):
+    try:
+        qcolor = QtGui.QColor(color)
+        if qcolor.isValid():
+            return qcolor
+    except TypeError:
+        return QtGui.QColor("lightgrey")

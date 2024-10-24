@@ -14,16 +14,16 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ScopeFoundry import h5_io, ini_io
 from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
-    sibling_path,
-    load_qt_ui_file,
     confirm_on_close,
     ignore_on_close,
+    load_qt_ui_file,
+    sibling_path,
 )
 from ScopeFoundry.logged_quantity import LoggedQuantity, new_tree
 
-
 from .base_app import BaseApp
-
+from .logging_handlers import new_log_file_handler
+from .show_io_report_dialog import show_io_report_dialog
 
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
@@ -46,11 +46,7 @@ class BaseMicroscopeApp(BaseApp):
         if not log_path.is_dir():
             log_path.mkdir()
         _fname = f"{self.name}_log_{datetime.datetime.now():%y%m%d_%H%M%S}.txt"
-        self.log_file_handler = logging.FileHandler(str(log_path / _fname))
-        fmt = "%(asctime)s|%(levelname)s|%(name)s|%(message)s"
-        datefmt = "%Y-%m-%dT%H:%M:%S"
-        formatter = logging.Formatter(fmt, datefmt)
-        self.log_file_handler.setFormatter(formatter)
+        self.log_file_handler = new_log_file_handler(log_path / _fname)
 
         logging.getLogger().addHandler(self.log_file_handler)
 
@@ -271,11 +267,11 @@ class BaseMicroscopeApp(BaseApp):
 
     def set_subwindow_mode(self):
         """Switches Multiple Document Interface to Subwindowed viewing mode."""
-        self.ui.mdiArea.setViewMode(self.ui.mdiArea.SubWindowView)
+        self.ui.mdiArea.setViewMode(QtWidgets.QMdiArea.ViewMode.SubWindowView)
 
     def set_tab_mode(self):
         """Switches Multiple Document Interface to Tabbed viewing mode."""
-        self.ui.mdiArea.setViewMode(self.ui.mdiArea.TabbedView)
+        self.ui.mdiArea.setViewMode(QtWidgets.QMdiArea.ViewMode.TabbedView)
 
     def tile_layout(self):
         """Tiles subwindows in user interface. Specifically in the Multi Document Interface."""
@@ -291,11 +287,11 @@ class BaseMicroscopeApp(BaseApp):
         self.bring_mdi_subwin_to_front(measure.subwin)
 
     def bring_mdi_subwin_to_front(self, subwin):
-        viewMode = self.ui.mdiArea.viewMode()
-        if viewMode == self.ui.mdiArea.SubWindowView:
+        view_mode = self.ui.mdiArea.viewMode()
+        if view_mode == QtWidgets.QMdiArea.ViewMode.SubWindowView:
             subwin.showNormal()
             subwin.raise_()
-        elif viewMode == self.ui.mdiArea.TabbedView:
+        elif view_mode == QtWidgets.QMdiArea.ViewMode.TabbedView:
             subwin.showMaximized()
             subwin.raise_()
 
@@ -473,7 +469,7 @@ class BaseMicroscopeApp(BaseApp):
 
         self.log.info(f"ini settings saved to {fname} str")
 
-    def settings_load_ini(self, fname, ignore_hw_connect=False):
+    def settings_load_ini(self, fname, ignore_hw_connect=False, show_report=True):
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -481,16 +477,21 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ==============================================
         """
         settings = ini_io.load_settings(fname)
-        if not ignore_hw_connect:
-            self.write_settings_safe(
-                {k: v for k, v in settings.items() if k.endswith("connected")}
-            )
-        self.write_settings_safe(
-            {k: v for k, v in settings.items() if not k.endswith("connected")}
-        )
+
+        if ignore_hw_connect:
+            settings = {
+                k: v for k, v in settings.items() if not k.endswith("connected")
+            }
+
+        report = self.write_settings_safe(settings)
+        self._report = report  # _report for test purpose
+
+        if show_report:
+            show_io_report_dialog(fname, report, self.settings_load_ini)
+
         self.propose_settings_values(Path(fname).name, settings)
 
-    def settings_load_h5(self, fname, ignore_hw_connect=False):
+    def settings_load_h5(self, fname, ignore_hw_connect=False, show_report=True):
         """
         Loads h5 settings given a filename.
 
@@ -500,13 +501,17 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ====================================================================================
         """
         settings = h5_io.load_settings(fname)
-        if not ignore_hw_connect:
-            self.write_settings_safe(
-                {k: v for k, v in settings.items() if k.endswith("connected")}
-            )
-        self.write_settings_safe(
-            {k: v for k, v in settings.items() if not k.endswith("connected")}
-        )
+        if ignore_hw_connect:
+            settings = {
+                k: v for k, v in settings.items() if not k.endswith("connected")
+            }
+
+        report = self.write_settings_safe(settings)
+        self._report = report  # _report for test purpose
+
+        if show_report:
+            show_io_report_dialog(fname, report, self.settings_load_h5)
+
         self.propose_settings_values(Path(fname).name, settings)
 
     def settings_auto_save_ini(self):

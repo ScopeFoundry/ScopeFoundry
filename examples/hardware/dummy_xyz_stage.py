@@ -40,29 +40,25 @@ class DummmyXYZStageDevice:
 
 
 class DummyXYZStageHW(HardwareComponent):
-    
+
     name = "dummy_xyz_stage"
-    
+
     def setup(self):
-        lq_params = dict(dtype=float, ro=False,
-                           initial=-1,
-                           vmin=-1,
-                           vmax=100,
-                           si=False,
-                           unit='um')
-        
-        self.x_position = self.settings.New("x_position", **lq_params)
-        self.y_position = self.settings.New("y_position", **lq_params)       
-        self.z_position = self.settings.New("z_position", **lq_params)       
+        position_params = {
+            "dtype": float,
+            "ro": False,
+            "initial": -1,
+            "vmin": -1,
+            "vmax": 100,
+            "si": False,
+            "unit": "um",
+            "reread_from_hardware_after_write": True,
+            "spinbox_decimals": 3,
+        }
 
-        self.x_position.reread_from_hardware_after_write = True
-        self.x_position.spinbox_decimals = 3
-        
-        self.y_position.reread_from_hardware_after_write = True
-        self.y_position.spinbox_decimals = 3
-
-        self.z_position.reread_from_hardware_after_write = True
-        self.z_position.spinbox_decimals = 3
+        self.x_position = self.settings.New("x_position", **position_params)
+        self.y_position = self.settings.New("y_position", **position_params)
+        self.z_position = self.settings.New("z_position", **position_params)
 
     def connect(self):
 
@@ -73,10 +69,9 @@ class DummyXYZStageHW(HardwareComponent):
         self.z_position.connect_to_hardware(dev.read_z, dev.write_z)
 
     def disconnect(self):
-        
+
         self.settings.disconnect_all_from_hardware()
 
         if hasattr(self, 'stage_device'):
             self.stage_device.close()           
             del self.stage_device
-
