@@ -2,7 +2,7 @@ import logging
 import time
 from logging import Handler
 
-from qtpy import QtCore, QtGui
+from qtpy import QtCore
 
 LEVEL_STYLES = {
     "CRITICAL": "color: red;",
@@ -20,27 +20,18 @@ class LoggingQObject(QtCore.QObject):
     new_log_signal = QtCore.Signal((str,))
 
 
-class LoggingQTextEditHandler(Handler):
+class HtmlHandler(Handler):
+    """sends a signal with the log in html format"""
 
-    def __init__(self, textEdit, level=logging.NOTSET, buffer_len=500):
-        self.textEdit = textEdit
-        self.buffer_len = buffer_len
-        self.messages = []
+    def __init__(self, level=logging.NOTSET, buffer_len=500):
+
         Handler.__init__(self, level=level)
         self.q_object = LoggingQObject()
         self.new_log_signal = self.q_object.new_log_signal
-        self.new_log_signal.connect(self.on_new_log)
 
     def emit(self, record: logging.LogRecord):
         log_entry = self.format(record)
         self.new_log_signal.emit(log_entry)
-
-    def on_new_log(self, log_entry: str):
-        self.messages.append(log_entry)
-        if len(self.messages) > self.buffer_len:
-            self.messages = ["...<br>"] + self.messages[-self.buffer_len :]
-        self.textEdit.setHtml("\n".join(self.messages))
-        self.textEdit.moveCursor(QtGui.QTextCursor.End)
 
     def format(self, record: logging.LogRecord):
         # timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')

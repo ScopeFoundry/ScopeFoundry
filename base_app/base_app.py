@@ -23,7 +23,8 @@ from ScopeFoundry import ini_io
 from ScopeFoundry.helper_funcs import get_logger_from_class
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 
-from .logging_handlers import LoggingQTextEditHandler
+from .logging_handlers import HtmlHandler
+from .logging_widget import LoggingWidget
 
 try:
     import IPython
@@ -222,23 +223,10 @@ class BaseApp(QtCore.QObject):
         logging.getLogger("LoggedQuantity").setLevel(logging.WARN)
         logging.getLogger("PyQt5").setLevel(logging.WARN)
 
-        self.logging_widget = QtWidgets.QWidget()
-        self.logging_widget.setWindowTitle("Log")
-        self.logging_widget.setLayout(QtWidgets.QVBoxLayout())
-        self.logging_widget.search_lineEdit = QtWidgets.QLineEdit()
-        self.logging_widget.log_textEdit = QtWidgets.QTextEdit("")
-
-        self.logging_widget.layout().addWidget(self.logging_widget.search_lineEdit)
-        self.logging_widget.layout().addWidget(self.logging_widget.log_textEdit)
-
-        self.logging_widget.log_textEdit.document().setDefaultStyleSheet(
-            "body{font-family: Courier;}"
-        )
-
-        self.logging_widget_handler = LoggingQTextEditHandler(
-            self.logging_widget.log_textEdit, level=logging.DEBUG
-        )
-        logging.getLogger().addHandler(self.logging_widget_handler)
+        self.logging_widget = LoggingWidget()
+        handler = HtmlHandler(level=logging.DEBUG)
+        handler.new_log_signal.connect(self.logging_widget.on_new_log)
+        logging.getLogger().addHandler(handler)
 
     def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree): ...
 
