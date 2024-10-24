@@ -469,7 +469,7 @@ class BaseMicroscopeApp(BaseApp):
 
         self.log.info(f"ini settings saved to {fname} str")
 
-    def settings_load_ini(self, fname, ignore_hw_connect=False):
+    def settings_load_ini(self, fname, ignore_hw_connect=False, show_report=True):
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -477,16 +477,21 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ==============================================
         """
         settings = ini_io.load_settings(fname)
-        if not ignore_hw_connect:
-            self.write_settings_safe(
-                {k: v for k, v in settings.items() if k.endswith("connected")}
-            )
-        self.write_settings_safe(
-            {k: v for k, v in settings.items() if not k.endswith("connected")}
-        )
+
+        if ignore_hw_connect:
+            settings = {
+                k: v for k, v in settings.items() if not k.endswith("connected")
+            }
+
+        report = self.write_settings_safe(settings)
+        self._report = report  # _report for test purpose
+
+        if show_report:
+            display_failed_report(fname, report, self.settings_load_ini)
+
         self.propose_settings_values(Path(fname).name, settings)
 
-    def settings_load_h5(self, fname, ignore_hw_connect=False):
+    def settings_load_h5(self, fname, ignore_hw_connect=False, show_report=True):
         """
         Loads h5 settings given a filename.
 
@@ -496,13 +501,17 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ====================================================================================
         """
         settings = h5_io.load_settings(fname)
-        if not ignore_hw_connect:
-            self.write_settings_safe(
-                {k: v for k, v in settings.items() if k.endswith("connected")}
-            )
-        self.write_settings_safe(
-            {k: v for k, v in settings.items() if not k.endswith("connected")}
-        )
+        if ignore_hw_connect:
+            settings = {
+                k: v for k, v in settings.items() if not k.endswith("connected")
+            }
+
+        report = self.write_settings_safe(settings)
+        self._report = report  # _report for test purpose
+
+        if show_report:
+            display_failed_report(fname, report, self.settings_load_h5)
+
         self.propose_settings_values(Path(fname).name, settings)
 
     def settings_auto_save_ini(self):
@@ -780,3 +789,67 @@ class BaseMicroscopeApp(BaseApp):
         layout.addWidget(readme)
         dialog.setLayout(layout)
         dialog.exec_()
+
+
+def display_failed_report(fname: str, report, retry_func):
+    failures = [f" - `{path}`" for path, v in report.items() if v is None]
+    protecteds = [f" - `{path}`" for path, v in report.items() if v == "PROTECTED"]
+
+    name = Path(fname).name
+
+    if not failures:
+        if protecteds:
+            print(f"{name} has protected settings that were not updated:")
+            for p in protecteds:
+                print(p)
+        return
+
+    successes = [path for path, v in report.items() if v is True]
+    lines = (
+        ["## failed to update:"]
+        + failures
+        + ["  ", "  ", f"## number of sucesses:", f"{len(successes)}"]
+    )
+
+    if protecteds:
+        lines += [
+            "  ",
+            "  ",
+            "## protected",
+            "the following are `protected` and can not be update by a file",
+            "  ",
+        ]
+        lines += protecteds
+
+    text_edit = QtWidgets.QTextEdit()
+    text_edit.setMarkdown("\n".join(lines))
+
+    dialog = QtWidgets.QDialog()
+    dialog.setWindowTitle(f"{name} failed to update ({len(failures)}):")
+    layout = QtWidgets.QVBoxLayout()
+    dialog.setLayout(layout)
+    layout.addWidget(text_edit)
+
+    if name.endswith(".ini"):
+        proc = QtCore.QProcess()
+
+        def on_fix():
+            proc.start("notepad.exe", (fname,))
+
+        btn = QtWidgets.QPushButton("fix")
+        btn.clicked.connect(on_fix)
+        layout.addWidget(btn)
+
+        def on_retry():
+            dialog.close()
+            retry_func(fname)
+
+        btn = QtWidgets.QPushButton("retry")
+        btn.clicked.connect(on_retry)
+        layout.addWidget(btn)
+
+    btn = QtWidgets.QPushButton(f"close")
+    btn.clicked.connect(dialog.close)
+    layout.addWidget(btn)
+
+    dialog.exec_()

@@ -264,9 +264,12 @@ class BaseApp(QtCore.QObject):
 
     def write_setting_safe(self, path: str, value):
         lq = self.get_lq(path)
-        if lq is None or lq.protected:
-            return
+        if lq is None:
+            return None
+        elif lq.protected:
+            return "PROTECTED"
         lq.update_value(value)
+        return True
 
     def get_lq(self, path: str) -> LoggedQuantity:
         """
@@ -283,8 +286,11 @@ class BaseApp(QtCore.QObject):
         settings        dict       (path, value) map
         ==============  =========  ====================================================================================
         """
+        report = {}
         for path, value in settings.items():
-            self.write_setting_safe(path, value)
+            success = self.write_setting_safe(path, value)
+            report[path] = success
+        return report
 
     def settings_save_ini(self, fname):
         """
