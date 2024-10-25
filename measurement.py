@@ -89,8 +89,11 @@ class Measurement:
             "progress", dtype=float, unit="%", si=False, ro=True, protected=True
         )
         self.settings.New(
-            "profile", dtype=bool, initial=False
-        )  # Run a profile on the run to find performance problems
+            "profile",
+            dtype=bool,
+            initial=False,
+            description="Run a profile on the run to find performance problems",
+        )
 
         self.activation.updated_value[bool].connect(self.start_stop)
 
@@ -565,14 +568,12 @@ class MeasurementQbject(QtCore.QObject):
         try:
             self.m.update_display()
         except Exception as err:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
+            exc_type, exc_value, exc_tb = sys.exc_info()
             self.m.log.error(
                 "{} Failed to update display: {}. {}".format(
                     self.m.name,
                     err,
-                    "\n".join(
-                        traceback.format_exception(exc_type, exc_value, exc_traceback)
-                    ),
+                    "\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)),
                 )
             )
         finally:
