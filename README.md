@@ -27,9 +27,9 @@ Contributors
 Requirements
 ------------
 
-* Python 3.x (Currently tested with 3.9 and 3.10)
-* PySide, or PyQt5 (via qtpy shim package)
-* NumPy
+* qtpy (PyQt6 recommended, PySide6 currently unstable)
+* Python 3.8+ (Currently tested with 3.9, 3.10 and 3.12)
+* NumPy 1.24+
 * PyQtGraph
 * h5py
 * xreload
@@ -37,32 +37,28 @@ Requirements
 _Optional:_
 
 * qtconsole
-* Ipython
-  
+
+
 Installation
 ------------
 
 If you have all the requirements:
 
 ```
-pip install git+git://github.com/ScopeFoundry/ScopeFoundry.git
+pip install scopefoundry
 ```
 
-If you use the Anaconda Python distribution, you can create an environment
-that has ScopeFoundry and its required dependencies. See the `conda_env`
-sub-directory for environment files and Windows batch files for environment
-setup.
-
-Alternatively:
+Alternatively, use [Anaconda]([https://www.anaconda.com/download/success) Python distribution to create an environment with required dependencies . In `anaconda prompt`run:
 
 ```
-$ conda create -n scopefoundry python=3.10
-$ source activate scopefoundry
-(scopefoundry) $ conda install numpy pyqt qtpy h5py pyqtgraph
-(scopefoundry) $ pip install git+git://github.com/ScopeFoundry/ScopeFoundry.git
+$ conda create -n scopefoundry python=3.12
+$ conda activate scopefoundry
+(scopefoundry) $ conda install numpy qtpy h5py pyqtgraph qtconsole
+(scopefoundry) $ pip install pyqt6 scopefoundry
 ```
 
 Documentation
 -------------
 
 See <http://www.scopefoundry.org>
+
