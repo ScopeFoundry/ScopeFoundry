@@ -378,18 +378,21 @@ class LoggedQuantity(QtCore.QObject):
         # DEPRECATED
         return self.connect_to_widget(widget)
 
-    def set_widget_toolTip(self, widget, text=None):
-        try:
-            tips = [f"<b>{self.path}</b>"]
-            if self.unit:
-                tips.append(f"<i>({self.unit})</i>")
-            for s in [self.description, widget.toolTip(), text]:
-                if s != None:
-                    tips.append(str(s))
-            widget.setToolTip(" ".join(tips))
-            return tips
-        except:
-            pass
+    def set_widget_toolTip(self, widget: QtWidgets.QWidget, text=None):
+        if not hasattr(widget, "setToolTip"):
+            return []
+        tips = [f"<b>{self.path}</b>"]
+        if self.unit:
+            tips.append(f"<i>({self.unit})</i>")
+        for s in [self.description, widget.toolTip(), text]:
+            if s is not None:
+                tips.append(str(s))
+        if self.protected:
+            tips.append("\n<b>🔒 protected</b>")
+
+        tips_str = "\n".join(tips)
+        widget.setToolTip(f"<div style='white-space: pre-line;'>{tips_str}</div>")
+        return tips
 
     def connect_to_widget(self, widget):
         """
