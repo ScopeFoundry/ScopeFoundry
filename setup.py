@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name = 'ScopeFoundry',
     
-    version = '1.5.0',
+    version = '1.6.0',
     
     description = 'a platform for laboratory equipment control and scientific data analysis',
     long_description =open('README.md', 'r').read(),
@@ -26,6 +26,7 @@ setup(
               'ScopeFoundry.data_browser',
                   'ScopeFoundry.data_browser.viewers',
                   'ScopeFoundry.data_browser.plug_ins',
+              'ScopeFoundry.dynamical_widgets',
               'ScopeFoundry.examples',
                   'ScopeFoundry.examples.ScopeFoundryHW',
               'ScopeFoundry.graphics',
@@ -50,7 +51,7 @@ setup(
     	'numpy', 'h5py', 'qtpy', 'xreload', 'uuid7'],
     
     extras_require={
-        'all' : ['qtconsole', 'pyqtdarktheme'],
+        'all' : ['qtconsole', 'pyqtdarktheme', 'qtpy6'],
     }
 
     )
