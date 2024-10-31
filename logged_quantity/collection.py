@@ -233,11 +233,19 @@ class LQCollection:
             return lq_vector
 
     def iter(self, include=None, exclude=None):
-        if include is None:
-            include = self.as_dict().keys()
-        if exclude is None:
-            exclude = []
-        return ((x, self.get_lq(x)) for x in include if x not in exclude)
+        """
+        returns a list logged quantity specified by include and exclude
+
+        include and exclude support wildcards:
+            *       matches everything
+            ?       matches any single character
+            [seq]   matches any character in seq
+            [!seq]  matches any char not in seq
+        """
+        return (
+            (x, self.get_lq(x))
+            for x in filter_with_patterns(self.keys(), include, exclude)
+        )
 
     def New_UI(
         self,
