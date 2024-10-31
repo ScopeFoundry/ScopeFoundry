@@ -23,7 +23,8 @@ from ScopeFoundry.base_app.console_widget import new_console_widget
 from ScopeFoundry.base_app.logging_handlers import HtmlHandler
 from ScopeFoundry.base_app.logging_widget import LoggingWidget
 from ScopeFoundry.helper_funcs import get_logger_from_class
-from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
+from ScopeFoundry.logged_quantity import LQCollection, LoggedQuantity
+from ScopeFoundry.dynamical_widgets.tree_widget import SubtreeManager
 from ScopeFoundry.operations import Operations
 
 
@@ -79,6 +80,7 @@ class BaseApp(QtCore.QObject):
         self.add_lq_collection_to_settings_path(self.settings)
 
         self.operations = Operations()
+        self._subtree_managers_ = []
         self._widgets_managers_ = []
 
         # self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
@@ -176,7 +178,7 @@ class BaseApp(QtCore.QObject):
             self.settings_load_ini(fname)
         return fname
 
-    def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree): ...
+    def on_new_subtree(self, subtree: SubtreeManager): ...
 
     def on_right_click(self): ...
 
@@ -327,7 +329,6 @@ class TestBaseApp(BaseApp):
         super().__init__(argv, **kwargs)
 
         self.ui = QtWidgets.QWidget()
-        # self.ui = new_tree((self,), ["test", ""])
         self.ui.show()
         self.console_widget.show()
         self.logging_widget.show()

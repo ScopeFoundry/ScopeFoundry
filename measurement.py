@@ -10,15 +10,16 @@ import threading
 import time
 import traceback
 from typing import Callable
+from warnings import warn
 
-from qtpy import QtCore, QtWidgets, QtGui
-from ScopeFoundry.operations import Operations
+from qtpy import QtCore, QtGui, QtWidgets
 
+from .operations import Operations
 from .base_app import BaseMicroscopeApp
 from .dynamical_widgets.generic_widget import add_to_layout, new_widget
+from .dynamical_widgets.tree_widget import SubtreeManager
 from .helper_funcs import get_logger_from_class, load_qt_ui_file
 from .logged_quantity import LQCollection
-from .logged_quantity.tree import ObjSubtree
 
 
 class MeasurementQThread(QtCore.QThread):
@@ -73,8 +74,8 @@ class Measurement:
         self.interrupt_measurement_called = False
 
         self.settings = LQCollection(path=f"mm/{self.name}")
-        self.sub_trees = []
         self.operations = Operations()
+        self._subtree_managers_ = []
         self._widgets_managers_ = []
 
         self.activation = self.settings.New(
@@ -291,8 +292,8 @@ class Measurement:
         if hasattr(self, "subwin"):
             self.subwin.setWindowTitle(text)
 
-        for tree in self.sub_trees:
-            tree.set_header(0, text, None)
+        for manager in self._subtree_managers_:
+            manager.set_header_text(0, text, None)
 
     def _interrupt(self):
         """
@@ -516,11 +517,20 @@ class Measurement:
         x = xreload.xreload(mod)
         print("Reloading from code", mod, x)
 
-    def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree: ObjSubtree):
-        self.sub_trees.append(sub_tree)
-        self.tree_progressBar = QtWidgets.QProgressBar()
-        tree.setItemWidget(sub_tree.top_item, 1, self.tree_progressBar)
-        self.progress.connect_to_widget(self.tree_progressBar)
+    def on_new_subtree(self, subtree: SubtreeManager):
+        progress_bar = QtWidgets.QProgressBar()
+        self.progress.connect_to_widget(progress_bar)
+        subtree.tree_widget.setItemWidget(subtree.header_item, 1, progress_bar)
+        subtree.progress_bar = progress_bar
+
+    @property
+    def tree_progressBar(self):
+        # for backward compatibility
+        warn(
+            "Measurement.tree_progressBar deprecated, loop through Measurement._subtree_managers_[i].progress_bar instead.",
+            DeprecationWarning,
+        )
+        return self._subtree_managers_[0].progress_bar
 
     def on_right_click(self):
         cmenu = QtWidgets.QMenu()

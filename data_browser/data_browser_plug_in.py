@@ -34,6 +34,7 @@ class DataBrowserPlugIn:
         self.settings = LQCollection(path=f"plugin/{self.name}")
         self.operations = Operations()
         self.q_object = PlugInQObject()
+        self._subtree_managers_ = []
         self._widgets_managers_ = []
         self.ui = None
         self.is_loaded = False
