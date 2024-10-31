@@ -5,17 +5,14 @@ import time
 import warnings
 from typing import Callable
 
-import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
-from ScopeFoundry.operations import Operations
-
-
+from .operations import Operations
 from .base_app import BaseMicroscopeApp
 from .dynamical_widgets import new_widget, add_to_layout
+from .dynamical_widgets.tree_widget import SubtreeManager
 from .helper_funcs import QLock, get_logger_from_class
 from .logged_quantity import LQCollection
-from .logged_quantity.tree import ObjSubtree
 
 
 class HardwareComponent:
@@ -39,10 +36,8 @@ class HardwareComponent:
             self.name = name
 
         self.settings = LQCollection(path=f"hw/{self.name}")
-        self.sub_trees = []
-
-        self.tree_item = None
         self.operations = Operations()
+        self._subtree_managers_ = []
         self._widgets_managers_ = []
 
         self.log = get_logger_from_class(self)
@@ -220,14 +215,11 @@ class HardwareComponent:
     def remove_operation(self, name):
         self.operations.remove(name)
 
-
-    def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree: ObjSubtree):
-        self.sub_trees.append(sub_tree)
+    def on_new_subtree(self, subtree: SubtreeManager): ...  # optional
 
     def update_sub_trees(self, col, text, color):
-        for tree in self.sub_trees:
-            tree: ObjSubtree
-            tree.set_header(col, text, color)
+        for manager in self._subtree_managers_:
+            manager.set_header_text(col, text, color)
 
     def on_right_click(self):
         cmenu = QtWidgets.QMenu()

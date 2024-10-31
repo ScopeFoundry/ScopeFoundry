@@ -12,7 +12,7 @@ import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry import h5_io, ini_io
-from ScopeFoundry.dynamical_widgets import new_widget
+from ScopeFoundry.dynamical_widgets import new_widget, new_tree_widget
 from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
     confirm_on_close,
@@ -20,7 +20,7 @@ from ScopeFoundry.helper_funcs import (
     load_qt_ui_file,
     sibling_path,
 )
-from ScopeFoundry.logged_quantity import LoggedQuantity, new_tree
+from ScopeFoundry.logged_quantity import LoggedQuantity
 
 from .base_app import BaseApp
 from .logging_handlers import new_log_file_handler
@@ -116,8 +116,8 @@ class BaseMicroscopeApp(BaseApp):
         settings_layout: QtWidgets.QVBoxLayout = self.ui.tree_layout
         settings_layout.addWidget(splitter)
 
-        mm_tree = new_tree(self.measurements.values(), ["Measurements", "Value"])
-        hw_tree = new_tree(self.hardware.values(), ["Hardware", "Value"])
+        mm_tree = new_tree_widget(self.measurements.values(), ["Measurements", "Value"])
+        hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
         app_widget = new_widget(self, "app")
 
         splitter.addWidget(hw_tree)

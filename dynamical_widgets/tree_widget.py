@@ -1,8 +1,9 @@
 from functools import partial
-from typing import OrderedDict, Protocol, List, Union
+from typing import Protocol, List, Union
 
 from qtpy import QtCore, QtGui, QtWidgets
 
+from ScopeFoundry.helper_funcs import filter_with_patterns
 from ScopeFoundry.logged_quantity import ArrayLQ, FileLQ, LoggedQuantity, LQCollection
 from ScopeFoundry.operations import Operations
 
@@ -12,44 +13,63 @@ class SubtreeAbleObj(Protocol):
     name: str
     settings: LQCollection
     operations: Operations
+    _subtree_managers_: List
 
-    def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree): ...  # optional
+    def on_new_subtree(self, subtree): ...  # optional
 
     def on_right_click(self): ...  # optional
 
 
-def new_tree(objs: List[SubtreeAbleObj], header=["col0", ""]) -> QtWidgets.QTreeWidget:
-    tree = QtWidgets.QTreeWidget()
-    tree.setColumnCount(len(header))
-    tree.setHeaderLabels(header)
-    tree.setColumnWidth(0, 180)
-    tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-    tree.customContextMenuRequested.connect(partial(on_right_click, tree=tree))
+def new_tree_widget(
+    objs: List[SubtreeAbleObj], header=["col0", ""], include=None, exclude=None
+) -> QtWidgets.QTreeWidget:
+    """returns a tree widget that represents objects with their settings and operations"""
+    tree_widget = QtWidgets.QTreeWidget()
+    tree_widget.setColumnCount(len(header))
+    tree_widget.setHeaderLabels(header)
+    tree_widget.setColumnWidth(0, 180)
+    tree_widget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+    tree_widget.customContextMenuRequested.connect(
+        partial(on_right_click, tree=tree_widget)
+    )
 
     for obj in objs:
-        ObjSubtree(tree, obj)
+        SubtreeManager(tree_widget, obj, include, exclude)
 
-    return tree
+    return tree_widget
 
 
 class SFQTreeWidgetItem(QtWidgets.QTreeWidgetItem):
 
-    obj: Union[SubtreeAbleObj, LoggedQuantity, OrderedDict]
+    obj: Union[SubtreeAbleObj, LoggedQuantity, Operations]
 
 
-class ObjSubtree:
+class SubtreeManager:
     """
-    Generates and holds a sutree item.
+    adds tree items to the *tree_widget* forming.
+
+     *tree_widget*
+        *header_item* (obj dependent)
+            - child_0 (LoggedQuantity or OperationBtn)
+            - child_1 (LoggedQuantity or OperationBtn)
+           ...
+        ...
+
+    the
     """
 
     def __init__(
         self,
-        tree: QtWidgets.QTreeWidget,
+        tree_widget: QtWidgets.QTreeWidget,
         obj: SubtreeAbleObj,
+        include=None,
+        exclude=None,
     ) -> None:
         self.name = obj.name
         self.settings = obj.settings
         self.operations = obj.operations
+        self.include = include
+        self.exclude = exclude
         self.settings.q_object.lq_added.connect(self.add_lq_child_item)
         self.settings.q_object.lq_removed.connect(self.remove_lq_child_item)
         self.operations.q_object.added.connect(self.add_operation_child_item)
@@ -58,32 +78,58 @@ class ObjSubtree:
         self.settings_items = {}
         self.operation_items = {}
 
-        self.top_item = SFQTreeWidgetItem(tree, [obj.name, ""])
+        self.header_item = SFQTreeWidgetItem(tree_widget, [obj.name, ""])
+        self.tree_widget = tree_widget  # the widget where instance lives
 
-        if hasattr(obj, "add_sub_tree"):
-            obj.add_sub_tree(tree, self)
+        if hasattr(obj, "on_new_subtree"):
+            obj.on_new_subtree(self)
+        obj._subtree_managers_.append(self)
 
-        tree.insertTopLevelItem(0, self.top_item)
-        update_settings(self.settings, self.top_item, self.settings_items)
-        update_operations(self.operations, self.top_item, self.operation_items)
-        self.top_item.obj = obj
+        tree_widget.insertTopLevelItem(0, self.header_item)
+        update_settings(
+            self.settings,
+            self.header_item,
+            self.settings_items,
+            self.include,
+            self.exclude,
+        )
+        update_operations(
+            self.operations,
+            self.header_item,
+            self.operation_items,
+            self.include,
+            self.exclude,
+        )
+        self.header_item.obj = obj
 
     def add_lq_child_item(self, lq: LoggedQuantity):
-        update_settings(self.settings, self.top_item, self.settings_items)
+        update_settings(
+            self.settings,
+            self.header_item,
+            self.settings_items,
+            self.include,
+            self.exclude,
+        )
 
     def remove_lq_child_item(self, lq: LoggedQuantity):
-        remove_from_tree(lq.name, self.top_item, self.settings_items)
+        remove_from_tree(lq.name, self.header_item, self.settings_items)
 
     def add_operation_child_item(self, name: str):
-        update_operations(self.operations, self.top_item, self.operation_items)
+        update_operations(
+            self.operations,
+            self.header_item,
+            self.operation_items,
+            self.include,
+            self.exclude,
+        )
 
     def remove_operation_child_item(self, name: str):
-        remove_from_tree(name, self.top_item, self.operation_items)
+        remove_from_tree(name, self.header_item, self.operation_items)
 
-    def set_header(self, col=1, text="", color=None):
-        self.top_item.setText(col, text)
+    def set_header_text(self, col=1, text="", color=None):
+        self.header_item.setText(col, text)
         if color is not None:
-            self.top_item.setForeground(col, QtGui.QColor(color))
+            self.header_item.setForeground(col, QtGui.QColor(color))
 
 
 def remove_from_tree(
@@ -98,13 +144,16 @@ def remove_from_tree(
 
 
 def update_operations(
-    operations: OrderedDict,
+    operations: Operations,
     root_item: QtWidgets.QTreeWidgetItem,
     children,  #: dict[str, QtWidgets.QTreeWidgetItem],
+    include,
+    exclude,
 ) -> None:
-    for op_name, op_func in operations.items():
-        if op_name in children:
+    for op_name in filter_with_patterns(operations.keys(), include, exclude):
+        if op_name in children.keys():
             continue
+        op_func = operations[op_name]
         op_button = QtWidgets.QPushButton(op_name)
         op_button.clicked.connect(lambda checked, f=op_func: f())
         new_item = QtWidgets.QTreeWidgetItem(root_item, [op_name, ""])
@@ -117,8 +166,12 @@ def update_settings(
     settings: LQCollection,
     root_item: SFQTreeWidgetItem,
     children,  #: dict[str, SFQTreeWidgetItem],
+    include=None,
+    exclude=None,
 ) -> None:
-    for lqname, lq in tuple(settings.iter(exclude=children.keys())):
+    for lqname, lq in tuple(settings.iter(include, exclude)):
+        if lqname in children.keys():
+            continue
         if isinstance(lq, ArrayLQ):
             lineedit = QtWidgets.QLineEdit()
             button = QtWidgets.QPushButton("...")

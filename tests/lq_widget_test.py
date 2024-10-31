@@ -1,17 +1,18 @@
+import os
+
+os.environ["QT_API"] = "pyqt6"
 import time
 
 import numpy as np
-import pyqtgraph as pg
 from qtpy import QtCore, QtWidgets
+
 
 from ScopeFoundry import (
     BaseApp,
     BaseMicroscopeApp,
     HardwareComponent,
     Measurement,
-    new_tree,
-    new_widget,
-    add_to_layout,
+    new_tree_widget,
 )
 
 
@@ -52,9 +53,11 @@ class Hardware(HardwareComponent):
         self.settings.New("val3", str, choices=("Apple", "Bear", "Car"))
 
     def connect(self):
+        self.settings.New("val4", int, 33).connect_to_hardware(lambda: 33, print)
         print("connected to", self.name)
 
     def disconnect(self):
+        self.settings.remove("val4")
         print("disconnected from", self.name)
 
 
@@ -81,6 +84,8 @@ class Measure(Measurement):
         self.add_operation("add_operation", self.on_add_operation)
         self.add_operation("remove_operation", self.on_remove_operation)
 
+        self.data_array = np.zeros(100)
+
     def on_add_setting(self):
         self.settings.New(self.settings["name"], str, "generated")
 
@@ -101,19 +106,11 @@ class Measure(Measurement):
     def setup_figure(self):
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
-        splitter.addWidget(self.new_control_widgets())
-        # splitter.addWidget(self.New_UI(("amplitude", "post_run_crash")))
-        # splitter.addWidget(self.app.hardware["hardware"].new_control_widgets())
-        # splitter.addWidget(
-        #     self.app.hardware["hardware"].New_UI(
-        #         exclude=("connected",), style="scroll_form", title="my_tile"
-        #     )
-        # )
+        # splitter.addWidget(self.app.hardware["hardware"].New_UI())
         splitter.addWidget(
-            new_widget(
-                self.app.hardware["hardware"],
-                "incl: val*,relo*  excl: *1",
+            self.app.hardware["hardware"].new_control_widgets(
                 include=("val*", "relo*"),
+                title="incl: val*,relo*  excl: *1",
                 exclude=("*1",),
             )
         )
@@ -139,7 +136,7 @@ class Measure(Measurement):
         layout.addWidget(self.activation.new_pushButton())
         layout.addWidget(vsplitter)
         vsplitter.addWidget(
-            new_tree(
+            new_tree_widget(
                 (self.app.measurements["measure"], self.app.hardware["hardware"]),
                 ("hello", "world"),
             )

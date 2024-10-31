@@ -1,9 +1,10 @@
-from functools import partial
 import logging
+from functools import partial
 
 from qtpy import QtWidgets
 
-from ScopeFoundry import BaseApp, new_tree
+from ScopeFoundry import BaseApp
+from ScopeFoundry.dynamical_widgets import new_tree_widget
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 
 logging.basicConfig(level='DEBUG')
@@ -83,7 +84,7 @@ class LQArrayTestApp(BaseApp):
         #  int does not round
         self.settings.New("test_int", dtype=int, initial=124)
 
-        hlayout.addWidget(new_tree((self,), ["app", ""]))
+        hlayout.addWidget(new_tree_widget((self,), ["app", ""]))
         hlayout.addLayout(vlayout)
         self.settings_ui = self.settings.New_UI()
         hlayout.addWidget(self.settings_ui)
