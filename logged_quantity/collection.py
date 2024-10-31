@@ -3,7 +3,9 @@ from warnings import warn
 
 from qtpy import QtCore, QtWidgets
 
-from ScopeFoundry.helper_funcs import get_logger_from_class
+from ScopeFoundry.dynamical_widgets.tools import Tools
+from ScopeFoundry.helper_funcs import get_logger_from_class, filter_with_patterns
+from ScopeFoundry.logged_quantity import ArrayLQ, FileLQ, LoggedQuantity
 
 from .array_lq import ArrayLQ
 from .file_lq import FileLQ
@@ -45,6 +47,7 @@ class LQCollection:
         self.log = get_logger_from_class(self)
         self.q_object = LQCollectionQObject(self)
         self.path = path
+        self._widgets_managers_ = []
 
     def New(
         self,
@@ -258,56 +261,95 @@ class LQCollection:
         include=None,
         exclude=None,
         style="form",
-        additional_widgets=None,
         title=None,
     ) -> QtWidgets.QWidget:
         """
         create a default Qt Widget that contains
         widgets for all settings in the LQCollection
         """
-
-        if additional_widgets is None:
-            additional_widgets = {}
-
         if title is not None:
-            ui_widget = QtWidgets.QGroupBox()
-            ui_widget.setTitle(title)
+            widget = QtWidgets.QGroupBox()
+            widget.setTitle(title)
         else:
-            ui_widget = QtWidgets.QWidget()
+            widget = QtWidgets.QWidget()
 
-        if style == "form":
-            formLayout = QtWidgets.QFormLayout(ui_widget)
-            for text, lq in self.iter(include, exclude):
-                formLayout.addRow(text, lq.new_default_widget())
-            for text, widget in additional_widgets.items():
-                formLayout.addRow(text, widget)
-            return ui_widget
+        if style in ("form", "scroll_form"):
+            layout = QtWidgets.QFormLayout(widget)
 
         elif style == "hbox":
-            hboxLayout = QtWidgets.QHBoxLayout(ui_widget)
-            for text, lq in self.iter(include, exclude):
-                hboxLayout.addWidget(QtWidgets.QLabel(text))
-                hboxLayout.addWidget(lq.new_default_widget())
-            for text, widget in additional_widgets.items():
-                hboxLayout.addWidget(QtWidgets.QLabel(text))
-                hboxLayout.addWidget(widget)
-            return ui_widget
+            layout = QtWidgets.QHBoxLayout(widget)
 
-        elif style == "scroll_form":
-            formLayout = QtWidgets.QFormLayout(ui_widget)
+        tools = Tools(layout, include, exclude)
+        self._widgets_managers_.append(LQCollectionWidgetsManager(self, tools))
+
+        if style == "scroll_form":
             scroll_area = QtWidgets.QScrollArea()
             scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
             scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
             scroll_area.setWidgetResizable(True)
-            scroll_area.setWidget(ui_widget)
-            for text, lq in self.iter(include, exclude):
-                formLayout.addRow(text, lq.new_default_widget())
-            for text, widget in additional_widgets.items():
-                formLayout.addRow(text, widget)
+            scroll_area.setWidget(widget)
             return scroll_area
 
-        assert style in ("form", "hbox", "scroll_form")
+        return widget
 
     def disconnect_all_from_hardware(self):
         for lq in self.as_list():
             lq.disconnect_from_hardware()
+
+
+class LQCollectionWidgetsManager:
+
+    def __init__(
+        self,
+        settings: LQCollection,
+        tools: Tools,
+    ) -> None:
+        self.settings = settings
+        self.tools = tools
+
+        settings.q_object.lq_added.connect(self.add)
+        settings.q_object.lq_removed.connect(self.remove)
+
+        self.widgets = {}
+
+        self.update()
+
+    def add(self, lq: LQCollection):
+        self.update()
+
+    def remove(self, lq: LQCollection):
+        widget = self.widgets.pop(lq.name, None)
+        if widget is None:
+            return
+        self.tools.remove_from_layout(lq.name, widget)
+
+    def update(self):
+        for lqname, lq in tuple(
+            self.settings.iter(self.tools.include, self.tools.exclude)
+        ):
+            if lqname in self.widgets.keys():
+                continue
+            if isinstance(lq, ArrayLQ):
+                lineedit = QtWidgets.QLineEdit()
+                button = QtWidgets.QPushButton("...")
+                new_widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                new_widget.setLayout(layout)
+                layout.addWidget(lineedit)
+                layout.addWidget(button)
+                layout.setSpacing(0)
+                layout.setContentsMargins(0, 0, 0, 0)
+                lq.connect_to_widget(lineedit)
+                button.clicked.connect(lq.array_tableView.show)
+                button.clicked.connect(lq.array_tableView.raise_)
+            elif isinstance(lq, FileLQ):
+                new_widget = lq.new_default_widget()
+                new_widget.layout().setSpacing(0)
+                new_widget.layout().setContentsMargins(0, 0, 0, 0)
+            elif isinstance(lq, LoggedQuantity):
+                new_widget = lq.new_default_widget()
+            else:
+                continue
+
+            self.widgets[lqname] = new_widget
+            self.tools.add_to_layout(lqname, new_widget)

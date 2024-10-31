@@ -10,6 +10,8 @@ from ScopeFoundry import (
     HardwareComponent,
     Measurement,
     new_tree,
+    new_widget,
+    add_to_layout,
 )
 
 
@@ -68,11 +70,9 @@ class Measure(Measurement):
             choices=("yellow", "blue", "grey"),
             colors=("yellow", "blue"),
         )
-        self.settings.New("amplitude", dtype=float, initial=1.0)
         self.settings.New("run_crash_immediately", dtype=bool, initial=False)
         self.settings.New("run_crash_middle", dtype=bool, initial=False)
-        self.settings.New("pre_run_crash", dtype=bool, initial=False)
-        self.settings.New("post_run_crash", dtype=bool, initial=False)
+
         self.settings.New("name", dtype=str, initial="cool_op_name")
 
         self.add_operation("add_setting", self.on_add_setting)
@@ -100,17 +100,38 @@ class Measure(Measurement):
 
     def setup_figure(self):
 
-        self.plot = pg.PlotWidget()
-        self.plot_line = self.plot.plot()
-
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
         splitter.addWidget(self.new_control_widgets())
-        splitter.addWidget(self.app.hardware["hardware"].new_control_widgets())
+        # splitter.addWidget(self.New_UI(("amplitude", "post_run_crash")))
+        # splitter.addWidget(self.app.hardware["hardware"].new_control_widgets())
         # splitter.addWidget(
         #     self.app.hardware["hardware"].New_UI(
         #         exclude=("connected",), style="scroll_form", title="my_tile"
         #     )
         # )
+        splitter.addWidget(
+            new_widget(
+                self.app.hardware["hardware"],
+                "incl: val*,relo*  excl: *1",
+                include=("val*", "relo*"),
+                exclude=("*1",),
+            )
+        )
+
+        splitter.addWidget(self.new_control_widgets())
+        widget = QtWidgets.QWidget()
+        vbox_layout = QtWidgets.QVBoxLayout(widget)
+        label = QtWidgets.QLabel(
+            "used add_to_layout with a given QVBoxLayout to dyn add/remove widgets. \n include pattern matching: cool_*,add*, remove*, name"
+        )
+        vbox_layout.addWidget(label)
+        splitter.addWidget(widget)
+        self.add_to_layout(vbox_layout, include=("cool_*", "add*", "remove*", "name"))
+
+        grid_widget = QtWidgets.QWidget()
+        grid_layout = QtWidgets.QGridLayout(grid_widget)
+        splitter.addWidget(grid_widget)
+        self.add_to_layout(grid_layout, include=("cool_*", "add*", "remove*", "name"))
 
         self.ui = QtWidgets.QWidget()
         vsplitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
@@ -123,7 +144,6 @@ class Measure(Measurement):
                 ("hello", "world"),
             )
         )
-        vsplitter.addWidget(self.plot)
         vsplitter.addWidget(splitter)
 
     def run(self):
@@ -131,7 +151,7 @@ class Measure(Measurement):
         if self.settings["run_crash_immediately"]:
             raise IOError("run_crash_immediately")
 
-        N = 100
+        N = 10
 
         self.data_array = np.zeros(N)
 
@@ -141,34 +161,22 @@ class Measure(Measurement):
                 print(self.name, "interrupted at", i, "of", N)
                 break
             self.set_progress(100.0 * i / N)
-            self.data_array[i] = self.settings["amplitude"] * np.sin(2 * np.pi * i / N)
-            time.sleep(0.05)
-            if i > 50 and self.settings["run_crash_middle"]:
+            if i > N / 2 and self.settings["run_crash_middle"]:
                 raise IOError("run_crash_middle")
 
-    def update_display(self):
-        self.plot_line.setData(self.data_array)
+            self.settings.New(f"cool_{i}")
+            self.add_operation(f"cool_{i}", lambda: print("hello"))
+            time.sleep(0.1)
 
-    def pre_run(self):
-        print(self.name, "pre_run fun!")
-        time.sleep(0.5)
-        if self.settings["pre_run_crash"]:
-            raise IOError("pre_run_crash")
-        time.sleep(0.5)
-        print(self.name, "pre_run fun done!")
-
-    def post_run(self):
-        print(self.name, "post_run fun!")
-        time.sleep(0.5)
-        if self.settings["post_run_crash"]:
-            raise IOError("post_run_crash")
-        time.sleep(0.5)
-        print(self.name, "post_run fun done!")
+        for i in range(N):
+            self.settings.remove(f"cool_{i}")
+            self.remove_operation(f"cool_{i}")
+            time.sleep(0.1)
 
 
 class LQWidgetMicroscopeTestApp(BaseMicroscopeApp):
 
-    name = "measurement"
+    name = "lq_widget_test_app"
 
     def setup(self):
 

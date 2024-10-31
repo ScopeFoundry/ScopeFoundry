@@ -20,6 +20,7 @@ class DataBrowserView:
         self.settings = LQCollection(path=f"view/{self.name}")
         self.operations = Operations()
         self.q_object = ViewQObject()
+        self._widgets_managers_ = []
         self.view_loaded = False
         self.ui = None
 
