@@ -1,5 +1,6 @@
 from __future__ import absolute_import, print_function
 
+import fnmatch
 import logging
 import os
 import threading
@@ -386,3 +387,21 @@ class LogLock(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.release()
         return False  # Do not swallow exceptions
+
+
+def find_matches(keys, patterns):
+    "returns the keys that fit any of the pattern"
+    return [key for key in keys if any(fnmatch.fnmatch(key, pat) for pat in patterns)]
+
+
+def filter_with_patterns(
+    keys, include_patterns=None, exclude_patterns=None
+):  # -> list[str]:
+    """returns keys to match include and exclude patterns"""
+    if include_patterns:
+        # reduce possible keys to the ones satisfying the pattern
+        keys = find_matches(keys, include_patterns)
+    if exclude_patterns:
+        keys_to_exclude = find_matches(keys, exclude_patterns)
+        keys = [key for key in keys if key not in keys_to_exclude]
+    return keys
