@@ -3,11 +3,12 @@ from __future__ import absolute_import, print_function
 import threading
 import time
 import warnings
-from collections import OrderedDict
 from typing import Callable
 
 import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
+
+from ScopeFoundry.operations import Operations
 
 
 from .base_app import BaseMicroscopeApp
@@ -37,10 +38,10 @@ class HardwareComponent:
             self.name = name
 
         self.settings = LQCollection(path=f"hw/{self.name}")
-        self.operations = OrderedDict()
         self.sub_trees = []
 
         self.tree_item = None
+        self.operations = Operations()
 
         self.log = get_logger_from_class(self)
 
@@ -135,27 +136,6 @@ class HardwareComponent:
     def add_logged_quantity(self, name, **kwargs):
         return self.settings.New(name, **kwargs)
 
-    def add_operation(self, name: str, op_func: Callable[[], None]):
-        """
-        Create an operation for the HardwareComponent.
-
-        *op_func* is a function that will be called upon operation activation
-
-        operations are typically exposed in the default ScopeFoundry gui via a pushButton
-
-        :type name: str
-        :type op_func: QtCore.Slot or Callable without Argument
-        """
-
-        self.operations[name] = op_func
-        self.q_object.operation_added.emit(name)
-
-    def remove_operation(self, name):
-        if name not in self.operations:
-            return
-        del self.operations[name]
-        self.q_object.operation_removed.emit(name)
-
     def on_connection_succeeded(self):
         print(self.name, "connection succeeded!")
         self.update_sub_trees(1, "O", "green")
@@ -193,30 +173,83 @@ class HardwareComponent:
         x = xreload.xreload(mod)
         print("Reloading from code", mod, x)
 
-    def New_UI(
-        self,
-        include=None,
-        exclude=None,
-        style="form",
-        include_operations=None,
-        title=None,
-    ):
-
-        additional_widgets = {}
+    def add_operation(self, name: str, op_func: Callable[[], None]):
+        """
+        Create an operation for the HardwareComponent.
 
         if include_operations is None:
             include_operations = self.operations.keys()
+        *op_func* is a function that will be called upon operation activation
 
         for op_name in include_operations:
             btn = QtWidgets.QPushButton(op_name)
             btn.clicked.connect(self.operations[op_name])
             additional_widgets[op_name] = btn
+        operations are typically exposed in the default ScopeFoundry gui via a pushButton
 
         return self.settings.New_UI(include, exclude, style, additional_widgets, title)
+        :type name: str
+        :type op_func: QtCore.Slot or Callable without Argument
+        """
+        self.operations.add(name, op_func)
+
+    def remove_operation(self, name):
+        self.operations.remove(name)
+
+    def New_UI(self):
+        scroll_area = self.settings.New_UI(style="scroll_form")
+        for n, func in self.operations.items():
+            btn = QtWidgets.QPushButton(n)
+            btn.clicked.connect(func)
+            scroll_area.widget().layout().addRow(btn)
+        read_from_hardware_button = QtWidgets.QPushButton("Read From Hardware")
+        read_from_hardware_button.clicked.connect(self.read_from_hardware)
+        scroll_area.widget().layout().addRow(read_from_hardware_button)
+        return scroll_area
 
     def new_control_widgets(self):
-        """use Measurement.New_UI for more control"""
-        return self.New_UI(None, None, "form", None, self.name)
+
+        self.controls_groupBox = QtWidgets.QGroupBox(self.name)
+        self.controls_formLayout = QtWidgets.QFormLayout()
+        self.controls_groupBox.setLayout(self.controls_formLayout)
+
+        # self.connect_hardware_checkBox = QtWidgets.QCheckBox("Connect to Hardware")
+        # self.controls_formLayout.addRow("Connect", self.connect_hardware_checkBox)
+        # self.connect_hardware_checkBox.stateChanged.connect(self.enable_connection)
+
+        self.control_widgets = {}
+        for lqname, lq in self.settings.as_dict().items():
+            #: :type lq: LoggedQuantity
+            if lq.choices is not None:
+                widget = QtWidgets.QComboBox()
+            elif lq.dtype in [int, float]:
+                if lq.si:
+                    widget = pg.SpinBox()
+                else:
+                    widget = QtWidgets.QDoubleSpinBox()
+            elif lq.dtype in [bool]:
+                widget = QtWidgets.QCheckBox()
+            elif lq.dtype in [str]:
+                widget = QtWidgets.QLineEdit()
+            lq.connect_to_widget(widget)
+
+            # Add to formlayout
+            self.controls_formLayout.addRow(lqname, widget)
+            self.control_widgets[lqname] = widget
+
+        self.op_buttons = {}
+        for op_name, op_func in self.operations.items():
+            op_button = QtWidgets.QPushButton(op_name)
+            op_button.clicked.connect(lambda checked, f=op_func: f())
+            self.controls_formLayout.addRow(op_name, op_button)
+
+        self.read_from_hardware_button = QtWidgets.QPushButton("Read From Hardware")
+        self.read_from_hardware_button.clicked.connect(self.read_from_hardware)
+        self.controls_formLayout.addRow(
+            "Logged Quantities:", self.read_from_hardware_button
+        )
+
+        return self.controls_groupBox
 
     def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree: ObjSubtree):
         self.sub_trees.append(sub_tree)
@@ -266,8 +299,6 @@ class HardwareQObject(QtCore.QObject):
 
     connection_succeeded = QtCore.Signal()
     connection_failed = QtCore.Signal()
-    operation_added = QtCore.Signal(str)
-    operation_removed = QtCore.Signal(str)
 
 def new_control_widgets(name, settings: LQCollection, operations: dict):
     controls_groupBox = QtWidgets.QGroupBox(name)

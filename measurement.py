@@ -9,9 +9,11 @@ import sys
 import threading
 import time
 import traceback
-from collections import OrderedDict
+from typing import Callable
 
 from qtpy import QtCore, QtWidgets, QtGui
+import pyqtgraph as pg
+from ScopeFoundry.operations import Operations
 
 from .base_app import BaseMicroscopeApp
 from .helper_funcs import get_logger_from_class, load_qt_ui_file
@@ -48,7 +50,7 @@ class Measurement:
 
     def __init__(self, app: BaseMicroscopeApp, name: str = None):
 
-        self.q_object = MeasurementQbject(self)
+        self.q_object = MeasurementQObject(self)
         self.measurement_sucessfully_completed = (
             self.q_object.measurement_sucessfully_completed
         )
@@ -71,8 +73,8 @@ class Measurement:
         self.interrupt_measurement_called = False
 
         self.settings = LQCollection(path=f"mm/{self.name}")
-        self.operations = OrderedDict()
         self.sub_trees = []
+        self.operations = Operations()
 
         self.activation = self.settings.New(
             name="activation",
@@ -372,26 +374,6 @@ class Measurement:
         lq = self.settings.New(name=name, **kwargs)
         return lq
 
-    def add_operation(self, name: str, op_func):
-        """
-        Create an operation for the HardwareComponent.
-
-        *op_func* is a function that will be called upon operation activation
-
-        operations are typically exposed in the default ScopeFoundry gui via a pushButton
-
-        :type name: str
-        :type op_func: QtCore.Slot or Callable without Argument
-        """
-        self.operations[name] = op_func
-        self.q_object.operation_added.emit(name)
-
-    def remove_operation(self, name):
-        if name not in self.operations:
-            return
-        del self.operations[name]
-        self.q_object.operation_removed.emit(name)
-
     def start_nested_measure_and_wait(
         self, measure, nested_interrupt=True, polling_func=None, polling_time=0.1
     ):
@@ -492,30 +474,60 @@ class Measurement:
         """
         self.app.bring_measure_ui_to_front(self)
 
-    def New_UI(
-        self,
-        include=None,
-        exclude=None,
-        style="form",
-        include_operations=None,
-        title=None,
-    ):
+    def add_operation(self, name: str, op_func: Callable[[], None]):
+        """
+        Create an operation for the Measurement.
 
-        additional_widgets = {}
-
-        if include_operations is None:
-            include_operations = self.operations.keys()
+        *op_func* is a function that will be called upon operation activation
 
         for op_name in include_operations:
             btn = QtWidgets.QPushButton(op_name)
             btn.clicked.connect(self.operations[op_name])
             additional_widgets[op_name] = btn
+        operations are typically exposed in the default ScopeFoundry gui via a pushButton
 
         return self.settings.New_UI(include, exclude, style, additional_widgets, title)
+        :type name: str
+        :type op_func: QtCore.Slot or Callable without Argument
+        """
+        self.operations.add(name, op_func)
+
+    def remove_operation(self, name: str):
+        self.operations.remove(name)
 
     def new_control_widgets(self):
-        """use Measurement.New_UI for more control"""
-        return self.New_UI(None, None, "form", None, self.name)
+
+        self.controls_groupBox = QtWidgets.QGroupBox(self.name)
+        self.controls_formLayout = QtWidgets.QFormLayout()
+        self.controls_groupBox.setLayout(self.controls_formLayout)
+
+        self.control_widgets = {}
+        for lqname, lq in self.settings.as_dict().items():
+            #: :type lq: LoggedQuantity
+            if lq.choices is not None:
+                widget = QtWidgets.QComboBox()
+            elif lq.dtype in [int, float]:
+                if lq.si:
+                    widget = pg.SpinBox()
+                else:
+                    widget = QtWidgets.QDoubleSpinBox()
+            elif lq.dtype in [bool]:
+                widget = QtWidgets.QCheckBox()
+            elif lq.dtype in [str]:
+                widget = QtWidgets.QLineEdit()
+            lq.connect_to_widget(widget)
+
+            # Add to formlayout
+            self.controls_formLayout.addRow(lqname, widget)
+            self.control_widgets[lqname] = widget
+
+        self.op_buttons = {}
+        for op_name, op_func in self.operations.items():
+            op_button = QtWidgets.QPushButton(op_name)
+            op_button.clicked.connect(op_func)
+            self.controls_formLayout.addRow(op_name, op_button)
+
+        return self.controls_groupBox
 
     def web_ui(self):
         return "Hardware {}".format(self.name)
@@ -547,15 +559,12 @@ class Measurement:
         cmenu.exec_(QtGui.QCursor.pos())
 
 
-class MeasurementQbject(QtCore.QObject):
+class MeasurementQObject(QtCore.QObject):
 
     measurement_sucessfully_completed = QtCore.Signal(())
     """signal sent when full measurement is complete"""
     measurement_interrupted = QtCore.Signal(())
     """signal sent when  measurement is complete due to an interruption"""
-
-    operation_added = QtCore.Signal(str)
-    operation_removed = QtCore.Signal(str)
 
     def __init__(self, measurement: Measurement, parent: QtCore.QObject = None) -> None:
         super().__init__(parent)

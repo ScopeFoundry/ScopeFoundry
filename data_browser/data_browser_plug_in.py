@@ -32,6 +32,7 @@ class DataBrowserPlugIn:
     def __init__(self, databrowser):
         self.databrowser = databrowser
         self.settings = LQCollection(path=f"plugin/{self.name}")
+        self.operations = Operations()
         self.q_object = PlugInQObject()
         self.ui = None
         self.is_loaded = False
@@ -87,3 +88,9 @@ class DataBrowserPlugIn:
     @property
     def new_fname(self):
         return self.databrowser.settings["data_filename"]
+
+    def add_operation(self, name: str, op_func: Callable[[], None]):
+        self.operations.add(name, op_func)
+
+    def remove_operation(self, name: str):
+        self.operations.remove(name)

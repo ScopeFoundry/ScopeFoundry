@@ -14,7 +14,7 @@ from .lq_range import LQRange
 
 class LQCollectionQObject(QtCore.QObject):
 
-    new_lq_added = QtCore.Signal((LoggedQuantity,))
+    lq_added = QtCore.Signal((LoggedQuantity,))
     lq_removed = QtCore.Signal((LoggedQuantity,))
 
     def __init__(self, settings, parent: QtCore.QObject = None) -> None:
@@ -127,7 +127,7 @@ class LQCollection:
         self.__dict__[name] = lq  # allow attribute access
 
         lq.set_path(f"{self.path}/{name}")
-        self.q_object.new_lq_added[LoggedQuantity].emit(lq)
+        self.q_object.lq_added[LoggedQuantity].emit(lq)
         return lq
 
     def get_lq(self, key) -> LoggedQuantity:
@@ -173,6 +173,12 @@ class LQCollection:
 
     def __contains__(self, key):
         return self._logged_quantities.__contains__(key)
+
+    def __str__(self) -> str:
+        lines = [f"Settings path: {self.path}"] + [
+            f"{k}: {v}" for k, v in self.as_value_dict().items()
+        ]
+        return "\n".join(lines)
 
     """
     def __getattribute__(self,name):

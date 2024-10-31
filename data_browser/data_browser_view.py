@@ -18,6 +18,7 @@ class DataBrowserView:
     def __init__(self, databrowser):
         self.databrowser = databrowser
         self.settings = LQCollection(path=f"view/{self.name}")
+        self.operations = Operations()
         self.q_object = ViewQObject()
         self.view_loaded = False
         self.ui = None
@@ -60,3 +61,9 @@ class DataBrowserView:
             return any(
                 name in file["measurement"] for name in supported_measurement_names
             )
+
+    def add_operation(self, name: str, op_func: Callable[[], None]):
+        self.operations.add(name, op_func)
+
+    def remove_operation(self, name: str):
+        self.operations.remove(name)

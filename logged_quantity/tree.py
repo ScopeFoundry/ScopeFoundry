@@ -4,20 +4,14 @@ from typing import OrderedDict, Protocol, List, Union
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry.logged_quantity import ArrayLQ, FileLQ, LoggedQuantity, LQCollection
-
-
-class SubtreeAblesQObject(Protocol):
-
-    operation_added: QtCore.Signal
-    operation_removed: QtCore.Signal
+from ScopeFoundry.operations import Operations
 
 
 class SubtreeAbleObj(Protocol):
 
     name: str
     settings: LQCollection
-    operations: OrderedDict
-    q_object: SubtreeAblesQObject
+    operations: Operations
 
     def add_sub_tree(self, tree: QtWidgets.QTreeWidget, sub_tree): ...  # optional
 
@@ -56,10 +50,10 @@ class ObjSubtree:
         self.name = obj.name
         self.settings = obj.settings
         self.operations = obj.operations
-        self.settings.q_object.new_lq_added.connect(self.add_lq_child_item)
+        self.settings.q_object.lq_added.connect(self.add_lq_child_item)
         self.settings.q_object.lq_removed.connect(self.remove_lq_child_item)
-        obj.q_object.operation_added.connect(self.add_operation_child_item)
-        obj.q_object.operation_removed.connect(self.remove_operation_child_item)
+        self.operations.q_object.added.connect(self.add_operation_child_item)
+        self.operations.q_object.removed.connect(self.remove_operation_child_item)
 
         self.settings_items = {}
         self.operation_items = {}
