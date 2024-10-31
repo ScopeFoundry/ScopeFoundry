@@ -315,11 +315,11 @@ class BaseMicroscopeApp(BaseApp):
         # disconnect all hardware objects
         for hw in self.hardware.values():
             self.log.info("disconnecting {}".format(hw.name))
-            if hw.settings["connected"]:
-                try:
-                    hw.disconnect()
-                except Exception as err:
-                    self.log.error("tried to disconnect {}: {}".format(hw.name, err))
+            try:
+                hw.settings["connected"] = False
+                hw.settings.disconnect_all_from_hardware()
+            except Exception as err:
+                self.log.error("tried to disconnect {}: {}".format(hw.name, err))
 
     def setup(self):
         """Override to add Hardware and Measurement Components"""
