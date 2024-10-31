@@ -12,10 +12,10 @@ import traceback
 from typing import Callable
 
 from qtpy import QtCore, QtWidgets, QtGui
-import pyqtgraph as pg
 from ScopeFoundry.operations import Operations
 
 from .base_app import BaseMicroscopeApp
+from .dynamical_widgets.generic_widget import add_to_layout, new_widget
 from .helper_funcs import get_logger_from_class, load_qt_ui_file
 from .logged_quantity import LQCollection
 from .logged_quantity.tree import ObjSubtree
@@ -75,6 +75,7 @@ class Measurement:
         self.settings = LQCollection(path=f"mm/{self.name}")
         self.sub_trees = []
         self.operations = Operations()
+        self._widgets_managers_ = []
 
         self.activation = self.settings.New(
             name="activation",
@@ -474,6 +475,15 @@ class Measurement:
         """
         self.app.bring_measure_ui_to_front(self)
 
+    def new_control_widgets(self, title: str = None, include=None, exclude=None):
+        """creates scroll area group box that updates on dynamical add/remove of settings/operations"""
+        if title is None:
+            title = self.name
+        return new_widget(self, title, include, exclude)
+
+    def add_to_layout(self, layout, include=None, exclude=None):
+        add_to_layout(self, layout, include, exclude)
+
     def add_operation(self, name: str, op_func: Callable[[], None]):
         """
         Create an operation for the Measurement.
@@ -486,7 +496,6 @@ class Measurement:
             additional_widgets[op_name] = btn
         operations are typically exposed in the default ScopeFoundry gui via a pushButton
 
-        return self.settings.New_UI(include, exclude, style, additional_widgets, title)
         :type name: str
         :type op_func: QtCore.Slot or Callable without Argument
         """
@@ -494,40 +503,6 @@ class Measurement:
 
     def remove_operation(self, name: str):
         self.operations.remove(name)
-
-    def new_control_widgets(self):
-
-        self.controls_groupBox = QtWidgets.QGroupBox(self.name)
-        self.controls_formLayout = QtWidgets.QFormLayout()
-        self.controls_groupBox.setLayout(self.controls_formLayout)
-
-        self.control_widgets = {}
-        for lqname, lq in self.settings.as_dict().items():
-            #: :type lq: LoggedQuantity
-            if lq.choices is not None:
-                widget = QtWidgets.QComboBox()
-            elif lq.dtype in [int, float]:
-                if lq.si:
-                    widget = pg.SpinBox()
-                else:
-                    widget = QtWidgets.QDoubleSpinBox()
-            elif lq.dtype in [bool]:
-                widget = QtWidgets.QCheckBox()
-            elif lq.dtype in [str]:
-                widget = QtWidgets.QLineEdit()
-            lq.connect_to_widget(widget)
-
-            # Add to formlayout
-            self.controls_formLayout.addRow(lqname, widget)
-            self.control_widgets[lqname] = widget
-
-        self.op_buttons = {}
-        for op_name, op_func in self.operations.items():
-            op_button = QtWidgets.QPushButton(op_name)
-            op_button.clicked.connect(op_func)
-            self.controls_formLayout.addRow(op_name, op_button)
-
-        return self.controls_groupBox
 
     def web_ui(self):
         return "Hardware {}".format(self.name)

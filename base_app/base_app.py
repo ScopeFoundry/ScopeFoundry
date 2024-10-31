@@ -79,6 +79,7 @@ class BaseApp(QtCore.QObject):
         self.add_lq_collection_to_settings_path(self.settings)
 
         self.operations = Operations()
+        self._widgets_managers_ = []
 
         # self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
 

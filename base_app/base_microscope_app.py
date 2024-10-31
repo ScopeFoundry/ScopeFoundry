@@ -12,6 +12,7 @@ import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry import h5_io, ini_io
+from ScopeFoundry.dynamical_widgets import new_widget
 from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
     confirm_on_close,
@@ -117,12 +118,11 @@ class BaseMicroscopeApp(BaseApp):
 
         mm_tree = new_tree(self.measurements.values(), ["Measurements", "Value"])
         hw_tree = new_tree(self.hardware.values(), ["Hardware", "Value"])
-        app_tree = new_tree((self,), ["App", "Value"])
-        app_tree.expandToDepth(3)
+        app_widget = new_widget(self, "app")
 
         splitter.addWidget(hw_tree)
         splitter.addWidget(mm_tree)
-        splitter.addWidget(app_tree)
+        splitter.addWidget(app_widget)
 
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 2)
