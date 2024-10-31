@@ -105,13 +105,12 @@ class Measure(Measurement):
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
         splitter.addWidget(self.new_control_widgets())
-        splitter.addWidget(self.New_UI(("amplitude", "post_run_crash")))
         splitter.addWidget(self.app.hardware["hardware"].new_control_widgets())
-        splitter.addWidget(
-            self.app.hardware["hardware"].New_UI(
-                exclude=("connected",), style="scroll_form", title="my_tile"
-            )
-        )
+        # splitter.addWidget(
+        #     self.app.hardware["hardware"].New_UI(
+        #         exclude=("connected",), style="scroll_form", title="my_tile"
+        #     )
+        # )
 
         self.ui = QtWidgets.QWidget()
         vsplitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)

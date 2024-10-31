@@ -12,7 +12,6 @@ import enum
 import logging
 import sys
 import traceback
-from collections import OrderedDict
 from pathlib import Path
 from typing import Callable
 from warnings import warn
@@ -25,6 +24,7 @@ from ScopeFoundry.base_app.logging_handlers import HtmlHandler
 from ScopeFoundry.base_app.logging_widget import LoggingWidget
 from ScopeFoundry.helper_funcs import get_logger_from_class
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
+from ScopeFoundry.operations import Operations
 
 
 # See https://riverbankcomputing.com/pipermail/pyqt/2016-March/037136.html
@@ -78,7 +78,7 @@ class BaseApp(QtCore.QObject):
         self.settings = LQCollection(path="app")
         self.add_lq_collection_to_settings_path(self.settings)
 
-        self.operations = OrderedDict()
+        self.operations = Operations()
 
         # self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
 
@@ -186,7 +186,7 @@ class BaseApp(QtCore.QObject):
         self._setting_paths.pop(lq.path, None)
 
     def add_lq_collection_to_settings_path(self, settings: LQCollection):
-        settings.q_object.new_lq_added.connect(self.add_setting_path)
+        settings.q_object.lq_added.connect(self.add_setting_path)
         settings.q_object.lq_removed.connect(self.remove_setting_path)
         for lq in settings.as_dict().values():
             self.add_setting_path(lq)
