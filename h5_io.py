@@ -1,7 +1,6 @@
 from __future__ import absolute_import, print_function
 
 import functools
-import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -58,25 +57,31 @@ other thoughts:
 
 
 def h5_base_file(app, fname=None, measurement=None):
-    unique_id, u = cb32_uuid() # persistent identifier for dataset
+    unique_id, u = cb32_uuid()  # persistent identifier for dataset
     t0 = time.time()
+
     if fname is None and measurement is not None:
-        
-        f = app.settings['data_fname_format'].format(
+        f = app.settings["data_fname_format"].format(
             app=app,
             measurement=measurement,
             timestamp=datetime.fromtimestamp(t0),
             unique_id=unique_id,
-            unique_id_short = unique_id[0:13],
-            ext='h5')
-        fname = os.path.join(app.settings['save_dir'], f)        
-        #fname = os.path.join(app.settings['save_dir'], "%i_%s.h5" % (t0, measurement.name) )
-    h5_file = h5py.File(fname, 'a')
-    root = h5_file['/']
-    root.attrs["ScopeFoundry_version"] = 130
-    root.attrs['time_id'] = int(t0)
-    root.attrs['unique_id'] = unique_id
-    root.attrs['uuid'] = str(u)
+            unique_id_short=unique_id[0:13],
+            ext="h5",
+        )
+        fname = Path(app.settings["save_dir"]) / f
+    elif fname is None:
+        fname = (
+            Path(app.settings["save_dir"])
+            / f"{datetime.fromtimestamp(t0):%y%m%d_%H%M%S}.h5"
+        )
+
+    h5_file = h5py.File(fname, "a")
+    root = h5_file["/"]
+    root.attrs["ScopeFoundry_version"] = 160
+    root.attrs["time_id"] = int(t0)
+    root.attrs["unique_id"] = unique_id
+    root.attrs["uuid"] = str(u)
 
     h5_save_app_lq(app, root)
     h5_save_hardware_lq(app, root)
