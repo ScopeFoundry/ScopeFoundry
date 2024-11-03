@@ -2,6 +2,7 @@ import datetime
 import inspect
 import json
 import logging
+import os
 import time
 import warnings
 from collections import OrderedDict
@@ -12,7 +13,8 @@ import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry import h5_io, ini_io
-from ScopeFoundry.dynamical_widgets import new_widget, new_tree_widget
+from ScopeFoundry.dynamical_widgets import new_tree_widget, new_widget
+from ScopeFoundry.h5_analyze_with_ipynb import generate_ipynb, generate_loaders_py
 from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
     confirm_on_close,
@@ -76,6 +78,7 @@ class BaseMicroscopeApp(BaseApp):
         # self.settings.New('log_dir', dtype='file', is_dir=True, initial=initial_log_dir)
 
         self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
+        self.add_operation("analyze with ipynb", self.on_analyze_with_ipynb)
 
         if not hasattr(self, "ui_filename"):
             if self.mdi:
@@ -320,6 +323,20 @@ class BaseMicroscopeApp(BaseApp):
                 hw.settings.disconnect_all_from_hardware()
             except Exception as err:
                 self.log.error("tried to disconnect {}: {}".format(hw.name, err))
+
+    def on_analyze_with_ipynb(self, folder=None):
+        if folder is None:
+            folder = self.settings["save_dir"]
+        loaders_fname, dset_names = generate_loaders_py(folder)
+        ipynb_path = generate_ipynb(folder)
+        print("")
+        print("generated", loaders_fname, f"with {len(dset_names)} loader(s)")
+        print("")
+        print("check", ipynb_path)
+        print("")
+        if ipynb_path.exists():
+            os.startfile(ipynb_path)
+        return ipynb_path
 
     def setup(self):
         """Override to add Hardware and Measurement Components"""
