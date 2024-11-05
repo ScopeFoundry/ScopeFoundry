@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 from qtpy import QtWidgets
 
@@ -14,6 +14,9 @@ class FileLQ(LoggedQuantity):
     def __init__(self, name, default_dir=None, is_dir=False, **kwargs):
         kwargs.pop("dtype", None)
 
+        if not kwargs["initial"]:
+            kwargs["initial"] = ""
+
         LoggedQuantity.__init__(self, name, dtype=str, **kwargs)
 
         self.default_dir = default_dir
@@ -23,21 +26,23 @@ class FileLQ(LoggedQuantity):
         assert type(lineEdit) == QtWidgets.QLineEdit
         self.connect_to_widget(lineEdit)
 
-        if self.default_dir is not None:
-            lineEdit.setText(self.default_dir)
-        else:
-            lineEdit.setText(os.getcwd())
-
         assert type(pushButton) == QtWidgets.QPushButton
         pushButton.clicked.connect(self.file_browser)
 
     def file_browser(self):
-        if self.is_dir:
-            fname = QtWidgets.QFileDialog.getExistingDirectory(
-                directory=self.default_dir
-            )
+
+        path = Path(self.default_dir) if self.default_dir else Path(self.val)
+        if not path.exists():
+            path = Path.cwd()
+        if path.is_dir():
+            directory = str(path)
         else:
-            fname, _ = QtWidgets.QFileDialog.getOpenFileName(directory=self.default_dir)
+            directory = str(path.parent)
+
+        if self.is_dir:
+            fname = QtWidgets.QFileDialog.getExistingDirectory(directory=directory)
+        else:
+            fname, _ = QtWidgets.QFileDialog.getOpenFileName(directory=directory)
         self.log.debug(repr(fname))
         if fname:
             self.update_value(fname)
