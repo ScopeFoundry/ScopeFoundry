@@ -27,6 +27,7 @@ setup(
                   'ScopeFoundry.data_browser.viewers',
                   'ScopeFoundry.data_browser.plug_ins',
               'ScopeFoundry.examples',
+                  'ScopeFoundry.examples.ScopeFoundryHW',
               'ScopeFoundry.graphics',
               'ScopeFoundry.graphics.zoomable_map',
               'ScopeFoundry.logged_quantity',
