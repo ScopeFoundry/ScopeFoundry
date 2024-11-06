@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 Created on Tue Apr  1 09:25:48 2014
 @author: esbarnard
 """
-from __future__ import absolute_import, print_function
 
 import sys
 import threading

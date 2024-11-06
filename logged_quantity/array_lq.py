@@ -7,7 +7,7 @@ from qtpy import QtCore, QtWidgets
 from ScopeFoundry.helper_funcs import QLock, get_logger_from_class
 from ScopeFoundry.ndarray_interactive import ArrayLQ_QTableModel
 
-from . import LoggedQuantity, unicode
+from . import LoggedQuantity
 
 
 class ArrayLQ(LoggedQuantity):
@@ -92,10 +92,8 @@ class ArrayLQ(LoggedQuantity):
         return json.dumps(self.val.tolist())
 
     def coerce_to_type(self, x):
-        # print type(x)
-        if type(x) in (unicode, str):
+        if isinstance(x, str):
             x = json.loads(x)
-            # print repr(x)
         return np.array(x, dtype=self.dtype)
 
     def send_display_updates(self, force=False):

@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import functools
 import time
 from datetime import datetime

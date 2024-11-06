@@ -9,7 +9,6 @@ from collections import OrderedDict
 from functools import partial
 from pathlib import Path
 
-import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry import h5_io, ini_io
@@ -226,51 +225,9 @@ class BaseMicroscopeApp(BaseApp):
         self.qtapp.setWindowIcon(logo_icon)
         self.ui.setWindowIcon(logo_icon)
 
-        ### parameter tree
-        ## disabled for now
-        """
-        import pyqtgraph.parametertree.parameterTypes as pTypes
-        from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
-
-        self.ptree = ParameterTree()
-        p = Parameter.create(name='Settings', type='group')
-
-        app_params = Parameter.create(name='App', type='group')
-        for lq_name, lq in self.settings.as_dict().items():
-            print(lq_name, lq)
-            lq_p = lq.new_pg_parameter()#Parameter.create(name=lq.name, type=lq.dtype)
-            app_params.addChild(lq_p)
-
-        p.addChild(app_params)
 
 
 
-        hw_params = Parameter.create(name='Hardware', type='group')
-        p.addChild(hw_params)
-
-        for name, measure in self.hardware.items():
-            hw_group = Parameter.create(name=name, type='group')
-            hw_params.addChild(hw_group)
-            for lq_name, lq in measure.settings.as_dict().items():
-                print(lq_name, lq)
-                lq_p = lq.new_pg_parameter()
-                hw_group.addChild(lq_p)
-
-        measure_params = Parameter.create(name='Measurements', type='group')
-        p.addChild(measure_params)
-
-        for name, measure in self.measurements.items():
-            m_group = Parameter.create(name=name, type='group')
-            measure_params.addChild(m_group)
-            for lq_name, lq in measure.settings.as_dict().items():
-                print(lq_name, lq)
-                lq_p = lq.new_pg_parameter()
-                m_group.addChild(lq_p)
-
-
-        self.ptree.setParameters(p, showTop=True)
-        #self.ptree.show()
-        """
 
     def set_subwindow_mode(self):
         """Switches Multiple Document Interface to Subwindowed viewing mode."""
@@ -350,56 +307,9 @@ class BaseMicroscopeApp(BaseApp):
         # raise NotImplementedError()
         pass
 
-    """def add_image_display(self,name,widget):
-        print "---adding figure", name, widget
-        if name in self.figs:
-            return self.figs[name]
-        else:
-            disp=ImageDisplay(name,widget)
-            self.figs[name]=disp
-            return disp
-    """
-
     def setup_ui(self):
         """Override to set up ui elements after default ui is built"""
         pass
-
-    def add_pg_graphics_layout(self, name, widget):
-        self.log.info("---adding pg GraphicsLayout figure {} {}".format(name, widget))
-        if name in self.figs:
-            return self.figs[name]
-        else:
-            disp = pg.GraphicsLayoutWidget(border=(100, 100, 100))
-            widget.layout().addWidget(disp)
-            self.figs[name] = disp
-            return disp
-
-        # IDEA: write an abstract function to add pg.imageItem() for maps,
-        # which haddels, pixelscale, ROI ....
-        # could also be implemented in the base_2d class?
-
-    #     def add_figure_mpl(self,name, widget):
-    #         """creates a matplotlib figure attaches it to the qwidget specified
-    #         (widget needs to have a layout set (preferably verticalLayout)
-    #         adds a figure to self.figs"""
-    #         print "---adding figure", name, widget
-    #         if name in self.figs:
-    #             return self.figs[name]
-    #         else:
-    #             fig = Figure()
-    #             fig.patch.set_facecolor('w')
-    #             canvas = FigureCanvas(fig)
-    #             nav    = NavigationToolbar2(canvas, self.ui)
-    #             widget.layout().addWidget(canvas)
-    #             widget.layout().addWidget(nav)
-    #             canvas.setFocusPolicy( QtCore.Qt.ClickFocus )
-    #             canvas.setFocus()
-    #             self.figs[name] = fig
-    #             return fig
-
-    def add_figure(self, name, widget):
-        # DEPRECATED
-        return self.add_figure_mpl(name, widget)
 
     def add_hardware(self, hw):
         """Loads a HardwareComponent object into the app.
