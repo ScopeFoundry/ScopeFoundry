@@ -1,4 +1,3 @@
-import sys
 from collections import deque
 from functools import partial
 from inspect import signature
@@ -9,10 +8,6 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry.helper_funcs import QLock, bool2str, get_logger_from_class, str2bool
 from ScopeFoundry.widgets import MinMaxQSlider
-
-# python 2/3 compatibility
-if sys.version_info[0] == 3:
-    unicode = str
 
 
 class LoggedQuantity(QtCore.QObject):

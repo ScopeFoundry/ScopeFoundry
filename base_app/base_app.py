@@ -5,8 +5,6 @@ Modified by Ed Barnard
 UI enhancements by Ed Barnard, Alan Buckley
 """
 
-from __future__ import absolute_import, division, print_function
-
 import asyncio
 import enum
 import logging
