@@ -78,7 +78,11 @@ class BaseMicroscopeApp(BaseApp):
         # self.settings.New('log_dir', dtype='file', is_dir=True, initial=initial_log_dir)
 
         self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
-        self.add_operation("analyze with ipynb", self.on_analyze_with_ipynb)
+        self.add_operation(
+            "analyze with ipynb",
+            self.on_analyze_with_ipynb,
+            "generates h5_data_loaders.py, overview.ipynb and tries to launch overview.ipynb (vscode with jupyter extension recommended)",
+        )
 
         if not hasattr(self, "ui_filename"):
             if self.mdi:
@@ -121,15 +125,16 @@ class BaseMicroscopeApp(BaseApp):
 
         mm_tree = new_tree_widget(self.measurements.values(), ["Measurements", "Value"])
         hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
-        app_widget = new_widget(self, "app")
+        app_widget = new_widget(self, "app", style="form")
+        app_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Minimum,
+            QtWidgets.QSizePolicy.Policy.Maximum,
+        )
 
         splitter.addWidget(hw_tree)
         splitter.addWidget(mm_tree)
         splitter.addWidget(app_widget)
 
-        splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 2)
-        splitter.setStretchFactor(2, 1)
 
         # Add log widget to mdiArea
         self.logging_subwin = self.add_mdi_subwin(self.logging_widget, "Log")
@@ -175,13 +180,15 @@ class BaseMicroscopeApp(BaseApp):
             self.ui.settings_load_pushButton.clicked.connect(self.settings_load_dialog)
 
         # Menu bar entries:
-        # TODO: connect self.ui.action_log_viewer to log viewer function
-        # (Function has yet to be created)
         self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)
         self.ui.action_auto_save_ini.triggered.connect(self.settings_auto_save_ini)
         self.ui.action_save_ini.triggered.connect(self.settings_save_dialog)
-        self.ui.action_console.triggered.connect(self.console_widget.show)
-        self.ui.action_console.triggered.connect(self.console_widget.activateWindow)
+        self.ui.action_console.triggered.connect(
+            partial(self.bring_mdi_subwin_to_front, subwin=self.console_subwin)
+        )
+        self.ui.action_log_viewer.triggered.connect(
+            partial(self.bring_mdi_subwin_to_front, subwin=self.logging_subwin)
+        )
         self.ui.action_load_window_positions.triggered.connect(
             self.window_positions_load_dialog
         )
