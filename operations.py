@@ -19,17 +19,20 @@ class Operations(OrderedDict):
         super().__init__(other, **kwds)
         self.q_object = OperationsQObject()
         self._widgets_managers_ = []
+        self.descriptions = {}
 
-    def add(self, name: str, value: Callable):
+    def add(self, name: str, value: Callable, description=""):
         if name in self.__dict__:
             return
         self[name] = value
+        self.descriptions[name] = description
         self.q_object.added.emit(name)
 
     def remove(self, name):
         if name not in self:
             return
         del self[name]
+        del self.descriptions[name]
         self.q_object.removed.emit(name)
 
 
@@ -62,7 +65,8 @@ class OperationWidgetsManager:
                 continue
             op_func = self.operations[op_name]
             op_button = QtWidgets.QPushButton(op_name)
+            op_button.setToolTip(self.operations.descriptions[op_name])
             op_button.clicked.connect(lambda checked, f=op_func: f())
             self.widgets[op_name] = op_button
 
-            self.tools.add_to_layout(op_name, op_button)
+            self.tools.add_to_layout(None, op_button)

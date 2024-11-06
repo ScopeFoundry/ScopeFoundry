@@ -294,7 +294,7 @@ class BaseApp(QtCore.QObject):
             return lq.ini_string_value()
         return lq.val
 
-    def add_operation(self, name: str, op_func: Callable[[], None]):
+    def add_operation(self, name: str, op_func: Callable[[], None], description=""):
         """
         Create an operation for the App.
 
@@ -304,21 +304,16 @@ class BaseApp(QtCore.QObject):
 
         :type name: str
         :type op_func: QtCore.Slot or Callable without Argument
+        :type description: str
         """
-        self.operations[name] = op_func
-        self.q_object.operation_added.emit(name)
+        self.operations.add(name, op_func, description)
 
     def remove_operation(self, name: str):
-        if name not in self.operations:
-            return
-        del self.operations[name]
-        self.q_object.operation_removed.emit(name)
+        self.operations.remove(name)
 
 
 class BaseAppQObject(QtCore.QObject):
-
-    operation_added = QtCore.Signal(str)
-    operation_removed = QtCore.Signal(str)
+    pass
 
 
 class TestBaseApp(BaseApp):

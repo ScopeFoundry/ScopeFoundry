@@ -192,25 +192,19 @@ class HardwareComponent:
     def add_to_layout(self, layout, include=None, exclude=None):
         add_to_layout(self, layout, include, exclude)
 
-    def add_operation(self, name: str, op_func: Callable[[], None]):
+    def add_operation(self, name: str, op_func: Callable[[], None], description=""):
         """
         Create an operation for the HardwareComponent.
 
-        if include_operations is None:
-            include_operations = self.operations.keys()
         *op_func* is a function that will be called upon operation activation
 
-        for op_name in include_operations:
-            btn = QtWidgets.QPushButton(op_name)
-            btn.clicked.connect(self.operations[op_name])
-            additional_widgets[op_name] = btn
         operations are typically exposed in the default ScopeFoundry gui via a pushButton
 
-        return self.settings.New_UI(include, exclude, style, additional_widgets, title)
         :type name: str
         :type op_func: QtCore.Slot or Callable without Argument
+        :type description: str
         """
-        self.operations.add(name, op_func)
+        self.operations.add(name, op_func, description)
 
     def remove_operation(self, name):
         self.operations.remove(name)
