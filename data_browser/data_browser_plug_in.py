@@ -91,8 +91,8 @@ class DataBrowserPlugIn:
     def new_fname(self):
         return self.databrowser.settings["data_filename"]
 
-    def add_operation(self, name: str, op_func: Callable[[], None]):
-        self.operations.add(name, op_func)
+    def add_operation(self, name: str, op_func: Callable[[], None], description=""):
+        self.operations.add(name, op_func, description)
 
     def remove_operation(self, name: str):
         self.operations.remove(name)
