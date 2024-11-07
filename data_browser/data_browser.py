@@ -13,22 +13,8 @@ class DataBrowser(BaseApp):
 
     name = "DataBrowser"
 
-    def __init__(self, argv, dark_mode=False):
-        BaseApp.__init__(self, argv, dark_mode)
-        self.setup()
-        parser = argparse.ArgumentParser()
-        for lq in self.settings.as_list():
-            parser.add_argument("--" + lq.name)
-        args = parser.parse_args()
-        for lq in self.settings.as_list():
-            if lq.name in args:
-                val = getattr(args, lq.name)
-                if val is not None:
-                    lq.update_value(val)
-
-    def setup(self):
-
-        self._setting_paths = {}
+    def __init__(self, argv, dark_mode=None):
+        BaseApp.__init__(self, argv)
 
         self.views = OrderedDict()
 
@@ -69,6 +55,25 @@ class DataBrowser(BaseApp):
 
         s.file_filter.add_listener(self.on_change_file_filter)
         s.view_name.add_listener(self.on_change_view_name)
+
+        self.setup_dark_mode_option(dark_mode)
+
+        self.setup()
+
+        # Does this even work?
+        parser = argparse.ArgumentParser()
+        for lq in self.settings.as_list():
+            parser.add_argument("--" + lq.name)
+        args = parser.parse_args()
+        for lq in self.settings.as_list():
+            if lq.name in args:
+                val = getattr(args, lq.name)
+                if val is not None:
+                    lq.update_value(val)
+
+    def setup(self):
+        """overite in child to add further views and plug_ins"""
+        pass
 
     def setup_ui(self):
         self.ui = load_qt_ui_from_pkg("ScopeFoundry.data_browser", "data_browser.ui")

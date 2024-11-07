@@ -13,8 +13,8 @@ class LQArrayTestApp(BaseApp):
 
     name = 'LQArrayTestApp'
 
-    def __init__(self, argv=[], dark_mode=False):
-        super().__init__(argv, dark_mode)
+    def __init__(self, argv=[]):
+        super().__init__(argv)
 
         self.settings.New(
             "test_array",
