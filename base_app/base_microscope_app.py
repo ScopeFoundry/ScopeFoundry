@@ -25,6 +25,7 @@ from .base_app import BaseApp
 from .logging_handlers import new_log_file_handler
 from .show_io_report_dialog import show_io_report_dialog
 
+
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
     """The name of the microscope app, default is ScopeFoundry."""
@@ -39,8 +40,8 @@ class BaseMicroscopeApp(BaseApp):
         # self.ui.exec_()
         self.ui.show()
 
-    def __init__(self, argv=[], dark_mode=False):
-        super().__init__(argv, dark_mode)
+    def __init__(self, argv=[], **kwargs):
+        super().__init__(argv, **kwargs)
 
         log_path = Path.cwd() / "log"
         if not log_path.is_dir():
@@ -72,6 +73,8 @@ class BaseMicroscopeApp(BaseApp):
         ).add_listener(self.propose_settings_values_from_file)
 
         # self.settings.New('log_dir', dtype='file', is_dir=True, initial=initial_log_dir)
+
+        self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
 
         if not hasattr(self, "ui_filename"):
             if self.mdi:
@@ -153,12 +156,6 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.action_set_data_dir.triggered.connect(
             self.settings.save_dir.file_browser
         )
-        # self.settings.save_dir.connect_to_browse_widgets(
-        #     self.ui.save_dir_lineEdit, self.ui.save_dir_browse_pushButton
-        # )
-
-        # Sample meta data
-        # self.settings.sample.connect_to_widget(self.ui.sample_lineEdit)
 
         # settings button events
         if hasattr(self.ui, "settings_autosave_pushButton"):

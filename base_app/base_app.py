@@ -15,6 +15,7 @@ import traceback
 from collections import OrderedDict
 from pathlib import Path
 from typing import Callable
+from warnings import warn
 
 from qtpy import QtCore, QtWidgets
 
@@ -45,15 +46,6 @@ sys.excepthook = log_unhandled_exception
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# Dark mode
-try:
-    import qdarktheme  # pip install pyqtdarktheme
-
-    darktheme_available = True
-except Exception as err:
-    darktheme_available = False
-    print(f"pyqdarktheme unavailable: {err}")
-
 
 class WRITE_RES(enum.Enum):
     SUCCESS = enum.auto()
@@ -65,16 +57,13 @@ class BaseApp(QtCore.QObject):
 
     name = "ScopeFoundry"
 
-    def __init__(self, argv=[], dark_mode=False):
+    def __init__(self, argv=[], **kwargs):
         super().__init__()
 
         self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
             self.qtapp = QtWidgets.QApplication(argv)
         self.qtapp.setApplicationName(self.name)
-
-        if dark_mode and darktheme_available:
-            qdarktheme.setup_theme()
 
         self.q_object = BaseAppQObject()
 
@@ -90,6 +79,55 @@ class BaseApp(QtCore.QObject):
         self.add_lq_collection_to_settings_path(self.settings)
 
         self.operations = OrderedDict()
+
+        # self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
+
+    def setup_dark_mode_option(self, dark_mode: bool = None):
+        if hasattr(self.qtapp.styleHints(), "setColorScheme"):
+            choices = ("dark", "light", "system")
+            if dark_mode is None:
+                initial = "system"
+            elif dark_mode:
+                initial = "dark"
+            else:
+                initial = "light"
+            self.settings.New(
+                name="dark_mode",
+                dtype=str,
+                choices=choices,
+                initial=initial,
+                description="<i>system</i> let the operating system decide",
+            ).add_listener(self.set_color_scheme)
+        elif dark_mode:
+            warn(
+                "dark mode selection only available with Qt6.8+: pip install PyQt6 or pip install --upgrade PyQt6. trying to use qdarkmode",
+                RuntimeWarning,
+            )
+            try:
+                import qdarktheme  # pip install pyqtdarktheme
+
+                qdarktheme.setup()
+            except Exception as err:
+                warn(
+                    "trying to use qdarkmode failed. pip install pyqtdarktheme",
+                    RuntimeWarning,
+                )
+            print(f"pyqdarktheme unavailable: {err}")
+
+        else:
+            warn(
+                "dark mode selection only available with Qt6.8+: pip install PyQt6 or pip install --upgrade PyQt6",
+                RuntimeWarning,
+            )
+
+    def set_color_scheme(self, choice):
+        if choice == "dark":
+            choice = QtCore.Qt.ColorScheme.Dark
+        elif choice == "light":
+            choice = QtCore.Qt.ColorScheme.Light
+        elif choice == "system":
+            choice = QtCore.Qt.ColorScheme.Unknown
+        self.qtapp.styleHints().setColorScheme(choice)
 
     def exec_(self):
         return self.qtapp.exec_()
@@ -282,17 +320,18 @@ class TestBaseApp(BaseApp):
 
     name = "test base app"
 
-    def __init__(self, argv=[], dark_mode=False):
-        super().__init__(argv, dark_mode)
+    def __init__(self, argv=[], **kwargs):
+        super().__init__(argv, **kwargs)
 
         self.ui = QtWidgets.QWidget()
         # self.ui = new_tree((self,), ["test", ""])
         self.ui.show()
         self.console_widget.show()
-        # self.logging_widget.show()
+        self.logging_widget.show()
+        self.setup_dark_mode_option(kwargs.get("dark_mode", False))
 
 
 if __name__ == "__main__":
     # app = BaseApp(sys.argv)
-    app = TestBaseApp(sys.argv)
+    app = TestBaseApp(sys.argv, dark_mode=False)
     sys.exit(app.exec_())
