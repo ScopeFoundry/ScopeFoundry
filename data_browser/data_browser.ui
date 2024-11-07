@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>871</width>
-    <height>653</height>
+    <width>881</width>
+    <height>802</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -80,28 +80,6 @@
           <property name="bottomMargin">
            <number>4</number>
           </property>
-          <item row="1" column="2">
-           <widget class="QCheckBox" name="auto_select_checkBox">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string/>
-            </property>
-            <property name="text">
-             <string>auto</string>
-            </property>
-           </widget>
-          </item>
           <item row="1" column="0">
            <widget class="QLabel" name="view_label">
             <property name="text">
@@ -109,8 +87,21 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="3" colspan="2">
+          <item row="1" column="4" colspan="2">
            <layout class="QHBoxLayout" name="plugin_buttons_layout">
+            <item>
+             <widget class="QPushButton" name="show_settings_pushButton">
+              <property name="maximumSize">
+               <size>
+                <width>20</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>⚙</string>
+              </property>
+             </widget>
+            </item>
             <item>
              <widget class="QPushButton" name="log_pushButton">
               <property name="sizePolicy">
@@ -168,7 +159,7 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="3" colspan="2">
+          <item row="0" column="4" colspan="2">
            <layout class="QHBoxLayout" name="horizontalLayout">
             <item>
              <widget class="QPushButton" name="data_filename_recycle_pushButton">
@@ -232,6 +223,28 @@ font-weight:bold;</string>
             </item>
            </layout>
           </item>
+          <item row="1" column="2">
+           <widget class="QCheckBox" name="auto_select_checkBox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string/>
+            </property>
+            <property name="text">
+             <string>auto</string>
+            </property>
+           </widget>
+          </item>
           <item row="0" column="1" colspan="2">
            <widget class="QLineEdit" name="data_filename_lineEdit">
             <property name="sizePolicy">
@@ -255,7 +268,7 @@ font-weight:bold;</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>871</width>
+     <width>881</width>
      <height>17</height>
     </rect>
    </property>
@@ -265,6 +278,7 @@ font-weight:bold;</string>
     </property>
     <addaction name="action_save_as_ini"/>
     <addaction name="action_load_ini"/>
+    <addaction name="action_show_settings"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -277,6 +291,11 @@ font-weight:bold;</string>
   <action name="action_load_ini">
    <property name="text">
     <string>load ...</string>
+   </property>
+  </action>
+  <action name="action_show_settings">
+   <property name="text">
+    <string>show settings</string>
    </property>
   </action>
  </widget>
