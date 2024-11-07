@@ -163,7 +163,6 @@ class BaseApp(QtCore.QObject):
         fname, _ = QtWidgets.QFileDialog.getSaveFileName(
             self.ui, caption="Save Settings", dir="", filter="Settings (*.ini)"
         )
-        # print(repr(fname))
         if fname:
             self.settings_save_ini(fname, save_ro=save_ro)
         return fname
@@ -229,7 +228,7 @@ class BaseApp(QtCore.QObject):
             report[path] = success
         return report
 
-    def settings_save_ini(self, fname):
+    def settings_save_ini(self, fname, save_ro=True):
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -238,6 +237,9 @@ class BaseApp(QtCore.QObject):
         """
         settings = self.read_settings(None, True)
         ini_io.save_settings(fname, settings)
+
+        if not save_ro:
+            settings = {k: v for k, v in settings.items() if not self.get_lq(k).ro}
 
         self.propose_settings_values(Path(fname).name, settings)
 
