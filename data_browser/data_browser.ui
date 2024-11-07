@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>881</width>
-    <height>802</height>
+    <width>1110</width>
+    <height>805</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,6 +17,12 @@
    <layout class="QVBoxLayout" name="verticalLayout_2">
     <item>
      <widget class="QSplitter" name="splitter">
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>16777215</height>
+       </size>
+      </property>
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
@@ -68,6 +74,9 @@
         </property>
         <item>
          <layout class="QGridLayout" name="configs_layout">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetDefaultConstraint</enum>
+          </property>
           <property name="leftMargin">
            <number>4</number>
           </property>
@@ -93,7 +102,7 @@
              <widget class="QPushButton" name="show_settings_pushButton">
               <property name="maximumSize">
                <size>
-                <width>20</width>
+                <width>25</width>
                 <height>16777215</height>
                </size>
               </property>
@@ -257,6 +266,12 @@ font-weight:bold;</string>
           </item>
          </layout>
         </item>
+        <item>
+         <widget class="QStackedWidget" name="views_stack_widget">
+          <widget class="QWidget" name="page_3"/>
+          <widget class="QWidget" name="page_4"/>
+         </widget>
+        </item>
        </layout>
       </widget>
      </widget>
@@ -268,7 +283,7 @@ font-weight:bold;</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>881</width>
+     <width>1110</width>
      <height>17</height>
     </rect>
    </property>

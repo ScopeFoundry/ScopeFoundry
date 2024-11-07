@@ -5,6 +5,7 @@ from pathlib import Path
 from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry import BaseApp, LoggedQuantity
+from ScopeFoundry.data_browser.data_browser_view import DataBrowserView
 from ScopeFoundry.dynamical_widgets.tree_widget import new_tree_widget
 from ScopeFoundry.helper_funcs import load_qt_ui_file, load_qt_ui_from_pkg, sibling_path
 from ScopeFoundry.data_browser.viewers.file_info import FileInfoView
@@ -18,6 +19,7 @@ class DataBrowser(BaseApp):
         BaseApp.__init__(self, argv)
 
         self.views = OrderedDict()
+        self.view_stack_indices = {}
 
         self.plugin_update_funcs = []
         self.plugins = {}
@@ -94,6 +96,8 @@ class DataBrowser(BaseApp):
         self.tree_selectionModel.selectionChanged.connect(
             self.on_treeview_selection_change
         )
+
+        self.view_stack: QtWidgets.QStackedWidget = self.ui.views_stack_widget
 
         # UI Connections
         s = self.settings
@@ -201,21 +205,20 @@ class DataBrowser(BaseApp):
         self.log.debug(filter_str_list)
         self.fs_model.setNameFilters(filter_str_list)
 
-    def setup_view(self, view):
-        if view.view_loaded:
-            return
-        view.setup()
-        self.ui.data_view_layout.addWidget(self.current_view.ui)
-        view.view_loaded = True
+    def setup_view(self, view: DataBrowserView):
+
+        if not view.view_loaded:
+            view.setup()
+            index = self.view_stack.addWidget(self.current_view.ui)
+            self.view_stack_indices[view.name] = index
+            view.view_loaded = True
+
+        self.current_view = view
+        self.view_stack.setCurrentIndex(self.view_stack_indices[view.name])
 
     def on_change_view_name(self):
-        # hide previous
-        self.current_view.ui.hide()
-
-        # setup, show new
         self.current_view = self.views[self.settings["view_name"]]
         self.setup_view(self.current_view)
-        self.current_view.ui.show()
 
         # udpate
         fname = self.settings["data_filename"]
