@@ -4,7 +4,7 @@ from pathlib import Path
 
 from qtpy import QtCore, QtWidgets, QtGui
 
-from ScopeFoundry import BaseApp, LoggedQuantity, ini_io
+from ScopeFoundry import BaseApp, LoggedQuantity
 from ScopeFoundry.helper_funcs import load_qt_ui_file, load_qt_ui_from_pkg, sibling_path
 from .viewers.file_info import FileInfoView
 
@@ -38,8 +38,6 @@ class DataBrowser(BaseApp):
             description="auto selects the view when file name is changed.",
         )
         s.New("view_name", dtype=str, initial="file_info", choices=("0",))
-
-        self._setting_paths.update(construct_lq_paths(self.settings, "app"))
 
         self.setup_ui()
 
@@ -143,6 +141,8 @@ class DataBrowser(BaseApp):
         # Update views dict
         self.views[new_view.name] = new_view
 
+        self.add_lq_collection_to_settings_path(new_view.settings)
+
         self.settings.view_name.change_choice_list(list(self.views.keys()))
 
         self.log.debug("add_view done {}".format(new_view))
@@ -154,6 +154,7 @@ class DataBrowser(BaseApp):
         self.plugin_update_funcs.append(plugin.update_if_showing)
         self.ctrl_keys[plugin.show_keyboard_key] = plugin.toggle_show_hide
         self.plugins[plugin.name] = plugin
+        self.add_lq_collection_to_settings_path(plugin.settings)
 
     def load_view(self, new_view):
         # deprecated use DataBrowser.add_view(new_view) instead
@@ -184,16 +185,16 @@ class DataBrowser(BaseApp):
     @QtCore.Slot()
     def on_change_browse_dir(self):
         self.log.debug("on_change_browse_dir")
-        self.ui.treeView.setRootIndex(self.fs_model.index(self.settings['browse_dir']))
-        self.fs_model.setRootPath(self.settings['browse_dir'])
+        self.ui.treeView.setRootIndex(self.fs_model.index(self.settings["browse_dir"]))
+        self.fs_model.setRootPath(self.settings["browse_dir"])
 
     def on_change_file_filter(self):
         self.log.debug("on_change_file_filter")
-        filter_str = self.settings['file_filter']
+        filter_str = self.settings["file_filter"]
         if filter_str == "":
             filter_str = "*"
-            self.settings['file_filter'] = "*"
-        filter_str_list = [x.strip() for x in filter_str.split(',')]
+            self.settings["file_filter"] = "*"
+        filter_str_list = [x.strip() for x in filter_str.split(",")]
         self.log.debug(filter_str_list)
         self.fs_model.setNameFilters(filter_str_list)
 
@@ -203,7 +204,6 @@ class DataBrowser(BaseApp):
         view.setup()
         self.ui.data_view_layout.addWidget(self.current_view.ui)
         view.view_loaded = True
-        self._setting_paths.update(construct_lq_paths(view.settings, f"app/{view.name}"))
 
     def on_change_view_name(self):
         # hide previous
@@ -221,7 +221,8 @@ class DataBrowser(BaseApp):
 
     def on_treeview_selection_change(self, sel, desel):
         fname = self.fs_model.filePath(self.tree_selectionModel.currentIndex())
-        self.settings['data_filename'] = fname
+        self.settings["data_filename"] = fname
+
     #        print( 'on_treeview_selection_change' , fname, sel, desel)
 
     def auto_select_view(self, fname):
@@ -248,66 +249,46 @@ class DataBrowser(BaseApp):
 
     def read_setting(self, path, ini_string_value=False):
         lq = self.get_lq(path)
+
         if ini_string_value:
             return lq.ini_string_value()
         return lq.val
 
-    def write_setting(self, path:str, value):
-        lq = self.get_lq(path)
-        if lq is not None:
-            lq.update_value(value)
-        else:
-            print(path, "does not exist")
-
-    def get_lq(self, path:str) -> LoggedQuantity:
+    def get_lq(self, path: str) -> LoggedQuantity:
         """
         returns the LoggedQuantity defined by a path string of the form 'section/[component/]setting'
-        where section are "views" or "app"
+        where section are "view", "plugin" or "app"
+        returns None if it does not exist
         """
         parts = path.split("/")
 
         settings = self.settings
-        if parts[0] in ("views"):
+        if parts[0] == "view":
             view = self.views.get(parts[1], None)
             if view is not None:
                 self.load_view(view)
-                settings = view.settings        
-        elif parts[0] == "plugins":
+                settings = view.settings
+        elif parts[0] == "plugin":
             plugin = self.plugins.get(parts[1], None)
             if plugin is not None:
                 settings = plugin.settings
 
-        if parts[-1] in settings: 
-            return self.settings.get_lq(parts[1])
-
-    def settings_load_ini(self, fname):
-        """
-        ==============  =========  ==============================================
-        **Arguments:**  **Type:**  **Description:**
-        fname           str        relative path to the filename of the ini file.              
-        ==============  =========  ==============================================
-        """
-        settings = ini_io.load_settings(fname)
-        for path, value in settings.items():
-            self.write_setting(path, value)
-
-    def settings_save_ini(self, fname):
-        settings = self.read_settings(ini_string_value=True)
-        ini_io.save_settings(fname, settings)
-
-    def read_settings(self, ini_string_value=False):
-        """returns a dictionary (path, value) of registered settings"""
-        return {p:self.read_setting(p, ini_string_value) for p in self._setting_paths}
+        if parts[-1] in settings:
+            return settings.get_lq(parts[-1])
 
     def settings_save_dialog(self):
         """Opens a save as ini dialogue in the app user interface."""
-        fname, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Settings file", "", "Settings File (*.ini)")
+        fname, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self.ui, "Save Settings file", "", "Settings File (*.ini)"
+        )
         if fname:
             self.settings_save_ini(fname)
 
     def settings_load_dialog(self):
         """Opens a load ini dialogue in the app user interface"""
-        fname, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Settings file", "", "Settings File (*.ini)")
+        fname, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self.ui, "Open Settings file", "", "Settings File (*.ini)"
+        )
         if fname.endswith(".ini"):
             self.settings_load_ini(fname)
         # elif fname.endswith(".h5"):
@@ -344,12 +325,3 @@ class RenameDialog(QtWidgets.QDialog):
     def on_rename(self):
         self.new_name = self.new_name_w.text()
         self.accept()
-
-
-def construct_lq_paths(lq_collection, pre="app"):
-    new = {}
-    for name, lq in lq_collection.as_dict().items():
-        path = f"{pre}/{name}"
-        lq.set_path(path)
-        new[path] = lq
-    return new

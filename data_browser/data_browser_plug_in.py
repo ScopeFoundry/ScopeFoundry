@@ -1,9 +1,16 @@
+from typing import Callable
+
 from qtpy import QtCore, QtWidgets
 
 from ScopeFoundry.logged_quantity import LQCollection
+from ScopeFoundry.operations import Operations
 
 
-class DataBrowserPlugIn(QtCore.QObject):
+class PlugInQObject(QtCore.QObject):
+    pass
+
+
+class DataBrowserPlugIn:
 
     """Abstract class for DataBrowserPlugIn"""
 
@@ -23,10 +30,9 @@ class DataBrowserPlugIn(QtCore.QObject):
         # load file, extract information, update ui ...
 
     def __init__(self, databrowser):
-        QtCore.QObject.__init__(self)
-
         self.databrowser = databrowser
-        self.settings = LQCollection()
+        self.settings = LQCollection(path=f"plugin/{self.name}")
+        self.q_object = PlugInQObject()
         self.ui = None
         self.is_loaded = False
 

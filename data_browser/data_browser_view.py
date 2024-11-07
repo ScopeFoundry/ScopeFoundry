@@ -1,17 +1,24 @@
+from typing import Callable
+
 from qtpy import QtCore
 
 from ScopeFoundry import LQCollection
+from ScopeFoundry.operations import Operations
 
 
-class DataBrowserView(QtCore.QObject):
+class ViewQObject(QtCore.QObject):
+    pass
+
+
+class DataBrowserView:
     """Abstract class for DataBrowser Views"""
 
     name = "base_view"  # override me! (recommended to use the ScopeFoundry.Measurement.name)
 
     def __init__(self, databrowser):
-        QtCore.QObject.__init__(self)
         self.databrowser = databrowser
-        self.settings = LQCollection()
+        self.settings = LQCollection(path=f"view/{self.name}")
+        self.q_object = ViewQObject()
         self.view_loaded = False
         self.ui = None
 
