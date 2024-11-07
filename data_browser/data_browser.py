@@ -5,8 +5,9 @@ from pathlib import Path
 from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry import BaseApp, LoggedQuantity
+from ScopeFoundry.dynamical_widgets.tree_widget import new_tree_widget
 from ScopeFoundry.helper_funcs import load_qt_ui_file, load_qt_ui_from_pkg, sibling_path
-from .viewers.file_info import FileInfoView
+from ScopeFoundry.data_browser.viewers.file_info import FileInfoView
 
 
 class DataBrowser(BaseApp):
@@ -111,8 +112,10 @@ class DataBrowser(BaseApp):
         self.ui.console_pushButton.clicked.connect(self.console_widget.show)
         self.ui.log_pushButton.clicked.connect(self.logging_widget.show)
 
-        self.ui.action_save_as_ini.triggered.connect(self.settings_save_dialog)        
-        self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)     
+        self.ui.action_save_as_ini.triggered.connect(self.settings_save_dialog)
+        self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)
+        self.ui.action_show_settings.triggered.connect(self.on_show_settings)
+        self.ui.show_settings_pushButton.clicked.connect(self.on_show_settings)
 
         self.ui.show()
         self.ui.raise_()
@@ -293,6 +296,39 @@ class DataBrowser(BaseApp):
             self.settings_load_ini(fname)
         # elif fname.endswith(".h5"):
         #     self.settings_load_h5(fname)
+
+    def on_show_settings(self):
+        if not hasattr(self, "_trees_dialog"):
+
+            app_tree = new_tree_widget((self,), ("app", ""))
+            views_tree = new_tree_widget(
+                [obj for obj in self.views.values()], ("views", "")
+            )
+            plugins_tree = new_tree_widget(
+                [obj for obj in self.plugins.values()], ("plugins", "")
+            )
+
+            splitter = QtWidgets.QSplitter()
+            splitter.addWidget(app_tree)
+            splitter.addWidget(views_tree)
+            splitter.addWidget(plugins_tree)
+
+            pb_hlayout = QtWidgets.QHBoxLayout()
+            pb = QtWidgets.QPushButton("save ini ...")
+            pb.clicked.connect(self.settings_save_ini_ask)
+            pb_hlayout.addWidget(pb)
+            pb = QtWidgets.QPushButton("load ini ...")
+            pb.clicked.connect(self.settings_load_ini_ask)
+            pb_hlayout.addWidget(pb)
+
+            layout = QtWidgets.QVBoxLayout()
+            layout.addWidget(splitter)
+            layout.addLayout(pb_hlayout)
+
+            self._trees_dialog = QtWidgets.QDialog()
+            self._trees_dialog.setLayout(layout)
+
+        self._trees_dialog.exec_()
 
 
 class RenameDialog(QtWidgets.QDialog):
