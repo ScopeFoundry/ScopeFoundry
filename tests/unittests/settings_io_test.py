@@ -1,3 +1,4 @@
+from pathlib import Path
 import unittest
 
 import numpy as np
@@ -29,13 +30,13 @@ class Hardware1(HardwareComponent):
 INITIAL_CHOICES = [("choice 0", 0), ("choice 1", 1), ("choice 2", 2), ("choice 3", 3)]
 
 
-class ChoiceListTest(unittest.TestCase):
+class SettingsIOTest(unittest.TestCase):
 
     def setUp(self):
-        print("setUp called")
         self.app = BaseMicroscopeApp([])
         self.app.add_measurement(Measure1(self))
         self.app.add_hardware(Hardware1(self))
+        self.root = Path(__file__).parent
 
     def test_initial_value_set(self):
         self.assertEqual(self.app.measurements.measure1.settings["string"], "0")
@@ -52,7 +53,10 @@ class ChoiceListTest(unittest.TestCase):
         self.assertEqual(self.app.hardware.hardware1.settings["choices"], 0)
 
     def test_all_correct(self):
-        self.app.settings_load_ini("settings_io_test_correct.ini", show_report=False)
+        self.app.settings_load_ini(
+            self.root / "settings_io_test_correct.ini",
+            show_report=False,
+        )
         self.assertEqual(self.app.measurements.measure1.settings["string"], "1")
         self.assertEqual(self.app.measurements.measure1.settings["float"], 1.0)
         self.assertEqual(self.app.measurements.measure1.settings["choices"], 1)
@@ -63,7 +67,7 @@ class ChoiceListTest(unittest.TestCase):
 
     def test_first_section_wrong_and_continue(self):
         self.app.settings_load_ini(
-            "settings_io_test_measure1_false.ini", show_report=False
+            self.root / "settings_io_test_measure1_false.ini", show_report=False
         )
         self.assertEqual(self.app.hardware.hardware1.settings["string"], "2")
         self.assertEqual(self.app.hardware.hardware1.settings["float"], 2.0)
@@ -71,7 +75,7 @@ class ChoiceListTest(unittest.TestCase):
 
     def test_reporting(self):
         self.app.settings_load_ini(
-            "settings_io_test_measure1_false_2.ini", show_report=False
+            self.root / "settings_io_test_measure1_false_2.ini", show_report=False
         )
         self.assertTrue("meeeeeeasurement/measure1/straaaaang" in self.app._report)
         self.assertTrue(
@@ -84,7 +88,7 @@ class ChoiceListTest(unittest.TestCase):
 
     def test_first_section_wrong_and_continue(self):
         self.app.settings_load_ini(
-            "settings_io_test_measure1_false_2.ini", show_report=False
+            self.root / "settings_io_test_measure1_false_2.ini", show_report=False
         )
         self.assertTrue("meeeeeeasurement/measure1/straaaaang" in self.app._report)
         self.assertTrue(
@@ -98,7 +102,8 @@ class ChoiceListTest(unittest.TestCase):
 
     def test_first_setting_misspelled_and_continue(self):
         self.app.settings_load_ini(
-            "settings_io_test_measure1_string_false.ini", show_report=False
+            self.root / "settings_io_test_measure1_string_false.ini",
+            show_report=False,
         )
         # self.assertEqual(self.app.hardware.hardware1.settings["string"], "2")
         self.assertEqual(self.app.hardware.hardware1.settings["float"], 2.0)
@@ -107,7 +112,7 @@ class ChoiceListTest(unittest.TestCase):
     def test_roundtrip(self):
 
         # all values are initial values
-        self.app.settings_save_ini("settings_io_test_roundtrip.ini")
+        self.app.settings_save_ini(self.root / "settings_io_test_roundtrip.ini")
 
         # change them up
         self.app.measurements.measure1.settings["string"] = "1"
@@ -129,7 +134,9 @@ class ChoiceListTest(unittest.TestCase):
         )
 
         # load values
-        self.app.settings_load_ini("settings_io_test_roundtrip.ini", show_report=False)
+        self.app.settings_load_ini(
+            self.root / "settings_io_test_roundtrip.ini", show_report=False
+        )
         self.assertEqual(self.app.measurements.measure1.settings["string"], "0")
         self.assertEqual(self.app.measurements.measure1.settings["float"], 0.0)
         self.assertEqual(self.app.measurements.measure1.settings["choices"], 0)
