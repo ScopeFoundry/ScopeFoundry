@@ -52,7 +52,7 @@
           <height>744</height>
          </rect>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayout_2"/>
+        <layout class="QVBoxLayout" name="quickaccess_layout"/>
        </widget>
       </widget>
       <widget class="QWidget" name="lq_trees_widget" native="true">

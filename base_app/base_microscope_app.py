@@ -35,42 +35,52 @@ class BaseMicroscopeApp(BaseApp):
     mdi = True
     """Multiple Document Interface flag. Tells the app whether to include an MDI widget in the app."""
 
-    def __del__(self):
-        self.ui = None
-
-    def show(self):
-        """Tells Qt to show the user interface"""
-        # self.ui.exec_()
-        self.ui.show()
-
     def __init__(self, argv=[], **kwargs):
         super().__init__(argv, **kwargs)
 
-        log_path = Path.cwd() / "log"
-        if not log_path.is_dir():
-            log_path.mkdir()
-        _fname = f"{self.name}_log_{datetime.datetime.now():%y%m%d_%H%M%S}.txt"
-        self.log_file_handler = new_log_file_handler(log_path / _fname)
+        self._setup_log_file_handler()
+        self._setup_settings_operations(**kwargs)
 
-        logging.getLogger().addHandler(self.log_file_handler)
+        # objects to overwrite and populate with setup function.
+        self.hardware = OrderedAttrDict()
+        self.measurements = OrderedAttrDict()
+        self.logo_path = sibling_path(__file__, "scopefoundry_logo2B_1024.png")
+        self.quickbar = None  # also with self.add_quickbar
+        self.setup()
 
+        self._setup_ui_base()
+        self._setup_ui_buttons()
+        self._setup_ui_tree_column()
+        self._setup_ui_mdi_area()
+        self._setup_ui_menu_bar()
+        self.setup_ui()
+        self._post_setup_ui()
+
+    def setup(self):
+        """Override to add Hardware and Measurement Components"""
+        pass
+
+    def setup_ui(self):
+        """Optional Override to set up ui elements after default ui is built"""
+        pass
+
+    def _setup_settings_operations(self, **kwargs):
         initial_save_path = Path.cwd() / "data"
         if not initial_save_path.is_dir():
             initial_save_path.mkdir()
-
         self.settings.New(
             "save_dir", dtype="file", is_dir=True, initial=initial_save_path.as_posix()
         )
         self.settings.New("sample", dtype=str, initial="")
         self.settings.New(
-            "data_fname_format",
+            name="data_fname_format",
             dtype=str,
             initial="{timestamp:%y%m%d_%H%M%S}_{measurement.name}.{ext}",
         )
         # Potential new alternative default: '{unique_id_short}_{measurement.name}.{ext}'
 
         self.settings.New(
-            "inspect file",
+            name="inspect file",
             dtype="file",
             description="right click on setting widget to see and load value from a file",
         ).add_listener(self.propose_settings_values_from_file)
@@ -84,88 +94,44 @@ class BaseMicroscopeApp(BaseApp):
             "generates h5_data_loaders.py, overview.ipynb and tries to launch overview.ipynb (vscode with jupyter extension recommended)",
         )
 
+    def _setup_log_file_handler(self):
+        log_path = Path.cwd() / "log"
+        if not log_path.is_dir():
+            log_path.mkdir()
+        _fname = f"{self.name}_log_{datetime.datetime.now():%y%m%d_%H%M%S}.txt"
+        self.log_file_handler = new_log_file_handler(log_path / _fname)
+        logging.getLogger().addHandler(self.log_file_handler)
+
+    def _setup_ui_base(self):
+        """gets called before setup gets called. Could probabliy be called after but this might"""
         if not hasattr(self, "ui_filename"):
             if self.mdi:
                 self.ui_filename = sibling_path(__file__, "base_microscope_app_mdi.ui")
             else:
                 self.ui_filename = sibling_path(__file__, "base_microscope_app.ui")
-        # Load Qt UI from .ui file
+
         self.ui = load_qt_ui_file(self.ui_filename)
         if self.mdi:
             self.ui.col_splitter.setStretchFactor(0, 0)
             self.ui.col_splitter.setStretchFactor(1, 1)
 
-        self.hardware = OrderedAttrDict()
-        self.measurements = OrderedAttrDict()
-
-        self.quickbar = None
-
-        self.setup()
-
-        self.setup_default_ui()
-
-        self.setup_ui()
-
-    def setup_default_ui(self):
         self.ui.show()
         self.ui.activateWindow()
 
-        """Loads various default features into the user interface upon app startup."""
         confirm_on_close(
-            self.ui,
-            title="Close %s?" % self.name,
-            message="Do you wish to shut down %s?" % self.name,
+            widget=self.ui,
+            title=f"Close {self.name}?",
+            message=f"Do you wish to shut down {self.name}",
             func_on_close=self.on_close,
         )
 
-        # Tree
-        splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
-        settings_layout: QtWidgets.QVBoxLayout = self.ui.tree_layout
-        settings_layout.addWidget(splitter)
-
-        mm_tree = new_tree_widget(self.measurements.values(), ["Measurements", "Value"])
-        hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
-        app_widget = new_widget(self, "app", style="form")
-        app_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Minimum,
-            QtWidgets.QSizePolicy.Policy.Maximum,
-        )
-
-        splitter.addWidget(hw_tree)
-        splitter.addWidget(mm_tree)
-        splitter.addWidget(app_widget)
-
-
-        # Add log widget to mdiArea
-        self.logging_subwin = self.add_mdi_subwin(self.logging_widget, "Log")
-        self.console_subwin = self.add_mdi_subwin(self.console_widget, "Console")
-
-        # Setup the Measurement UI's
-        for name, measure in self.measurements.items():
-            self.log.info(
-                "setting up figures for {} measurement {}".format(name, measure.name)
-            )
-            measure.setup_figure()
-            if self.mdi and hasattr(measure, "ui"):
-                subwin = self.add_mdi_subwin(measure.ui, measure.name)
-                measure.subwin = subwin
-
+    def _setup_ui_buttons(self):
+        # currently only required if self.mdi=False. Keeping it generic for now.
         if hasattr(self.ui, "console_pushButton"):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
             self.ui.console_pushButton.clicked.connect(
                 self.console_widget.activateWindow
             )
-
-        if self.quickbar is None:
-            # Collapse sidebar
-            self.ui.quickaccess_scrollArea.setVisible(False)
-
-        # Save Dir events
-        self.ui.action_set_data_dir.triggered.connect(
-            self.settings.save_dir.file_browser
-        )
-
-        # settings button events
         if hasattr(self.ui, "settings_autosave_pushButton"):
             self.ui.settings_autosave_pushButton.clicked.connect(
                 self.settings_auto_save_ini
@@ -179,7 +145,40 @@ class BaseMicroscopeApp(BaseApp):
         if hasattr(self.ui, "settings_load_pushButton"):
             self.ui.settings_load_pushButton.clicked.connect(self.settings_load_dialog)
 
-        # Menu bar entries:
+    def _setup_ui_tree_column(self):
+
+        mm_tree = new_tree_widget(self.measurements.values(), ["Measurements", "Value"])
+        hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
+        app_widget = new_widget(self, "app", style="form")
+        app_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Minimum,
+            QtWidgets.QSizePolicy.Policy.Maximum,
+        )
+
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
+        splitter.addWidget(hw_tree)
+        splitter.addWidget(mm_tree)
+        splitter.addWidget(app_widget)
+        self.ui.tree_layout.addWidget(splitter)
+
+    def _setup_ui_mdi_area(self):
+        self.ui.mdiArea.setTabsClosable(False)
+        self.ui.mdiArea.setTabsMovable(True)
+
+        self.logging_subwin = self.add_mdi_subwin(self.logging_widget, "Log")
+        self.console_subwin = self.add_mdi_subwin(self.console_widget, "Console")
+
+        for name, measure in self.measurements.items():
+            self.log.info(f"setting up figure for measurement {name}")
+            measure.setup_figure()
+            if self.mdi and hasattr(measure, "ui"):
+                subwin = self.add_mdi_subwin(measure.ui, measure.name)
+                measure.subwin = subwin
+
+    def _setup_ui_menu_bar(self):
+        self.ui.action_set_data_dir.triggered.connect(
+            self.settings.save_dir.file_browser
+        )
         self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)
         self.ui.action_auto_save_ini.triggered.connect(self.settings_auto_save_ini)
         self.ui.action_save_ini.triggered.connect(self.settings_save_dialog)
@@ -201,7 +200,6 @@ class BaseMicroscopeApp(BaseApp):
             )
         )
         self.ui.action_about.triggered.connect(self.on_about)
-
         # Refer to existing ui object:
         self.menubar = self.ui.menuWindow
 
@@ -211,24 +209,34 @@ class BaseMicroscopeApp(BaseApp):
         self.action_group.addAction(self.ui.window_action)
         self.action_group.addAction(self.ui.tab_action)
 
-        self.ui.mdiArea.setTabsClosable(False)
-        self.ui.mdiArea.setTabsMovable(True)
-
         self.ui.tab_action.triggered.connect(self.set_tab_mode)
         self.ui.window_action.triggered.connect(self.set_subwindow_mode)
         self.ui.cascade_action.triggered.connect(self.cascade_layout)
         self.ui.tile_action.triggered.connect(self.tile_layout)
 
-        self.ui.setWindowTitle(self.name)
-
-        # Set Icon
-        logo_icon = QtGui.QIcon(sibling_path(__file__, "scopefoundry_logo2B_1024.png"))
+    def _post_setup_ui(self):
+        logo_icon = QtGui.QIcon(self.logo_path)
         self.qtapp.setWindowIcon(logo_icon)
         self.ui.setWindowIcon(logo_icon)
 
+        self.ui.setWindowTitle(self.name)
 
+        # check again if quickbar is defined.
+        if isinstance(self.quickbar, QtWidgets.QWidget):
+            self.ui.quickaccess_scrollArea.setVisible(True)
+            layout: QtWidgets.QVBoxLayout = self.ui.quickaccess_layout
+            if layout.isEmpty():
+                layout.addWidget(self.quickbar)
+        else:
+            self.ui.quickaccess_scrollArea.setVisible(False)
 
+    def show(self):
+        """Tells Qt to show the user interface"""
+        # self.ui.exec_()
+        self.ui.show()
 
+    def __del__(self):
+        self.ui = None
 
     def set_subwindow_mode(self):
         """Switches Multiple Document Interface to Subwindowed viewing mode."""
@@ -302,15 +310,6 @@ class BaseMicroscopeApp(BaseApp):
         if ipynb_path.exists():
             os.startfile(ipynb_path)
         return ipynb_path
-
-    def setup(self):
-        """Override to add Hardware and Measurement Components"""
-        # raise NotImplementedError()
-        pass
-
-    def setup_ui(self):
-        """Override to set up ui elements after default ui is built"""
-        pass
 
     def add_hardware(self, hw):
         """Loads a HardwareComponent object into the app.
