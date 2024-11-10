@@ -17,6 +17,7 @@ from ScopeFoundry.h5_analyze_with_ipynb import generate_ipynb, generate_loaders_
 from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
     confirm_on_close,
+    find_matches,
     ignore_on_close,
     load_qt_ui_file,
     sibling_path,
@@ -531,18 +532,14 @@ class BaseMicroscopeApp(BaseApp):
             )
         else:
             paths = self._setting_paths.keys()
+
+        exclude_paths = []
         if exclude_ro:
-            ro_paths = [path for path in paths if self.get_lq(path).ro]
-            exclude_patterns = (
-                ro_paths if not exclude_patterns else list(exclude_patterns) + ro_paths
-            )
-        if exclude_patterns:
-            paths = (
-                path
-                for path in paths
-                if not any(pattern in path for pattern in exclude_patterns)
-            )
-        return list(paths)
+            exclude_paths += [path for path in paths if self.get_lq(path).ro]
+        if exclude_patterns is not None:
+            exclude_paths += find_matches(paths, exclude_patterns)
+
+        return [path for path in paths if path not in exclude_paths]
 
     def read_settings(
         self, paths=None, read_from_hardware=False, ini_string_value=False
