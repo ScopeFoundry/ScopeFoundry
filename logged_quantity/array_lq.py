@@ -149,15 +149,14 @@ class ArrayLQ(LoggedQuantity):
 
         if bidir:
             # when LQ is updated, update element in self
-            def on_element_follower_lq(lq=lq, arr_lq=self, index=index):
-                # print("on_element_follower_lq", arr_lq.value, lq.value, index)
-                old_val = arr_lq.value[index]
+            def on_element_follower_lq():
+                old_val = self.value[index]
                 new_val = lq.value
                 if new_val == old_val:
                     return
-                new_arr = arr_lq.value.copy()
+                new_arr = self.value.copy()
                 new_arr[index] = new_val
-                arr_lq.update_value(new_arr)
+                self.update_value(new_arr)
 
             lq.add_listener(on_element_follower_lq)
 
