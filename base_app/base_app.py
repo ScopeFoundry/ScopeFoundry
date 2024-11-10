@@ -20,9 +20,9 @@ from ScopeFoundry import ini_io
 from ScopeFoundry.base_app.console_widget import new_console_widget
 from ScopeFoundry.base_app.logging_handlers import HtmlHandler
 from ScopeFoundry.base_app.logging_widget import LoggingWidget
-from ScopeFoundry.helper_funcs import get_logger_from_class
-from ScopeFoundry.logged_quantity import LQCollection, LoggedQuantity
 from ScopeFoundry.dynamical_widgets.tree_widget import SubtreeManager
+from ScopeFoundry.helper_funcs import get_logger_from_class
+from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 from ScopeFoundry.operations import Operations
 
 
@@ -59,29 +59,41 @@ class BaseApp(QtCore.QObject):
     def __init__(self, argv=[], **kwargs):
         super().__init__()
 
+        self._setup_qtapp(argv)
+
+        self.q_object = BaseAppQObject()
+
+        self.setup_logging()
+
+        self.setup_console_widget()
+
+        # containers to be filled
+        self._subtree_managers_ = []
+        self._widgets_managers_ = []
+        self._setting_paths = {}
+        self.operations = Operations()
+        self.settings = LQCollection(path="app")
+        self.add_lq_collection_to_settings_path(self.settings)
+
+        # self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
+
+    def _setup_qtapp(self, argv):
         self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
             self.qtapp = QtWidgets.QApplication(argv)
         self.qtapp.setApplicationName(self.name)
 
-        self.q_object = BaseAppQObject()
-
-        self.setup_logging()
-        self.setup_console_widget()
-
+    @property
+    def this_path(self):
+        """returns the path to ScopeFoundry package"""
         path = Path(__file__)
-        self.this_path = path.parent
-        self.this_filename = path.name
+        return path.parent.parent
 
-        self._setting_paths = {}
-        self.settings = LQCollection(path="app")
-        self.add_lq_collection_to_settings_path(self.settings)
-
-        self.operations = Operations()
-        self._subtree_managers_ = []
-        self._widgets_managers_ = []
-
-        # self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
+    @property
+    def this_filename(self):
+        """returns the path to ScopeFoundry package"""
+        path = Path(__file__)
+        return path.name
 
     def setup_dark_mode_option(self, dark_mode: bool = None):
         if hasattr(self.qtapp.styleHints(), "setColorScheme"):
