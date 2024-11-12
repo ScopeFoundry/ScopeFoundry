@@ -1,17 +1,18 @@
 from collections import OrderedDict
+from typing import Dict, List
 from warnings import warn
 
 from qtpy import QtCore, QtWidgets
 
 from ScopeFoundry.dynamical_widgets.tools import Tools
 from ScopeFoundry.helper_funcs import get_logger_from_class, filter_with_patterns
-from ScopeFoundry.logged_quantity import ArrayLQ, FileLQ, LoggedQuantity
-
-from .array_lq import ArrayLQ
-from .file_lq import FileLQ
-from .logged_quantity import LoggedQuantity
-from .lq_3_vector import LQ3Vector
-from .lq_range import LQRange
+from ScopeFoundry.logged_quantity import (
+    ArrayLQ,
+    FileLQ,
+    LoggedQuantity,
+    LQ3Vector,
+    LQRange,
+)
 
 
 class LQCollectionQObject(QtCore.QObject):
@@ -53,16 +54,16 @@ class LQCollection:
         self,
         name: str,
         dtype: type = float,
-        initial=0.0,
+        initial: float = 0.0,
         unit: str = None,
-        ro: bool = False,  # read only flag
         si: bool = False,
+        vmin: float = -1_000_000_000_000,
+        vmax: float = 1_000_000_000_000,
+        description: str = None,
+        ro: bool = False,  # read only flag
         choices=None,
         spinbox_decimals: int = 2,
         spinbox_step: float = 0.1,
-        vmin: float = -1e12,
-        vmax: float = +1e12,
-        description: str = None,
         colors=None,
         protected: bool = False,  # a guard that prevents from being updated, i.e. file loading
         is_dir: bool = False,
@@ -139,10 +140,10 @@ class LQCollection:
     def get_val(self, key):
         return self._logged_quantities[key].val
 
-    def as_list(self):
+    def as_list(self) -> List[LoggedQuantity]:
         return self._logged_quantities.values()
 
-    def as_dict(self):
+    def as_dict(self) -> Dict[str, LoggedQuantity]:
         return self._logged_quantities
 
     def as_value_dict(self):
@@ -193,18 +194,51 @@ class LQCollection:
 
     def New_Range(
         self,
-        name,
-        include_center_span=False,
-        include_sweep_type=False,
+        name: str,
+        include_center_span: bool = False,
+        include_sweep_type: bool = False,
         initials=[0, 1.0, 0.1],
+        unit: str = "",
+        si: bool = False,
+        ro: bool = False,
+        vmin: float = -1_000_000_000_000,
+        vmax: float = 1_000_000_000_000,
+        spinbox_decimals: int = 2,
+        description: str = "",
         **kwargs,
     ):
+        kwargs["ro"] = ro
+        kwargs["description"] = description
+
+        kwargs.pop("dtype", None)
 
         mn, mx, d = initials
-        min_lq = self.New(name + "_min", initial=mn, **kwargs)
-        max_lq = self.New(name + "_max", initial=mx, **kwargs)
-        step_lq = self.New(name + "_step", initial=d, **kwargs)
-        num_lq = self.New(name + "_num", dtype=int, vmin=1, initial=11)
+        min_lq = self.New(
+            f"{name}_min",
+            initial=mn,
+            vmin=vmin,
+            vmax=vmax,
+            spinbox_decimals=spinbox_decimals,
+            unit=unit,
+            si=si,
+            **kwargs,
+        )
+        max_lq = self.New(
+            name=f"{name}_max",
+            initial=mx,
+            vmin=vmin,
+            vmax=vmax,
+            spinbox_decimals=spinbox_decimals,
+            unit=unit,
+            si=si,
+            **kwargs,
+        )
+
+        step_lq = self.New(
+            f"{name}_step", initial=d, spinbox_decimals=spinbox_decimals + 1, **kwargs
+        )
+        step0= int((initials[1] - initials[0]) / d) + 1
+        num_lq = self.New(f"{name}_num", dtype=int, vmin=1, initial=step0, **kwargs)
 
         LQRange_kwargs = {
             "min_lq": min_lq,
@@ -213,13 +247,27 @@ class LQCollection:
             "num_lq": num_lq,
         }
         if include_center_span:
-            center_lq = self.New(name + "_center", **kwargs, initial=0.5)
-            span_lq = self.New(name + "_span", **kwargs, initial=1.0)
+            c0 = (initials[1] + initials[0]) / 2
+            s0 = initials[1] - initials[0]
+            center_lq = self.New(
+                name=f"{name}_center",
+                initial=c0,
+                spinbox_decimals=spinbox_decimals,
+                unit=unit,
+                si=si,
+                **kwargs,
+            )
+            span_lq = self.New(
+                name=f"{name}_span",
+                initial=s0,
+                spinbox_decimals=spinbox_decimals,
+                unit=unit,
+                si=si,
+                **kwargs,
+            )
             LQRange_kwargs.update({"center_lq": center_lq, "span_lq": span_lq})
         if include_sweep_type:
-            sweep_type_lq = self.New(
-                name + "_sweep_type", dtype=str, choices=("up", "down"), initial="up"
-            )
+            sweep_type_lq = self.New(f"{name}_sweep_type", str, choices=("up", "down"))
             LQRange_kwargs.update({"sweep_type_lq": sweep_type_lq})
 
         lqrange = LQRange(**LQRange_kwargs)
@@ -314,10 +362,10 @@ class LQCollectionWidgetsManager:
 
         self.update()
 
-    def add(self, lq: LQCollection):
+    def add(self, lq: LoggedQuantity):
         self.update()
 
-    def remove(self, lq: LQCollection):
+    def remove(self, lq: LoggedQuantity):
         widget = self.widgets.pop(lq.name, None)
         if widget is None:
             return
