@@ -106,7 +106,7 @@ class HardwareComponent:
                     self.disconnect()
                     self.update_sub_trees(1, "X", "orange")
             except Exception as err:
-                self.update_sub_trees(1, "?", "red")
+                self.update_sub_trees(1, "!", "red")
                 raise err
 
     def run(self):
@@ -133,6 +133,7 @@ class HardwareComponent:
 
     def on_connection_succeeded(self):
         print(self.name, "connection succeeded!")
+        self.connected.update_value(True)
         self.update_sub_trees(1, "O", "green")
 
     def on_connection_failed(self):
