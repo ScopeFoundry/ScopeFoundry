@@ -455,12 +455,10 @@ class LoggedQuantity(QtCore.QObject):
 
         elif type(widget) == MinMaxQSlider:
             self.updated_value[float].connect(widget.update_value)
-            widget.updated_value[float].connect(self.update_value)
+            widget.updated_value.connect(self.update_value)
             if self.unit is not None:
-                widget.setSuffix(self.unit)
-            widget.setSingleStep(self.spinbox_step)
-            widget.setDecimals(self.spinbox_decimals)
-            widget.setRange(self.vmin, self.vmax)
+                widget.unit = self.unit
+            widget.set_range(self.vmin, self.vmax)
             widget.set_name(self.name)
 
         elif type(widget) == QtWidgets.QSlider:
@@ -710,10 +708,8 @@ class LoggedQuantity(QtCore.QObject):
         elif type(widget) == MinMaxQSlider:
             self.updated_value[float].connect(widget.update_value)
             if self.unit is not None:
-                widget.setSuffix(self.unit)
-            widget.setSingleStep(self.spinbox_step)
-            widget.setDecimals(self.spinbox_decimals)
-            widget.setRange(self.vmin, self.vmax)
+                widget.unit = self.unit
+            widget.set_range(self.vmin, self.vmax)
             widget.set_name(self.name)
 
         elif type(widget) == QtWidgets.QSlider:
