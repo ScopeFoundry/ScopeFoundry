@@ -189,10 +189,8 @@ class LoggedQuantity(QtCore.QObject):
                 new_val=val, update_hardware=False, send_signal=send_signal
             )
         else:
-            self.log.warn(
-                "{} read_from_hardware called when not connected to hardware".format(
-                    self.name
-                )
+            self.log.warning(
+                f"{self.name} read_from_hardware called when not connected to hardware"
             )
         return self.val
 
@@ -462,17 +460,46 @@ class LoggedQuantity(QtCore.QObject):
             widget.set_name(self.name)
 
         elif type(widget) == QtWidgets.QSlider:
-            if self.dtype == float:
+            SLIDER_MIN = -2147483648
+            SLIDER_MAX = 2147483647
+            vmin = min(max(self.vmin, SLIDER_MIN), SLIDER_MAX)
+            vmax = max(min(self.vmax, SLIDER_MAX), SLIDER_MIN)
+            int_overflow = vmin != self.vmin or vmax != self.vmax
+
+            if int_overflow:
+                self.log.info(
+                    f"WARNING in using QSlider with {self.path}: Consider narrowing the range with vmin, vmax"
+                )
+
+            if self.dtype == int and not int_overflow:
+                widget.setRange(int(vmin), int(vmax))
+                self.updated_value[int].connect(widget.setValue)
+                widget.valueChanged[int].connect(self.update_value)
+                widget.setValue(self.value)
+
+            elif self.dtype == float or (self.dtype == int and int_overflow):
+                # the sliders values are scaled version of the actual value
+                # making slider values symmetric around 0
+                SLIDER_MIN = -2147483647
                 self.vrange = self.vmax - self.vmin
+                widget.setRange(SLIDER_MIN, SLIDER_MAX)
+                slider_range = SLIDER_MAX - SLIDER_MIN
 
                 def transform_to_slider(x):
-                    pct = 100 * (x - self.vmin) / self.vrange
-                    return int(pct)
+                    lq_avg = 0.5 * (self.vmax + self.vmin)
+                    self.vrange = self.vmax - self.vmin
+                    return int(slider_range / self.vrange * (x - lq_avg))
 
                 def transform_from_slider(x):
-                    val = self.vmin + (x * self.vrange / 100)
-                    return val
+                    lq_avg = 0.5 * (self.vmax + self.vmin)
+                    self.vrange = self.vmax - self.vmin
+                    return self.vrange / slider_range * x + lq_avg
 
+                # for float testing in tests/unittest/lq_connect_to_widget_test
+                self._transform_to_slider = transform_to_slider
+                self._transform_from_slider = transform_from_slider
+
+                @QtCore.Slot(float)
                 def update_widget_value(x):
                     """
                     block signals from widget when value is set via lq.update_value.
@@ -480,27 +507,22 @@ class LoggedQuantity(QtCore.QObject):
                     """
                     try:
                         widget.blockSignals(True)
-                        widget.setValue(transform_to_slider(x))
+                        widget.setValue(transform_to_slider(self.val))
                     finally:
                         widget.blockSignals(False)
 
-                def update_spinbox(x):
+                def update_lq(x):
                     self.update_value(transform_from_slider(x))
 
-                if self.vmin is not None:
-                    widget.setMinimum(transform_to_slider(self.vmin))
-                if self.vmax is not None:
-                    widget.setMaximum(transform_to_slider(self.vmax))
                 widget.setSingleStep(1)
-                widget.setValue(transform_to_slider(self.val))
                 self.updated_value[float].connect(update_widget_value)
-                widget.valueChanged[int].connect(update_spinbox)
-            elif self.dtype == int:
-                self.updated_value[int].connect(widget.setValue)
-                # widget.sliderMoved[int].connect(self.update_value)
-                widget.valueChanged[int].connect(self.update_value)
+                widget.valueChanged[int].connect(update_lq)
+                widget.setValue(transform_to_slider(self.val))
 
-                widget.setSingleStep(1)
+            else:
+                self.log.warning(
+                    f"QSlider not supported with setting {self.path} of dtype={self.dtype}"
+                )
 
         elif type(widget) == QtWidgets.QCheckBox:
 
@@ -518,6 +540,12 @@ class LoggedQuantity(QtCore.QObject):
                 widget.setEnabled(False)
             else:
                 widget.clicked[bool].connect(self.update_value)
+                # only works if widget was clicked or
+                # widget value changed and widget.clicked.emit() was called
+                # Maybe more rigourous would be
+                # widget.stateChanged.connect(self.update_value)
+                # but then for widgets in tristate can send states 0, 1, 2.
+                # Do not know when state occurs
 
             if self.colors is not None:
                 s = f"""QCheckBox:!checked {{ background: {self.colors[0]} }}
@@ -631,6 +659,8 @@ class LoggedQuantity(QtCore.QObject):
             # self.updated_value[float].connect(widget.setValue)
             # if not self.ro:
             # widget.valueChanged[float].connect(self.update_value)
+
+            @QtCore.Slot(float)
             def update_widget_value(x):
                 """
                 block signals from widget when value is set via lq.update_value.
@@ -691,6 +721,7 @@ class LoggedQuantity(QtCore.QObject):
             widget.setValue(self.val)
 
             # events
+            @QtCore.Slot(float)
             def update_widget_value(x):
                 """
                 block signals from widget when value is set via lq.update_value.
@@ -698,7 +729,7 @@ class LoggedQuantity(QtCore.QObject):
                 """
                 try:
                     widget.blockSignals(True)
-                    widget.setValue(x)
+                    widget.setValue(self.val)
                 finally:
                     widget.blockSignals(False)
 
@@ -713,17 +744,46 @@ class LoggedQuantity(QtCore.QObject):
             widget.set_name(self.name)
 
         elif type(widget) == QtWidgets.QSlider:
-            if self.dtype == float:
+
+            SLIDER_MIN = -2147483648
+            SLIDER_MAX = 2147483647
+            vmin = min(max(self.vmin, SLIDER_MIN), SLIDER_MAX)
+            vmax = max(min(self.vmax, SLIDER_MAX), SLIDER_MIN)
+            int_overflow = vmin != self.vmin or vmax != self.vmax
+
+            if int_overflow:
+                self.log.info(
+                    f"WARNING in using QSlider with {self.path}: Consider narrowing the range with vmin, vmax"
+                )
+
+            if self.dtype == int and not int_overflow:
+                widget.setRange(int(vmin), int(vmax))
+                self.updated_value[int].connect(widget.setValue)
+                widget.setValue(self.value)
+
+            elif self.dtype == float or (self.dtype == int and int_overflow):
+                # the sliders values are scaled version of the actual value
+                # making slider values symmetric around 0
+                SLIDER_MIN = -2147483647
                 self.vrange = self.vmax - self.vmin
+                widget.setRange(SLIDER_MIN, SLIDER_MAX)
+                slider_range = SLIDER_MAX - SLIDER_MIN
 
                 def transform_to_slider(x):
-                    pct = 100 * (x - self.vmin) / self.vrange
-                    return int(pct)
+                    lq_avg = 0.5 * (self.vmax + self.vmin)
+                    self.vrange = self.vmax - self.vmin
+                    return int(slider_range / self.vrange * (x - lq_avg))
 
                 def transform_from_slider(x):
-                    val = self.vmin + (x * self.vrange / 100)
-                    return val
+                    lq_avg = 0.5 * (self.vmax + self.vmin)
+                    self.vrange = self.vmax - self.vmin
+                    return self.vrange / slider_range * x + lq_avg
 
+                # for float testing in tests/unittest/lq_connect_to_widget_test
+                self._transform_to_slider = transform_to_slider
+                self._transform_from_slider = transform_from_slider
+
+                @QtCore.Slot(float)
                 def update_widget_value(x):
                     """
                     block signals from widget when value is set via lq.update_value.
@@ -731,20 +791,18 @@ class LoggedQuantity(QtCore.QObject):
                     """
                     try:
                         widget.blockSignals(True)
-                        widget.setValue(transform_to_slider(x))
+                        widget.setValue(transform_to_slider(self.val))
                     finally:
                         widget.blockSignals(False)
 
-                if self.vmin is not None:
-                    widget.setMinimum(transform_to_slider(self.vmin))
-                if self.vmax is not None:
-                    widget.setMaximum(transform_to_slider(self.vmax))
                 widget.setSingleStep(1)
-                widget.setValue(transform_to_slider(self.val))
                 self.updated_value[float].connect(update_widget_value)
-            elif self.dtype == int:
-                self.updated_value[int].connect(widget.setValue)
-                widget.setSingleStep(1)
+                widget.setValue(transform_to_slider(self.val))
+
+            else:
+                self.log.warning(
+                    f"QSlider not supported with setting {self.path} of dtype={self.dtype}"
+                )
 
         elif type(widget) == QtWidgets.QCheckBox:
 
