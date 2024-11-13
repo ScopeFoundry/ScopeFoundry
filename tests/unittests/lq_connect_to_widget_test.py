@@ -205,6 +205,59 @@ class LQConnectToWidgetTest(unittest.TestCase):
         wc.setCurrentIndex(2)
         self.assertEqual(self.choices.value, 3)
 
+    def test_qslider_int_non_overflow(self):
+        lq = self.settings.New("int2", int, vmin=-100, vmax=100)
+
+        wi = QtWidgets.QSlider()
+        wi.setValue(3)
+
+        # test on connection widget take lq value
+        lq.connect_to_widget(wi)
+        self.assertEqual(wi.value(), 0.0)
+
+        # lq to widget
+        lq.update_value(1)
+        self.assertEqual(wi.value(), 1)
+
+        # widget to lq
+        wi.setValue(2)
+        self.assertEqual(lq.value, 2)
+
+    def test_qslider_int_overflow(self):
+        # falls back to act like a float
+        wi = QtWidgets.QSlider()
+        wi.setValue(int(1000))
+
+        lq = self.int
+
+        # test on connection widget take lq value
+        lq.connect_to_widget(wi)
+        self.assertAlmostEqual(lq._transform_from_slider(wi.value()), 0.0)
+
+        # lq to widget
+        lq.update_value(int(1e11))
+        self.assertAlmostEqual(lq._transform_from_slider(wi.value())/1e12, int(1e11)/1e12)
+
+        # widget to lq
+        wi.setValue(lq._transform_to_slider(2e11))
+        self.assertAlmostEqual(lq.value/1e12, 2e11/1e12)
+
+    def test_qslider_float(self):
+        wf = QtWidgets.QSlider()
+        wf.setValue(3)
+
+        # test on connection widget take lq value
+        self.float.connect_to_widget(wf)
+        self.assertAlmostEqual(self.float._transform_from_slider(wf.value()), 0.0)
+
+        # lq to widget
+        self.float.update_value(1.0)
+        self.assertAlmostEqual(self.float._transform_from_slider(wf.value()), 1.0)
+
+        # widget to lq
+        wf.setValue(self.float._transform_to_slider(2))
+        self.assertAlmostEqual(self.float.value, 2)
+
     def test_min_max_slider(self):
         wf = MinMaxQSlider()
         wi = MinMaxQSlider()
