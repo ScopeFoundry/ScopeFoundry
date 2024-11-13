@@ -90,11 +90,11 @@ class LQConnectionTest(unittest.TestCase):
 
     def test_connect_to_lq(self):
         self.app.settings["lq1"] = 99
-        self.assertEqual(self.app.settings["lq1"], self.app.settings["lq2"])
+        self.assertEqual(self.app.settings["lq2"], 99)
 
     def test_connect_to_lq_rev(self):
-        self.app.settings["lq2"] = 1
-        self.assertEqual(self.app.settings["lq1"], self.app.settings["lq2"])
+        self.app.settings["lq2"] = 999
+        self.assertEqual(self.app.settings["lq1"], 999)
 
     def test_lq_math(self):
         self.app.settings["lq1"] = 100
