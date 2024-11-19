@@ -946,7 +946,7 @@ class LoggedQuantity(QtCore.QObject):
     def connect_to_pushButton(
         self,
         pushButton: QtWidgets.QPushButton,
-        colors=("rgba( 0, 255, 0, 180)", "rgba(255, 69, 0, 180)"),
+        colors=("rgba(105, 240, 104, 220)", "rgba(255, 49, 47, 220)"),
         texts=("▶ START", "🛑 INTERRUPT"),
         styleSheet_amendment="""
         QPushButton{ padding:3px }
@@ -1228,11 +1228,16 @@ class LoggedQuantity(QtCore.QObject):
 
         return widget
 
-    def new_pushButton(self, **kwargs):
+    def new_pushButton(
+        self,
+        texts=("▶ START", "🛑 INTERRUPT"),
+        colors=("rgba(105, 240, 104, 220)", "rgba(255, 49, 47, 220)"),
+        **kwargs,
+    ):
         """kwargs is past to self.connect_to_pushButton():"""
         assert self.dtype == bool
         pushButton = QtWidgets.QPushButton()
-        self.connect_to_pushButton(pushButton, **kwargs)
+        self.connect_to_pushButton(pushButton, colors, texts, **kwargs)
         return pushButton
 
     def new_pg_parameter(self):

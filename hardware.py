@@ -50,7 +50,7 @@ class HardwareComponent:
         self.connected = self.settings.New(
             "connected",
             dtype=bool,
-            colors=["none", "rgba( 0, 255, 0, 120)"],
+            colors=["none", "rgba( 0, 255, 0, 80)"],
             description=f"to <i>{self.name}</i> hardware if checked.",
         )
 
@@ -104,9 +104,9 @@ class HardwareComponent:
                         del self._update_thread
                 finally:
                     self.disconnect()
-                    self.update_sub_trees(1, "X", "orange")
+                    self.set_connection_status("", "orange")
             except Exception as err:
-                self.update_sub_trees(1, "!", "red")
+                self.set_connection_status("⚠", "red")
                 raise err
 
     def run(self):
@@ -124,9 +124,9 @@ class HardwareComponent:
         """
         for name, lq in self.settings.as_dict().items():
             if lq.has_hardware_read():
-                if self.debug_mode.val:
-                    self.log.debug("read_from_hardware {}".format(name))
                 lq.read_from_hardware()
+                if self.debug_mode.val:
+                    self.log.debug(f"read_from_hardware {name}: {lq.val}")
 
     def add_logged_quantity(self, name, **kwargs):
         return self.settings.New(name, **kwargs)
@@ -134,12 +134,12 @@ class HardwareComponent:
     def on_connection_succeeded(self):
         print(self.name, "connection succeeded!")
         self.connected.update_value(True)
-        self.update_sub_trees(1, "O", "green")
+        self.set_connection_status("✓", "green")
 
     def on_connection_failed(self):
         print(self.name, "connection failed!")
         self.connected.update_value(False)
-        self.update_sub_trees(1, "X", "red")
+        self.set_connection_status("⚠", "red")
 
     @property
     def gui(self):
@@ -208,11 +208,30 @@ class HardwareComponent:
     def remove_operation(self, name):
         self.operations.remove(name)
 
-    def on_new_subtree(self, subtree: SubtreeManager): ...  # optional
+    def on_new_subtree(self, subtree: SubtreeManager):
+        status_text = QtWidgets.QLabel()
 
-    def update_sub_trees(self, col, text, color):
+        connect_cb = QtWidgets.QCheckBox()
+        s0 = connect_cb.styleSheet()
+        self.settings.get_lq("connected").connect_to_widget(connect_cb)
+        connect_cb.setStyleSheet(s0)
+        connect_cb.setFixedWidth(22)
+        connect_cb.setFixedHeight(22)
+        connect_cb.setToolTip(f"connect/disconnect {self.name}")
+
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(widget)
+        layout.addWidget(status_text)
+        layout.addWidget(connect_cb)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        subtree.tree_widget.setItemWidget(subtree.header_item, 1, widget)
+        subtree.status_text = status_text
+
+    def set_connection_status(self, text, color):
         for manager in self._subtree_managers_:
-            manager.set_header_text(col, text, color)
+            manager.status_text.setText(text)
+            manager.status_text.setStyleSheet(f"QLabel {{color : {color}; }}")
 
     def on_right_click(self):
         cmenu = QtWidgets.QMenu()
