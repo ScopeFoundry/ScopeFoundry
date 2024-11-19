@@ -459,8 +459,8 @@ class BaseMicroscopeApp(BaseApp):
         """
         Loads last saved ini file.
         """
-        fnames = Path.cwd().glob("*_settings.ini")
-        fnames.extend(Path(self.settings["save_dir"]).glob("*_settings.ini"))
+        fnames = list(Path.cwd().glob("*_settings.ini"))
+        fnames += list(Path(self.settings["save_dir"]).glob("*_settings.ini"))
         self.settings_load_ini(sorted(fnames)[-1])
 
     def settings_save_dialog(self):
