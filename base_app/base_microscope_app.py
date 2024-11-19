@@ -153,7 +153,17 @@ class BaseMicroscopeApp(BaseApp):
 
         mm_tree = new_tree_widget(self.measurements.values(), ["Measurements", "Value"])
         hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
-        app_widget = new_widget(self, "app", style="form")
+
+        app_widget = new_widget(
+            obj=self,
+            title="app",
+            style="form",
+            include=("save_dir", "sample", "analyze_with_ipynb"),
+        )
+        app_widget.setAcceptDrops(True)
+        app_widget.dragEnterEvent = self.on_drag_on_app_widget
+        app_widget.dropEvent = self.on_drop_on_app_widget
+
         app_widget.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Minimum,
             QtWidgets.QSizePolicy.Policy.Maximum,
@@ -202,6 +212,14 @@ class BaseMicroscopeApp(BaseApp):
         else:
             self.ui.action_console.triggered.connect(self.console_widget.show)
             self.ui.action_log_viewer.triggered.connect(self.logging_widget.show)
+
+        self.ui.action_inspect_file.triggered.connect(
+            self.settings.get_lq("inspect file").file_browser
+        )
+        self.ui.action_show_settings.triggered.connect(self.show_app_settings)
+        self.ui.action_analyze_with_ipynb.triggered.connect(
+            partial(self.on_analyze_with_ipynb, folder=self.settings["save_dir"])
+        )
 
         self.ui.action_docs.triggered.connect(
             partial(
@@ -439,6 +457,13 @@ class BaseMicroscopeApp(BaseApp):
 
         self.log.info(f"ini settings saved to {fname} str")
 
+    def settings_load_file(self, fname: Path):
+        fname = Path(fname)
+        if fname.suffix == ".ini":
+            self.settings_load_ini(fname)
+        elif fname.suffix == ".h5":
+            self.settings_load_h5(fname)
+
     def settings_load_ini(self, fname, ignore_hw_connect=False, show_report=True):
         """
         ==============  =========  ==============================================
@@ -515,10 +540,7 @@ class BaseMicroscopeApp(BaseApp):
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(
             self.ui, "Open Settings file", "", "Settings File (*.ini *.h5)"
         )
-        if fname.endswith(".ini"):
-            self.settings_load_ini(fname)
-        elif fname.endswith(".h5"):
-            self.settings_load_h5(fname)
+        self.settings_load_file(fname)
 
     def get_lq(self, path: str) -> LoggedQuantity:
         """
@@ -755,3 +777,38 @@ class BaseMicroscopeApp(BaseApp):
         layout.addWidget(readme)
         dialog.setLayout(layout)
         dialog.exec_()
+
+    def on_drag_on_app_widget(self, event: QtGui.QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            fname = Path([u.toLocalFile() for u in event.mimeData().urls()][0])
+            if fname.suffix in (".ini", ".h5"):
+                event.accept()
+                return
+        event.ignore()
+
+    def on_drop_on_app_widget(self, event: QtGui.QDropEvent):
+        fname = Path([u.toLocalFile() for u in event.mimeData().urls()][0])
+        if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
+            self.settings_load_file(fname)
+        else:
+            self.propose_settings_values_from_file(fname)
+
+    def show_app_settings(self):
+        if not hasattr(self, "_app_settings_widget"):
+
+            app_widget = new_widget(self, "app")
+
+            pb_hlayout = QtWidgets.QHBoxLayout()
+            pb = QtWidgets.QPushButton("save ini ...")
+            pb.clicked.connect(self.settings_save_dialog)
+            pb_hlayout.addWidget(pb)
+            pb = QtWidgets.QPushButton("load ini ...")
+            pb.clicked.connect(self.settings_load_dialog)
+            pb_hlayout.addWidget(pb)
+
+            self._app_settings_widget = QtWidgets.QWidget()
+            layout = QtWidgets.QVBoxLayout(self._app_settings_widget)
+            layout.addWidget(app_widget)
+            layout.addLayout(pb_hlayout)
+
+        self._app_settings_widget.show()
