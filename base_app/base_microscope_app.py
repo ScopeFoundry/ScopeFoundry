@@ -179,6 +179,11 @@ class BaseMicroscopeApp(BaseApp):
                 subwin = self.add_mdi_subwin(ui, measure.name)
                 measure.subwin = subwin
 
+    def _load_all_measure_uis(self):
+        for measure in self.measurements.values():
+            self.load_measure_ui(measure)
+        self.ui.action_load_all_measure_uis.setVisible(False)
+
     def _setup_ui_menu_bar(self):
         self.ui.action_set_data_dir.triggered.connect(
             self.settings.save_dir.file_browser
@@ -218,6 +223,7 @@ class BaseMicroscopeApp(BaseApp):
             self.ui.action_save_window_positions.triggered.connect(
                 self.window_positions_save_dialog
             )
+            self.ui.action_load_all_measure_uis.setVisible(False)
         else:
             self.ui.tab_action.setVisible(False)
             self.ui.window_action.setVisible(False)
@@ -225,6 +231,9 @@ class BaseMicroscopeApp(BaseApp):
             self.ui.tile_action.setVisible(False)
             self.ui.action_load_window_positions.setVisible(False)
             self.ui.action_save_window_positions.setVisible(False)
+            self.ui.action_load_all_measure_uis.triggered.connect(
+                self._load_all_measure_uis
+            )
 
     def _post_setup_ui_quickaccess(self):
         # check again if quickbar is defined.
@@ -269,12 +278,14 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.mdiArea.cascadeSubWindows()
 
     def bring_measure_ui_to_front(self, measure):
+        ui = self._loaded_measure_uis.get(measure.name, None)
+        if ui is None:
+            # measure also has no subwin
+            return
         if self.mdi:
             self.bring_mdi_subwin_to_front(measure.subwin)
         else:
-            ui = self.load_measure_ui(measure)
-            if ui is not None:
-                ui.show()
+            ui.show()
 
     def load_measure_ui(self, measure):
         if measure.name in self._loaded_measure_uis:

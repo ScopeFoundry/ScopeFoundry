@@ -515,7 +515,19 @@ class Measurement:
     def on_new_subtree(self, subtree: SubtreeManager):
         progress_bar = QtWidgets.QProgressBar()
         self.progress.connect_to_widget(progress_bar)
-        subtree.tree_widget.setItemWidget(subtree.header_item, 1, progress_bar)
+
+        btn = self.settings.get_lq("activation").new_pushButton(texts=("▶", "🛑"))
+        btn.clicked.connect(self.show_ui)
+        btn.setFixedWidth(22)
+
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(widget)
+        layout.addWidget(progress_bar)
+        layout.addWidget(btn)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        subtree.tree_widget.setItemWidget(subtree.header_item, 1, widget)
+
         subtree.progress_bar = progress_bar
 
     @property

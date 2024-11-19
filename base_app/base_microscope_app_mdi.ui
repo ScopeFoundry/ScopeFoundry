@@ -129,6 +129,7 @@
     <addaction name="cascade_action"/>
     <addaction name="tile_action"/>
     <addaction name="separator"/>
+    <addaction name="action_load_all_measure_uis"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuAdvanced"/>
@@ -273,6 +274,11 @@
   <action name="action_load_last">
    <property name="text">
     <string>Load last</string>
+   </property>
+  </action>
+  <action name="action_load_all_measure_uis">
+   <property name="text">
+    <string>load</string>
    </property>
   </action>
  </widget>
