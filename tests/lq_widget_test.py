@@ -171,14 +171,21 @@ class Measure(Measurement):
             time.sleep(0.1)
 
 
+class MeasureNonUI(Measurement):
+
+    name = "measure_non_ui"
+
+
 class LQWidgetMicroscopeTestApp(BaseMicroscopeApp):
 
     name = "lq_widget_test_app"
+    mdi = True
 
     def setup(self):
 
         self.add_hardware(Hardware(self))
         self.add_measurement(Measure(self))
+        self.add_measurement(MeasureNonUI(self))
 
 
 if __name__ == "__main__":

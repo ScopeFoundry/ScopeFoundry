@@ -535,7 +535,9 @@ class Measurement:
         cmenu.addAction("Start", self.start)
         cmenu.addAction("Interrupt", self.interrupt)
         cmenu.addSeparator()
-        cmenu.addAction("Show", self.show_ui)
+        ui = self.app.load_measure_ui(self)
+        if ui is not None:
+            cmenu.addAction("Show", self.show_ui)
         cmenu.exec_(QtGui.QCursor.pos())
 
 

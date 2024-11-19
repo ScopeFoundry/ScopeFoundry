@@ -51,10 +51,12 @@ class BaseMicroscopeApp(BaseApp):
         self._setup_ui_base()
         self._setup_ui_buttons()
         self._setup_ui_tree_column()
-        self._setup_ui_mdi_area()
+        if self.mdi:
+            self._setup_ui_mdi_area()
         self._setup_ui_menu_bar()
-        self.setup_ui()
-        self._post_setup_ui()
+        self.setup_ui()  # child may overrite
+        self._post_setup_ui_quickaccess()
+        self._setup_ui_logo()
 
     def setup(self):
         """Override to add Hardware and Measurement Components"""
@@ -105,15 +107,17 @@ class BaseMicroscopeApp(BaseApp):
     def _setup_ui_base(self):
         """gets called before setup gets called. Could probabliy be called after but this might"""
         if not hasattr(self, "ui_filename"):
-            if self.mdi:
-                self.ui_filename = sibling_path(__file__, "base_microscope_app_mdi.ui")
-            else:
-                self.ui_filename = sibling_path(__file__, "base_microscope_app.ui")
+            self.ui_filename = sibling_path(__file__, "base_microscope_app_mdi.ui")
 
         self.ui = load_qt_ui_file(self.ui_filename)
+        self.ui.mdiArea.setVisible(self.mdi)
+        self.ui.quickaccess_scrollArea.setVisible(self.mdi)
+
         if self.mdi:
             self.ui.col_splitter.setStretchFactor(0, 0)
             self.ui.col_splitter.setStretchFactor(1, 1)
+
+        self._loaded_measure_uis = {}
 
         self.ui.show()
         self.ui.activateWindow()
@@ -126,7 +130,7 @@ class BaseMicroscopeApp(BaseApp):
         )
 
     def _setup_ui_buttons(self):
-        # currently only required if self.mdi=False. Keeping it generic for now.
+        # since v 1.6 no longer required if default .ui is used.
         if hasattr(self.ui, "console_pushButton"):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
             self.ui.console_pushButton.clicked.connect(
@@ -170,9 +174,9 @@ class BaseMicroscopeApp(BaseApp):
 
         for name, measure in self.measurements.items():
             self.log.info(f"setting up figure for measurement {name}")
-            measure.setup_figure()
-            if self.mdi and hasattr(measure, "ui"):
-                subwin = self.add_mdi_subwin(measure.ui, measure.name)
+            ui = self.load_measure_ui(measure)
+            if ui is not None:
+                subwin = self.add_mdi_subwin(ui, measure.name)
                 measure.subwin = subwin
 
     def _setup_ui_menu_bar(self):
@@ -182,18 +186,18 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)
         self.ui.action_auto_save_ini.triggered.connect(self.settings_auto_save_ini)
         self.ui.action_save_ini.triggered.connect(self.settings_save_dialog)
-        self.ui.action_console.triggered.connect(
-            partial(self.bring_mdi_subwin_to_front, subwin=self.console_subwin)
-        )
-        self.ui.action_log_viewer.triggered.connect(
-            partial(self.bring_mdi_subwin_to_front, subwin=self.logging_subwin)
-        )
-        self.ui.action_load_window_positions.triggered.connect(
-            self.window_positions_load_dialog
-        )
-        self.ui.action_save_window_positions.triggered.connect(
-            self.window_positions_save_dialog
-        )
+        self.ui.action_load_last.triggered.connect(self.settings_load_last)
+        if self.mdi:
+            self.ui.action_console.triggered.connect(
+                partial(self.bring_mdi_subwin_to_front, subwin=self.console_subwin)
+            )
+            self.ui.action_log_viewer.triggered.connect(
+                partial(self.bring_mdi_subwin_to_front, subwin=self.logging_subwin)
+            )
+        else:
+            self.ui.action_console.triggered.connect(self.console_widget.show)
+            self.ui.action_log_viewer.triggered.connect(self.logging_widget.show)
+
         self.ui.action_docs.triggered.connect(
             partial(
                 self.launch_browser, url="https://www.scopefoundry.org/#documentation"
@@ -203,24 +207,26 @@ class BaseMicroscopeApp(BaseApp):
         # Refer to existing ui object:
         self.menubar = self.ui.menuWindow
 
-        # Create new action group for switching between window and tab mode
-        self.action_group = QtWidgets.QActionGroup(self)
-        # Add actions to group:
-        self.action_group.addAction(self.ui.window_action)
-        self.action_group.addAction(self.ui.tab_action)
+        if self.mdi:
+            self.ui.tab_action.triggered.connect(self.set_tab_mode)
+            self.ui.window_action.triggered.connect(self.set_subwindow_mode)
+            self.ui.cascade_action.triggered.connect(self.cascade_layout)
+            self.ui.tile_action.triggered.connect(self.tile_layout)
+            self.ui.action_load_window_positions.triggered.connect(
+                self.window_positions_load_dialog
+            )
+            self.ui.action_save_window_positions.triggered.connect(
+                self.window_positions_save_dialog
+            )
+        else:
+            self.ui.tab_action.setVisible(False)
+            self.ui.window_action.setVisible(False)
+            self.ui.cascade_action.setVisible(False)
+            self.ui.tile_action.setVisible(False)
+            self.ui.action_load_window_positions.setVisible(False)
+            self.ui.action_save_window_positions.setVisible(False)
 
-        self.ui.tab_action.triggered.connect(self.set_tab_mode)
-        self.ui.window_action.triggered.connect(self.set_subwindow_mode)
-        self.ui.cascade_action.triggered.connect(self.cascade_layout)
-        self.ui.tile_action.triggered.connect(self.tile_layout)
-
-    def _post_setup_ui(self):
-        logo_icon = QtGui.QIcon(self.logo_path)
-        self.qtapp.setWindowIcon(logo_icon)
-        self.ui.setWindowIcon(logo_icon)
-
-        self.ui.setWindowTitle(self.name)
-
+    def _post_setup_ui_quickaccess(self):
         # check again if quickbar is defined.
         if isinstance(self.quickbar, QtWidgets.QWidget):
             self.ui.quickaccess_scrollArea.setVisible(True)
@@ -229,6 +235,12 @@ class BaseMicroscopeApp(BaseApp):
                 layout.addWidget(self.quickbar)
         else:
             self.ui.quickaccess_scrollArea.setVisible(False)
+
+    def _setup_ui_logo(self):
+        logo_icon = QtGui.QIcon(self.logo_path)
+        self.qtapp.setWindowIcon(logo_icon)
+        self.ui.setWindowIcon(logo_icon)
+        self.ui.setWindowTitle(self.name)
 
     def show(self):
         """Tells Qt to show the user interface"""
@@ -257,7 +269,26 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.mdiArea.cascadeSubWindows()
 
     def bring_measure_ui_to_front(self, measure):
-        self.bring_mdi_subwin_to_front(measure.subwin)
+        if self.mdi:
+            self.bring_mdi_subwin_to_front(measure.subwin)
+        else:
+            ui = self.load_measure_ui(measure)
+            if ui is not None:
+                ui.show()
+
+    def load_measure_ui(self, measure):
+        if measure.name in self._loaded_measure_uis:
+            return self._loaded_measure_uis[measure.name]
+
+        measure.setup_figure()
+        if not hasattr(measure, "ui"):
+            self._loaded_measure_uis[measure.name] = None
+            return None
+
+        self._loaded_measure_uis[measure.name] = measure.ui
+        measure.ui.setWindowTitle(measure.name)
+        self.ui.menuWindow.addAction(measure.name, measure.show_ui)
+        return measure.ui
 
     def bring_mdi_subwin_to_front(self, subwin):
         view_mode = self.ui.mdiArea.viewMode()
@@ -275,14 +306,11 @@ class BaseMicroscopeApp(BaseApp):
         ignore_on_close(subwin)
         subwin.setWindowTitle(name)
         subwin.show()
-        self.ui.menuWindow.addAction(
-            name, lambda subwin=subwin: self.bring_mdi_subwin_to_front(subwin)
-        )
         return subwin
 
     def add_quickbar(self, widget):
         self.ui.quickaccess_scrollArea.setVisible(True)
-        self.ui.quickaccess_scrollAreaWidgetContents.layout().addWidget(widget)
+        self.ui.quickaccess_layout.addWidget(widget)
         self.quickbar = widget
         return self.quickbar
 
