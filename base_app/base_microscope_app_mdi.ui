@@ -108,6 +108,10 @@
     </property>
     <addaction name="action_console"/>
     <addaction name="action_log_viewer"/>
+    <addaction name="separator"/>
+    <addaction name="action_show_settings"/>
+    <addaction name="action_inspect_file"/>
+    <addaction name="action_analyze_with_ipynb"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -273,12 +277,27 @@
   </action>
   <action name="action_load_last">
    <property name="text">
-    <string>Load last</string>
+    <string>Load last Settings</string>
    </property>
   </action>
   <action name="action_load_all_measure_uis">
    <property name="text">
     <string>load</string>
+   </property>
+  </action>
+  <action name="action_show_settings">
+   <property name="text">
+    <string>Settings</string>
+   </property>
+  </action>
+  <action name="action_inspect_file">
+   <property name="text">
+    <string>Inspect file</string>
+   </property>
+  </action>
+  <action name="action_analyze_with_ipynb">
+   <property name="text">
+    <string>analyze with ipynb</string>
    </property>
   </action>
  </widget>
