@@ -330,6 +330,9 @@ class BaseMicroscopeApp(BaseApp):
             self.log.info("disconnecting {}".format(hw.name))
             if hw.settings["connected"]:
                 try:
+                    # terminate the update thread
+                    hw.enable_connection(enable=False)
+                    # then call the hw component's disconnect method
                     hw.disconnect()
                 except Exception as err:
                     self.log.error("tried to disconnect {}: {}".format(hw.name, err))
