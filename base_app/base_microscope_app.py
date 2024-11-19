@@ -319,6 +319,12 @@ class BaseMicroscopeApp(BaseApp):
 
     def on_close(self):
         self.log.info("on_close")
+
+        # remove QT handler and reference to avoid atexit exception
+        if hasattr(self, 'logging_widget_handler'):
+            logging.getLogger().removeHandler(self.logging_widget_handler)
+            self.logging_widget_handler = None
+
         # disconnect all hardware objects
         for hw in self.hardware.values():
             self.log.info("disconnecting {}".format(hw.name))
