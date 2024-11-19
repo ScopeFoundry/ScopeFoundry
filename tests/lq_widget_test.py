@@ -175,6 +175,10 @@ class MeasureNonUI(Measurement):
 
     name = "measure_non_ui"
 
+    def run(self):
+        time.sleep(0.1)
+        print(self.name, "run end")
+
 
 class LQWidgetMicroscopeTestApp(BaseMicroscopeApp):
 
