@@ -37,11 +37,21 @@ class HtmlHandler(Handler):
         # timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         timestamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(record.created))
         style = LEVEL_STYLES.get(record.levelname, "")
-        return (
-            """{} - <span style="{}">{}</span>: <i>{}</i> :<pre>{}</pre><br>""".format(
-                timestamp, style, record.levelname, record.name, record.msg
-            )
-        )
+        return f"""{timestamp} - <span style="{style}">{record.levelname}</span>: <i>{record.name}</i> :<pre>{record.msg}</pre><br>"""
+
+
+class StatusBarHandler(Handler):
+
+    def __init__(self, level=logging.NOTSET, setter=print):
+
+        Handler.__init__(self, level=level)
+        self.setter = setter
+
+    def emit(self, record: logging.LogRecord):
+        self.setter(self.format(record))
+
+    def format(self, record: logging.LogRecord):
+        return f"🛈 {record.name}: {record.msg}"
 
 
 def new_log_file_handler(fname):
