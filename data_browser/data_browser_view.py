@@ -64,8 +64,10 @@ class DataBrowserView:
                 name in file["measurement"] for name in supported_measurement_names
             )
 
-    def add_operation(self, name: str, op_func: Callable[[], None], description=""):
-        self.operations.add(name, op_func, description)
+    def add_operation(
+        self, name: str, op_func: Callable[[], None], description="", icon_path=""
+    ):
+        self.operations.add(name, op_func, description, icon_path)
 
     def remove_operation(self, name: str):
         self.operations.remove(name)

@@ -191,7 +191,9 @@ class HardwareComponent:
     def add_to_layout(self, layout, include=None, exclude=None):
         add_to_layout(self, layout, include, exclude)
 
-    def add_operation(self, name: str, op_func: Callable[[], None], description=""):
+    def add_operation(
+        self, name: str, op_func: Callable[[], None], description="", icon_path=""
+    ):
         """
         Create an operation for the HardwareComponent.
 
@@ -203,7 +205,7 @@ class HardwareComponent:
         :type op_func: QtCore.Slot or Callable without Argument
         :type description: str
         """
-        self.operations.add(name, op_func, description)
+        self.operations.add(name, op_func, description, icon_path)
 
     def remove_operation(self, name):
         self.operations.remove(name)

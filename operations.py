@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from typing import Callable
 
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry.dynamical_widgets.tools import Tools
 from ScopeFoundry.helper_funcs import filter_with_patterns
@@ -20,12 +20,14 @@ class Operations(OrderedDict):
         self.q_object = OperationsQObject()
         self._widgets_managers_ = []
         self.descriptions = {}
+        self.icon_paths = {}
 
-    def add(self, name: str, value: Callable, description=""):
+    def add(self, name: str, func: Callable, description="", icon_path=""):
         if name in self.__dict__:
             return
-        self[name] = value
+        self[name] = func
         self.descriptions[name] = description
+        self.icon_paths[name] = icon_path
         self.q_object.added.emit(name)
 
     def remove(self, name):
@@ -33,7 +35,19 @@ class Operations(OrderedDict):
             return
         del self[name]
         del self.descriptions[name]
+        del self.icon_paths[name]
         self.q_object.removed.emit(name)
+
+    def new_button(self, name):
+        op_button = QtWidgets.QPushButton(name)
+        op_button.clicked.connect(lambda checked, f=self[name]: f())
+        tt = self.descriptions[name]
+        if tt:
+            op_button.setToolTip(tt)
+        icon_path = self.icon_paths[name]
+        if icon_path:
+            op_button.setIcon(QtGui.QIcon(str(icon_path)))
+        return op_button
 
 
 class OperationWidgetsManager:
@@ -63,10 +77,7 @@ class OperationWidgetsManager:
         ):
             if op_name in self.widgets.keys():
                 continue
-            op_func = self.operations[op_name]
-            op_button = QtWidgets.QPushButton(op_name)
-            op_button.setToolTip(self.operations.descriptions[op_name])
-            op_button.clicked.connect(lambda checked, f=op_func: f())
+            op_button = self.operations.new_button(op_name)
             self.widgets[op_name] = op_button
 
             self.tools.add_to_layout(None, op_button)
