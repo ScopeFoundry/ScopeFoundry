@@ -153,9 +153,7 @@ def update_operations(
     for op_name in filter_with_patterns(operations.keys(), include, exclude):
         if op_name in children.keys():
             continue
-        op_func = operations[op_name]
-        op_button = QtWidgets.QPushButton(op_name)
-        op_button.clicked.connect(lambda checked, f=op_func: f())
+        op_button = operations.new_button(op_name)
         new_item = QtWidgets.QTreeWidgetItem(root_item, [op_name, ""])
         children[op_name] = new_item
         root_item.addChild(new_item)
