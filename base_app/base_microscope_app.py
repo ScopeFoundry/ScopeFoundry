@@ -25,7 +25,7 @@ from ScopeFoundry.helper_funcs import (
 from ScopeFoundry.logged_quantity import LoggedQuantity
 
 from .base_app import BaseApp
-from .logging_handlers import new_log_file_handler
+from .logging_handlers import StatusBarHandler, new_log_file_handler
 from .show_io_report_dialog import show_io_report_dialog
 
 
@@ -128,6 +128,11 @@ class BaseMicroscopeApp(BaseApp):
             message=f"Do you wish to shut down {self.name}",
             func_on_close=self.on_close,
         )
+        handler = StatusBarHandler(logging.INFO, self.show_status_bar_msg)
+        self.log.addHandler(handler)
+
+    def show_status_bar_msg(self, msg, timeout=2000):
+        self.ui.statusbar.showMessage(msg, timeout)
 
     def _setup_ui_buttons(self):
         # since v 1.6 no longer required if default .ui is used.
@@ -153,13 +158,13 @@ class BaseMicroscopeApp(BaseApp):
 
         mm_tree = new_tree_widget(self.measurements.values(), ["Measurements", "Value"])
         hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
-
         app_widget = new_widget(
             obj=self,
             title="app",
             style="form",
             include=("save_dir", "sample", "analyze_with_ipynb"),
         )
+
         app_widget.setAcceptDrops(True)
         app_widget.dragEnterEvent = self.on_drag_on_app_widget
         app_widget.dropEvent = self.on_drop_on_app_widget
@@ -183,7 +188,7 @@ class BaseMicroscopeApp(BaseApp):
         self.console_subwin = self.add_mdi_subwin(self.console_widget, "Console")
 
         for name, measure in self.measurements.items():
-            self.log.info(f"setting up figure for measurement {name}")
+            self.log.debug(f"setting up figure for measurement {name}")
             ui = self.load_measure_ui(measure)
             if ui is not None:
                 subwin = self.add_mdi_subwin(ui, measure.name)
@@ -335,6 +340,10 @@ class BaseMicroscopeApp(BaseApp):
         ignore_on_close(subwin)
         subwin.setWindowTitle(name)
         subwin.show()
+        widget.setAcceptDrops(True)
+        widget.dragEnterEvent = self.on_drag_on_app_widget
+        widget.dropEvent = self.on_drop_on_app_widget
+
         return subwin
 
     def add_quickbar(self, widget):
@@ -425,7 +434,7 @@ class BaseMicroscopeApp(BaseApp):
         with h5_io.h5_base_file(self, fname) as h5_file:
             for measurement in self.measurements.values():
                 h5_io.h5_create_measurement_group(measurement, h5_file)
-            self.log.info("settings saved to {}".format(h5_file.filename))
+            self.log.info(f"settings saved to {fname}")
 
     def settings_save_ini(
         self,
@@ -455,7 +464,7 @@ class BaseMicroscopeApp(BaseApp):
 
         self.propose_settings_values(Path(fname).name, settings)
 
-        self.log.info(f"ini settings saved to {fname} str")
+        self.log.info(f"settings saved to {fname}")
 
     def settings_load_file(self, fname: Path):
         fname = Path(fname)
@@ -485,6 +494,7 @@ class BaseMicroscopeApp(BaseApp):
             show_io_report_dialog(fname, report, self.settings_load_ini)
 
         self.propose_settings_values(Path(fname).name, settings)
+        self.log.info(f"settings loaded from {fname}")
 
     def settings_load_h5(self, fname, ignore_hw_connect=False, show_report=True):
         """
@@ -508,6 +518,7 @@ class BaseMicroscopeApp(BaseApp):
             show_io_report_dialog(fname, report, self.settings_load_h5)
 
         self.propose_settings_values(Path(fname).name, settings)
+        self.log.info(f"settings loaded from {fname}")
 
     def settings_auto_save_ini(self):
         """
@@ -782,6 +793,13 @@ class BaseMicroscopeApp(BaseApp):
         if event.mimeData().hasUrls():
             fname = Path([u.toLocalFile() for u in event.mimeData().urls()][0])
             if fname.suffix in (".ini", ".h5"):
+                if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
+                    event.setDropAction(QtCore.Qt.DropAction.CopyAction)
+                else:
+                    event.setDropAction(QtCore.Qt.DropAction.LinkAction)
+                    self.show_status_bar_msg(
+                        "press ctrl before you drop to load settings"
+                    )
                 event.accept()
                 return
         event.ignore()
@@ -797,6 +815,9 @@ class BaseMicroscopeApp(BaseApp):
         if not hasattr(self, "_app_settings_widget"):
 
             app_widget = new_widget(self, "app")
+            app_widget.setAcceptDrops(True)
+            app_widget.dragEnterEvent = self.on_drag_on_app_widget
+            app_widget.dropEvent = self.on_drop_on_app_widget
 
             pb_hlayout = QtWidgets.QHBoxLayout()
             pb = QtWidgets.QPushButton("save ini ...")

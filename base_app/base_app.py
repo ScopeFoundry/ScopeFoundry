@@ -18,7 +18,7 @@ from qtpy import QtCore, QtWidgets
 
 from ScopeFoundry import ini_io
 from ScopeFoundry.base_app.console_widget import new_console_widget
-from ScopeFoundry.base_app.logging_handlers import HtmlHandler
+from ScopeFoundry.base_app.logging_handlers import HtmlHandler, StatusBarHandler
 from ScopeFoundry.base_app.logging_widget import LoggingWidget
 from ScopeFoundry.dynamical_widgets.tree_widget import SubtreeManager
 from ScopeFoundry.helper_funcs import get_logger_from_class
@@ -158,6 +158,7 @@ class BaseApp(QtCore.QObject):
 
     def setup_logging(self):
         self.log = get_logger_from_class(self)
+        self.log.setLevel(logging.INFO)
 
         logging.basicConfig(level=logging.WARN)
         logging.getLogger("traitlets").setLevel(logging.WARN)
@@ -286,6 +287,7 @@ class BaseApp(QtCore.QObject):
             if lq is None:
                 continue
             lq.propose_value(name, val)
+        self.log.info(f"propesed values {name}")
 
     def read_settings(self, paths=None, ini_string_value=False):
         """
