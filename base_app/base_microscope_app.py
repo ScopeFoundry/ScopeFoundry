@@ -355,9 +355,13 @@ class BaseMicroscopeApp(BaseApp):
             subwin.showMaximized()
             subwin.raise_()
 
-    def add_mdi_subwin(self, widget, name):
-        subwin = self.ui.mdiArea.addSubWindow(
-            widget, QtCore.Qt.CustomizeWindowHint | QtCore.Qt.WindowMinMaxButtonsHint
+    def add_mdi_subwin(self, widget: QtWidgets.QWidget, name):
+        mdiArea: QtWidgets.QMdiArea = self.ui.mdiArea
+        subwin = mdiArea.addSubWindow(
+            widget,
+            QtCore.Qt.WindowType.CustomizeWindowHint
+            | QtCore.Qt.WindowType.WindowTitleHint
+            | QtCore.Qt.WindowType.WindowMinMaxButtonsHint,
         )
         ignore_on_close(subwin)
         subwin.setWindowTitle(name)
