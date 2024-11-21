@@ -90,6 +90,7 @@ class BaseMicroscopeApp(BaseApp):
             name="propose_from_file",
             dtype="file",
             description="right click on setting widget to see and load value from a file",
+            file_filters=["Settings (*.ini *.h5)"],
         ).add_listener(self.propose_settings_values_from_file)
 
         # self.settings.New('log_dir', dtype='file', is_dir=True, initial=initial_log_dir)

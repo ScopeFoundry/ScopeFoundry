@@ -68,6 +68,7 @@ class LQCollection:
         protected: bool = False,  # a guard that prevents from being updated, i.e. file loading
         is_dir: bool = False,
         default_dir: str = None,
+        file_filters=(),
         reread_from_hardware_after_write: bool = False,
         is_array: bool = False,
         fmt="%g",
@@ -105,6 +106,7 @@ class LQCollection:
                 name=name,
                 default_dir=default_dir,
                 is_dir=is_dir,
+                file_filters=file_filters,
                 **kwargs,
             )
         else:
