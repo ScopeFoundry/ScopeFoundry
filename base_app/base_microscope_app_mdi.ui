@@ -110,7 +110,7 @@
     <addaction name="action_log_viewer"/>
     <addaction name="separator"/>
     <addaction name="action_show_settings"/>
-    <addaction name="action_inspect_file"/>
+    <addaction name="action_propose_from_file"/>
     <addaction name="action_analyze_with_ipynb"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -286,16 +286,24 @@
    </property>
   </action>
   <action name="action_show_settings">
+   <property name="icon">
+    <iconset>
+     <normaloff>settings.png</normaloff>settings.png</iconset>
+   </property>
    <property name="text">
     <string>Settings</string>
    </property>
   </action>
-  <action name="action_inspect_file">
+  <action name="action_propose_from_file">
    <property name="text">
     <string>Inspect file</string>
    </property>
   </action>
   <action name="action_analyze_with_ipynb">
+   <property name="icon">
+    <iconset>
+     <normaloff>Jupyter_logo.png</normaloff>Jupyter_logo.png</iconset>
+   </property>
    <property name="text">
     <string>analyze with ipynb</string>
    </property>

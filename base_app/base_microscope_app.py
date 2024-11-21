@@ -28,6 +28,8 @@ from .base_app import BaseApp
 from .logging_handlers import StatusBarHandler, new_log_file_handler
 from .show_io_report_dialog import show_io_report_dialog
 
+THIS_PATH = Path(__file__).parent
+APP_WIDGET_STYLESHEET = """ QGroupBox { border: 2px dashed blue; border-radius: 2px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; } """
 
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
@@ -38,13 +40,16 @@ class BaseMicroscopeApp(BaseApp):
     def __init__(self, argv=[], **kwargs):
         super().__init__(argv, **kwargs)
 
+        self.settings_icon = str(THIS_PATH / "settings.png")
+        self.jupyter_logo_path = str(THIS_PATH / "Jupyter_logo.png")
+
         self._setup_log_file_handler()
         self._setup_settings_operations(**kwargs)
 
         # objects to overwrite and populate with setup function.
         self.hardware = OrderedAttrDict()
         self.measurements = OrderedAttrDict()
-        self.logo_path = sibling_path(__file__, "scopefoundry_logo2B_1024.png")
+        self.logo_path = str(THIS_PATH / "scopefoundry_logo2B_1024.png")
         self.quickbar = None  # also with self.add_quickbar
         self.setup()
 
@@ -82,7 +87,7 @@ class BaseMicroscopeApp(BaseApp):
         # Potential new alternative default: '{unique_id_short}_{measurement.name}.{ext}'
 
         self.settings.New(
-            name="inspect file",
+            name="propose_from_file",
             dtype="file",
             description="right click on setting widget to see and load value from a file",
         ).add_listener(self.propose_settings_values_from_file)
@@ -93,7 +98,8 @@ class BaseMicroscopeApp(BaseApp):
         self.add_operation(
             "analyze with ipynb",
             self.on_analyze_with_ipynb,
-            "generates h5_data_loaders.py, overview.ipynb and tries to launch overview.ipynb (vscode with jupyter extension recommended)",
+            "generates h5_data_loaders.py, overview.ipynb, and tries to launch overview.ipynb (vscode with jupyter extension recommended)",
+            self.jupyter_logo_path,
         )
 
     def _setup_log_file_handler(self):
@@ -162,7 +168,7 @@ class BaseMicroscopeApp(BaseApp):
             obj=self,
             title="app",
             style="form",
-            include=("save_dir", "sample", "analyze_with_ipynb"),
+            include=("save_dir", "sample"),
         )
 
         app_widget.setAcceptDrops(True)
@@ -173,6 +179,18 @@ class BaseMicroscopeApp(BaseApp):
             QtWidgets.QSizePolicy.Policy.Minimum,
             QtWidgets.QSizePolicy.Policy.Maximum,
         )
+        ipynb_btn = self.operations.new_button("analyze with ipynb")
+        ipynb_btn.setText(" analyze")
+        settings_btn = QtWidgets.QPushButton(" settings")
+        settings_btn.clicked.connect(self.show_app_settings)
+        settings_btn.setIcon(QtGui.QIcon(self.settings_icon))
+        app_widget_btns_layout = QtWidgets.QHBoxLayout()
+        app_widget_btns_layout.addWidget(ipynb_btn)
+        app_widget_btns_layout.addWidget(settings_btn)
+        app_widget.layout().addLayout(app_widget_btns_layout)
+        # trying to indicate that one can drop file on this app
+        app_widget.setStyleSheet(APP_WIDGET_STYLESHEET)
+        app_widget.setTitle("to inspect drop a .h5 or .ini, to load also press ctrl")
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
         splitter.addWidget(hw_tree)
@@ -217,14 +235,18 @@ class BaseMicroscopeApp(BaseApp):
         else:
             self.ui.action_console.triggered.connect(self.console_widget.show)
             self.ui.action_log_viewer.triggered.connect(self.logging_widget.show)
+        self.ui.action_console.setIcon(self.console_widget.windowIcon())
+        self.ui.action_log_viewer.setIcon(self.logging_widget.windowIcon())
+        self.ui.action_propose_from_file.triggered.connect(
+            self.settings.get_lq("propose_from_file").file_browser
+        )
 
-        self.ui.action_inspect_file.triggered.connect(
-            self.settings.get_lq("inspect file").file_browser
-        )
         self.ui.action_show_settings.triggered.connect(self.show_app_settings)
+        self.ui.action_show_settings.setIcon(QtGui.QIcon(self.settings_icon))
         self.ui.action_analyze_with_ipynb.triggered.connect(
-            partial(self.on_analyze_with_ipynb, folder=self.settings["save_dir"])
+            partial(self.on_analyze_with_ipynb, folder=None)
         )
+        self.ui.action_analyze_with_ipynb.setIcon(QtGui.QIcon(self.jupyter_logo_path))
 
         self.ui.action_docs.triggered.connect(
             partial(
@@ -339,6 +361,7 @@ class BaseMicroscopeApp(BaseApp):
         )
         ignore_on_close(subwin)
         subwin.setWindowTitle(name)
+        subwin.setWindowIcon(widget.windowIcon())
         subwin.show()
         widget.setAcceptDrops(True)
         widget.dragEnterEvent = self.on_drag_on_app_widget
@@ -752,7 +775,7 @@ class BaseMicroscopeApp(BaseApp):
         Adds to proposed_values of LQs.
         """
         if fname is None:
-            fname = self.settings["inspect file"]
+            fname = self.settings["propose_from_file"]
         path = Path(fname)
         if not path.exists() or path.suffix not in (".ini", ".h5"):
             return
@@ -795,10 +818,11 @@ class BaseMicroscopeApp(BaseApp):
             if fname.suffix in (".ini", ".h5"):
                 if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
                     event.setDropAction(QtCore.Qt.DropAction.CopyAction)
+                    self.show_status_bar_msg("drop to load settings")
                 else:
                     event.setDropAction(QtCore.Qt.DropAction.LinkAction)
                     self.show_status_bar_msg(
-                        "press ctrl before you drop to load settings"
+                        "hold ctrl key to load settings - otherwise values are proposed only."
                     )
                 event.accept()
                 return
@@ -818,18 +842,25 @@ class BaseMicroscopeApp(BaseApp):
             app_widget.setAcceptDrops(True)
             app_widget.dragEnterEvent = self.on_drag_on_app_widget
             app_widget.dropEvent = self.on_drop_on_app_widget
+            app_widget.setStyleSheet(APP_WIDGET_STYLESHEET)
 
-            pb_hlayout = QtWidgets.QHBoxLayout()
-            pb = QtWidgets.QPushButton("save ini ...")
-            pb.clicked.connect(self.settings_save_dialog)
-            pb_hlayout.addWidget(pb)
-            pb = QtWidgets.QPushButton("load ini ...")
-            pb.clicked.connect(self.settings_load_dialog)
-            pb_hlayout.addWidget(pb)
+            save_btn = QtWidgets.QPushButton("save ...")
+            save_btn.clicked.connect(self.settings_save_dialog)
+            load_btn = QtWidgets.QPushButton("load ...")
+            load_btn.clicked.connect(self.settings_load_dialog)
+            hlayout = QtWidgets.QHBoxLayout()
+            hlayout.addWidget(save_btn)
+            hlayout.addWidget(load_btn)
 
-            self._app_settings_widget = QtWidgets.QWidget()
-            layout = QtWidgets.QVBoxLayout(self._app_settings_widget)
+            widget = self._app_settings_widget = QtWidgets.QWidget()
+            widget.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+                QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+            )
+            widget.setWindowTitle("settings")
+            widget.setWindowIcon(QtGui.QIcon(self.settings_icon))
+            layout = QtWidgets.QVBoxLayout(widget)
             layout.addWidget(app_widget)
-            layout.addLayout(pb_hlayout)
+            layout.addLayout(hlayout)
 
         self._app_settings_widget.show()
