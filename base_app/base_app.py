@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Callable
 from warnings import warn
 
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry import ini_io
 from ScopeFoundry.base_app.console_widget import new_console_widget
@@ -50,6 +50,7 @@ class WRITE_RES(enum.Enum):
     SUCCESS = enum.auto()
     MISSING = enum.auto()
     PROTECTED = enum.auto()
+THIS_PATH = Path(__file__).parent
 
 
 class BaseApp(QtCore.QObject):
@@ -154,6 +155,9 @@ class BaseApp(QtCore.QObject):
         except Exception as err:
             print("failed to setup console widget " + str(err))
             self.console_widget = QtWidgets.QWidget()
+        self.console_widget.setWindowIcon(
+            QtGui.QIcon(str(THIS_PATH / "console_logo.png"))
+        )
         return self.console_widget
 
     def setup_logging(self):
