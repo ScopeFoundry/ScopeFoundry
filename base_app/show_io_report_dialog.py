@@ -1,9 +1,9 @@
-from os import startfile
 from pathlib import Path
 
 from qtpy import QtWidgets
 
 from .base_app import WRITE_RES
+from ..helper_funcs import open_file
 
 
 def show_io_report_dialog(fname: str, report, retry_func):
@@ -49,7 +49,7 @@ def show_io_report_dialog(fname: str, report, retry_func):
     if name.endswith(".ini"):
 
         def on_fix():
-            startfile(fname)
+            open_file(fname)
 
         btn = QtWidgets.QPushButton("fix")
         btn.clicked.connect(on_fix)

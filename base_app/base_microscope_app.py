@@ -9,6 +9,7 @@ from collections import OrderedDict
 from functools import partial
 from pathlib import Path
 
+
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry import h5_io, ini_io
@@ -27,6 +28,8 @@ from ScopeFoundry.logged_quantity import LoggedQuantity
 from .base_app import BaseApp
 from .logging_handlers import StatusBarHandler, new_log_file_handler
 from .show_io_report_dialog import show_io_report_dialog
+
+from ..helper_funcs import open_file
 
 THIS_PATH = Path(__file__).parent
 APP_WIDGET_STYLESHEET = """ QGroupBox { border: 2px dashed blue; border-radius: 2px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; } """
@@ -402,7 +405,7 @@ class BaseMicroscopeApp(BaseApp):
         print("check", ipynb_path)
         print("")
         if ipynb_path.exists():
-            os.startfile(ipynb_path)
+            open_file(ipynb_path)
         return ipynb_path
 
     def add_hardware(self, hw):
