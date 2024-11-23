@@ -1,6 +1,8 @@
 import fnmatch
 import logging
 import os
+import subprocess
+import sys
 import threading
 from collections import OrderedDict
 from pathlib import Path
@@ -38,7 +40,22 @@ class OrderedAttrDict(object):
     def __contains__(self, k):
         return self._odict.__contains__(k)
 
+def open_file(filepath):
+    """
+    Cross-platform file opener since a native module does not yet exist per
+    https://stackoverflow.com/questions/17317219/is-there-an-platform-independent-equivalent-of-os-startfile
+    """
+    try:
+        if sys.platform.startswith('win'):         # Windows
+            os.startfile(filepath)
+        elif sys.platform.startswith('darwin'):    # macOS
+            subprocess.call(['open', filepath])
+        else:                                      # linux
+            subprocess.call(['xdg-open', filepath])
+    except Exception as e:
+        print(f"Error opening file {filepath}: {e}")
 
+        
 def sibling_path(a, b):
     """
     Returns the path of a filename *b* in the same folder as *a*

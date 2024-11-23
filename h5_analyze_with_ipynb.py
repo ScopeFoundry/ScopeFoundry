@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from ScopeFoundry.generate_loaders_py import generate_loaders_py, get_measurement_name
+from .helper_funcs import open_file
 
 IPYNB_DEMO_FNAME = "overview.ipynb"
 
@@ -102,7 +103,7 @@ def analyze_with_ipynb(folder="."):
     print("")
 
     if ipynb_path.exists():
-        os.startfile(ipynb_path)
+        open_file(ipynb_path)
 
 
 if __name__ == "__main__":
