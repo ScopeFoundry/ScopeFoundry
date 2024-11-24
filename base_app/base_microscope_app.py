@@ -78,8 +78,8 @@ class BaseMicroscopeApp(BaseApp):
         initial_save_path = Path.cwd() / "data"
         if not initial_save_path.is_dir():
             initial_save_path.mkdir()
-        self.settings.New(
-            "save_dir", dtype="file", is_dir=True, initial=initial_save_path.as_posix()
+        self.save_dir = self.settings.new_file(
+            "save_dir", is_dir=True, initial=initial_save_path.as_posix()
         )
         self.settings.New("sample", dtype=str, initial="")
         self.settings.New(
@@ -89,9 +89,8 @@ class BaseMicroscopeApp(BaseApp):
         )
         # Potential new alternative default: '{unique_id_short}_{measurement.name}.{ext}'
 
-        self.settings.New(
+        self.settings.new_file(
             name="propose_from_file",
-            dtype="file",
             description="right click on setting widget to see and load value from a file",
             file_filters=["Settings (*.ini *.h5)"],
         ).add_listener(self.propose_settings_values_from_file)
@@ -222,9 +221,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.action_load_all_measure_uis.setVisible(False)
 
     def _setup_ui_menu_bar(self):
-        self.ui.action_set_data_dir.triggered.connect(
-            self.settings.save_dir.file_browser
-        )
+        self.ui.action_set_data_dir.triggered.connect(self.save_dir.file_browser)
         self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)
         self.ui.action_auto_save_ini.triggered.connect(self.settings_auto_save_ini)
         self.ui.action_save_ini.triggered.connect(self.settings_save_dialog)

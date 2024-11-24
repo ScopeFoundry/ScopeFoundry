@@ -50,6 +50,35 @@ class LQCollection:
         self.path = path
         self._widgets_managers_ = []
 
+    def new_file(
+        self,
+        name: str,
+        initial: float = 0.0,
+        is_dir: bool = False,
+        default_dir: str = None,
+        file_filters=(),
+        description: str = None,
+        ro: bool = False,  # read only flag
+        choices=None,
+        colors=None,
+        protected: bool = False,  # a guard that prevents from being updated, i.e. file loading
+        **kwargs,
+    ) -> FileLQ:
+        return self.New(
+            name=name,
+            dtype="file",
+            initial=initial,
+            is_dir=is_dir,
+            default_dir=default_dir,
+            file_filters=file_filters,
+            description=description,
+            ro=ro,
+            choices=choices,
+            colors=colors,
+            protected=protected,
+            **kwargs,
+        )
+
     def New(
         self,
         name: str,

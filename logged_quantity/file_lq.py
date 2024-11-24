@@ -2,7 +2,7 @@ from functools import partial
 from pathlib import Path
 import re
 
-from qtpy import QtWidgets, QtGui, QtCore
+from qtpy import QtWidgets, QtGui
 
 from .logged_quantity import LoggedQuantity
 
@@ -15,10 +15,11 @@ class FileLQ(LoggedQuantity):
 
     def __init__(self, name, default_dir=None, is_dir=False, file_filters=(), **kwargs):
 
-        if not kwargs["initial"]:
-            kwargs["initial"] = ""
+        initial = kwargs.pop("initial", None)
+        if not initial:
+            initial = str(Path.cwd())
 
-        LoggedQuantity.__init__(self, name, dtype=str, **kwargs)
+        LoggedQuantity.__init__(self, name, dtype=str, initial=initial, **kwargs)
 
         self.default_dir = default_dir
         self.is_dir = is_dir
@@ -27,15 +28,15 @@ class FileLQ(LoggedQuantity):
             file_filters = [file_filters]
         self.file_filters = file_filters
 
-    def connect_to_browse_widgets(self, lineEdit, pushButton):
-        assert type(lineEdit) == QtWidgets.QLineEdit
+    def connect_to_browse_widgets(
+        self, lineEdit: QtWidgets.QLineEdit, pushButton: QtWidgets.QPushButton
+    ):
         self.connect_to_widget(lineEdit)
 
         lineEdit.setAcceptDrops(True)
         lineEdit.dragEnterEvent = self.on_drag_enter
         lineEdit.dropEvent = partial(self.on_drop, widget=lineEdit)
 
-        assert type(pushButton) == QtWidgets.QPushButton
         pushButton.clicked.connect(self.file_browser)
 
     def file_browser(self):
@@ -44,10 +45,7 @@ class FileLQ(LoggedQuantity):
         if not path.exists():
             path = Path.cwd()
 
-        if path.is_dir():
-            directory = str(path)
-        else:
-            directory = str(path.parent)
+        directory = str(path) if path.is_dir() else str(path.parent)
 
         if self.is_dir:
             fname = QtWidgets.QFileDialog.getExistingDirectory(directory=directory)
@@ -63,20 +61,22 @@ class FileLQ(LoggedQuantity):
             self.update_value(fname)
 
     def new_default_widget(self):
-        lineEdit = QtWidgets.QLineEdit()
-        browseButton = QtWidgets.QPushButton("...")
-        self.connect_to_browse_widgets(lineEdit, browseButton)
+        line_edit = QtWidgets.QLineEdit()
+        btn = QtWidgets.QPushButton("...")
+        btn.setMaximumWidth(30)
+        self.connect_to_browse_widgets(line_edit, btn)
         widget = QtWidgets.QWidget()
-        widget.setLayout(QtWidgets.QHBoxLayout())
-        widget.layout().addWidget(lineEdit)
-        widget.layout().addWidget(browseButton)
+        layout = QtWidgets.QHBoxLayout(widget)
+        layout.setSpacing(0)
+        layout.addWidget(line_edit)
+        layout.addWidget(btn)
         return widget
 
     def on_drag_enter(self, event: QtGui.QDragEnterEvent):
         if event.mimeData().hasUrls():
             fname = Path([u.toLocalFile() for u in event.mimeData().urls()][0])
-            suffixes = re.findall(r"\*\.(\w+)", ";;".join([*self.file_filters]))
-            if not self.file_filters or fname.suffix[1:] in suffixes:
+            valid_suffixes = re.findall(r"\*\.(\w+)", ";;".join([*self.file_filters]))
+            if not self.file_filters or fname.suffix[1:] in valid_suffixes:
                 event.accept()
                 return
 
