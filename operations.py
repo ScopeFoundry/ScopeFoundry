@@ -40,6 +40,7 @@ class Operations(OrderedDict):
 
     def new_button(self, name):
         op_button = QtWidgets.QPushButton(name)
+        op_button.setObjectName(name)
         op_button.clicked.connect(lambda checked, f=self[name]: f())
         tt = self.descriptions[name]
         if tt:
@@ -79,5 +80,4 @@ class OperationWidgetsManager:
                 continue
             op_button = self.operations.new_button(op_name)
             self.widgets[op_name] = op_button
-
             self.tools.add_to_layout(None, op_button)

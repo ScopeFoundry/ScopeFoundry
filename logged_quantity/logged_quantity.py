@@ -968,14 +968,14 @@ class LoggedQuantity(QtCore.QObject):
                 pushButton.blockSignals(False)
 
         self.updated_value[bool].connect(update_widget_value)
-
-        if colors is None:
-            colors = (None, None) if self.colors is None else self.colors
-
         pushButton.toggled[bool].connect(self.update_value)
-        s = f"""QPushButton:!checked{{ background:{colors[0]}; border: 1px solid grey; }}
-                QPushButton:checked{{ background:{colors[1]}; border: 1px solid grey; }}"""
-        pushButton.setStyleSheet(pushButton.styleSheet() + s + styleSheet_amendment)
+
+        if self.colors and not colors:
+            colors = self.colors
+        if colors:
+            s = f"""QPushButton:!checked{{ background:{colors[0]}; border: 1px solid grey; }}
+                    QPushButton:checked{{ background:{colors[1]}; border: 1px solid grey; }}"""
+            pushButton.setStyleSheet(pushButton.styleSheet() + s + styleSheet_amendment)
 
         if self.ro:
             pushButton.setEnabled(False)
@@ -1318,10 +1318,12 @@ class LoggedQuantity(QtCore.QObject):
         cmenu.exec_(QtGui.QCursor.pos())
 
 
-def to_q_color(color):
+def to_q_color(color, default_color="lightgrey"):
     try:
         qcolor = QtGui.QColor(color)
+    except TypeError:
+        qcolor = QtGui.QColor(default_color)
+    finally:
         if qcolor.isValid():
             return qcolor
-    except TypeError:
-        return QtGui.QColor("lightgrey")
+        return QtGui.QColor(default_color)
