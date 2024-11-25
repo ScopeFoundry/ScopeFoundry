@@ -1,0 +1,39 @@
+QProgressBar#measurement_progress {
+    border-radius: 5px;
+    text-align: center;
+    /* font: 14px; */
+    }
+QProgressBar::chunk#measurement_progress {
+    background-color: #63d762;
+    width: 1px;
+    }
+QGroupBox#app_settings { 
+    border: 2px dashed blue; 
+    border-radius: 2px; 
+    margin-top: 10px; 
+    } 
+QGroupBox::title#app_settings { 
+    subcontrol-origin: margin; 
+    subcontrol-position: top center; 
+    padding: 0 3px;
+    } 
+QPushButton#show_ui {
+    color: rgb(0, 168, 225);
+    }
+QPushButton#start_stop_button {
+    background: rgba(105, 240, 104, 220);
+    font: bold;
+    padding: 4px;
+    border-radius: 6px;
+    }
+QPushButton:hover:!pressed#start_stop_button{ 
+    border: 1px solid black; 
+    }
+QPushButton:!checked#start_stop_button {
+    border: 1px solid gray;
+    background: rgba(105, 240, 104, 200);
+    }
+QPushButton:checked#start_stop_button {
+    border: 1px solid gray;
+    background: rgba(248, 49, 47, 110);
+    }

@@ -32,7 +32,6 @@ from .show_io_report_dialog import show_io_report_dialog
 from ..helper_funcs import open_file
 
 THIS_PATH = Path(__file__).parent
-APP_WIDGET_STYLESHEET = """ QGroupBox { border: 2px dashed blue; border-radius: 2px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; } """
 
 
 class BaseMicroscopeApp(BaseApp):
@@ -141,6 +140,9 @@ class BaseMicroscopeApp(BaseApp):
         handler = StatusBarHandler(logging.INFO, self.show_status_bar_msg)
         self.log.addHandler(handler)
 
+        with open(self.this_path / "base_app" / "base_microscope_app.qss", "r") as file:
+            self.qtapp.setStyleSheet(file.read())
+
     def show_status_bar_msg(self, msg, timeout=2000):
         self.ui.statusbar.showMessage(msg, timeout)
 
@@ -174,11 +176,9 @@ class BaseMicroscopeApp(BaseApp):
             style="form",
             include=("save_dir", "sample"),
         )
-
         app_widget.setAcceptDrops(True)
         app_widget.dragEnterEvent = self.on_drag_on_app_widget
         app_widget.dropEvent = self.on_drop_on_app_widget
-
         app_widget.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Minimum,
             QtWidgets.QSizePolicy.Policy.Maximum,
@@ -192,7 +192,7 @@ class BaseMicroscopeApp(BaseApp):
         app_widget_btns_layout.addWidget(ipynb_btn)
         app_widget_btns_layout.addWidget(settings_btn)
         app_widget.layout().addLayout(app_widget_btns_layout)
-        app_widget.setObjectName("appSettings")
+        app_widget.setObjectName("app_settings")
         app_widget.setTitle("to inspect drop a .h5 or .ini, to load also press ctrl")
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
@@ -849,7 +849,7 @@ class BaseMicroscopeApp(BaseApp):
             app_widget.setAcceptDrops(True)
             app_widget.dragEnterEvent = self.on_drag_on_app_widget
             app_widget.dropEvent = self.on_drop_on_app_widget
-            app_widget.setStyleSheet(APP_WIDGET_STYLESHEET)
+            app_widget.setObjectName("app_settings")
 
             save_btn = QtWidgets.QPushButton("save ...")
             save_btn.clicked.connect(self.settings_save_dialog)
