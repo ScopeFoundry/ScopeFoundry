@@ -11,7 +11,7 @@ import logging
 import sys
 import traceback
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Dict
 from warnings import warn
 
 from qtpy import QtCore, QtWidgets, QtGui
@@ -46,11 +46,11 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
+SETTINGS_PATH_TYPE = Dict[str, LoggedQuantity]
 class WRITE_RES(enum.Enum):
     SUCCESS = enum.auto()
     MISSING = enum.auto()
     PROTECTED = enum.auto()
-THIS_PATH = Path(__file__).parent
 
 
 class BaseApp(QtCore.QObject):
@@ -59,6 +59,8 @@ class BaseApp(QtCore.QObject):
 
     def __init__(self, argv=[], **kwargs):
         super().__init__()
+
+        self.icons_path = Path(__file__).parent / "icons"
 
         self._setup_qtapp(argv)
 
@@ -71,7 +73,7 @@ class BaseApp(QtCore.QObject):
         # containers to be filled
         self._subtree_managers_ = []
         self._widgets_managers_ = []
-        self._setting_paths = {}
+        self._setting_paths: SETTINGS_PATH_TYPE = {}
         self.operations = Operations()
         self.settings = LQCollection(path="app")
         self.add_lq_collection_to_settings_path(self.settings)
@@ -156,7 +158,7 @@ class BaseApp(QtCore.QObject):
             print("failed to setup console widget " + str(err))
             self.console_widget = QtWidgets.QWidget()
         self.console_widget.setWindowIcon(
-            QtGui.QIcon(str(THIS_PATH / "console_logo.png"))
+            QtGui.QIcon(str(self.icons_path / "console_logo.png"))
         )
         return self.console_widget
 
@@ -171,6 +173,9 @@ class BaseApp(QtCore.QObject):
         logging.getLogger("PyQt5").setLevel(logging.WARN)
 
         self.logging_widget = LoggingWidget()
+        self.logging_widget.setWindowIcon(
+            QtGui.QIcon(str(self.icons_path / "log_logo.png"))
+        )
         handler = HtmlHandler(level=logging.DEBUG)
         handler.new_log_signal.connect(self.logging_widget.on_new_log)
         logging.getLogger().addHandler(handler)
