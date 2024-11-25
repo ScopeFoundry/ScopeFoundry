@@ -34,44 +34,42 @@ class SettingsIOTest(unittest.TestCase):
 
     def setUp(self):
         self.app = BaseMicroscopeApp([])
-        self.app.add_measurement(Measure1(self))
-        self.app.add_hardware(Hardware1(self))
+        self.ms = self.app.add_measurement(Measure1(self.app))
+        self.hw = self.app.add_hardware(Hardware1(self.app))
         self.root = Path(__file__).parent
 
+        self.mms = self.ms.settings
+        self.hws = self.hw.settings
+
     def test_initial_value_set(self):
-        self.assertEqual(self.app.measurements.measure1.settings["string"], "0")
-        self.assertEqual(self.app.measurements.measure1.settings["float"], 0.0)
-        self.assertEqual(self.app.measurements.measure1.settings["choices"], 0)
-        self.assertTrue(
-            np.all(
-                self.app.measurements.measure1.settings["array"]
-                == np.array([False, False, False])
-            )
-        )
-        self.assertEqual(self.app.hardware.hardware1.settings["string"], "0")
-        self.assertEqual(self.app.hardware.hardware1.settings["float"], 0.0)
-        self.assertEqual(self.app.hardware.hardware1.settings["choices"], 0)
+        self.assertEqual(self.mms["string"], "0")
+        self.assertEqual(self.mms["float"], 0.0)
+        self.assertEqual(self.mms["choices"], 0)
+        self.assertTrue(np.all(self.mms["array"] == np.array([False, False, False])))
+        self.assertEqual(self.hws["string"], "0")
+        self.assertEqual(self.hws["float"], 0.0)
+        self.assertEqual(self.hws["choices"], 0)
 
     def test_all_correct(self):
         self.app.settings_load_ini(
             self.root / "settings_io_test_correct.ini",
             show_report=False,
         )
-        self.assertEqual(self.app.measurements.measure1.settings["string"], "1")
-        self.assertEqual(self.app.measurements.measure1.settings["float"], 1.0)
-        self.assertEqual(self.app.measurements.measure1.settings["choices"], 1)
-        self.assertEqual(self.app.hardware.hardware1.settings["string"], "1")
-        self.assertEqual(self.app.hardware.hardware1.settings["float"], 1.0)
-        self.assertEqual(self.app.hardware.hardware1.settings["choices"], 1)
-        self.assertEqual(self.app.hardware.hardware1.settings["protected_int"], 0)
+        self.assertEqual(self.mms["string"], "1")
+        self.assertEqual(self.mms["float"], 1.0)
+        self.assertEqual(self.mms["choices"], 1)
+        self.assertEqual(self.hws["string"], "1")
+        self.assertEqual(self.hws["float"], 1.0)
+        self.assertEqual(self.hws["choices"], 1)
+        self.assertEqual(self.hws["protected_int"], 0)
 
     def test_first_section_wrong_and_continue(self):
         self.app.settings_load_ini(
             self.root / "settings_io_test_measure1_false.ini", show_report=False
         )
-        self.assertEqual(self.app.hardware.hardware1.settings["string"], "2")
-        self.assertEqual(self.app.hardware.hardware1.settings["float"], 2.0)
-        self.assertEqual(self.app.hardware.hardware1.settings["choices"], 2)
+        self.assertEqual(self.hws["string"], "2")
+        self.assertEqual(self.hws["float"], 2.0)
+        self.assertEqual(self.hws["choices"], 2)
 
     def test_reporting(self):
         self.app.settings_load_ini(
@@ -87,27 +85,26 @@ class SettingsIOTest(unittest.TestCase):
         )
 
     def test_first_section_wrong_and_continue(self):
-        self.app.settings_load_ini(
-            self.root / "settings_io_test_measure1_false_2.ini", show_report=False
-        )
+        fname = self.root / "settings_io_test_measure1_false_2.ini"
+        self.app.settings_load_ini(fname, show_report=False)
         self.assertTrue("meeeeeeasurement/measure1/straaaaang" in self.app._report)
         self.assertTrue(
             self.app._report["meeeeeeasurement/measure1/straaaaang"]
             is WRITE_RES.MISSING
         )
 
-        self.assertEqual(self.app.hardware.hardware1.settings["string"], "2")
-        self.assertEqual(self.app.hardware.hardware1.settings["float"], 2.0)
-        self.assertEqual(self.app.hardware.hardware1.settings["choices"], 2)
+        self.assertEqual(self.hws["string"], "2")
+        self.assertEqual(self.hws["float"], 2.0)
+        self.assertEqual(self.hws["choices"], 2)
 
     def test_first_setting_misspelled_and_continue(self):
         self.app.settings_load_ini(
             self.root / "settings_io_test_measure1_string_false.ini",
             show_report=False,
         )
-        # self.assertEqual(self.app.hardware.hardware1.settings["string"], "2")
-        self.assertEqual(self.app.hardware.hardware1.settings["float"], 2.0)
-        self.assertEqual(self.app.hardware.hardware1.settings["choices"], 2)
+        # self.assertEqual(self.hw1["string"], "2")
+        self.assertEqual(self.hws["float"], 2.0)
+        self.assertEqual(self.hws["choices"], 2)
 
     def test_roundtrip(self):
 
@@ -115,40 +112,28 @@ class SettingsIOTest(unittest.TestCase):
         self.app.settings_save_ini(self.root / "settings_io_test_roundtrip.ini")
 
         # change them up
-        self.app.measurements.measure1.settings["string"] = "1"
-        self.app.measurements.measure1.settings["float"] = 1.0
-        self.app.measurements.measure1.settings["choices"] = 1
-        self.app.measurements.measure1.settings["array"] = np.array(
-            [False, False, True]
-        )
-        self.app.hardware.hardware1.settings["string"] = "1"
-        self.app.hardware.hardware1.settings["float"] = 1.0
-        self.app.hardware.hardware1.settings["choices"] = 1
+        self.mms["string"] = "1"
+        self.mms["float"] = 1.0
+        self.mms["choices"] = 1
+        self.mms["array"] = np.array([False, False, True])
+        self.hws["string"] = "1"
+        self.hws["float"] = 1.0
+        self.hws["choices"] = 1
 
         # make sure they are changed
-        self.assertFalse(
-            np.all(
-                self.app.measurements.measure1.settings["array"]
-                == np.array([False, False, False])
-            )
-        )
+        self.assertFalse(np.all(self.mms["array"] == np.array([False, False, False])))
 
         # load values
         self.app.settings_load_ini(
             self.root / "settings_io_test_roundtrip.ini", show_report=False
         )
-        self.assertEqual(self.app.measurements.measure1.settings["string"], "0")
-        self.assertEqual(self.app.measurements.measure1.settings["float"], 0.0)
-        self.assertEqual(self.app.measurements.measure1.settings["choices"], 0)
-        self.assertTrue(
-            np.all(
-                self.app.measurements.measure1.settings["array"]
-                == np.array([False, False, False])
-            )
-        )
-        self.assertEqual(self.app.hardware.hardware1.settings["string"], "0")
-        self.assertEqual(self.app.hardware.hardware1.settings["float"], 0.0)
-        self.assertEqual(self.app.hardware.hardware1.settings["choices"], 0)
+        self.assertEqual(self.mms["string"], "0")
+        self.assertEqual(self.mms["float"], 0.0)
+        self.assertEqual(self.mms["choices"], 0)
+        self.assertTrue(np.all(self.mms["array"] == np.array([False, False, False])))
+        self.assertEqual(self.hws["string"], "0")
+        self.assertEqual(self.hws["float"], 0.0)
+        self.assertEqual(self.hws["choices"], 0)
 
 
 if __name__ == "__main__":
