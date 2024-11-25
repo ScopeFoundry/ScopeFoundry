@@ -64,7 +64,7 @@ class DataBrowser(BaseApp):
         # Does this even work?
         parser = argparse.ArgumentParser()
         for lq in self.settings.as_list():
-            parser.add_argument("--" + lq.name)
+            parser.add_argument(f"--{lq.name}")
         args = parser.parse_args()
         for lq in self.settings.as_list():
             if lq.name in args:
@@ -143,16 +143,16 @@ class DataBrowser(BaseApp):
             func()
 
     def add_view(self, new_view):
-        self.log.debug("add_view called {}".format(new_view))
+        self.log.debug(f"add_view called {new_view}")
 
         # Update views dict
         self.views[new_view.name] = new_view
 
         self.add_lq_collection_to_settings_path(new_view.settings)
 
-        self.settings.view_name.change_choice_list(list(self.views.keys()))
+        self.settings.get_lq("view_name").change_choice_list(list(self.views.keys()))
 
-        self.log.debug("add_view done {}".format(new_view))
+        self.log.debug(f"add_view done {new_view}")
 
         return new_view
 

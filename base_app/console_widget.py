@@ -19,9 +19,7 @@ try:
     CONSOLE_TYPE = "qtconsole"
 except Exception as err:
     logging.warning(
-        "ScopeFoundry unable to import iPython console, using pyqtgraph.console instead. Error: {}".format(
-            err
-        )
+        f"ScopeFoundry unable to import iPython console, using pyqtgraph.console instead. Error: {err}"
     )
     import pyqtgraph.console
 

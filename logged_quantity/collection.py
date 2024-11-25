@@ -312,9 +312,9 @@ class LQCollection:
 
         if len(components) == 3:
 
-            lq_x = self.New(name + "_" + components[0], initial=initial[0], **kwargs)
-            lq_y = self.New(name + "_" + components[1], initial=initial[1], **kwargs)
-            lq_z = self.New(name + "_" + components[2], initial=initial[2], **kwargs)
+            lq_x = self.New(f"{name}_{components[0]}", initial=initial[0], **kwargs)
+            lq_y = self.New(f"{name}_{components[1]}", initial=initial[1], **kwargs)
+            lq_z = self.New(f"{name}_{components[2]}", initial=initial[2], **kwargs)
 
             lq_vector = LQ3Vector(lq_x, lq_y, lq_z)
             self.vectors[name] = lq_vector

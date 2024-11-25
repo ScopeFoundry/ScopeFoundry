@@ -162,25 +162,16 @@ class LoggedQuantity(QtCore.QObject):
     def _expand_choices(self, choices):
         if choices is None:
             return None
-        expanded_choices = []
-        for c in choices:
-            if isinstance(c, tuple):
-                name, val = c
-                expanded_choices.append((str(name), self.dtype(val)))
-            else:
-                expanded_choices.append((str(c), self.dtype(c)))
-        return expanded_choices
+        return [_expand_choice(c, self.dtype) for c in choices]
 
     def __str__(self):
-        return "{} = {}".format(self.name, self.val)
+        return f"{self.name} = {self.val}"
 
     def __repr__(self):
-        return "LQ: {} = {}".format(self.name, self.val)
+        return f"LQ: {self.name} = {self.val}"
 
     def read_from_hardware(self, send_signal=True):
-        self.log.debug(
-            "{}: read_from_hardware send_signal={}".format(self.name, send_signal)
-        )
+        self.log.debug(f"{self.name}: read_from_hardware send_signal={send_signal}")
         if self.hardware_read_func is not None:
             with self.lock:
                 self.oldval = self.val
@@ -290,7 +281,7 @@ class LoggedQuantity(QtCore.QObject):
         :returns: None
 
         """
-        # self.log.debug("{}:send_display_updates: force={}. From {} to {}".format(self.name, force, self.oldval, self.val))
+        # self.log.debug("{self.name}:send_display_updates: {force=}. From {self.oldval} to {self.val}")
         if (not self.same_values(self.oldval, self.val)) or (force):
             self.updated_value[()].emit()
 
@@ -429,7 +420,7 @@ class LoggedQuantity(QtCore.QObject):
             if self.vmax is not None:
                 widget.setMaximum(self.vmax)
             if self.unit is not None:
-                widget.setSuffix(" " + self.unit)
+                widget.setSuffix(f" {self.unit}")
             widget.setDecimals(self.spinbox_decimals)
             widget.setSingleStep(self.spinbox_step)
             widget.setValue(self.val)
@@ -560,7 +551,7 @@ class LoggedQuantity(QtCore.QObject):
                 widget.setReadOnly(True)  # FIXME
 
             def on_edit_finished():
-                self.log.debug(self.name + " qLineEdit on_edit_finished")
+                self.log.debug(f"{self.path} qLineEdit on_edit_finished")
                 try:
                     widget.blockSignals(True)
                     self.update_value(widget.text())
@@ -684,7 +675,7 @@ class LoggedQuantity(QtCore.QObject):
         elif type(widget) == QtWidgets.QProgressBar:
 
             def set_progressbar(x, widget=widget):
-                self.log.debug("set_progressbar {}".format(x))
+                self.log.debug(f"set_progressbar {x}")
                 widget.setValue(int(x))
 
             self.updated_value.connect(set_progressbar)
@@ -715,7 +706,7 @@ class LoggedQuantity(QtCore.QObject):
             if self.vmax is not None:
                 widget.setMaximum(self.vmax)
             if self.unit is not None:
-                widget.setSuffix(" " + self.unit)
+                widget.setSuffix(f" {self.unit}")
             widget.setDecimals(self.spinbox_decimals)
             widget.setSingleStep(self.spinbox_step)
             widget.setValue(self.val)
@@ -929,7 +920,7 @@ class LoggedQuantity(QtCore.QObject):
         elif type(widget) == QtWidgets.QProgressBar:
 
             def set_progressbar(x, widget=widget):
-                self.log.debug("set_progressbar {}".format(x))
+                self.log.debug(f"set_progressbar {x}")
                 widget.setValue(int(x))
 
             self.updated_value.connect(set_progressbar)
@@ -1094,7 +1085,7 @@ class LoggedQuantity(QtCore.QObject):
             for widget in self.widget_list:
                 if type(widget) == QtWidgets.QDoubleSpinBox:
                     if self.unit is not None:
-                        widget.setSuffix(" " + self.unit)
+                        widget.setSuffix(f" {self.unit}")
 
                 elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
                     # widget.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -1297,8 +1288,7 @@ class LoggedQuantity(QtCore.QObject):
         cmenu.addSeparator()
 
         # prev. values
-        a = cmenu.addAction("prev. values")
-        a.setEnabled(False)
+        cmenu.addAction("prev. values").setEnabled(False)
         for val in self.prev_vals:
             if self.ro:
                 cmenu.addAction(f"{val}")
@@ -1308,8 +1298,7 @@ class LoggedQuantity(QtCore.QObject):
         # proposed values
         for proposed_name, val in self.proposed_values:
             cmenu.addSeparator()
-            a = cmenu.addAction(proposed_name)
-            a.setEnabled(False)
+            cmenu.addAction(proposed_name).setEnabled(False)
             if self.ro:
                 cmenu.addAction(f"{val}")
             else:
@@ -1318,12 +1307,19 @@ class LoggedQuantity(QtCore.QObject):
         cmenu.exec_(QtGui.QCursor.pos())
 
 
-def to_q_color(color, default_color="lightgrey"):
+def to_q_color(color, default="lightgrey"):
     try:
         qcolor = QtGui.QColor(color)
     except TypeError:
-        qcolor = QtGui.QColor(default_color)
+        qcolor = QtGui.QColor(default)
     finally:
         if qcolor.isValid():
             return qcolor
-        return QtGui.QColor(default_color)
+        return QtGui.QColor(default)
+
+
+def _expand_choice(c, dtype):
+    if isinstance(c, tuple):
+        name, val = c
+        return (str(name), dtype(val))
+    return (str(c), dtype(c))

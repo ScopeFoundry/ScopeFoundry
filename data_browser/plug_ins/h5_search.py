@@ -110,7 +110,7 @@ def _tree_visitfunc(name, node, texts):
     localname = name.split("/")[-1]
 
     if isinstance(node, h5py.Group):
-        t = f"|> <b>{localname}/</b>".format(localname)
+        t = f"|> <b>{localname}/</b>"
     elif isinstance(node, h5py.Dataset):
         t = f"|D <b>{localname}</b>: {node.shape} {node.dtype}"
     texts.append(indent + t)

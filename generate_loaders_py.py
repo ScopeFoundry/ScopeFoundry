@@ -54,6 +54,7 @@ def _settings_visitfunc(name, node, settings):
         lq_path = f"{name.replace('settings', key)}"
         settings[lq_path] = val
 
+        
 def get_mm_name(fname):
     with h5py.File(fname) as file:
         if len(file["measurement"].keys()) == 1:
@@ -78,7 +79,7 @@ def generate_loaders(dsets):
         data_class_lines = [
             "@dataclass",
             f"class {class_name}:",
-            f"{' ':>4}settings:dict",
+            f"{' ':>4}settings: dict",
         ]
         load_func_lines = [
             f"def load_{mm_name}(fname:str) -> {class_name}:",

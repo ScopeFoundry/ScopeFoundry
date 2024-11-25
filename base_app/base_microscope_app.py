@@ -2,8 +2,8 @@ import datetime
 import inspect
 import json
 import logging
-import os
 import time
+from typing import Any, Dict, Protocol
 import warnings
 from collections import OrderedDict
 from functools import partial
@@ -13,6 +13,7 @@ from pathlib import Path
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry import h5_io, ini_io
+
 from ScopeFoundry.dynamical_widgets import new_tree_widget, new_widget
 from ScopeFoundry.h5_analyze_with_ipynb import generate_ipynb, generate_loaders_py
 from ScopeFoundry.helper_funcs import (
@@ -22,16 +23,40 @@ from ScopeFoundry.helper_funcs import (
     ignore_on_close,
     load_qt_ui_file,
     sibling_path,
+    open_file,
 )
-from ScopeFoundry.logged_quantity import LoggedQuantity
+from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 
 from .base_app import BaseApp
 from .logging_handlers import StatusBarHandler, new_log_file_handler
 from .show_io_report_dialog import show_io_report_dialog
 
-from ..helper_funcs import open_file
+# useful for developing - may cause problems:
+# from .base_microscope_app_mdi import Ui_MainWindow
+
 
 THIS_PATH = Path(__file__).parent
+
+
+class MeasurementProtocol(Protocol):
+    name: str
+    settings: LQCollection
+    ui: QtWidgets.QWidget
+    subwin: QtWidgets.QMdiSubWindow
+    activation: LoggedQuantity
+
+    def setup_figure(): ...
+    def setup(): ...
+    def show_ui(): ...
+
+
+class HardwareProtocol(Protocol):
+    name: str
+    settings: LQCollection
+    connected: LoggedQuantity
+
+    def connect(): ...
+    def disconnect(): ...
 
 
 class BaseMicroscopeApp(BaseApp):
@@ -50,8 +75,8 @@ class BaseMicroscopeApp(BaseApp):
         self._setup_settings_operations(**kwargs)
 
         # objects to overwrite and populate with setup function.
-        self.hardware = OrderedAttrDict()
-        self.measurements = OrderedAttrDict()
+        self.hardware: Dict[str, HardwareProtocol] = OrderedAttrDict()
+        self.measurements: Dict[str, MeasurementProtocol] = OrderedAttrDict()
         self.logo_path = str(self.icons_path / "scopefoundry_logo2B_1024.png")
         self.quickbar = None  # also with self.add_quickbar
         self.setup()
@@ -71,7 +96,7 @@ class BaseMicroscopeApp(BaseApp):
         pass
 
     def setup_ui(self):
-        """Optional Override to set up ui elements after default ui is built"""
+        """Optional override to set up ui elements after default ui is built"""
         pass
 
     def _setup_settings_operations(self, **kwargs):
@@ -119,6 +144,7 @@ class BaseMicroscopeApp(BaseApp):
             self.ui_filename = sibling_path(__file__, "base_microscope_app_mdi.ui")
 
         self.ui = load_qt_ui_file(self.ui_filename)
+        # self.ui: Ui_MainWindow = self.ui # useful for developing - may cause problems
         self.ui.mdiArea.setVisible(self.mdi)
         self.ui.quickaccess_scrollArea.setVisible(self.mdi)
 
@@ -325,7 +351,7 @@ class BaseMicroscopeApp(BaseApp):
         self.set_subwindow_mode()
         self.ui.mdiArea.cascadeSubWindows()
 
-    def bring_measure_ui_to_front(self, measure):
+    def bring_measure_ui_to_front(self, measure: MeasurementProtocol):
         ui = self._loaded_measure_uis.get(measure.name, None)
         if ui is None:
             # measure also has no subwin
@@ -335,7 +361,7 @@ class BaseMicroscopeApp(BaseApp):
         else:
             ui.show()
 
-    def load_measure_ui(self, measure):
+    def load_measure_ui(self, measure: MeasurementProtocol):
         if measure.name in self._loaded_measure_uis:
             return self._loaded_measure_uis[measure.name]
 
@@ -349,7 +375,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.menuWindow.addAction(measure.name, measure.show_ui)
         return measure.ui
 
-    def bring_mdi_subwin_to_front(self, subwin):
+    def bring_mdi_subwin_to_front(self, subwin: QtWidgets.QMdiSubWindow):
         view_mode = self.ui.mdiArea.viewMode()
         if view_mode == QtWidgets.QMdiArea.ViewMode.SubWindowView:
             subwin.showNormal()
@@ -358,7 +384,7 @@ class BaseMicroscopeApp(BaseApp):
             subwin.showMaximized()
             subwin.raise_()
 
-    def add_mdi_subwin(self, widget: QtWidgets.QWidget, name):
+    def add_mdi_subwin(self, widget: QtWidgets.QWidget, name: str):
         mdiArea: QtWidgets.QMdiArea = self.ui.mdiArea
         subwin = mdiArea.addSubWindow(
             widget,
@@ -376,7 +402,7 @@ class BaseMicroscopeApp(BaseApp):
 
         return subwin
 
-    def add_quickbar(self, widget):
+    def add_quickbar(self, widget: QtWidgets.QWidget):
         self.ui.quickaccess_scrollArea.setVisible(True)
         self.ui.quickaccess_layout.addWidget(widget)
         self.quickbar = widget
@@ -386,14 +412,14 @@ class BaseMicroscopeApp(BaseApp):
         self.log.info("on_close")
         # disconnect all hardware objects
         for hw in self.hardware.values():
-            self.log.info("disconnecting {}".format(hw.name))
+            self.log.info(f"disconnecting {hw.name}")
             try:
                 hw.settings["connected"] = False
                 hw.settings.disconnect_all_from_hardware()
             except Exception as err:
-                self.log.error("tried to disconnect {}: {}".format(hw.name, err))
+                self.log.error(f"tried to disconnect {hw.name}: {err}")
 
-    def on_analyze_with_ipynb(self, folder=None):
+    def on_analyze_with_ipynb(self, folder: str = None):
         if folder is None:
             folder = self.settings["save_dir"]
         loaders_fname, dset_names = generate_loaders_py(folder)
@@ -407,7 +433,7 @@ class BaseMicroscopeApp(BaseApp):
             open_file(ipynb_path)
         return ipynb_path
 
-    def add_hardware(self, hw):
+    def add_hardware(self, hw: HardwareProtocol):
         """Loads a HardwareComponent object into the app.
 
         If *hw* is a class, rather an instance, create an instance
@@ -425,11 +451,11 @@ class BaseMicroscopeApp(BaseApp):
 
         return hw
 
-    def add_hardware_component(self, hw):
+    def add_hardware_component(self, hw: HardwareProtocol):
         # DEPRECATED use add_hardware()
         return self.add_hardware(hw)
 
-    def add_measurement(self, measure):
+    def add_measurement(self, measure: MeasurementProtocol):
         """Loads a Measurement object into the app.
 
         If *measure* is a class, rather an instance, create an instance
@@ -448,11 +474,11 @@ class BaseMicroscopeApp(BaseApp):
 
         return measure
 
-    def add_measurement_component(self, measure):
+    def add_measurement_component(self, measure: MeasurementProtocol):
         # DEPRECATED, use add_measurement()
         return self.add_measurement(measure)
 
-    def settings_save_h5(self, fname):
+    def settings_save_h5(self, fname: str):
         """
         Saves h5 file to a file.
 
@@ -692,8 +718,8 @@ class BaseMicroscopeApp(BaseApp):
         )
         return self.settings.as_dict()
 
-    def set_window_positions(self, positions):
-        def restore_win_state(subwin, win_state):
+    def set_window_positions(self, positions: Dict[str, Any]):
+        def restore_win_state(subwin: QtWidgets.QMdiSubWindow, win_state):
             subwin.showNormal()
             if win_state["maximized"]:
                 subwin.showMaximized()
@@ -721,7 +747,7 @@ class BaseMicroscopeApp(BaseApp):
         def qrect_to_tuple(qr):
             return (qr.x(), qr.y(), qr.width(), qr.height())
 
-        def win_state_from_subwin(subwin):
+        def win_state_from_subwin(subwin: QtWidgets.QMdiSubWindow):
             window_state = dict(
                 geometry=qrect_to_tuple(subwin.geometry()),
                 maximized=subwin.isMaximized(),
@@ -738,7 +764,7 @@ class BaseMicroscopeApp(BaseApp):
 
         for name, M in self.measurements.items():
             if hasattr(M, "ui"):
-                positions["measurement/" + name] = win_state_from_subwin(M.subwin)
+                positions[f"measurement/{name}"] = win_state_from_subwin(M.subwin)
 
         return positions
 

@@ -238,7 +238,7 @@ def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = No
         if dim_names is not None:
             dim_name = dim_names[ii]
         else:
-            dim_name = "dim" + str(ii+1)
+            dim_name = f"dim{ii+1}"
         if dim_units is not None:
             dim_unit = dim_units[ii]
         else:
@@ -249,7 +249,7 @@ def h5_create_emd_dataset(name, h5parent, shape=None, data = None, maxshape = No
             dim_maxshape = None
 
         # create dimension array dataset
-        dim_dset = emd_grp.create_dataset("dim" + str(ii+1), shape=(shape[ii],), 
+        dim_dset = emd_grp.create_dataset(f"dim{ii+1}", shape=(shape[ii],), 
                                            dtype=dim_dtype, data=dim_array, 
                                            maxshape=dim_maxshape)
         dim_dset.attrs['name'] = dim_name
