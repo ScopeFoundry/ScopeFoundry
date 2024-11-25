@@ -98,11 +98,9 @@ class ArrayLQ(LoggedQuantity):
 
     def send_display_updates(self, force=False):
         with self.lock:
-            self.log.debug(self.name + " send_display_updates")
-            # print "send_display_updates: {} force={}".format(self.name, force)
+            self.log.debug(f"{self.name} send_display_updates")
             if force or np.any(self.oldval != self.val):
 
-                # print "send display updates", self.name, self.val, self.oldval
                 str_val = self.string_value()
                 self.updated_value[str].emit(str_val)
                 self.updated_text_value.emit(str_val)
@@ -116,12 +114,8 @@ class ArrayLQ(LoggedQuantity):
                 self.oldval = self.val
             else:
                 self.log.debug(
-                    self.name
-                    + " send_display_updates skipped (olval!=self.val)={} force={} oldval={} val={}".format(
-                        (self.oldval != self.val), (force), self.oldval, self.val
-                    )
+                    f"{self.name} send_display_updates skipped (olval!=self.val)={self.oldval != self.val} force={force} oldval={self.oldval} val={self.val}"
                 )
-                # print "\t no updates sent", (self.oldval != self.val) , (force), self.oldval, self.val
 
     @property
     def array_tableView(self):

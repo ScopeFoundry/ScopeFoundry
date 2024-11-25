@@ -18,7 +18,7 @@ class Function(BaseItem):
     item_type = ITEM_TYPE
 
     def visit(self) -> None:
-        s = "self.app." + self.kwargs["function"] + "(" + self.kwargs["args"] + ")"
+        s = f"self.app.{self.kwargs['function']}({self.kwargs['args']})"
         print(eval(s))
 
 

@@ -55,7 +55,7 @@ def open_file(filepath):
     except Exception as e:
         print(f"Error opening file {filepath}: {e}")
 
-        
+
 def sibling_path(a, b):
     """
     Returns the path of a filename *b* in the same folder as *a*
@@ -286,7 +286,7 @@ def get_logger_from_class(obj):
     """returns a named Logger from the logging package using the
     full name of the class of the object (obj) as the log name
     """
-    # return logging.getLogger(obj.__module__ + "." + obj.__class__.__name__)
+    # return logging.getLogger(f"{obj.__module__}.{obj.__class__.__name__})
     return logging.getLogger(obj.__class__.__name__)
 
 

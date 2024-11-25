@@ -207,9 +207,7 @@ class Measurement:
             self.log.warning("warning _run is deprecated, use run")
             self._run()
         else:
-            raise NotImplementedError(
-                "Measurement {}.run() not defined".format(self.name)
-            )
+            raise NotImplementedError(f"Measurement {self.name}.run() not defined")
 
     def _call_post_run(self):
         """
@@ -305,12 +303,10 @@ class Measurement:
         To actually stop, the threaded :meth:`run` method must check
         for this flag and exit
         """
-        self.log.info(
-            "measurement {} stopping {}".format(self.name, self.settings["run_state"])
-        )
-        # print("{} interrupt(): run_state={}".format(self.name, self.settings['run_state']))
+        self.log.info(f"measurement {self.name} stopping {self.settings['run_state']}")
+        # print("{self.name} interrupt(): run_state={ self.settings['run_state']}")
         if self.settings["run_state"].startswith("run"):
-            self.log.info("measurement {} interrupt called".format(self.name))
+            self.log.info(f"measurement {self.name} interrupt called")
             self.interrupt_measurement_called = True
         # self.activation.update_value(False)
         # Make sure display is up to date
@@ -332,7 +328,7 @@ class Measurement:
         Use boolean *start* to either start (True) or
         interrupt (False) measurement. Test.
         """
-        self.log.info("{} start_stop {}".format(self.name, start))
+        self.log.info(f"{self.name} start_stop {start}")
         if start:
             self._start()
         else:
@@ -379,7 +375,11 @@ class Measurement:
         return lq
 
     def start_nested_measure_and_wait(
-        self, measure, nested_interrupt=True, polling_func=None, polling_time=0.1
+        self,
+        measure,
+        nested_interrupt: bool = True,
+        polling_func: Callable = None,
+        polling_time: float = 0.1,
     ):
         """
         Start another nested measurement *measure* and wait until completion.
@@ -396,11 +396,10 @@ class Measurement:
         """
 
         self.log.info(
-            "Starting nested measurement {} from {} on thread id {}".format(
-                measure.name, self.name, threading.get_ident()
-            )
+            f"Starting nested measurement {measure.name} from {self.name} on thread id {threading.get_ident()}"
         )
 
+        measure.interrupt_measurement_called = False
         measure.start()
 
         # Wait until measurement has started, timeout of 1 second
@@ -409,10 +408,7 @@ class Measurement:
             time.sleep(0.010)
             if time.time() - t0 > 1.0:
                 print(
-                    self.name,
-                    ": nested measurement",
-                    measure.name,
-                    "has not started before timeout",
+                    f"{self.name}: nested measurement {measure.name} has not started before timeout"
                 )
                 return measure.settings["run_state"] == "stop_success"
 
@@ -437,19 +433,19 @@ class Measurement:
             time.sleep(0.010)
 
             # polling
-            if measure.settings["run_state"] == "run_thread_run":
-                if polling_func:
-                    t = time.time()
-                    if t - last_polling > polling_time:
-                        try:
-                            polling_func()
-                        except Exception as err:
-                            self.log.error(
-                                "start_nested_measure_and_wait polling failed {}".format(
-                                    err
-                                )
-                            )
-                        last_polling = t
+            t = time.time()
+            if (
+                measure.settings["run_state"] == "run_thread_run"
+                and polling_func
+                and t - last_polling > polling_time
+            ):
+                try:
+                    polling_func()
+                except Exception as err:
+                    self.log.error(
+                        f"start_nested_measure_and_wait polling failed {err}"
+                    )
+                last_polling = t
 
         # returns True if successful run, otherwise,
         # returns false for a run failure or interrupted measurement
@@ -515,7 +511,7 @@ class Measurement:
         self.operations.remove(name)
 
     def web_ui(self):
-        return "Hardware {}".format(self.name)
+        return f"Hardware {self.name}"
 
     def reload_code(self):
         import inspect
@@ -555,8 +551,7 @@ class Measurement:
 
     def on_right_click(self):
         cmenu = QtWidgets.QMenu()
-        a = cmenu.addAction(self.name)
-        a.setEnabled(False)
+        cmenu.addAction(self.name).setEnabled(False)
         cmenu.addSeparator()
         cmenu.addAction("Start", self.start)
         cmenu.addAction("Interrupt", self.interrupt)
@@ -585,14 +580,8 @@ class MeasurementQObject(QtCore.QObject):
         try:
             self.m.update_display()
         except Exception as err:
-            exc_type, exc_value, exc_tb = sys.exc_info()
-            self.m.log.error(
-                "{} Failed to update display: {}. {}".format(
-                    self.m.name,
-                    err,
-                    "\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)),
-                )
-            )
+            tb = "\n".join(traceback.format_exception(*sys.exc_info()))
+            self.m.log.error(f"{self.m.name} failed to update display: {err}. {tb}")
         finally:
             if not self.m.is_measuring():
                 self.display_update_timer.stop()

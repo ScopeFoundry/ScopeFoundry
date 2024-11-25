@@ -338,14 +338,13 @@ class RegionSlicer(QtWidgets.QWidget):
 
     def New_UI(self, include=None, exclude=[]):
         ui_widget = self.settings.New_UI(include, exclude)
-        ui_widget.layout().insertRow(0, QtWidgets.QLabel("<b>{}</b>".format(self.name)))
+        ui_widget.layout().insertRow(0, QtWidgets.QLabel(f"<b>{self.name}</b>"))
         return ui_widget
 
     def set_label(self, text="", title=None, color=(200, 200, 200)):
         if title == None:
             title = self.name
-        label = "<h3>{}</h3>{}".format(title, text)
-        self.inf_line_label.setHtml(label)
+        self.inf_line_label.setHtml(f"<h3>{title}</h3>{text}")
         self.inf_line_label.setColor(color)
 
     def get_sliced_xar(self, ar=None):

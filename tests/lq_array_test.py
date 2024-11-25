@@ -71,7 +71,7 @@ class LQArrayTestApp(BaseApp):
         vlayout.addWidget(self.tableView5)
 
         for dtype in [str, bool, int]:
-            lq_name = 'test_array_{}'.format(dtype.__name__)
+            lq_name = f"test_array_{dtype.__name__}"
             lq = self.settings.New(
                 lq_name, dtype=dtype, is_array=True, ro=False, initial=[0, 1, "20", 0]
             )

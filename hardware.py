@@ -149,7 +149,7 @@ class HardwareComponent:
         return self.app
 
     def web_ui(self):
-        return "Hardware {}".format(self.name)
+        return f"Hardware {self.name}"
 
     def thread_lock_lq(self, lq):
         lq.old_lock = lq.lock

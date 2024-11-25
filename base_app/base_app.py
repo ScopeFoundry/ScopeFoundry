@@ -33,8 +33,8 @@ from ScopeFoundry.operations import Operations
 # new version to send to logger
 def log_unhandled_exception(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
-    logging.critical("Unhandled exception:" + text)
-    # print("Unhandled exception:" + text)
+    logging.critical(f"Unhandled exception: {text}")
+    # print(f"Unhandled exception: {text}")
 
 
 sys.excepthook = log_unhandled_exception
@@ -155,7 +155,7 @@ class BaseApp(QtCore.QObject):
         try:
             self.console_widget = new_console_widget(self, kernel)
         except Exception as err:
-            print("failed to setup console widget " + str(err))
+            print(f"failed to setup console widget {err}")
             self.console_widget = QtWidgets.QWidget()
         self.console_widget.setWindowIcon(
             QtGui.QIcon(str(self.icons_path / "console_logo.png"))
