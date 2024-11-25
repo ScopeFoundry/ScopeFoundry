@@ -1,8 +1,4 @@
-from pathlib import Path
-
 from qtpy import QtCore, QtGui, QtWidgets
-
-THIS_PATH = Path(__file__).parent
 
 
 class LoggingWidget(QtWidgets.QWidget):
@@ -17,7 +13,6 @@ class LoggingWidget(QtWidgets.QWidget):
         self.messages = []
 
         self.setWindowTitle("Log")
-        self.setWindowIcon(QtGui.QIcon(str(THIS_PATH / "log_logo.png")))
         self.setLayout(QtWidgets.QVBoxLayout())
         self.search_lineEdit = QtWidgets.QLineEdit()
         self.text_edit = QtWidgets.QTextEdit("")

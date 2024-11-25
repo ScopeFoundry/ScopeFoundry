@@ -105,7 +105,11 @@ class Measurement:
         # self.add_operation("setup", self.setup)
         # self.add_operation("setup_figure", self.setup_figure)
         self.add_operation("update_display", self.update_display)
-        self.add_operation("show_ui", self.show_ui)
+        self.add_operation(
+            name="show_ui",
+            op_func=self.show_ui,
+            icon_path=self.app.icons_path / "show_ui_logo.png",
+        )
         self.add_operation("Reload_Code", self.reload_code)
 
         if hasattr(self, "ui_filename"):

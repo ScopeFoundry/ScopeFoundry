@@ -34,6 +34,7 @@ from ..helper_funcs import open_file
 THIS_PATH = Path(__file__).parent
 APP_WIDGET_STYLESHEET = """ QGroupBox { border: 2px dashed blue; border-radius: 2px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; } """
 
+
 class BaseMicroscopeApp(BaseApp):
     name = "ScopeFoundry"
     """The name of the microscope app, default is ScopeFoundry."""
@@ -43,8 +44,8 @@ class BaseMicroscopeApp(BaseApp):
     def __init__(self, argv=[], **kwargs):
         super().__init__(argv, **kwargs)
 
-        self.settings_icon = str(THIS_PATH / "settings.png")
-        self.jupyter_logo_path = str(THIS_PATH / "Jupyter_logo.png")
+        self.settings_icon_path = self.icons_path / "settings_logo.png"
+        self.jupyter_logo_path = self.icons_path / "jupyter_logo.png"
 
         self._setup_log_file_handler()
         self._setup_settings_operations(**kwargs)
@@ -52,7 +53,7 @@ class BaseMicroscopeApp(BaseApp):
         # objects to overwrite and populate with setup function.
         self.hardware = OrderedAttrDict()
         self.measurements = OrderedAttrDict()
-        self.logo_path = str(THIS_PATH / "scopefoundry_logo2B_1024.png")
+        self.logo_path = str(self.icons_path / "scopefoundry_logo2B_1024.png")
         self.quickbar = None  # also with self.add_quickbar
         self.setup()
 
@@ -186,13 +187,12 @@ class BaseMicroscopeApp(BaseApp):
         ipynb_btn.setText(" analyze")
         settings_btn = QtWidgets.QPushButton(" settings")
         settings_btn.clicked.connect(self.show_app_settings)
-        settings_btn.setIcon(QtGui.QIcon(self.settings_icon))
+        settings_btn.setIcon(QtGui.QIcon(str(self.settings_icon_path)))
         app_widget_btns_layout = QtWidgets.QHBoxLayout()
         app_widget_btns_layout.addWidget(ipynb_btn)
         app_widget_btns_layout.addWidget(settings_btn)
         app_widget.layout().addLayout(app_widget_btns_layout)
-        # trying to indicate that one can drop file on this app
-        app_widget.setStyleSheet(APP_WIDGET_STYLESHEET)
+        app_widget.setObjectName("appSettings")
         app_widget.setTitle("to inspect drop a .h5 or .ini, to load also press ctrl")
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
@@ -243,11 +243,13 @@ class BaseMicroscopeApp(BaseApp):
         )
 
         self.ui.action_show_settings.triggered.connect(self.show_app_settings)
-        self.ui.action_show_settings.setIcon(QtGui.QIcon(self.settings_icon))
+        self.ui.action_show_settings.setIcon(QtGui.QIcon(str(self.settings_icon_path)))
         self.ui.action_analyze_with_ipynb.triggered.connect(
             partial(self.on_analyze_with_ipynb, folder=None)
         )
-        self.ui.action_analyze_with_ipynb.setIcon(QtGui.QIcon(self.jupyter_logo_path))
+        self.ui.action_analyze_with_ipynb.setIcon(
+            QtGui.QIcon(str(self.jupyter_logo_path))
+        )
 
         self.ui.action_docs.triggered.connect(
             partial(
@@ -863,7 +865,7 @@ class BaseMicroscopeApp(BaseApp):
                 QtWidgets.QSizePolicy.Policy.MinimumExpanding,
             )
             widget.setWindowTitle("settings")
-            widget.setWindowIcon(QtGui.QIcon(self.settings_icon))
+            widget.setWindowIcon(QtGui.QIcon(str(self.settings_icon_path)))
             layout = QtWidgets.QVBoxLayout(widget)
             layout.addWidget(app_widget)
             layout.addLayout(hlayout)
