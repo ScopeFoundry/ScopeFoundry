@@ -141,7 +141,7 @@ class RangedOptimization(Measurement):
         go_to_pp_btn = QtWidgets.QPushButton("go to processed value")
         go_to_pp_btn.clicked.connect(self.go_to_post_process_value)
         btns_layout = QtWidgets.QHBoxLayout()
-        btns_layout.addWidget(s.get_lq("activation").new_pushButton())
+        btns_layout.addWidget(self.new_start_stop_button())
         btns_layout.addWidget(take_pushButton)
         btns_layout.addWidget(pp_btn)
         btns_layout.addWidget(go_to_pp_btn)
@@ -199,11 +199,11 @@ class RangedOptimization(Measurement):
             self.update_history(d["z0"])
             self.save_h5()
             self.print_history()
-            
+
     def sweep(self, name="coarse"):
         s = self.settings
         d = self.data
-        
+
         self.write_z_target(d[f"z_{name}"][0], s["z_span_travel_time"])
         for i, z in enumerate(d[f"z_{name}"]):
             self.set_progress((self.ii + 1) * 100 / self.total_dpt)
@@ -214,7 +214,7 @@ class RangedOptimization(Measurement):
             if self.interrupt_measurement_called:
                 break
             self.ii += 1
-            
+
     def update_display(self):
         s = self.settings
         d = self.data
@@ -279,7 +279,7 @@ class RangedOptimization(Measurement):
         s = self.settings
         if s["use_current_z_as_center"]:
             s["z_center"] = self.read_z() - s["z_offset"]
-            
+
     def try_connect_hws(self):
         """in case user forgot to connect to corresponding hardware"""
         self.connect_hw(self.settings["z"])

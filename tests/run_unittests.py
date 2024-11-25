@@ -11,6 +11,7 @@ from ScopeFoundry.tests.unittests.analyze_nb_test import AnalyzeNBTest
 # following also require visual inspection - run individual files
 from ScopeFoundry.tests.hw_connect_failure_test import TestFailHW
 from ScopeFoundry.tests.nested_measurement_test import NestMeasureTestAppTest
+from ScopeFoundry.tests.quickbar_test import QuickbarTest
 
 if __name__ == "__main__":
     unittest.main()

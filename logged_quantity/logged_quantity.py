@@ -609,13 +609,13 @@ class LoggedQuantity(QtCore.QObject):
                     if idx < len(self.qcolors):
                         qc = self.qcolors[idx]
                     else:
-                        qc = QtGui.QColor("white")
+                        qc = QtGui.QColor("lightgrey")
 
                     s = f"""QComboBox{{
                                 selection-background-color: {qc.name()};
                                 selection-color: black;
                                 background: {qc.name()};
-                                }}"""
+                            }}"""
                     widget.setStyleSheet(widget.styleSheet() + s)
 
                 widget.currentIndexChanged.connect(update_background_color)
@@ -947,7 +947,7 @@ class LoggedQuantity(QtCore.QObject):
         self,
         pushButton: QtWidgets.QPushButton,
         colors=("rgba(105, 240, 104, 220)", "rgba(255, 49, 47, 220)"),
-        texts=("▶ START", "🛑 INTERRUPT"),
+        texts=("▶ START", "🛑 STOP"),
         styleSheet_amendment="""
         QPushButton{ padding:3px }
         QPushButton:hover:!pressed{ border: 1px solid black; }
@@ -1230,7 +1230,7 @@ class LoggedQuantity(QtCore.QObject):
 
     def new_pushButton(
         self,
-        texts=("▶ START", "🛑 INTERRUPT"),
+        texts=("▶ START", "🛑 STOP"),
         colors=("rgba(105, 240, 104, 220)", "rgba(255, 49, 47, 220)"),
         **kwargs,
     ):

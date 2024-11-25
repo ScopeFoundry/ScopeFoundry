@@ -91,7 +91,7 @@ class PIDFeedbackControl(Measurement):
         ctr_layout.addWidget(s.New_UI(("terminate", "timeout", "error_tol")))
 
         btn_layout = QtWidgets.QHBoxLayout()
-        btn_layout.addWidget(s.get_lq("activation").new_pushButton())
+        btn_layout.addWidget(self.new_start_stop_button())
         op_button = QtWidgets.QPushButton("unfilter options")
         op_button.clicked.connect(self.update_choices)
         btn_layout.addWidget(op_button)
@@ -118,7 +118,7 @@ class PIDFeedbackControl(Measurement):
         from simple_pid.pid import PID  # pip install simple-pid (requires v>2)
 
         s = self.settings
-        
+
         pid = PID(Kp=s["Kp"],
                   Ki=s["Ki"],
                   Kd=s["Kd"],
@@ -186,23 +186,22 @@ class PIDFeedbackControl(Measurement):
 
     def New_mini_UI(self):
         s = self.settings
-        cb = s.get_lq("activation").new_default_widget()
-        cb.setText(self.name)
+        ss_btn = self.new_start_stop_button(texts=("▶", "🛑"))
+        # ss_btn.setMaximumWidth(40)
 
         spw = s.get_lq("setpoint").new_default_widget()
-        spw.setMaximumWidth(80)
+        # spw.setMaximumWidth(80)
 
         erw = s.get_lq("error").new_default_widget()
-        erw.setMaximumWidth(80)
+        # erw.setMaximumWidth(80)
 
-        show_ui_btn = QtWidgets.QPushButton("ui")
-        show_ui_btn.setStyleSheet("QPushButton{font-weight: bold; color:blue};")
-        show_ui_btn.setMaximumWidth(25)
-        show_ui_btn.clicked.connect(self.show_ui)
+        show_ui_btn = self.operations.new_button("show_ui")
+        show_ui_btn.setText("")
+        show_ui_btn.setMaximumWidth(40)
 
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QHBoxLayout(widget)
-        layout.addWidget(cb)
+        layout.addWidget(ss_btn)
         layout.addWidget(spw)
         layout.addWidget(erw)
         layout.addWidget(show_ui_btn)

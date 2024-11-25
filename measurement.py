@@ -487,6 +487,14 @@ class Measurement:
     def add_to_layout(self, layout, include=None, exclude=None):
         add_to_layout(self, layout, include, exclude)
 
+    def new_start_stop_button(self, texts=("▶  START", "🛑  STOP")):
+        btn = QtWidgets.QPushButton()
+        btn.setObjectName("start_stop_button")
+        self.activation.connect_to_pushButton(btn, (), texts, "")
+        if len(texts[0]) <= 1 and len(texts[1]) <= 1:
+            btn.setFixedWidth(22)
+        return btn
+
     def add_operation(
         self, name: str, op_func: Callable[[], None], description="", icon_path=""
     ):
@@ -520,11 +528,11 @@ class Measurement:
 
     def on_new_subtree(self, subtree: SubtreeManager):
         progress_bar = QtWidgets.QProgressBar()
+        progress_bar.setObjectName("measurement_progress")
         self.progress.connect_to_widget(progress_bar)
 
-        btn = self.settings.get_lq("activation").new_pushButton(texts=("▶", "🛑"))
+        btn = self.new_start_stop_button(texts=("▶", "🛑"))
         btn.clicked.connect(self.show_ui)
-        btn.setFixedWidth(22)
 
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QHBoxLayout(widget)

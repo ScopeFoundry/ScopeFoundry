@@ -60,7 +60,7 @@ class Sequencer(Measurement):
         # measurement controls and settings
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.settings.get_lq("cycles").new_default_widget())
-        layout.addWidget(self.settings.get_lq("activation").new_pushButton())
+        layout.addWidget(self.new_start_stop_button())
         btn = self.settings.get_lq("paused").new_pushButton(
             texts=["pause", "resume"], colors=[None, "rgba( 0, 255, 0, 220)"]
         )
