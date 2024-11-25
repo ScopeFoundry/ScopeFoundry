@@ -134,6 +134,7 @@ class Measure(Measurement):
         vsplitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
         layout = QtWidgets.QVBoxLayout(self.ui)
         layout.addWidget(self.activation.new_pushButton())
+        layout.addWidget(self.new_start_stop_button())
         layout.addWidget(vsplitter)
         vsplitter.addWidget(
             new_tree_widget(
