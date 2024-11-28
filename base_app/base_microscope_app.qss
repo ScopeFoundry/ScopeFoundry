@@ -37,3 +37,18 @@ QPushButton:checked#start_stop_button {
     border: 1px solid gray;
     background: rgba(248, 49, 47, 110);
     }
+QGroupBox#sequencer_editor {
+    border: none;
+    padding-top: 12px;
+    padding-left: 0;
+    font: 14px;
+}
+QGroupBox::title#sequencer_editor {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 4px;
+}
+QListWidget::item:selected#sequencer_item_list { 
+    background:  rgba(105, 240, 104, 220);
+    color: black;
+    }

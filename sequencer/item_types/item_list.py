@@ -5,6 +5,7 @@ Created on Sep 17, 2021
 """
 from typing import Any, Dict, List, Union
 
+import numpy as np
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QListWidget
 
@@ -18,6 +19,7 @@ class ItemList:
         self.view = QListWidget()
         self.view.setDefaultDropAction(Qt.MoveAction)
         self.view.setDragDropMode(QListWidget.DragDrop)
+        self.view.setObjectName("sequencer_item_list")
 
     def add(self, item: BaseItem, row: Union[int, None] = None):
         if row == None:
@@ -78,5 +80,11 @@ class ItemList:
         l = []
         for i in range(self.view.count()):
             item = self.get_item(i)
+            to_update = {}
+            for k,v in item.kwargs.items():
+                if isinstance(v, np.ndarray):
+                    to_update[k] = v.tolist()
+
+            item.kwargs.update(to_update)
             l.append({"type": item.item_type, **item.kwargs})
         return l

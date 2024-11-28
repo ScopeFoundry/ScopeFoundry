@@ -18,6 +18,7 @@ class BaseItem(QListWidgetItem):
         self.kwargs = kwargs
         self._update_appearance()
 
+
     def visit(self) -> VisitReturnType:
         raise NotImplementedError
 
