@@ -1,18 +1,14 @@
 [
  {
-  "type": "timeout",
-  "time": 0.1
+  "type": "new_dir",
+  "new_dir_name": "test"
  },
  {
   "type": "timeout",
   "time": 0.1
  },
  {
-  "type": "timeout",
-  "time": 0.1
- },
- {
-  "type": "timeout",
-  "time": 0.1
+  "type": "save_dir_to_parent",
+  "info": "save_dir jumps to parent"
  }
 ]

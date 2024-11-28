@@ -14,7 +14,7 @@ def register_item(item: Type[BaseItem]):
     factories[item.item_type] = item
 
 
-from .dir_operations import NewDir, NewDirEditorUI, SaveDirToParentEditorUI
+from .dir_operations import NewDir, NewDirEditorUI, SaveDirToParent, SaveDirToParentEditorUI
 from .exec_function import Function, ExecFunctionEditorUI
 from .interrupt_if import InterruptIf, IterruptIfEditorUI
 from .iterations import (
@@ -42,3 +42,4 @@ register_item(RunMeasurement)
 register_item(Timeout)
 register_item(UpdateSetting)
 register_item(WaitUntil)
+register_item(SaveDirToParent)

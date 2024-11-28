@@ -1,6 +1,6 @@
 import numpy as np
 from qtpy.QtWidgets import QComboBox, QDoubleSpinBox
-from typing_extensions import TypedDict, Protocol
+from typing_extensions import TypedDict
 
 from .editor_base_controller import EditorBaseController
 from .editor_base_ui import EditorBaseUI
@@ -21,14 +21,14 @@ class StartIterationItem(BaseItem):
         self.values = kwargs["values"]
         self._name = kwargs["setting"]
         self.lq = measure.app.get_lq(kwargs["setting"])
+        self.val = 0
         BaseItem.__init__(self, measure=measure, **kwargs)
         self.reset()
         self.end_item = None
-        self.val = 0
 
     def _update_appearance(self, text=None):
         # text = BaseItem._update_appearance(self, text=text)
-        t = f"START {self.iter_id}| iter {self._name} over {self.values} ({self.val})"
+        t = f"START {self.iter_id}| for {self._name} in {self.values}:"
         self.setText(t)
         return t
 
@@ -50,13 +50,13 @@ class StartIterationItem(BaseItem):
         self.end_item = end_item
 
     def update_text(self):
-        text = self.text().split(" - ")[0]
-        pct = 100.0 * (self.idx + 1) / (len(self.values))
+        text = self.text().split("  ")[0]
+        pct = 100.0 * (self.idx + 1) / len(self.values)
         if self.idx >= 0:
-            texts = [text, f"({self.values[self.idx]})", f"{pct: 1.0f}%"]
+            texts = [text, f"(current value: {self.values[self.idx]})", f"{pct: 1.0f}%"]
         else:
             texts = [text, f"{pct: 1.0f}%"]
-        self.setText(" - ".join(texts))
+        self.setText("  ".join(texts))
 
 
 class EndIterationItem(BaseItem):
@@ -68,13 +68,13 @@ class EndIterationItem(BaseItem):
         self.values = kwargs["values"]
         self._name = kwargs["setting"]
         self.lq = measure.app.get_lq(kwargs["setting"])
+        self.val = 0
         BaseItem.__init__(self, measure=measure, **kwargs)
         self.reset()
         self.start_item = None
-        self.val = 0
 
     def _update_appearance(self, text=None):
-        text = f"END {self.iter_id}| iter {self._name} over {self.values} ({self.val})"
+        text = f"   END {self.iter_id}|"
         self.setText(text)
         return text
 
@@ -98,10 +98,8 @@ class EndIterationItem(BaseItem):
 
     def update_text(self):
         try:
-            text = self.text().split(" - ")[0]
-            item = self.start_item
-            pct = item.idx + 1 / len(item.values) * 100
-            self.setText(f"{text} - {pct: 1.0f}%")
+            pct = (self.start_item.idx + 1) / len(self.start_item.values) * 100
+            self.setText(f"   END {self.iter_id}|  {pct: 1.0f}%")
         except AttributeError:
             pass
 
@@ -143,7 +141,7 @@ class IterationsEditorUI(EditorBaseUI):
         start = self.start_dsb.value()
         stop = self.stop_dsb.value()
         step = self.step_dsb.value()
-        values = list(np.arange(start, stop, step))
+        values = np.arange(start, stop, step)
         return {"setting": path, "values": values}
 
     def set_kwargs(self, **kwargs):

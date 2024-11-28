@@ -1,5 +1,5 @@
 from qtpy.QtWidgets import QLineEdit
-from typing_extensions import Self, TypedDict
+from typing_extensions import TypedDict
 
 from .helper_func import new_q_completer
 from .editor_base_ui import EditorBaseUI
