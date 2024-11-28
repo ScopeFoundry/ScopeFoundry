@@ -17,6 +17,11 @@ class Example2DSlowScanApp(BaseMicroscopeApp):
     name = "Example 2D Slow Scan"
 
     def setup(self):
+
+        from ScopeFoundry.sequencer import Sequencer
+
+        self.add_measurement(Sequencer)
+
         self.add_hardware(SimulonXYZStageHW(self))
         self.add_hardware(Noiser200HW(self))
 

@@ -3,15 +3,15 @@ Created on Sep 17, 2021
 
 @author: Benedikt Ursprung
 """
-import glob
+
 import json
 import os
+from pathlib import Path
 import time
 from builtins import getattr
 from typing import List, Tuple, Dict
 
-from qtpy.QtCore import Qt
-from qtpy import QtWidgets
+from qtpy import QtWidgets, QtCore
 
 
 from ScopeFoundry import Measurement
@@ -42,6 +42,9 @@ class Sequencer(Measurement):
     name = "sequencer"
 
     def setup(self):
+
+        self.item_list = ItemList()
+
         self.settings.New(
             "cycles",
             int,
@@ -49,63 +52,84 @@ class Sequencer(Measurement):
             description="number of times the sequence is executed",
         )
         self.settings.New("paused", bool, initial=False)
+        self.settings.new_file(
+            "recipe_folder", initial=str(Path.cwd()), is_dir=True
+        ).add_listener(self.update_load_file_comboBox)
+        self.seq_file = self.settings.new_file(
+            "sequence_file",
+            initial="",
+            is_dir=False,
+            file_filters=("Sequence (*.json)"),
+        )
+
+        self.seq_file.add_listener(self.on_load)
+
         self.iter_values = {}
         self.letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         self.current_item = None
 
     def setup_figure(self):
-        self.ui = QtWidgets.QWidget()
-        self.layout = QtWidgets.QVBoxLayout(self.ui)
-
         # measurement controls and settings
-        layout = QtWidgets.QHBoxLayout()
-        layout.addWidget(self.settings.get_lq("cycles").new_default_widget())
-        layout.addWidget(self.new_start_stop_button())
+        meas_layout = QtWidgets.QHBoxLayout()
+        meas_layout.addWidget(self.settings.get_lq("cycles").new_default_widget())
+        meas_layout.addWidget(self.new_start_stop_button())
         btn = self.settings.get_lq("paused").new_pushButton(
             texts=["pause", "resume"], colors=[None, "rgba( 0, 255, 0, 220)"]
         )
-        layout.addWidget(btn)
-        self.layout.addLayout(layout)
+        meas_layout.addWidget(btn)
 
         # select file combobox
         self.load_file_comboBox = QtWidgets.QComboBox()
+        self.load_file_comboBox.setToolTip("previously saved sequences")
         self.update_load_file_comboBox()
         self.load_file_comboBox.currentTextChanged.connect(
             self.on_load_file_comboBox_changed
         )
-        self.layout.addWidget(self.load_file_comboBox)
 
         # item list
-        self.item_list = ItemList()
-        self.layout.addWidget(self.item_list.get_view())
+        item_list_scroll_area = QtWidgets.QScrollArea()
+        # item_list_scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        # item_list_scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        item_list_scroll_area.setWidgetResizable(True)
+        item_list_scroll_area.setWidget(self.item_list.get_view())
         self.item_list.connect_item_double_clicked(self.item_double_clicked)
 
         # controls
-        layout = QtWidgets.QHBoxLayout()
-        self.layout.addLayout(layout)
+        file_layout = QtWidgets.QHBoxLayout()
         self.remove_pushButton = QtWidgets.QPushButton("remove selected item")
         self.remove_pushButton.setToolTip("DEL")
         self.remove_pushButton.clicked.connect(self.on_remove_item)
-        layout.addWidget(self.remove_pushButton)
-        btn = QtWidgets.QPushButton("save list ...")
+        file_layout.addWidget(self.remove_pushButton)
+        btn = QtWidgets.QPushButton("save ...")
         btn.clicked.connect(self.on_save)
-        layout.addWidget(btn)
-        btn = QtWidgets.QPushButton("load list ...")
-        btn.clicked.connect(self.on_load)
-        layout.addWidget(btn)
+        file_layout.addWidget(btn)
+        btn = QtWidgets.QPushButton("load ...")
+        btn.clicked.connect(self.seq_file.file_browser)
+        file_layout.addWidget(btn)
         btn = QtWidgets.QPushButton("run selected item")
         btn.setToolTip("SPACEBAR")
         btn.clicked.connect(self.on_run_item_and_proceed)
-        layout.addWidget(btn)
+        file_layout.addWidget(btn)
         self.show_editor_checkBox = QtWidgets.QCheckBox("show|hide editor")
-        layout.addWidget(self.show_editor_checkBox)
+        file_layout.addWidget(self.show_editor_checkBox)
+
+        # Combine so far
+        top_widget = QtWidgets.QWidget()
+        self.layout = top_layout = QtWidgets.QVBoxLayout(top_widget)
+        top_layout.addLayout(meas_layout)
+        top_layout.addWidget(self.load_file_comboBox)
+        top_layout.addWidget(item_list_scroll_area)
+        top_layout.addLayout(file_layout)
 
         # Editors
         self.editor_widget = QtWidgets.QWidget()
-        self.editor_layout = QtWidgets.QVBoxLayout()
-        self.editor_widget.setLayout(self.editor_layout)
-        self.layout.addWidget(self.editor_widget)
-        self.show_editor_checkBox.stateChanged.connect(self.editor_widget.setVisible)
+        self.editor_layout = QtWidgets.QVBoxLayout(self.editor_widget)
+        editor_scroll_area = QtWidgets.QScrollArea()
+        # editor_scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        # editor_scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        editor_scroll_area.setWidgetResizable(True)
+        editor_scroll_area.setWidget(self.editor_widget)
+        self.show_editor_checkBox.stateChanged.connect(editor_scroll_area.setVisible)
         self.show_editor_checkBox.setChecked(True)
 
         paths = self.app.get_setting_paths()
@@ -130,6 +154,17 @@ class Sequencer(Measurement):
         self.editor_widget.keyPressEvent = self._editorKeyPressEvent
         self.item_list.get_view().keyReleaseEvent = self._keyReleaseEvent
 
+        # try to load a file
+        text = self.load_file_comboBox.currentText()
+        if text in self.seq_fnames:
+            self.seq_file.update_value(self.seq_fnames[text])
+
+        self.ui = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
+        self.ui.addWidget(top_widget)
+        self.ui.addWidget(editor_scroll_area)
+        self.ui.setStretchFactor(0, 1)
+        self.ui.setStretchFactor(1, 1)
+
     def add_editor(self, editor_ui: EditorBaseUI):
         self.editors[editor_ui.item_type] = EditorBaseController(editor_ui, self)
 
@@ -139,42 +174,51 @@ class Sequencer(Measurement):
         self.editors["end-iteration"] = editor
 
     def _editorKeyPressEvent(self, event):
-        if not event.modifiers() & Qt.ControlModifier:
+        if not event.modifiers() & QtCore.Qt.ControlModifier:
             return
-        if not event.key() in (Qt.Key_R, Qt.Key_N):
+        if not event.key() in (QtCore.Qt.Key_R, QtCore.Qt.Key_N):
             return
         fw = self.editor_widget.focusWidget()
         # find editor with focused widget
         for e in self.editors.values():
             gb = e.ui.group_box
             if fw in gb.findChildren(type(fw), fw.objectName()):
-                if event.key() == Qt.Key_R:
+                if event.key() == QtCore.Qt.Key_R:
                     e.on_replace_func()
-                if event.key() == Qt.Key_N:
+                if event.key() == QtCore.Qt.Key_N:
                     e.on_new_func()
 
     def _keyReleaseEvent(self, event):
-        if event.key() == Qt.Key_Delete:
+        if event.key() == QtCore.Qt.Key_Delete:
             self.item_list.remove()
-        if event.key() == Qt.Key_Space:
+        if event.key() == QtCore.Qt.Key_Space:
             self.on_run_item_and_proceed()
-        if event.key() in (Qt.Key_Enter, Qt.Key_Return):
+        if event.key() in (QtCore.Qt.Key_Enter, QtCore.Qt.Key_Return):
             item = self.item_list.get_current_item()
             self.item_double_clicked(item)
 
     def update_load_file_comboBox(self):
-        fnames = glob.glob(glob.os.getcwd() + "\..\..\**/*.json", recursive=True)
+        root = Path(self.settings["recipe_folder"])
+        fnames = list(root.rglob("*.json"))
         index0 = self.load_file_comboBox.currentIndex()
         self.load_file_comboBox.clear()
         self.seq_fnames = {}
         for fname in fnames:
-            abbrev_fname = "\\".join(fname.split("\\")[-2:])
-            self.seq_fnames.update({abbrev_fname: fname})
+            abbrev_fname = fname.relative_to(root)
+            self.seq_fnames.update({str(abbrev_fname): fname})
         self.load_file_comboBox.addItems(list(self.seq_fnames.keys()))
-        self.load_file_comboBox.setCurrentIndex(index0)
+        index = max(0, min(index0, self.load_file_comboBox.count() - 1))
+        self.load_file_comboBox.setCurrentIndex(index)
 
-    def on_load_file_comboBox_changed(self, fname):
-        self.load_file(self.seq_fnames[fname])
+    def insert_load_files(self, fname: Path):
+        root = Path(self.settings["recipe_folder"])
+        abbrev_fname = str(fname.relative_to(root))
+        self.seq_fnames.update({abbrev_fname: fname})
+        self.load_file_comboBox.insertItem(0, abbrev_fname)
+        self.load_file_comboBox.setCurrentIndex(0)
+
+    def on_load_file_comboBox_changed(self, abbrev_fname):
+        self.load_file(self.seq_fnames[abbrev_fname])
 
     def next_iter_id(self) -> str:
         return self.letters[self.item_list.count_type("start-iteration")]
@@ -196,11 +240,11 @@ class Sequencer(Measurement):
             f.write(json.dumps(self.item_list.as_dicts(), indent=1))
 
     def on_load(self) -> str:
-        fname, _ = QtWidgets.QFileDialog.getOpenFileName(
-            None, filter="Sequence (*.json)"
-        )
-        if fname:
+        fname = Path(self.seq_file.val)
+        if fname.exists() and not fname.is_dir():
+            print(fname)
             self.load_file(fname)
+            self.insert_load_files(fname)
         return fname
 
     def load_file(self, fname):
@@ -273,10 +317,7 @@ class Sequencer(Measurement):
     def update_display(self):
         for i in range(self.item_list.count()):
             item = self.item_list.get_item(i)
-            if item == self.current_item:
-                item.setBackground(Qt.green)
-            else:
-                item.setBackground(Qt.white)
+            item.setSelected(item == self.current_item)
 
     def shutdown(self):
         os.system("shutdown /s /f /t 1")
@@ -290,6 +331,11 @@ def get_all_functions(app) -> List[str]:
 
     def append_objs_callables(obj, from_app_path):
         for a in dir(obj):
+
+            # exclude deprecated functions
+            if isinstance(obj, Measurement) and a in ("gui",):
+                continue
+
             try:  # Not sure why some python version seem to need this block
                 if callable(getattr(obj, a)) and not a.startswith("__"):
                     funcs.append(f"{from_app_path}{obj.name}.{a}")
