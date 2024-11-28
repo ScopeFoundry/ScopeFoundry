@@ -1,9 +1,9 @@
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import TypedDict
 
-from qtpy.QtWidgets import QLabel, QLineEdit
-from typing_extensions import TypedDict
+from qtpy.QtWidgets import QLabel, QLineEdit, QCheckBox
 
 from .editor_base_ui import EditorBaseUI
 from .base_item import BaseItem

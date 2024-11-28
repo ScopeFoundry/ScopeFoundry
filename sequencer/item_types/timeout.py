@@ -1,7 +1,7 @@
+from typing import TypedDict
 import time
 
 from qtpy.QtWidgets import QDoubleSpinBox
-from typing_extensions import TypedDict
 
 from .base_item import BaseItem
 from .editor_base_ui import EditorBaseUI
