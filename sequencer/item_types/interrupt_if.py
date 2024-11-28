@@ -8,6 +8,7 @@ from .editor_base_ui import EditorBaseUI
 from .base_item import BaseItem
 
 ITEM_TYPE = "interrupt-if"
+DESCRIPTION = "interrupts the sequence if a condition is met"
 
 
 class InterruptIfKwargs(TypedDict):
@@ -16,13 +17,19 @@ class InterruptIfKwargs(TypedDict):
     value: str
 
 
+OPERATORS = {
+    "=": operator.eq,
+    ">": operator.gt,
+    "<": operator.lt,
+    ">=": operator.ge,
+    "<=": operator.le,
+}
+
 class InterruptIf(BaseItem):
     item_type = ITEM_TYPE
 
     def visit(self):
-        relate = {"=": operator.eq, ">": operator.gt, "<": operator.lt}[
-            self.kwargs["operator"]
-        ]
+        relate = OPERATORS[self.kwargs["operator"]]
         lq = self.app.get_lq(self.kwargs["setting"])
         val = lq.coerce_to_type(self.kwargs["value"])
         if relate(lq.val, val):
@@ -31,7 +38,7 @@ class InterruptIf(BaseItem):
 
 class IterruptIfEditorUI(EditorBaseUI):
     item_type = ITEM_TYPE
-    description = "interrupt if a condition is met"
+    description = DESCRIPTION
 
     def __init__(self, measure, paths) -> None:
         self.paths = paths
@@ -46,7 +53,7 @@ class IterruptIfEditorUI(EditorBaseUI):
         self.setting_cb.setCompleter(completer)
         self.layout.addWidget(self.setting_cb)
         self.operator_cb = QComboBox()
-        self.operator_cb.addItems(["=", "<", ">"])
+        self.operator_cb.addItems(list(OPERATORS.keys()))
         self.layout.addWidget(self.operator_cb)
         self.value_le = QLineEdit()
         self.value_le.setCompleter(completer)

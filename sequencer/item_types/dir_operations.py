@@ -14,6 +14,7 @@ SAVEDIRITEMTYPE = "save_dir_to_parent"
 
 class NewDirKwargs(TypedDict):
     new_dir_name: str
+    include_timestamp: bool
 
 
 class NewDir(BaseItem):
@@ -22,10 +23,24 @@ class NewDir(BaseItem):
     def visit(self):
         t0 = time.time()
         name = self.kwargs["new_dir_name"]
-        sub_dir = f"{datetime.fromtimestamp(t0):%y%m%d_%H%M%S}_{name}"
+        include_timestamp = self.kwargs.get("include_timestamp", True)
+        if include_timestamp or not name:
+            sub_dir = f"{datetime.fromtimestamp(t0):%y%m%d_%H%M%S}_{name}"
+        else:
+            sub_dir = name
         new_dir = Path(self.app.settings["save_dir"]) / sub_dir
-        new_dir.mkdir()
+        new_dir.mkdir(exist_ok=True)
         self.app.settings["save_dir"] = new_dir.as_posix()
+
+    def _update_appearance(self, text=None) -> str:
+        kwargs: NewDirKwargs = self.kwargs
+        if text == None:
+            if self.kwargs.get("include_timestamp", True):
+                text = f"New dir: [Timestamp]_{kwargs['new_dir_name']}"
+            else:
+                text = f"New dir: {kwargs['new_dir_name']}"
+        self.setText(text)
+        return text
 
 
 class NewDirEditorUI(EditorBaseUI):
@@ -34,14 +49,21 @@ class NewDirEditorUI(EditorBaseUI):
 
     def setup_ui(self):
         self.new_dir_name_lineEdit = QLineEdit()
+        self.include_timestamp_cb = QCheckBox()
+        self.include_timestamp_cb.setFixedWidth(22)
+        self.include_timestamp_cb.setToolTip("include a date in the folder name")
+        self.group_box.layout().addWidget(self.include_timestamp_cb)
         self.group_box.layout().addWidget(self.new_dir_name_lineEdit)
 
-    def get_kwargs(self):
+    def get_kwargs(self) -> NewDirKwargs:
         val = self.new_dir_name_lineEdit.text()
-        return {"new_dir_name": val}
+        include_timestamp = self.include_timestamp_cb.isChecked()
+        return {"new_dir_name": val, "include_timestamp": include_timestamp}
 
-    def set_kwargs(self, **kwargs):
-        self.new_dir_name_lineEdit.setText(kwargs["new_dir_name"])
+    def set_kwargs(self, new_dir_name, include_timestamp=True):
+        self.new_dir_name_lineEdit.setText(new_dir_name)
+        self.include_timestamp_cb.setChecked(include_timestamp)
+        self.new_dir_name_lineEdit.setFocus()
 
 
 class SaveDirToParent(BaseItem):
