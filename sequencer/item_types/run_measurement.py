@@ -1,5 +1,6 @@
+from typing import TypedDict
+
 from qtpy.QtWidgets import QComboBox, QSpinBox
-from typing_extensions import TypedDict
 
 from .base_item import BaseItem
 from .editor_base_ui import EditorBaseUI

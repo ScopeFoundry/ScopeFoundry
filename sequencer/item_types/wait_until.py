@@ -1,6 +1,6 @@
 import operator
 import time
-from typing_extensions import TypedDict
+from typing import TypedDict
 
 from qtpy.QtWidgets import QComboBox, QLineEdit
 

@@ -1,5 +1,6 @@
+from typing import TypedDict
+
 from qtpy.QtWidgets import QLabel
-from typing_extensions import TypedDict
 
 from .editor_base_ui import EditorBaseUI
 from .base_item import BaseItem

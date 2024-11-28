@@ -1,5 +1,5 @@
 from qtpy.QtWidgets import QComboBox, QLineEdit
-from typing_extensions import TypedDict
+from typing import TypedDict
 
 from .editor_base_ui import EditorBaseUI
 from .base_item import BaseItem

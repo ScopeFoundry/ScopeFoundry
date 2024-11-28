@@ -1,16 +1,14 @@
-from typing_extensions import Type
-
 factories = {}
 
 
-from .base_item import BaseItem, VisitReturnType
+from .base_item import BaseItem
 
 
 def new_item(measure, item_type: str, **kwargs):
     return factories[item_type](measure, **kwargs)
 
 
-def register_item(item: Type[BaseItem]):
+def register_item(item: BaseItem):
     factories[item.item_type] = item
 
 

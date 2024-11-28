@@ -1,11 +1,13 @@
-from typing import Union
-from typing_extensions import Self
-
 from qtpy.QtWidgets import QListWidgetItem
 
 from ScopeFoundry.measurement import Measurement
 
-VisitReturnType = Union[Self, None]  # return either a go-to Item or None if next
+# from typing import Union
+# from typing_extensions import Self
+# do not want rely on typing_extension anymore.
+# Reintroduce VisitReturnType when only python 3.10+ is supported and Self can be import from typing.
+
+# VisitReturnType = Union[Self, None]  # return either a go-to Item or None if next
 
 
 class BaseItem(QListWidgetItem):
@@ -18,8 +20,8 @@ class BaseItem(QListWidgetItem):
         self.kwargs = kwargs
         self._update_appearance()
 
-
-    def visit(self) -> VisitReturnType:
+    # def visit(self) -> VisitReturnType:
+    def visit(self):
         raise NotImplementedError
 
     def _update_appearance(self, text=None) -> str:

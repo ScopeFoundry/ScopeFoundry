@@ -1,11 +1,11 @@
 import operator
+from typing import TypedDict
 
 from qtpy.QtWidgets import QComboBox, QLineEdit
-from typing_extensions import TypedDict
 
-from .helper_func import new_q_completer
-from .editor_base_ui import EditorBaseUI
 from .base_item import BaseItem
+from .editor_base_ui import EditorBaseUI
+from .helper_func import new_q_completer
 
 ITEM_TYPE = "interrupt-if"
 DESCRIPTION = "interrupts the sequence if a condition is met"

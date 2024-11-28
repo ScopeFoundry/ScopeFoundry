@@ -1,10 +1,11 @@
+from typing import TypedDict, Union
+
 import numpy as np
 from qtpy.QtWidgets import QComboBox, QDoubleSpinBox
-from typing_extensions import TypedDict
 
 from .editor_base_controller import EditorBaseController
 from .editor_base_ui import EditorBaseUI
-from .base_item import BaseItem, VisitReturnType
+from .base_item import BaseItem
 from .helper_func import new_q_completer
 
 
@@ -32,7 +33,7 @@ class StartIterationItem(BaseItem):
         self.setText(t)
         return t
 
-    def visit(self) -> VisitReturnType:
+    def visit(self) -> Union[None, BaseItem]:
         self.idx += 1
         if self.idx == len(self.values) - 1:
             # next time end-iteration is visited the loop breaks
@@ -78,7 +79,7 @@ class EndIterationItem(BaseItem):
         self.setText(text)
         return text
 
-    def visit(self) -> VisitReturnType:
+    def visit(self) -> Union[None, BaseItem]:
         self.update_text()
         if self.break_next:
             self.start_item.reset()

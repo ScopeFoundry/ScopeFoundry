@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import time
 from builtins import getattr
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 
 from qtpy import QtWidgets, QtCore
 
@@ -31,7 +31,6 @@ from .item_types import (
     SaveDirToParentEditorUI,
     TimeoutEditorUI,
     UpdateSettingEditorUI,
-    VisitReturnType,
     WaitUntilEditorUI,
     link_iteration_items,
     new_item,
@@ -259,7 +258,7 @@ class Sequencer(Measurement):
         if not success:
             print("invalid list")
 
-    def on_run_item(self) -> Tuple[BaseItem, VisitReturnType]:
+    def on_run_item(self) -> Tuple[BaseItem, Union[None, BaseItem]]:
         item = self.item_list.get_current_item()
         if item.item_type == "measurement":
             print("WARNING running individually measurement not supported")
