@@ -62,6 +62,7 @@ class LQCollection:
         choices=None,
         colors=None,
         protected: bool = False,  # a guard that prevents from being updated, i.e. file loading
+        is_clipboardable=False,
         **kwargs,
     ) -> FileLQ:
         return self.New(
@@ -76,6 +77,7 @@ class LQCollection:
             choices=choices,
             colors=colors,
             protected=protected,
+            is_clipboardable=is_clipboardable,
             **kwargs,
         )
 
@@ -101,6 +103,8 @@ class LQCollection:
         reread_from_hardware_after_write: bool = False,
         is_array: bool = False,
         fmt="%g",
+        is_cmd=False,
+        is_clipboardable=False,
         **kwargs,
     ) -> LoggedQuantity:
         """
@@ -136,6 +140,7 @@ class LQCollection:
                 default_dir=default_dir,
                 is_dir=is_dir,
                 file_filters=file_filters,
+                is_clipboardable=is_clipboardable,
                 **kwargs,
             )
         else:
@@ -146,6 +151,8 @@ class LQCollection:
                 spinbox_step=spinbox_step,
                 reread_from_hardware_after_write=reread_from_hardware_after_write,
                 colors=colors,
+                is_cmd=is_cmd,
+                is_clipboardable=is_clipboardable,
                 **kwargs,
             )
 
@@ -268,7 +275,7 @@ class LQCollection:
         step_lq = self.New(
             f"{name}_step", initial=d, spinbox_decimals=spinbox_decimals + 1, **kwargs
         )
-        step0= int((initials[1] - initials[0]) / d) + 1
+        step0 = int((initials[1] - initials[0]) / d) + 1
         num_lq = self.New(f"{name}_num", dtype=int, vmin=1, initial=step0, **kwargs)
 
         LQRange_kwargs = {

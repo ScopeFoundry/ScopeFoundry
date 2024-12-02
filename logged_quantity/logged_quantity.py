@@ -2,6 +2,7 @@ from collections import deque
 from enum import Enum
 from functools import partial
 from inspect import signature
+import subprocess
 
 import pyqtgraph
 import pyqtgraph as pg
@@ -62,6 +63,8 @@ class LoggedQuantity(QtCore.QObject):
         description=None,
         colors=None,
         protected=False,  # a guard that prevents from being updated, i.e. file loading
+        is_cmd=False,
+        is_clipboardable=False,
     ):
         QtCore.QObject.__init__(self)
 
@@ -129,6 +132,9 @@ class LoggedQuantity(QtCore.QObject):
         self.path = ""
 
         self.protected = protected
+
+        self.is_clipboardable = is_clipboardable
+        self.is_cmd = is_cmd
 
         self.prev_vals = deque([], 3)
         self.proposed_values = deque([], 7)
@@ -583,6 +589,22 @@ class LoggedQuantity(QtCore.QObject):
             # self.updated_text_value[str].connect(widget.document().setPlainText)
             self.updated_text_value[str].connect(on_lq_changed)
             widget.textChanged.connect(on_widget_textChanged)
+
+        elif isinstance(widget, QtWidgets.QTextEdit):
+
+            def on_updated(x=None):
+                widget.setText(self.val)
+
+            self.updated_value[str].connect(on_updated)
+
+            def on_text_changed(x=None):
+                try:
+                    widget.blockSignals(True)
+                    self.update_value(widget.toPlainText())
+                finally:
+                    widget.blockSignals(False)
+
+            widget.textChanged.connect(on_text_changed)
 
         elif type(widget) == QtWidgets.QComboBox:
             assert self.choices is not None
@@ -1218,7 +1240,29 @@ class LoggedQuantity(QtCore.QObject):
             widget = QtWidgets.QLineEdit()
         self.connect_to_widget(widget)
 
-        return widget
+        if not any((self.is_clipboardable, self.is_cmd)):
+            return widget
+
+        wrap_widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(wrap_widget)
+        layout.addWidget(widget)
+        layout.setSpacing(0)
+
+        if self.is_clipboardable:
+            copy_button = QtWidgets.QPushButton(">>")
+            copy_button.setMaximumWidth(25)
+            copy_button.setToolTip("copy to clipboard")
+            copy_button.clicked.connect(self.copy_to_clipboard)
+            layout.addWidget(copy_button)
+
+        if self.is_cmd:
+            run_button = QtWidgets.QPushButton("run")
+            run_button.setMaximumWidth(33)
+            run_button.setToolTip("run detached")
+            run_button.clicked.connect(self.run_subprocess_detached)
+            layout.addWidget(run_button)
+
+        return wrap_widget
 
     def new_pushButton(
         self,
@@ -1306,6 +1350,30 @@ class LoggedQuantity(QtCore.QObject):
                 cmenu.addAction(f"{val}", partial(self.update_value, new_val=val))
 
         cmenu.exec_(QtGui.QCursor.pos())
+
+    def connect_to_clipboardable(self, io_widget, copy_button: QtWidgets.QPushButton):
+        """type of io_widget"""
+        self.connect_to_widget(io_widget)
+        copy_button.clicked.connect(self.copy_to_clipboard)
+
+    def copy_to_clipboard(self):
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(self.val)
+
+    def connect_to_run_subprocess_detached(
+        self, line_edit: QtWidgets.QWidget, run_button: QtWidgets.QPushButton
+    ):
+        self.connect_to_widget(line_edit)
+        run_button.clicked.connect(self.run_subprocess_detached)
+
+    def run_subprocess_detached(self):
+        subprocess.Popen(
+            self.val.split(),
+            shell=True,
+            # stdin=subprocess.PIPE,
+            # stdout=subprocess.PIPE,
+            # stderr=subprocess.PIPE,
+        )
 
 
 def to_q_color(color, default="lightgrey"):
