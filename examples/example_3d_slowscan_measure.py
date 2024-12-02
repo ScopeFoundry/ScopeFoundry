@@ -28,17 +28,17 @@ class Example3DSlowScanMeasure(BaseRaster3DSlowScan):
 
     def move_position_start(self, h, v, z):
         """gets called when z stack is increased layer"""
-        self.stage.settings[f"{self.settings["h_axis"]}_position"] = h
-        self.stage.settings[f"{self.settings["v_axis"]}_position"] = v
-        self.stage.settings[f"{self.settings["z_axis"]}_position"] = z
+        self.stage.settings[f"{self.settings['h_axis']}_position"] = h
+        self.stage.settings[f"{self.settings['v_axis']}_position"] = v
+        self.stage.settings[f"{self.settings['z_axis']}_position"] = z
 
     def move_position_slow(self, h, v, dh, dv):
-        self.stage.settings[f"{self.settings["h_axis"]}_position"] = h
-        self.stage.settings[f"{self.settings["v_axis"]}_position"] = v
+        self.stage.settings[f"{self.settings['h_axis']}_position"] = h
+        self.stage.settings[f"{self.settings['v_axis']}_position"] = v
 
     def move_position_fast(self, h, v, dh, dv):
-        self.stage.settings[f"{self.settings["h_axis"]}_position"] = h
-        self.stage.settings[f"{self.settings["v_axis"]}_position"] = v
+        self.stage.settings[f"{self.settings['h_axis']}_position"] = h
+        self.stage.settings[f"{self.settings['v_axis']}_position"] = v
 
     def collect_pixel(self, pixel_num, k, j, i):
         signal = self.detector.settings.get_lq("signal").read_from_hardware()
