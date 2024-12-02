@@ -1,0 +1,126 @@
+from enum import Enum
+from functools import partial
+from pathlib import Path
+
+from ScopeFoundry.tools.features.utils import (
+    to_class_name,
+    write_templated_file,
+    mk_authors,
+    mk_dates,
+)
+
+class ComTypes(Enum):
+    OTHER = "OTHER"
+    DLL = "DLL"
+    SERIAL = "SERIAL"
+    # VISA = 'VISA'
+
+
+def new_hw(
+    company="thorlabs",
+    model="XX6000_glavo_mirror",
+    authors="Benedikt Ursprung, Mark E.Ziffer",
+    pretty_name="galvo_mirror",
+    overwrite_existing_module=True,
+    com_type=ComTypes.DLL.value,
+):
+    infos = gather_infos(
+        company, model, authors, pretty_name, overwrite_existing_module
+    )
+
+    path_to_module = Path(infos["PATH_TO_MODULE"])
+    path_to_module.mkdir(exist_ok=True)
+    root = Path(__file__).parent.parent
+
+    write = partial(
+        write_templated_file,
+        substitutions=infos,
+        path_to_target=path_to_module,
+    )
+
+    write(root / "templates/_readout.py", infos["READOUT_FILE_NAME"])
+    write(root / "templates/_test_app.py", infos["TEST_APP_FILE_NAME"])
+    write(root / "templates/___init__.py", "__init__.py")
+    write(root / "templates/_LICENSE", "LICENSE")
+    write(root / "templates/_README.md", "README.md")
+
+    if com_type == ComTypes.DLL.value:
+        write(root / "templates/_dll_dev.py", infos["DEV_FILE_NAME"])
+        write(root / "templates/_dll_hw.py", infos["HW_FILE_NAME"])
+    if com_type == ComTypes.SERIAL.value:
+        write(root / "templates/_serial_dev.py", infos["DEV_FILE_NAME"])
+        write(root / "templates/_serial_hw.py", infos["HW_FILE_NAME"])
+    if com_type == ComTypes.OTHER.value:
+        write(root / "templates/_serial_dev.py", infos["DEV_FILE_NAME"])
+        write(root / "templates/_serial_hw.py", infos["HW_FILE_NAME"])
+
+    return infos
+
+
+def gather_infos(
+    company: str,
+    model: str,
+    authors: str,
+    pretty_name: str,
+    overwrite_existing_module: bool,
+):
+    module_name = f"{company.lower()}_{model.lower()}"
+    path_to_module = Path().cwd() / "ScopeFoundryHW" / module_name
+
+    if path_to_module.exists() and not overwrite_existing_module:
+        raise FileExistsError(
+            f"{module_name} already exists! You can use overwrite flag at your own risk"
+        )
+
+    if pretty_name is None or pretty_name == "":
+        pretty_name = model.lower()
+    pretty_name = pretty_name.lower()
+
+    dev_file_name = f"{pretty_name}_dev.py"
+    dev_class_name = to_class_name(f"{model.upper()}_DEV")
+    import_dev = f"from .{dev_file_name.rstrip('.py')} import {dev_class_name}"
+
+    hw_file_name = f"{pretty_name.lower()}_hw.py"
+    hw_class_name = to_class_name(f"{model.upper()}_HW")
+
+    readout_file_name = f"{pretty_name.lower()}_readout.py"
+    readout_class_name = to_class_name(f"{model.upper()}_Readout")
+
+    test_app_file_name = f"{ pretty_name.lower()}_test_app.py"
+
+    init_imports = f"from .{hw_file_name.rstrip('.py')} import {hw_class_name} \nfrom .{readout_file_name.rstrip('.py')} import {readout_class_name}"
+    test_app_imports = f"from ScopeFoundryHW.{module_name.rstrip('.py')} import {hw_class_name}, {readout_class_name}"
+
+    add_to_app = f"""
+        {test_app_imports}
+        self.add_hardware({hw_class_name}(self))
+        self.add_measurement({readout_class_name}(self))
+"""
+
+    infos = {
+        "DEV_FILE_NAME": dev_file_name,
+        "IMPORT_DEV": import_dev,
+        "DEV_CLASS_NAME": dev_class_name,
+        "HW_FILE_NAME": hw_file_name,
+        "HW_CLASS_NAME": hw_class_name,
+        "READOUT_CLASS_NAME": readout_class_name,
+        "READOUT_NAME": f"{pretty_name.lower()}_readout",
+        "READOUT_FILE_NAME": readout_file_name,
+        "TEST_APP_NAME": f"{pretty_name.lower()}_test_app",
+        "HW_NAME": pretty_name.lower(),
+        "INIT_IMPORTS": init_imports,
+        "IMPORTS_IN_TEST_APP": test_app_imports,
+        "MODULE_NAME": module_name,
+        "COMPANY": " ".join(company.split("_")),
+        "MODEL": " ".join(model.split("_")),
+        "ADD_TO_APP": add_to_app,
+        "TEST_APP_FILE_NAME": test_app_file_name,
+        "PATH_TO_MODULE": path_to_module,
+    }
+    infos.update(mk_dates())
+    infos.update(mk_authors(authors))
+    return infos
+
+
+if __name__ == "__main__":
+    new_hw()

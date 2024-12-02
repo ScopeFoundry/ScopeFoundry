@@ -38,6 +38,10 @@ setup(
               'ScopeFoundry.scanning',
               'ScopeFoundry.sequencer',
               'ScopeFoundry.sequencer.item_types',              
+              'ScopeFoundry.tools',  
+                  'ScopeFoundry.tools.features',
+                  'ScopeFoundry.tools.templates',
+                  'ScopeFoundry.tools.pages',
             ],
     
     #packages=find_packages('.', exclude=['contrib', 'docs', 'tests']),
