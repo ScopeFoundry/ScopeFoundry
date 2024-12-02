@@ -57,8 +57,25 @@ $ conda activate scopefoundry
 (scopefoundry) $ pip install pyqt6 scopefoundry
 ```
 
-## Getting started
+### Getting started
 
+After installation, use anaconda prompt and navigate to where you want or have the source code for your setup and run:
+
+```
+$ python -m ScopeFoundry.tools
+```
+
+There will be tools to add a setup, templates to developpe hardware and add measurement components. 
+
+### Analyze h5 with ipynb
+
+With ScopeFoundry installed, you can navigate to your folder with h5 files and
+
+```
+$ python -m ScopeFoundry.tools
+```
+
+analyze_with_ipynb will generate a convinience functions to load data with python. (Recommended to use vscode with jupyter extension).
 
 
 ### Recommended folder structure
