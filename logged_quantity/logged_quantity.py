@@ -1,4 +1,5 @@
 from collections import deque
+from enum import Enum
 from functools import partial
 from inspect import signature
 
@@ -1322,4 +1323,6 @@ def _expand_choice(c, dtype):
     if isinstance(c, tuple):
         name, val = c
         return (str(name), dtype(val))
+    elif isinstance(c, Enum):
+        return (c.name, dtype(c.value))
     return (str(c), dtype(c))
