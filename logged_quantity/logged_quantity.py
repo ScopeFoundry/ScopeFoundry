@@ -65,6 +65,7 @@ class LoggedQuantity(QtCore.QObject):
         protected=False,  # a guard that prevents from being updated, i.e. file loading
         is_cmd=False,
         is_clipboardable=False,
+        default_widget_factory=None,
     ):
         QtCore.QObject.__init__(self)
 
@@ -118,6 +119,8 @@ class LoggedQuantity(QtCore.QObject):
             self.spinbox_step = 1
         else:
             self.spinbox_step = spinbox_step
+
+        self.default_widget_factory = default_widget_factory
 
         self.oldval = None
 
@@ -1227,7 +1230,9 @@ class LoggedQuantity(QtCore.QObject):
         """returns the appropriate QWidget for the datatype of the
         LQ. automatically connects widget
         """
-        if self.choices is not None:
+        if self.default_widget_factory is not None:
+            widget = self.default_widget_factory()
+        elif self.choices is not None:
             widget = QtWidgets.QComboBox()
         elif self.dtype in [int, float]:
             if self.si:
