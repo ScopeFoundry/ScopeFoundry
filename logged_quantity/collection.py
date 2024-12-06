@@ -105,6 +105,7 @@ class LQCollection:
         fmt="%g",
         is_cmd=False,
         is_clipboardable=False,
+        default_widget_factory=None,
         **kwargs,
     ) -> LoggedQuantity:
         """
@@ -153,6 +154,7 @@ class LQCollection:
                 colors=colors,
                 is_cmd=is_cmd,
                 is_clipboardable=is_clipboardable,
+                default_widget_factory=default_widget_factory,
                 **kwargs,
             )
 
