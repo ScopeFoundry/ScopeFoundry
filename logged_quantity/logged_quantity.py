@@ -1,10 +1,10 @@
+import subprocess
 from collections import deque
 from enum import Enum
 from functools import partial
 from inspect import signature
-import subprocess
+from typing import Any, List, Tuple, Union
 
-import pyqtgraph
 import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
@@ -169,7 +169,8 @@ class LoggedQuantity(QtCore.QObject):
     def val_str(self):
         self.coerce_to_str(self.val)
 
-    def _expand_choices(self, choices):
+    def _expand_choices(self, choices) -> Union[Tuple[str, Any], None]:
+        """returns [(name, val)...] or None"""
         if choices is None:
             return None
         return [_expand_choice(c, self.dtype) for c in choices]
@@ -388,7 +389,7 @@ class LoggedQuantity(QtCore.QObject):
         widget.setToolTip(f"<div style='white-space: pre-line;'>{tips_str}</div>")
         return tips
 
-    def connect_to_widget(self, widget):
+    def connect_to_widget(self, widget: QtWidgets.QWidget):
         """
         Creates Qt signal-slot connections between LQ and the QtWidget *widget*
 
@@ -422,7 +423,7 @@ class LoggedQuantity(QtCore.QObject):
         widget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         widget.customContextMenuRequested.connect(self.on_right_click)
 
-        if type(widget) == QtWidgets.QDoubleSpinBox:
+        if isinstance(widget, QtWidgets.QDoubleSpinBox):
 
             widget.setKeyboardTracking(False)
             if self.vmin is not None:
@@ -452,7 +453,7 @@ class LoggedQuantity(QtCore.QObject):
             # if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
 
-        elif type(widget) == MinMaxQSlider:
+        elif isinstance(widget, MinMaxQSlider):
             self.updated_value[float].connect(widget.update_value)
             widget.updated_value.connect(self.update_value)
             if self.unit is not None:
@@ -460,7 +461,7 @@ class LoggedQuantity(QtCore.QObject):
             widget.set_range(self.vmin, self.vmax)
             widget.set_name(self.name)
 
-        elif type(widget) == QtWidgets.QSlider:
+        elif isinstance(widget, QtWidgets.QSlider):
             SLIDER_MIN = -2147483648
             SLIDER_MAX = 2147483647
             vmin = min(max(self.vmin, SLIDER_MIN), SLIDER_MAX)
@@ -512,6 +513,7 @@ class LoggedQuantity(QtCore.QObject):
                     finally:
                         widget.blockSignals(False)
 
+                @QtCore.Slot(int)
                 def update_lq(x):
                     self.update_value(transform_from_slider(x))
 
@@ -525,7 +527,7 @@ class LoggedQuantity(QtCore.QObject):
                     f"QSlider not supported with setting {self.path} of dtype={self.dtype}"
                 )
 
-        elif type(widget) == QtWidgets.QCheckBox:
+        elif isinstance(widget, QtWidgets.QCheckBox):
 
             @QtCore.Slot(bool)
             def update_widget_value(x=None):
@@ -553,7 +555,7 @@ class LoggedQuantity(QtCore.QObject):
                         QCheckBox:checked  {{ background: {self.colors[-1]} }}"""
                 widget.setStyleSheet(widget.styleSheet() + s)
 
-        elif type(widget) == QtWidgets.QLineEdit:
+        elif isinstance(widget, QtWidgets.QLineEdit):
             self.updated_text_value[str].connect(widget.setText)
             self.updated_value[str].connect(widget.setText)
 
@@ -570,7 +572,7 @@ class LoggedQuantity(QtCore.QObject):
 
             widget.editingFinished.connect(on_edit_finished)
 
-        elif type(widget) == QtWidgets.QPlainTextEdit:
+        elif isinstance(widget, QtWidgets.QPlainTextEdit):
             # TODO Read only
 
             def on_lq_changed(new_text):
@@ -609,7 +611,7 @@ class LoggedQuantity(QtCore.QObject):
 
             widget.textChanged.connect(on_text_changed)
 
-        elif type(widget) == QtWidgets.QComboBox:
+        elif isinstance(widget, QtWidgets.QComboBox):
             assert self.choices is not None
             widget.clear()  # removes all old choices
 
@@ -637,7 +639,7 @@ class LoggedQuantity(QtCore.QObject):
 
                 widget.currentIndexChanged.connect(update_background_color)
 
-        elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
+        elif isinstance(widget, pg.widgets.SpinBox.SpinBox):
             # widget.setFocusPolicy(QtCore.Qt.StrongFocus)
             suffix = self.unit
             if self.unit is None:
@@ -696,16 +698,16 @@ class LoggedQuantity(QtCore.QObject):
 
             widget.sigValueChanged.connect(on_widget_update)
 
-        elif type(widget) == QtWidgets.QLabel:
+        elif isinstance(widget, QtWidgets.QLabel):
             self.updated_text_value.connect(widget.setText)
-        elif type(widget) == QtWidgets.QProgressBar:
+        elif isinstance(widget, QtWidgets.QProgressBar):
 
             def set_progressbar(x, widget=widget):
                 self.log.debug(f"set_progressbar {x}")
                 widget.setValue(int(x))
 
             self.updated_value.connect(set_progressbar)
-        elif type(widget) == QtWidgets.QLCDNumber:
+        elif isinstance(widget, QtWidgets.QLCDNumber):
             self.updated_value[(self.dtype)].connect(widget.display)
         else:
             raise ValueError("Unknown widget type")
@@ -724,7 +726,7 @@ class LoggedQuantity(QtCore.QObject):
 
         self.set_widget_toolTip(widget)
 
-        if type(widget) == QtWidgets.QDoubleSpinBox:
+        if isinstance(widget, QtWidgets.QDoubleSpinBox):
 
             widget.setKeyboardTracking(False)
             if self.vmin is not None:
@@ -753,14 +755,14 @@ class LoggedQuantity(QtCore.QObject):
             # self.updated_value[float].connect(widget.setValue)
             self.updated_value[float].connect(update_widget_value)
 
-        elif type(widget) == MinMaxQSlider:
+        elif isinstance(widget, MinMaxQSlider):
             self.updated_value[float].connect(widget.update_value)
             if self.unit is not None:
                 widget.unit = self.unit
             widget.set_range(self.vmin, self.vmax)
             widget.set_name(self.name)
 
-        elif type(widget) == QtWidgets.QSlider:
+        elif isinstance(widget, QtWidgets.QSlider):
 
             SLIDER_MIN = -2147483648
             SLIDER_MAX = 2147483647
@@ -821,7 +823,7 @@ class LoggedQuantity(QtCore.QObject):
                     f"QSlider not supported with setting {self.path} of dtype={self.dtype}"
                 )
 
-        elif type(widget) == QtWidgets.QCheckBox:
+        elif isinstance(widget, QtWidgets.QCheckBox):
 
             @QtCore.Slot(bool)
             def update_widget_value(x=None):
@@ -841,13 +843,13 @@ class LoggedQuantity(QtCore.QObject):
                         QCheckBox:checked  {{ background: {self.colors[-1]} }}"""
                 widget.setStyleSheet(widget.styleSheet() + s)
 
-        elif type(widget) == QtWidgets.QLineEdit:
+        elif isinstance(widget, QtWidgets.QLineEdit):
             self.updated_text_value[str].connect(widget.setText)
             self.updated_value[str].connect(widget.setText)
             if self.ro:
                 widget.setReadOnly(True)  # FIXME
 
-        elif type(widget) == QtWidgets.QPlainTextEdit:
+        elif isinstance(widget, QtWidgets.QPlainTextEdit):
             # TODO Read only
 
             def on_lq_changed(new_text):
@@ -862,7 +864,7 @@ class LoggedQuantity(QtCore.QObject):
             # self.updated_text_value[str].connect(widget.document().setPlainText)
             self.updated_text_value[str].connect(on_lq_changed)
 
-        elif type(widget) == QtWidgets.QComboBox:
+        elif isinstance(widget, QtWidgets.QComboBox):
             # need to have a choice list to connect to a QComboBox
             assert self.choices is not None
             widget.clear()  # removes all old choices
@@ -889,7 +891,7 @@ class LoggedQuantity(QtCore.QObject):
 
                 widget.currentIndexChanged.connect(update_background_color)
 
-        elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
+        elif isinstance(widget, pg.widgets.SpinBox.SpinBox):
             # widget.setFocusPolicy(QtCore.Qt.StrongFocus)
             suffix = self.unit
             if self.unit is None:
@@ -928,6 +930,8 @@ class LoggedQuantity(QtCore.QObject):
             # self.updated_value[float].connect(widget.setValue)
             # if not self.ro:
             # widget.valueChanged[float].connect(self.update_value)
+
+            @QtCore.Slot(float)
             def update_widget_value(x):
                 """
                 block signals from widget when value is set via lq.update_value.
@@ -941,16 +945,20 @@ class LoggedQuantity(QtCore.QObject):
 
             self.updated_value[float].connect(update_widget_value)
 
-        elif type(widget) == QtWidgets.QLabel:
+        elif isinstance(widget, QtWidgets.QLabel):
             self.updated_text_value.connect(widget.setText)
-        elif type(widget) == QtWidgets.QProgressBar:
 
+        elif isinstance(widget, QtWidgets.QProgressBar):
+
+            @QtCore.Slot(int)
+            @QtCore.Slot(float)
             def set_progressbar(x, widget=widget):
                 self.log.debug(f"set_progressbar {x}")
                 widget.setValue(int(x))
 
             self.updated_value.connect(set_progressbar)
-        elif type(widget) == QtWidgets.QLCDNumber:
+
+        elif isinstance(widget, QtWidgets.QLCDNumber):
             self.updated_value[(self.dtype)].connect(widget.display)
         else:
             raise ValueError("Unknown widget type")
@@ -1047,14 +1055,13 @@ class LoggedQuantity(QtCore.QObject):
     def add_choices(self, choices, allow_duplicates=False, new_val=None):
         if not isinstance(choices, (list, tuple)):
             choices = [choices]
-        if len(choices) <= 0:
+
+        if not choices:
             return False
 
-        choices = self._expand_choices(choices)
-        if allow_duplicates:
-            new_choices = self.choices + choices
-        else:
-            new_choices = list(set(self.choices + choices))
+        new_choices = self.choices + self._expand_choices(choices)
+        if not allow_duplicates:
+            new_choices = remove_duplicates(new_choices)
 
         if new_val is None:
             new_val = self.val
@@ -1077,9 +1084,8 @@ class LoggedQuantity(QtCore.QObject):
         """
         if not isinstance(choices, (list, tuple)):
             choices = [choices]
-        choices_2_remove = self._expand_choices(choices)
-        new_choices = list(set(self.choices) - set(choices_2_remove))
-        self.change_choice_list(new_choices, new_val)
+        choices = [c for c in self.choices if c not in self._expand_choices(choices)]
+        self.change_choice_list(choices, new_val)
         return True
 
     def change_min_max(self, vmin=-1e12, vmax=+1e12):
@@ -1097,7 +1103,7 @@ class LoggedQuantity(QtCore.QObject):
             for widget in self.widget_list:
                 if type(widget) in [
                     QtWidgets.QDoubleSpinBox,
-                    pyqtgraph.widgets.SpinBox.SpinBox,
+                    pg.widgets.SpinBox.SpinBox,
                 ]:
                     widget.setReadOnly(self.ro)
                 else:
@@ -1109,11 +1115,11 @@ class LoggedQuantity(QtCore.QObject):
         with self.lock:
             self.unit = unit
             for widget in self.widget_list:
-                if type(widget) == QtWidgets.QDoubleSpinBox:
+                if isinstance(widget, QtWidgets.QDoubleSpinBox):
                     if self.unit is not None:
                         widget.setSuffix(f" {self.unit}")
 
-                elif type(widget) == pyqtgraph.widgets.SpinBox.SpinBox:
+                elif isinstance(widget, pg.widgets.SpinBox.SpinBox):
                     # widget.setFocusPolicy(QtCore.Qt.StrongFocus)
                     suffix = self.unit
                     if self.unit is None:
@@ -1399,3 +1405,9 @@ def _expand_choice(c, dtype):
     elif isinstance(c, Enum):
         return (c.name, dtype(c.value))
     return (str(c), dtype(c))
+
+# https://stackoverflow.com/questions/480214/how-do-i-remove-duplicates-from-a-list-while-preserving-order
+def remove_duplicates(l: List) -> List:
+    seen = set()
+    seen_add = seen.add
+    return [x for x in l if not (x in seen or seen_add(x))]
