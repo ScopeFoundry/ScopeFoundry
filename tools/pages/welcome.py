@@ -10,7 +10,7 @@ ICONS_PATH = ROOT / "base_app/icons"
 class WelcomePage(Page):
     def setup(self):
         self.name = "Welcome"
-        self.operations.add(
+        self.operations.new(
             " analyze with ipynb",
             analyze_with_ipynb,
             icon_path=ICONS_PATH / "jupyter_logo.png",

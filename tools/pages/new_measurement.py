@@ -16,7 +16,7 @@ class NewMeasurement(Page):
             is_clipboardable=True,
         )
 
-        self.operations.add("create", self.new_measurement)
+        self.operations.new("create", self.new_measurement)
         self.procedure = (
             "define name and press create",
             "name",

@@ -19,7 +19,7 @@ class NewHardware(Page):
         self.settings.New("communication type", str, choices=ComTypes)
         self.settings.New("overwrite existing", bool, initial=False)
 
-        self.operations.add("create new hardware", self.new_hardware)
+        self.operations.new("create new hardware", self.new_hardware)
 
         self.settings.New(
             "import",
@@ -29,7 +29,7 @@ class NewHardware(Page):
         )
         self.settings.New("run", str, is_cmd=True, is_clipboardable=True)
 
-        self.operations.add("create", self.new_hardware)
+        self.operations.new("create", self.new_hardware)
         self.procedure = (
             "define name and press create",
             "company",

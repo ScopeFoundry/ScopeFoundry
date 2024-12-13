@@ -201,7 +201,7 @@ class HardwareComponent:
         :type op_func: QtCore.Slot or Callable without Argument
         :type description: str
         """
-        self.operations.add(name, op_func, description, icon_path)
+        self.operations.new(name, op_func, description, icon_path)
 
     def remove_operation(self, name):
         self.operations.remove(name)

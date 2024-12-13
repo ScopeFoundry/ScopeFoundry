@@ -28,7 +28,7 @@ def new_widget(
     """returns a widget that represents objects with their settings and operations"""
     assert style in ("form", "hbox", "scroll_form")
 
-    if title is not None:
+    if title:
         widget = QtWidgets.QGroupBox()
         widget.setTitle(title)
     else:
