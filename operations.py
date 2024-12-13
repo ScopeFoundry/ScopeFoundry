@@ -1,7 +1,7 @@
-from collections import OrderedDict
-from typing import Callable
+from dataclasses import dataclass, field
+from typing import Callable, Dict, List, Tuple
 
-from qtpy import QtCore, QtWidgets, QtGui
+from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry.dynamical_widgets.tools import Tools
 from ScopeFoundry.helper_funcs import filter_with_patterns
@@ -13,42 +13,67 @@ class OperationsQObject(QtCore.QObject):
     removed = QtCore.Signal(str)
 
 
-class Operations(OrderedDict):
+@dataclass
+class Operation:
+    name: str
+    func: Callable
+    description: str = field(default="")
+    icon_path: str = field(default="")
 
-    def __init__(self, other=(), /, **kwds):
-        super().__init__(other, **kwds)
+    def new_button(self):
+        op_button = QtWidgets.QPushButton(self.name)
+        op_button.setObjectName(self.name)
+        op_button.clicked.connect(lambda checked, f=self.func: f())
+        if self.description:
+            op_button.setToolTip(self.description)
+        if self.icon_path:
+            op_button.setIcon(QtGui.QIcon(str(self.icon_path)))
+        return op_button
+
+
+class Operations:
+
+    def __init__(self):
         self.q_object = OperationsQObject()
-        self._widgets_managers_ = []
-        self.descriptions = {}
-        self.icon_paths = {}
+        self._widgets_managers_: List[OperationWidgetsManager] = []
+        self._operations: Dict[str, Operation] = {}
 
-    def add(self, name: str, func: Callable, description="", icon_path=""):
-        if name in self.__dict__:
-            return
-        self[name] = func
-        self.descriptions[name] = description
-        self.icon_paths[name] = icon_path
-        self.q_object.added.emit(name)
+    def new(self, name: str, func: Callable, description="", icon_path="") -> Operation:
+        return self.add(Operation(name, func, description, icon_path))
 
-    def remove(self, name):
-        if name not in self:
+    def add(self, operation: Operation) -> Operation:
+        assert operation.name not in self._operations
+        self._operations[operation.name] = operation
+        self.q_object.added.emit(operation.name)
+        return operation
+
+    def remove(self, name) -> None:
+        if name not in self._operations:
             return
-        del self[name]
-        del self.descriptions[name]
-        del self.icon_paths[name]
+        del self._operations[name]
         self.q_object.removed.emit(name)
 
-    def new_button(self, name):
-        op_button = QtWidgets.QPushButton(name)
-        op_button.setObjectName(name)
-        op_button.clicked.connect(lambda checked, f=self[name]: f())
-        tt = self.descriptions[name]
-        if tt:
-            op_button.setToolTip(tt)
-        icon_path = self.icon_paths[name]
-        if icon_path:
-            op_button.setIcon(QtGui.QIcon(str(icon_path)))
-        return op_button
+    def get(self, name) -> Operation:
+        return self._operations[name]
+
+    def new_button(self, name) -> QtWidgets.QPushButton:
+        return self._operations[name].new_button()
+
+    def keys(self):
+        return self._operations.keys()
+
+    def __contains__(self, k):
+        return self._operations.__contains__(k)
+
+    def __iter__(self):
+        return self._operations.__iter__()
+
+    # For backwards compatbility, returning op_func rather the Operation objects.
+    def items(self):
+        return ((k, v.func) for k, v in self._operations.items())
+
+    def __getitem__(self, key) -> Callable:
+        return self._operations[key].func
 
 
 class OperationWidgetsManager:
