@@ -396,9 +396,6 @@ class BaseMicroscopeApp(BaseApp):
         subwin.setWindowTitle(name)
         subwin.setWindowIcon(widget.windowIcon())
         subwin.show()
-        widget.setAcceptDrops(True)
-        widget.dragEnterEvent = self.on_drag_on_app_widget
-        widget.dropEvent = self.on_drop_on_app_widget
 
         return subwin
 

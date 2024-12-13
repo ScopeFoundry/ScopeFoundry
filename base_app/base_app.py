@@ -18,7 +18,7 @@ from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry import ini_io
 from ScopeFoundry.base_app.console_widget import new_console_widget
-from ScopeFoundry.base_app.logging_handlers import HtmlHandler, StatusBarHandler
+from ScopeFoundry.base_app.logging_handlers import HtmlHandler
 from ScopeFoundry.base_app.logging_widget import LoggingWidget
 from ScopeFoundry.dynamical_widgets.tree_widget import SubtreeManager
 from ScopeFoundry.helper_funcs import get_logger_from_class
@@ -100,20 +100,20 @@ class BaseApp(QtCore.QObject):
 
     def setup_dark_mode_option(self, dark_mode: bool = None):
         if hasattr(self.qtapp.styleHints(), "setColorScheme"):
-            choices = ("dark", "light", "system")
+            choices = QtCore.Qt.ColorScheme
             if dark_mode is None:
-                initial = "system"
+                initial = QtCore.Qt.ColorScheme.Unknown.value
             elif dark_mode:
-                initial = "dark"
+                initial = QtCore.Qt.ColorScheme.Dark.value
             else:
-                initial = "light"
+                initial = QtCore.Qt.ColorScheme.Light.value
             self.settings.New(
                 name="dark_mode",
-                dtype=str,
+                dtype=int,
                 choices=choices,
                 initial=initial,
-                description="<i>system</i> let the operating system decide",
-            ).add_listener(self.set_color_scheme)
+                description=f"<i>{QtCore.Qt.ColorScheme.Unknown.name}</i> let the operating system decide",
+            ).add_listener(self.set_color_scheme, argtype=int)
         elif dark_mode:
             warn(
                 "dark mode selection only available with Qt6.8+: pip install PyQt6 or pip install --upgrade PyQt6. trying to use qdarkmode",
@@ -137,13 +137,8 @@ class BaseApp(QtCore.QObject):
             )
 
     def set_color_scheme(self, choice):
-        if choice == "dark":
-            choice = QtCore.Qt.ColorScheme.Dark
-        elif choice == "light":
-            choice = QtCore.Qt.ColorScheme.Light
-        elif choice == "system":
-            choice = QtCore.Qt.ColorScheme.Unknown
-        self.qtapp.styleHints().setColorScheme(choice)
+        scheme = {c.value: c for c in QtCore.Qt.ColorScheme}[choice]
+        self.qtapp.styleHints().setColorScheme(scheme)
 
     def exec_(self):
         return self.qtapp.exec_()
