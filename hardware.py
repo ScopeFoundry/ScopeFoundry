@@ -171,13 +171,9 @@ class HardwareComponent:
 
     def New_UI(self):
         scroll_area = self.settings.New_UI(style="scroll_form")
-        for n, func in self.operations.items():
-            btn = QtWidgets.QPushButton(n)
-            btn.clicked.connect(func)
+        for name in self.operations:
+            btn = self.operations.new_button(name)
             scroll_area.widget().layout().addRow(btn)
-        read_from_hardware_button = QtWidgets.QPushButton("Read From Hardware")
-        read_from_hardware_button.clicked.connect(self.read_from_hardware)
-        scroll_area.widget().layout().addRow(read_from_hardware_button)
         return scroll_area
 
     def new_control_widgets(
