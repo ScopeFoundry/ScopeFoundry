@@ -24,6 +24,7 @@ from ScopeFoundry.helper_funcs import (
     load_qt_ui_file,
     sibling_path,
     open_file,
+    get_scopefoundry_version,
 )
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 
@@ -820,27 +821,19 @@ class BaseMicroscopeApp(BaseApp):
 
     def on_about(self):
 
-        # There must be a better way to extract the version
-        version = ""
-        with open(Path(__file__).parent.parent / "setup.py") as f:
-            for l in f.readlines():
-                if "version" in l:
-                    import re
-
-                    version = ".".join(re.findall(r"\d+", l))
-                    break
-
-        readme = QtWidgets.QTextEdit()
-        with open(Path(__file__).parent.parent / "README.md") as f:
-            readme.setMarkdown(
-                f.read().replace("ScopeFoundry", f"ScopeFoundry {version}", 1)
+        with open(self.this_path / "README.md") as f:
+            markdown = f.read().replace(
+                "ScopeFoundry", f"ScopeFoundry ({get_scopefoundry_version()})", 1
             )
 
-        dialog = QtWidgets.QDialog()
+        readme = QtWidgets.QTextEdit()
+        readme.setMarkdown(markdown)
+
+        dialog = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(readme)
         dialog.setLayout(layout)
-        dialog.exec_()
+        dialog.show()
 
     def on_drag_on_app_widget(self, event: QtGui.QDragEnterEvent):
         if event.mimeData().hasUrls():

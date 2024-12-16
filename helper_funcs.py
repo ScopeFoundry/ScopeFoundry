@@ -40,18 +40,19 @@ class OrderedAttrDict(object):
     def __contains__(self, k):
         return self._odict.__contains__(k)
 
+
 def open_file(filepath):
     """
     Cross-platform file opener since a native module does not yet exist per
     https://stackoverflow.com/questions/17317219/is-there-an-platform-independent-equivalent-of-os-startfile
     """
     try:
-        if sys.platform.startswith('win'):         # Windows
+        if sys.platform.startswith("win"):  # Windows
             os.startfile(filepath)
-        elif sys.platform.startswith('darwin'):    # macOS
-            subprocess.call(['open', filepath])
-        else:                                      # linux
-            subprocess.call(['xdg-open', filepath])
+        elif sys.platform.startswith("darwin"):  # macOS
+            subprocess.call(["open", filepath])
+        else:  # linux
+            subprocess.call(["xdg-open", filepath])
     except Exception as e:
         print(f"Error opening file {filepath}: {e}")
 
@@ -420,3 +421,16 @@ def filter_with_patterns(
         keys_to_exclude = find_matches(keys, exclude_patterns)
         keys = [key for key in keys if key not in keys_to_exclude]
     return keys
+
+
+def get_scopefoundry_version():
+    try:
+        # only works if installed with pip (hence you are not a developer)
+        # https://stackoverflow.com/questions/67085041/how-to-specify-version-in-only-one-place-when-using-pyproject-toml
+        from importlib import metadata
+
+        return metadata.version("ScopeFoundry")
+    except metadata.PackageNotFoundError:
+        pass
+
+    return "dev 1.6+"
