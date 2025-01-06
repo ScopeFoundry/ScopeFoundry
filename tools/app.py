@@ -14,20 +14,33 @@ ICONS_PATH = ROOT / "base_app/icons"
 
 
 class ToolsApp(QtWidgets.QMainWindow):
-    def __init__(self):
+
+    def __init__(self) -> None:
         super().__init__()
 
         self.tab_widget = QtWidgets.QTabWidget()
         self.setCentralWidget(self.tab_widget)
+        self.pages = []
 
-    def add_page(self, page: Page):
+    def add_page(self, page: Page) -> None:
         page.setup()
         page.setup_figure()
         self.tab_widget.addTab(page.ui, page.name)
+        self.pages.append(page.name)
+
+    def show_page(self, name: str) -> None:
+        self.tab_widget.setCurrentIndex(self.pages.index(name))
 
 
-def main():
-    app = QtWidgets.QApplication(sys.argv)
+def main() -> None:
+    if len(sys.argv) > 1:
+        start_app(" ".join(sys.argv[1:]))
+    else:
+        start_app()
+
+
+def start_app(page="Welcome") -> None:
+    app = QtWidgets.QApplication([])
     window = ToolsApp()
     window.setWindowTitle("ScopeFoundry tools")
     logo_icon = QtGui.QIcon(str(ICONS_PATH / "scopefoundry_logo2C_1024.png"))
@@ -37,6 +50,7 @@ def main():
     window.add_page(NewHardware())
     window.add_page(NewMeasurement())
     window.show()
+    window.show_page(page)
     sys.exit(app.exec_())
 
 

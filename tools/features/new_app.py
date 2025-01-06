@@ -1,5 +1,5 @@
 # intended to make a new setup by running:
-# python -m ScopeFoundry.new_setup
+# python -m ScopeFoundry.tools.new_setup
 
 import os
 import re
@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 
-def convert_import_statement(original_import):
+def convert_import_statement(original_import: str) -> str:
     """
     Convert a ScopeFoundry examples import statement to a local module import statement.
 
@@ -24,7 +24,7 @@ def convert_import_statement(original_import):
     return new_import
 
 
-def apply_import_statement_conversion(input_file_path):
+def apply_import_statement_conversion(input_file_path: str) -> None:
     """
     Parameters:
     input_file_path (str): The path to the input Python file.
@@ -38,7 +38,7 @@ def apply_import_statement_conversion(input_file_path):
     os.replace(temp_file_path, input_file_path)
 
 
-def copy_scopefoundry_examples():
+def copy_scopefoundry_examples() -> None:
 
     source_dir = Path(__file__).resolve().parent.parent.parent / "examples"
     dest_dir = Path.cwd()
@@ -65,7 +65,7 @@ def copy_scopefoundry_examples():
             print(f"Copied {file_path} to {dest_file_path} and adjusted imports")
 
 
-def new_app():
+def new_app() -> str:
     copy_scopefoundry_examples()
     print(
         """

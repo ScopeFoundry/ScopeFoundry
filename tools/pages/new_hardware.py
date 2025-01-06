@@ -5,7 +5,7 @@ from ScopeFoundry.tools.features.new_hw import ComTypes, new_hw
 
 
 class NewHardware(Page):
-    def setup(self):
+    def setup(self) -> None:
         self.name = "new hardware"
         self.settings.New("company", dtype=str, initial="thorlabs")
         m = self.settings.New(
@@ -44,7 +44,7 @@ class NewHardware(Page):
             "import",
         )
 
-    def new_hardware(self):
+    def new_hardware(self) -> None:
         company = self.settings["company"]
         model = self.settings["series or model"]
         overwrite_existing_module = self.settings["overwrite existing"]
@@ -92,11 +92,11 @@ class NewHardware(Page):
             f"python -m ScopeFoundryHW.{info['MODULE_NAME']}.{info['TEST_APP_FILE_NAME'].replace('test_app.py', 'test_app')}"
         )
 
-    def _clean_verboten(self, text, verboten):
+    def _clean_verboten(self, text: str, verboten: str) -> str:
         return "_".join(text.split(verboten))
 
 
-def make_pretty_name(model: str):
+def make_pretty_name(model: str) -> str:
     s = model.split("_")
     if len(s) >= 2:
         name = "_".join(s[-2:])

@@ -1,4 +1,6 @@
 from pathlib import Path
+from typing import Dict
+
 from ScopeFoundry.tools.features.utils import (
     mk_authors,
     mk_dates,
@@ -7,7 +9,7 @@ from ScopeFoundry.tools.features.utils import (
 )
 
 
-def gather_infos(name: str, module_path: str = "."):
+def gather_infos(name: str, module_path: str = ".") -> Dict[str, str]:
     readout_file_name = f"{name.lower()}.py"
     readout_class_name = to_class_name(name)
     module_name = name
@@ -32,7 +34,7 @@ def gather_infos(name: str, module_path: str = "."):
     return infos
 
 
-def new_measure(name: str):
+def new_measure(name: str) -> Dict[str, str]:
     infos = gather_infos(name, ".")
     root = Path(__file__).parent.parent
 
@@ -45,7 +47,7 @@ def new_measure(name: str):
     return infos
 
 
-def main():
+def main() -> None:
     name = input("name of measurement: ")
     subs = new_measure(name)
 

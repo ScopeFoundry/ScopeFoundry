@@ -3,7 +3,7 @@ from ScopeFoundry.tools.page import Page
 
 
 class NewApp(Page):
-    def setup(self):
+    def setup(self) -> None:
         self.name = "new app"
         self.operations.new("new app", self.new_app)
 
@@ -12,5 +12,5 @@ class NewApp(Page):
         self.operations.new("create", self.new_app)
         self.procedure = ("new app", "cmd")
 
-    def new_app(self):
+    def new_app(self) -> None:
         self.settings["cmd"] = new_app()

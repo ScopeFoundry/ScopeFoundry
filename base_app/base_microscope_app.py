@@ -2,29 +2,28 @@ import datetime
 import inspect
 import json
 import logging
+import subprocess
 import time
-from typing import Any, Dict, Protocol
 import warnings
 from collections import OrderedDict
 from functools import partial
 from pathlib import Path
-
+from typing import Any, Dict, List, Protocol
 
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry import h5_io, ini_io
-
 from ScopeFoundry.dynamical_widgets import new_tree_widget, new_widget
 from ScopeFoundry.h5_analyze_with_ipynb import generate_ipynb, generate_loaders_py
 from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
     confirm_on_close,
     find_matches,
+    get_scopefoundry_version,
     ignore_on_close,
     load_qt_ui_file,
-    sibling_path,
     open_file,
-    get_scopefoundry_version,
+    sibling_path,
 )
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 
@@ -33,10 +32,7 @@ from .logging_handlers import StatusBarHandler, new_log_file_handler
 from .show_io_report_dialog import show_io_report_dialog
 
 # useful for developing - may cause problems:
-# from .base_microscope_app_mdi import Ui_MainWindow
-
-
-THIS_PATH = Path(__file__).parent
+from .base_microscope_app_mdi import Ui_MainWindow
 
 
 class MeasurementProtocol(Protocol):
@@ -66,7 +62,7 @@ class BaseMicroscopeApp(BaseApp):
     mdi = True
     """Multiple Document Interface flag. Tells the app whether to include an MDI widget in the app."""
 
-    def __init__(self, argv=[], **kwargs):
+    def __init__(self, argv: List[str] = [], **kwargs: Any) -> None:
         super().__init__(argv, **kwargs)
 
         self.settings_icon_path = self.icons_path / "settings_logo.png"
@@ -92,15 +88,15 @@ class BaseMicroscopeApp(BaseApp):
         self._post_setup_ui_quickaccess()
         self._setup_ui_logo()
 
-    def setup(self):
+    def setup(self) -> None:
         """Override to add Hardware and Measurement Components"""
         pass
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Optional override to set up ui elements after default ui is built"""
         pass
 
-    def _setup_settings_operations(self, **kwargs):
+    def _setup_settings_operations(self, **kwargs: Any) -> None:
         initial_save_path = Path.cwd() / "data"
         if not initial_save_path.is_dir():
             initial_save_path.mkdir()
@@ -131,7 +127,7 @@ class BaseMicroscopeApp(BaseApp):
             self.jupyter_logo_path,
         )
 
-    def _setup_log_file_handler(self):
+    def _setup_log_file_handler(self) -> None:
         log_path = Path.cwd() / "log"
         if not log_path.is_dir():
             log_path.mkdir()
@@ -139,13 +135,13 @@ class BaseMicroscopeApp(BaseApp):
         self.log_file_handler = new_log_file_handler(log_path / _fname)
         logging.getLogger().addHandler(self.log_file_handler)
 
-    def _setup_ui_base(self):
+    def _setup_ui_base(self) -> None:
         """gets called before setup gets called. Could probabliy be called after but this might"""
         if not hasattr(self, "ui_filename"):
             self.ui_filename = sibling_path(__file__, "base_microscope_app_mdi.ui")
 
         self.ui = load_qt_ui_file(self.ui_filename)
-        # self.ui: Ui_MainWindow = self.ui # useful for developing - may cause problems
+        self.ui: Ui_MainWindow = self.ui  # useful for developing - may cause problems
         self.ui.mdiArea.setVisible(self.mdi)
         self.ui.quickaccess_scrollArea.setVisible(self.mdi)
 
@@ -170,10 +166,10 @@ class BaseMicroscopeApp(BaseApp):
         with open(self.this_path / "base_app" / "base_microscope_app.qss", "r") as file:
             self.qtapp.setStyleSheet(file.read())
 
-    def show_status_bar_msg(self, msg, timeout=2000):
+    def show_status_bar_msg(self, msg: str, timeout: int = 2000) -> None:
         self.ui.statusbar.showMessage(msg, timeout)
 
-    def _setup_ui_buttons(self):
+    def _setup_ui_buttons(self) -> None:
         # since v 1.6 no longer required if default .ui is used.
         if hasattr(self.ui, "console_pushButton"):
             self.ui.console_pushButton.clicked.connect(self.console_widget.show)
@@ -193,7 +189,7 @@ class BaseMicroscopeApp(BaseApp):
         if hasattr(self.ui, "settings_load_pushButton"):
             self.ui.settings_load_pushButton.clicked.connect(self.settings_load_dialog)
 
-    def _setup_ui_tree_column(self):
+    def _setup_ui_tree_column(self) -> None:
 
         mm_tree = new_tree_widget(self.measurements.values(), ["Measurements", "Value"])
         hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
@@ -228,7 +224,7 @@ class BaseMicroscopeApp(BaseApp):
         splitter.addWidget(app_widget)
         self.ui.tree_layout.addWidget(splitter)
 
-    def _setup_ui_mdi_area(self):
+    def _setup_ui_mdi_area(self) -> None:
         self.ui.mdiArea.setTabsClosable(False)
         self.ui.mdiArea.setTabsMovable(True)
 
@@ -242,12 +238,12 @@ class BaseMicroscopeApp(BaseApp):
                 subwin = self.add_mdi_subwin(ui, measure.name)
                 measure.subwin = subwin
 
-    def _load_all_measure_uis(self):
+    def _load_all_measure_uis(self) -> None:
         for measure in self.measurements.values():
             self.load_measure_ui(measure)
         self.ui.action_load_all_measure_uis.setVisible(False)
 
-    def _setup_ui_menu_bar(self):
+    def _setup_ui_menu_bar(self) -> None:
         self.ui.action_set_data_dir.triggered.connect(self.save_dir.file_browser)
         self.ui.action_load_ini.triggered.connect(self.settings_load_dialog)
         self.ui.action_auto_save_ini.triggered.connect(self.settings_auto_save_ini)
@@ -287,6 +283,13 @@ class BaseMicroscopeApp(BaseApp):
         # Refer to existing ui object:
         self.menubar = self.ui.menuWindow
 
+        self.ui.menuAdvanced.addAction(
+            "new hardware", partial(self.start_tools, "new hardware")
+        )
+        self.ui.menuAdvanced.addAction(
+            "new measurement", partial(self.start_tools, "new measurement")
+        )
+
         if self.mdi:
             self.ui.tab_action.triggered.connect(self.set_tab_mode)
             self.ui.window_action.triggered.connect(self.set_subwindow_mode)
@@ -310,7 +313,7 @@ class BaseMicroscopeApp(BaseApp):
                 self._load_all_measure_uis
             )
 
-    def _post_setup_ui_quickaccess(self):
+    def _post_setup_ui_quickaccess(self) -> None:
         # check again if quickbar is defined.
         if isinstance(self.quickbar, QtWidgets.QWidget):
             self.ui.quickaccess_scrollArea.setVisible(True)
@@ -320,39 +323,39 @@ class BaseMicroscopeApp(BaseApp):
         else:
             self.ui.quickaccess_scrollArea.setVisible(False)
 
-    def _setup_ui_logo(self):
+    def _setup_ui_logo(self) -> None:
         logo_icon = QtGui.QIcon(self.logo_path)
         self.qtapp.setWindowIcon(logo_icon)
         self.ui.setWindowIcon(logo_icon)
         self.ui.setWindowTitle(self.name)
 
-    def show(self):
+    def show(self) -> None:
         """Tells Qt to show the user interface"""
         # self.ui.exec_()
         self.ui.show()
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.ui = None
 
-    def set_subwindow_mode(self):
+    def set_subwindow_mode(self) -> None:
         """Switches Multiple Document Interface to Subwindowed viewing mode."""
         self.ui.mdiArea.setViewMode(QtWidgets.QMdiArea.ViewMode.SubWindowView)
 
-    def set_tab_mode(self):
+    def set_tab_mode(self) -> None:
         """Switches Multiple Document Interface to Tabbed viewing mode."""
         self.ui.mdiArea.setViewMode(QtWidgets.QMdiArea.ViewMode.TabbedView)
 
-    def tile_layout(self):
+    def tile_layout(self) -> None:
         """Tiles subwindows in user interface. Specifically in the Multi Document Interface."""
         self.set_subwindow_mode()
         self.ui.mdiArea.tileSubWindows()
 
-    def cascade_layout(self):
+    def cascade_layout(self) -> None:
         """Cascades subwindows in user interface. Specifically in the Multi Document Interface."""
         self.set_subwindow_mode()
         self.ui.mdiArea.cascadeSubWindows()
 
-    def bring_measure_ui_to_front(self, measure: MeasurementProtocol):
+    def bring_measure_ui_to_front(self, measure: MeasurementProtocol) -> None:
         ui = self._loaded_measure_uis.get(measure.name, None)
         if ui is None:
             # measure also has no subwin
@@ -362,7 +365,7 @@ class BaseMicroscopeApp(BaseApp):
         else:
             ui.show()
 
-    def load_measure_ui(self, measure: MeasurementProtocol):
+    def load_measure_ui(self, measure: MeasurementProtocol) -> QtWidgets.QWidget:
         if measure.name in self._loaded_measure_uis:
             return self._loaded_measure_uis[measure.name]
 
@@ -376,7 +379,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.menuWindow.addAction(measure.name, measure.show_ui)
         return measure.ui
 
-    def bring_mdi_subwin_to_front(self, subwin: QtWidgets.QMdiSubWindow):
+    def bring_mdi_subwin_to_front(self, subwin: QtWidgets.QMdiSubWindow) -> None:
         view_mode = self.ui.mdiArea.viewMode()
         if view_mode == QtWidgets.QMdiArea.ViewMode.SubWindowView:
             subwin.showNormal()
@@ -385,7 +388,9 @@ class BaseMicroscopeApp(BaseApp):
             subwin.showMaximized()
             subwin.raise_()
 
-    def add_mdi_subwin(self, widget: QtWidgets.QWidget, name: str):
+    def add_mdi_subwin(
+        self, widget: QtWidgets.QWidget, name: str
+    ) -> QtWidgets.QMdiSubWindow:
         mdiArea: QtWidgets.QMdiArea = self.ui.mdiArea
         subwin = mdiArea.addSubWindow(
             widget,
@@ -400,13 +405,13 @@ class BaseMicroscopeApp(BaseApp):
 
         return subwin
 
-    def add_quickbar(self, widget: QtWidgets.QWidget):
+    def add_quickbar(self, widget: QtWidgets.QWidget) -> QtWidgets.QWidget:
         self.ui.quickaccess_scrollArea.setVisible(True)
         self.ui.quickaccess_layout.addWidget(widget)
         self.quickbar = widget
         return self.quickbar
 
-    def on_close(self):
+    def on_close(self) -> None:
         self.log.info("on_close")
         # disconnect all hardware objects
         for hw in self.hardware.values():
@@ -417,7 +422,7 @@ class BaseMicroscopeApp(BaseApp):
             except Exception as err:
                 self.log.error(f"tried to disconnect {hw.name}: {err}")
 
-    def on_analyze_with_ipynb(self, folder: str = None):
+    def on_analyze_with_ipynb(self, folder: str = None) -> Path:
         if folder is None:
             folder = self.settings["save_dir"]
         loaders_fname, dset_names = generate_loaders_py(folder)
@@ -431,7 +436,7 @@ class BaseMicroscopeApp(BaseApp):
             open_file(ipynb_path)
         return ipynb_path
 
-    def add_hardware(self, hw: HardwareProtocol):
+    def add_hardware(self, hw: HardwareProtocol) -> HardwareProtocol:
         """Loads a HardwareComponent object into the app.
 
         If *hw* is a class, rather an instance, create an instance
@@ -449,11 +454,11 @@ class BaseMicroscopeApp(BaseApp):
 
         return hw
 
-    def add_hardware_component(self, hw: HardwareProtocol):
+    def add_hardware_component(self, hw: HardwareProtocol) -> HardwareProtocol:
         # DEPRECATED use add_hardware()
         return self.add_hardware(hw)
 
-    def add_measurement(self, measure: MeasurementProtocol):
+    def add_measurement(self, measure: MeasurementProtocol) -> MeasurementProtocol:
         """Loads a Measurement object into the app.
 
         If *measure* is a class, rather an instance, create an instance
@@ -472,11 +477,13 @@ class BaseMicroscopeApp(BaseApp):
 
         return measure
 
-    def add_measurement_component(self, measure: MeasurementProtocol):
+    def add_measurement_component(
+        self, measure: MeasurementProtocol
+    ) -> MeasurementProtocol:
         # DEPRECATED, use add_measurement()
         return self.add_measurement(measure)
 
-    def settings_save_h5(self, fname: str):
+    def settings_save_h5(self, fname: str) -> None:
         """
         Saves h5 file to a file.
 
@@ -492,12 +499,12 @@ class BaseMicroscopeApp(BaseApp):
 
     def settings_save_ini(
         self,
-        fname,
-        save_ro=True,
-        save_app=True,
-        save_hardware=True,
-        save_measurements=True,
-    ):
+        fname: str,
+        save_ro: bool = True,
+        save_app: bool = True,
+        save_hardware: bool = True,
+        save_measurements: bool = True,
+    ) -> None:
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -520,14 +527,16 @@ class BaseMicroscopeApp(BaseApp):
 
         self.log.info(f"settings saved to {fname}")
 
-    def settings_load_file(self, fname: Path):
+    def settings_load_file(self, fname: Path) -> None:
         fname = Path(fname)
         if fname.suffix == ".ini":
             self.settings_load_ini(fname)
         elif fname.suffix == ".h5":
             self.settings_load_h5(fname)
 
-    def settings_load_ini(self, fname, ignore_hw_connect=False, show_report=True):
+    def settings_load_ini(
+        self, fname: str, ignore_hw_connect: bool = False, show_report: bool = True
+    ) -> None:
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -550,7 +559,9 @@ class BaseMicroscopeApp(BaseApp):
         self.propose_settings_values(Path(fname).name, settings)
         self.log.info(f"settings loaded from {fname}")
 
-    def settings_load_h5(self, fname, ignore_hw_connect=False, show_report=True):
+    def settings_load_h5(
+        self, fname: str, ignore_hw_connect: bool = False, show_report: bool = True
+    ) -> None:
         """
         Loads h5 settings given a filename.
 
@@ -574,7 +585,7 @@ class BaseMicroscopeApp(BaseApp):
         self.propose_settings_values(Path(fname).name, settings)
         self.log.info(f"settings loaded from {fname}")
 
-    def settings_auto_save_ini(self):
+    def settings_auto_save_ini(self) -> None:
         """
         Saves the ini file to app/save_dir directory with a time stamp in the filename.
         """
@@ -584,7 +595,7 @@ class BaseMicroscopeApp(BaseApp):
         )
         self.settings_save_ini(fname)
 
-    def settings_load_last(self):
+    def settings_load_last(self) -> None:
         """
         Loads last saved ini file.
         """
@@ -592,7 +603,7 @@ class BaseMicroscopeApp(BaseApp):
         fnames += list(Path(self.settings["save_dir"]).glob("*_settings.ini"))
         self.settings_load_ini(sorted(fnames)[-1])
 
-    def settings_save_dialog(self):
+    def settings_save_dialog(self) -> None:
         """Opens a save as ini dialogue in the app user interface."""
         fname, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(
             self.ui, "Save Settings file", "", "Settings File (*.ini)"
@@ -600,7 +611,7 @@ class BaseMicroscopeApp(BaseApp):
         if fname:
             self.settings_save_ini(fname)
 
-    def settings_load_dialog(self):
+    def settings_load_dialog(self) -> None:
         """Opens a load ini dialogue in the app user interface"""
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(
             self.ui, "Open Settings file", "", "Settings File (*.ini *.h5)"
@@ -622,7 +633,9 @@ class BaseMicroscopeApp(BaseApp):
             print(f"WARNING: {'/'.join(parts)} does not exist")
         return self._setting_paths.get(path, None)
 
-    def read_setting(self, path: str, read_from_hardware=True, ini_string_value=False):
+    def read_setting(
+        self, path: str, read_from_hardware: bool = True, ini_string_value: bool = False
+    ) -> Any:
         lq = self.get_lq(path)
         if read_from_hardware and lq.has_hardware_read:
             lq.read_from_hardware()
@@ -632,11 +645,11 @@ class BaseMicroscopeApp(BaseApp):
 
     def get_setting_paths(
         self,
-        filter_has_hardware_read=False,
-        filter_has_hardware_write=False,
-        exclude_patterns=None,
-        exclude_ro=False,
-    ):
+        filter_has_hardware_read: bool = False,
+        filter_has_hardware_write: bool = False,
+        exclude_patterns: List[str] = None,
+        exclude_ro: bool = False,
+    ) -> List[str]:
         if filter_has_hardware_read and filter_has_hardware_write:
             paths = (
                 path
@@ -667,12 +680,15 @@ class BaseMicroscopeApp(BaseApp):
         return [path for path in paths if path not in exclude_paths]
 
     def read_settings(
-        self, paths=None, read_from_hardware=False, ini_string_value=False
-    ):
+        self,
+        paths: List[str] = None,
+        read_from_hardware: bool = False,
+        ini_string_value: bool = False,
+    ) -> Dict[str, Any]:
         """returns a dictionary (path, value):
         ================== =========  =============================================================================
         **Arguments:**     **Type:**  **Description:**
-        paths              list[str]  paths to setting, if None(default) all paths are used
+        paths              List[str]  paths to setting, if None(default) all paths are used
         read_from_hardware bool       if True, values are read from hardware, else the current value is used
         ================== =========  =============================================================================
         """
@@ -681,13 +697,13 @@ class BaseMicroscopeApp(BaseApp):
             p: self.read_setting(p, read_from_hardware, ini_string_value) for p in paths
         }
 
-    def lq_path(self, path):
+    def lq_path(self, path: str) -> LoggedQuantity:
         warnings.warn(
             "App.lq_path deprecated, use App.get_lq instead", DeprecationWarning
         )
         return self.get_lq(path)
 
-    def lq_paths_list(self):
+    def lq_paths_list(self) -> List[str]:
         warnings.warn(
             "App.lq_paths_list deprecated, use App.get_setting_paths instead",
             DeprecationWarning,
@@ -695,14 +711,14 @@ class BaseMicroscopeApp(BaseApp):
         return self.get_setting_paths()
 
     @property
-    def hardware_components(self):
+    def hardware_components(self) -> Dict[str, HardwareProtocol]:
         warnings.warn(
             "App.hardware_components deprecated, used App.hardware", DeprecationWarning
         )
         return self.hardware
 
     @property
-    def measurement_components(self):
+    def measurement_components(self) -> Dict[str, MeasurementProtocol]:
         warnings.warn(
             "App.measurement_components deprecated, used App.measurements",
             DeprecationWarning,
@@ -710,13 +726,13 @@ class BaseMicroscopeApp(BaseApp):
         return self.measurements
 
     @property
-    def logged_quantities(self):
+    def logged_quantities(self) -> Dict[str, LoggedQuantity]:
         warnings.warn(
             "app.logged_quantities deprecated use app.settings", DeprecationWarning
         )
         return self.settings.as_dict()
 
-    def set_window_positions(self, positions: Dict[str, Any]):
+    def set_window_positions(self, positions: Dict[str, Any]) -> None:
         def restore_win_state(subwin: QtWidgets.QMdiSubWindow, win_state):
             subwin.showNormal()
             if win_state["maximized"]:
@@ -739,7 +755,7 @@ class BaseMicroscopeApp(BaseApp):
                 M = self.measurements[name.split("/")[-1]]
                 restore_win_state(M.subwin, win_state)
 
-    def get_window_positions(self):
+    def get_window_positions(self) -> Dict[str, Any]:
         positions = OrderedDict()
 
         def qrect_to_tuple(qr):
@@ -766,23 +782,23 @@ class BaseMicroscopeApp(BaseApp):
 
         return positions
 
-    def save_window_positions_json(self, fname):
+    def save_window_positions_json(self, fname: str) -> None:
         positions = self.get_window_positions()
         with open(fname, "w") as outfile:
             json.dump(positions, outfile, indent=4)
 
-    def load_window_positions_json(self, fname):
+    def load_window_positions_json(self, fname: str) -> None:
         with open(fname, "r") as infile:
             positions = json.load(infile)
         self.set_window_positions(positions)
 
-    def window_positions_load_dialog(self):
+    def window_positions_load_dialog(self) -> None:
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(
             self.ui, "Open Window Position file", "", "position File (*.json)"
         )
         self.load_window_positions_json(fname)
 
-    def window_positions_save_dialog(self):
+    def window_positions_save_dialog(self) -> None:
         """Opens a save as ini dialogue in the app user interface."""
         fname, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(
             self.ui, "Save Window Position file", "", "position File (*.json)"
@@ -790,7 +806,9 @@ class BaseMicroscopeApp(BaseApp):
         if fname:
             self.save_window_positions_json(fname)
 
-    def generate_data_path(self, measurement, ext, t=None):
+    def generate_data_path(
+        self, measurement: MeasurementProtocol, ext: str, t: float = None
+    ) -> Path:
         if t is None:
             t = time.time()
         f = self.settings["data_fname_format"].format(
@@ -801,7 +819,7 @@ class BaseMicroscopeApp(BaseApp):
         )
         return Path(self.settings["save_dir"]) / f
 
-    def propose_settings_values_from_file(self, fname=None):
+    def propose_settings_values_from_file(self, fname: str = None) -> None:
         """
         Adds to proposed_values of LQs.
         """
@@ -816,10 +834,10 @@ class BaseMicroscopeApp(BaseApp):
             settings = h5_io.load_settings(path)
         self.propose_settings_values(path.name, settings)
 
-    def launch_browser(self, url):
+    def launch_browser(self, url: str) -> None:
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
-    def on_about(self):
+    def on_about(self) -> None:
 
         with open(self.this_path / "README.md") as f:
             markdown = f.read().replace(
@@ -835,7 +853,7 @@ class BaseMicroscopeApp(BaseApp):
         dialog.setLayout(layout)
         dialog.show()
 
-    def on_drag_on_app_widget(self, event: QtGui.QDragEnterEvent):
+    def on_drag_on_app_widget(self, event: QtGui.QDragEnterEvent) -> None:
         if event.mimeData().hasUrls():
             fname = Path([u.toLocalFile() for u in event.mimeData().urls()][0])
             if fname.suffix in (".ini", ".h5"):
@@ -851,14 +869,14 @@ class BaseMicroscopeApp(BaseApp):
                 return
         event.ignore()
 
-    def on_drop_on_app_widget(self, event: QtGui.QDropEvent):
+    def on_drop_on_app_widget(self, event: QtGui.QDropEvent) -> None:
         fname = Path([u.toLocalFile() for u in event.mimeData().urls()][0])
         if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
             self.settings_load_file(fname)
         else:
             self.propose_settings_values_from_file(fname)
 
-    def show_app_settings(self):
+    def show_app_settings(self) -> None:
         if not hasattr(self, "_app_settings_widget"):
 
             app_widget = new_widget(self, "app")
@@ -887,3 +905,10 @@ class BaseMicroscopeApp(BaseApp):
             layout.addLayout(hlayout)
 
         self._app_settings_widget.show()
+
+    def start_tools(self, page: str = "Welcome") -> None:
+        subprocess.Popen(
+            ["python", "-m", "ScopeFoundry.tools", page],
+            close_fds=True,
+            start_new_session=True,
+        )
