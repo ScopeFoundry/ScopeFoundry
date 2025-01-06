@@ -20,7 +20,7 @@ class Operation:
     description: str = field(default="")
     icon_path: str = field(default="")
 
-    def new_button(self):
+    def new_button(self) -> QtWidgets.QPushButton:
         op_button = QtWidgets.QPushButton(self.name)
         op_button.setObjectName(self.name)
         op_button.clicked.connect(lambda checked, f=self.func: f())
@@ -33,12 +33,14 @@ class Operation:
 
 class Operations:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.q_object = OperationsQObject()
         self._widgets_managers_: List[OperationWidgetsManager] = []
         self._operations: Dict[str, Operation] = {}
 
-    def new(self, name: str, func: Callable, description="", icon_path="") -> Operation:
+    def new(
+        self, name: str, func: Callable, description: str = "", icon_path: str = ""
+    ) -> Operation:
         return self.add(Operation(name, func, description, icon_path))
 
     def add(self, operation: Operation) -> Operation:
@@ -47,32 +49,32 @@ class Operations:
         self.q_object.added.emit(operation.name)
         return operation
 
-    def remove(self, name) -> None:
+    def remove(self, name: str) -> None:
         if name not in self._operations:
             return
         del self._operations[name]
         self.q_object.removed.emit(name)
 
-    def get(self, name) -> Operation:
+    def get(self, name: str) -> Operation:
         return self._operations[name]
 
-    def new_button(self, name) -> QtWidgets.QPushButton:
+    def new_button(self, name: str) -> QtWidgets.QPushButton:
         return self._operations[name].new_button()
 
-    def keys(self):
+    def keys(self) -> List[str]:
         return self._operations.keys()
 
-    def __contains__(self, k):
+    def __contains__(self, k: str) -> bool:
         return self._operations.__contains__(k)
 
-    def __iter__(self):
+    def __iter__(self) -> iter:
         return self._operations.__iter__()
 
     # For backwards compatbility, returning op_func rather the Operation objects.
-    def items(self):
+    def items(self) -> List[Tuple[str, Callable]]:
         return ((k, v.func) for k, v in self._operations.items())
 
-    def __getitem__(self, key) -> Callable:
+    def __getitem__(self, key: str) -> Callable:
         return self._operations[key].func
 
 
@@ -88,16 +90,16 @@ class OperationWidgetsManager:
         self.widgets = {}
         self.update()
 
-    def add(self, name: str):
+    def add(self, name: str) -> None:
         self.update()
 
-    def remove(self, name: str):
+    def remove(self, name: str) -> None:
         widget = self.widgets.pop(name, None)
         if widget is None:
             return
         self.tools.remove_from_layout(name, widget)
 
-    def update(self):
+    def update(self) -> None:
         for op_name in filter_with_patterns(
             self.operations.keys(), self.tools.include, self.tools.exclude
         ):

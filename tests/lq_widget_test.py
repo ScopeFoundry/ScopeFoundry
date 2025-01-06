@@ -1,11 +1,11 @@
-import os
+# import os
 
-os.environ["QT_API"] = "pyqt6"
+# os.environ["QT_API"] = "pyqt6"
 import time
+from typing import List
 
 import numpy as np
 from qtpy import QtCore, QtWidgets
-
 
 from ScopeFoundry import (
     BaseApp,
@@ -20,7 +20,7 @@ class LQWidgetTestApp(BaseApp):
 
     name = "LQWidgetTestApp"
 
-    def __init__(self, argv):
+    def __init__(self, argv: List[str]) -> None:
         BaseApp.__init__(self, argv)
 
         self.settings.New(
@@ -47,16 +47,17 @@ class Hardware(HardwareComponent):
 
     name = "hardware"
 
-    def setup(self):
+    def setup(self) -> None:
         self.settings.New("val1", initial=0.1)
         self.settings.New("val2", str, initial="hello world")
         self.settings.New("val3", str, choices=("Apple", "Bear", "Car"))
 
-    def connect(self):
+    def connect(self) -> None:
         self.settings.New("val4", int, 33).connect_to_hardware(lambda: 33, print)
         print("connected to", self.name)
 
-    def disconnect(self):
+    def disconnect(self) -> None:
+
         self.settings.remove("val4")
         print("disconnected from", self.name)
 
@@ -65,7 +66,7 @@ class Measure(Measurement):
 
     name = "measure"
 
-    def setup(self):
+    def setup(self) -> None:
 
         self.settings.New(
             "color test",
@@ -86,24 +87,24 @@ class Measure(Measurement):
 
         self.data_array = np.zeros(100)
 
-    def on_add_setting(self):
+    def on_add_setting(self) -> None:
         self.settings.New(self.settings["name"], str, "generated")
 
-    def on_remove_setting(self):
+    def on_remove_setting(self) -> None:
         self.settings.remove(self.settings["name"])
 
-    def on_add_operation(self):
+    def on_add_operation(self) -> None:
         self.add_operation(
             self.settings["name"],
             lambda: print("operation called"),
         )
         print(list(self.operations.keys()))
 
-    def on_remove_operation(self):
+    def on_remove_operation(self) -> None:
         self.remove_operation(self.settings["name"])
         print(list(self.operations.keys()))
 
-    def setup_figure(self):
+    def setup_figure(self) -> None:
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
         # splitter.addWidget(self.app.hardware["hardware"].New_UI())
@@ -144,7 +145,7 @@ class Measure(Measurement):
         )
         vsplitter.addWidget(splitter)
 
-    def run(self):
+    def run(self) -> None:
 
         if self.settings["run_crash_immediately"]:
             raise IOError("run_crash_immediately")
@@ -176,7 +177,7 @@ class MeasureNonUI(Measurement):
 
     name = "measure_non_ui"
 
-    def run(self):
+    def run(self) -> None:
         time.sleep(0.1)
         print(self.name, "run end")
 
@@ -186,7 +187,7 @@ class LQWidgetMicroscopeTestApp(BaseMicroscopeApp):
     name = "lq_widget_test_app"
     mdi = True
 
-    def setup(self):
+    def setup(self) -> None:
 
         self.add_hardware(Hardware(self))
         self.add_measurement(Measure(self))
