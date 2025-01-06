@@ -6,6 +6,7 @@ from ScopeFoundry.tests.unittests.settings_io_test import SettingsIOTest
 from ScopeFoundry.tests.unittests.lq_connection_test import LQConnectionTest
 from ScopeFoundry.tests.unittests.lq_range_test import LQRangeTest
 from ScopeFoundry.tests.unittests.analyze_nb_test import AnalyzeNBTest
+from ScopeFoundry.tests.unittests.test_operations import TestOperations
 
 
 # following also require visual inspection - run individual files
