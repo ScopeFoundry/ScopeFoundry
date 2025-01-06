@@ -11,7 +11,7 @@ import logging
 import sys
 import traceback
 from pathlib import Path
-from typing import Callable, Dict
+from typing import Callable, Dict, List, Any
 from warnings import warn
 
 from qtpy import QtCore, QtWidgets, QtGui
@@ -57,7 +57,7 @@ class BaseApp(QtCore.QObject):
 
     name = "ScopeFoundry"
 
-    def __init__(self, argv=[], **kwargs):
+    def __init__(self, argv: List[str] = [], **kwargs: Any) -> None:
         super().__init__()
 
         self.icons_path = Path(__file__).parent / "icons"
@@ -80,25 +80,25 @@ class BaseApp(QtCore.QObject):
 
         # self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
 
-    def _setup_qtapp(self, argv):
+    def _setup_qtapp(self, argv: List[str]) -> None:
         self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
             self.qtapp = QtWidgets.QApplication(argv)
         self.qtapp.setApplicationName(self.name)
 
     @property
-    def this_path(self):
+    def this_path(self) -> Path:
         """returns the path to ScopeFoundry package"""
         path = Path(__file__)
         return path.parent.parent
 
     @property
-    def this_filename(self):
-        """returns the path to ScopeFoundry package"""
+    def this_filename(self) -> str:
+        """returns file path of BaseApp"""
         path = Path(__file__)
         return path.name
 
-    def setup_dark_mode_option(self, dark_mode: bool = None):
+    def setup_dark_mode_option(self, dark_mode: bool = None) -> None:
         if hasattr(self.qtapp.styleHints(), "setColorScheme"):
             choices = QtCore.Qt.ColorScheme
             if dark_mode is None:
@@ -136,17 +136,17 @@ class BaseApp(QtCore.QObject):
                 RuntimeWarning,
             )
 
-    def set_color_scheme(self, choice):
+    def set_color_scheme(self, choice: int) -> None:
         scheme = {c.value: c for c in QtCore.Qt.ColorScheme}[choice]
         self.qtapp.styleHints().setColorScheme(scheme)
 
-    def exec_(self):
+    def exec_(self) -> int:
         return self.qtapp.exec_()
 
-    def setup(self):
+    def setup(self) -> None:
         pass
 
-    def setup_console_widget(self, kernel=None):
+    def setup_console_widget(self, kernel: Any = None) -> QtWidgets.QWidget:
         try:
             self.console_widget = new_console_widget(self, kernel)
         except Exception as err:
@@ -157,7 +157,7 @@ class BaseApp(QtCore.QObject):
         )
         return self.console_widget
 
-    def setup_logging(self):
+    def setup_logging(self) -> None:
         self.log = get_logger_from_class(self)
         self.log.setLevel(logging.INFO)
 
@@ -175,7 +175,7 @@ class BaseApp(QtCore.QObject):
         handler.new_log_signal.connect(self.logging_widget.on_new_log)
         logging.getLogger().addHandler(handler)
 
-    def settings_save_ini_ask(self, dir=None, save_ro=True):
+    def settings_save_ini_ask(self, dir: str = None, save_ro: bool = True) -> str:
         """Opens a Save dialogue asking the user to select a save destination and give the save file a filename. Saves settings to an .ini file."""
         # TODO add default directory, etc
         fname, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -185,7 +185,7 @@ class BaseApp(QtCore.QObject):
             self.settings_save_ini(fname, save_ro=save_ro)
         return fname
 
-    def settings_load_ini_ask(self, dir=None):
+    def settings_load_ini_ask(self, dir: str = None) -> str:
         """Opens a Load dialogue asking the user which .ini file to load into our app settings. Loads settings from an .ini file."""
         # TODO add default directory, etc
         fname, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Settings (*.ini)")
@@ -193,30 +193,30 @@ class BaseApp(QtCore.QObject):
             self.settings_load_ini(fname)
         return fname
 
-    def on_new_subtree(self, subtree: SubtreeManager): ...
+    def on_new_subtree(self, subtree: SubtreeManager) -> None: ...
 
-    def on_right_click(self): ...
+    def on_right_click(self) -> None: ...
 
-    def add_setting_path(self, lq: LoggedQuantity):
+    def add_setting_path(self, lq: LoggedQuantity) -> None:
         self._setting_paths[lq.path] = lq
 
-    def remove_setting_path(self, lq: LoggedQuantity):
+    def remove_setting_path(self, lq: LoggedQuantity) -> None:
         self._setting_paths.pop(lq.path, None)
 
-    def add_lq_collection_to_settings_path(self, settings: LQCollection):
+    def add_lq_collection_to_settings_path(self, settings: LQCollection) -> None:
         settings.q_object.lq_added.connect(self.add_setting_path)
         settings.q_object.lq_removed.connect(self.remove_setting_path)
         for lq in settings.as_dict().values():
             self.add_setting_path(lq)
 
-    def write_setting(self, path: str, value):
+    def write_setting(self, path: str, value: Any) -> WRITE_RES:
         lq = self.get_lq(path)
         if lq is None:
             return WRITE_RES.MISSING
         lq.update_value(value)
         return WRITE_RES.SUCCESS
 
-    def write_setting_safe(self, path: str, value):
+    def write_setting_safe(self, path: str, value: Any) -> WRITE_RES:
         lq = self.get_lq(path)
         if lq is None:
             return WRITE_RES.MISSING
@@ -231,7 +231,7 @@ class BaseApp(QtCore.QObject):
         """
         return self._setting_paths.get(path, None)
 
-    def write_settings_safe(self, settings):
+    def write_settings_safe(self, settings: Dict[str, Any]) -> Dict[str, WRITE_RES]:
         """
         updates settings based on a dictionary.
 
@@ -246,7 +246,7 @@ class BaseApp(QtCore.QObject):
             report[path] = success
         return report
 
-    def settings_save_ini(self, fname, save_ro=True):
+    def settings_save_ini(self, fname: str, save_ro: bool = True) -> None:
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -263,7 +263,7 @@ class BaseApp(QtCore.QObject):
 
         self.log.info(f"ini settings saved to {fname} str")
 
-    def settings_load_ini(self, fname):
+    def settings_load_ini(self, fname: str) -> Dict[str, Any]:
         """
         ==============  =========  ==============================================
         **Arguments:**  **Type:**  **Description:**
@@ -275,7 +275,7 @@ class BaseApp(QtCore.QObject):
         self.propose_settings_values(Path(fname).name, settings)
         return settings
 
-    def propose_settings_values(self, name: str, settings):
+    def propose_settings_values(self, name: str, settings: Dict[str, Any]) -> None:
         """
         Adds to proposed_values of LQs.
         proposed_values can be inspected with right click on connected widgets
@@ -293,7 +293,9 @@ class BaseApp(QtCore.QObject):
             lq.propose_value(name, val)
         self.log.info(f"propesed values {name}")
 
-    def read_settings(self, paths=None, ini_string_value=False):
+    def read_settings(
+        self, paths: List[str] = None, ini_string_value: bool = False
+    ) -> Dict[str, Any]:
         """
         returns a dictionary (path, value):
         ================== =========  =============================================================================
@@ -304,15 +306,19 @@ class BaseApp(QtCore.QObject):
         paths = self._setting_paths if paths is None else paths
         return {p: self.read_setting(p, ini_string_value) for p in paths}
 
-    def read_setting(self, path: str, ini_string_value=False):
+    def read_setting(self, path: str, ini_string_value: bool = False) -> Any:
         lq = self.get_lq(path)
         if ini_string_value:
             return lq.ini_string_value()
         return lq.val
 
     def add_operation(
-        self, name: str, op_func: Callable[[], None], description="", icon_path=""
-    ):
+        self,
+        name: str,
+        op_func: Callable[[], None],
+        description: str = "",
+        icon_path: str = "",
+    ) -> None:
         """
         Create an operation for the App.
 
@@ -326,7 +332,7 @@ class BaseApp(QtCore.QObject):
         """
         self.operations.new(name, op_func, description, icon_path)
 
-    def remove_operation(self, name: str):
+    def remove_operation(self, name: str) -> None:
         self.operations.remove(name)
 
 
@@ -338,7 +344,7 @@ class TestBaseApp(BaseApp):
 
     name = "test base app"
 
-    def __init__(self, argv=[], **kwargs):
+    def __init__(self, argv: List[str] = [], **kwargs: Any) -> None:
         super().__init__(argv, **kwargs)
 
         self.ui = QtWidgets.QWidget()

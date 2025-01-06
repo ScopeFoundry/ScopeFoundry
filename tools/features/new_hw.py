@@ -1,13 +1,15 @@
 from enum import Enum
 from functools import partial
 from pathlib import Path
+from typing import Dict
 
 from ScopeFoundry.tools.features.utils import (
-    to_class_name,
-    write_templated_file,
     mk_authors,
     mk_dates,
+    to_class_name,
+    write_templated_file,
 )
+
 
 class ComTypes(Enum):
     OTHER = "OTHER"
@@ -17,13 +19,13 @@ class ComTypes(Enum):
 
 
 def new_hw(
-    company="thorlabs",
-    model="XX6000_glavo_mirror",
-    authors="Benedikt Ursprung, Mark E.Ziffer",
-    pretty_name="galvo_mirror",
-    overwrite_existing_module=True,
-    com_type=ComTypes.DLL.value,
-):
+    company: str = "thorlabs",
+    model: str = "XX6000_glavo_mirror",
+    authors: str = "Benedikt Ursprung, Mark E.Ziffer",
+    pretty_name: str = "galvo_mirror",
+    overwrite_existing_module: bool = True,
+    com_type: str = ComTypes.DLL.value,
+) -> Dict[str, str]:
     infos = gather_infos(
         company, model, authors, pretty_name, overwrite_existing_module
     )
@@ -63,7 +65,7 @@ def gather_infos(
     authors: str,
     pretty_name: str,
     overwrite_existing_module: bool,
-):
+) -> Dict[str, str]:
     module_name = f"{company.lower()}_{model.lower()}"
     path_to_module = Path().cwd() / "ScopeFoundryHW" / module_name
 

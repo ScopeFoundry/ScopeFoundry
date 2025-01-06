@@ -5,7 +5,7 @@ from ScopeFoundry.tools.page import Page
 
 
 class NewMeasurement(Page):
-    def setup(self):
+    def setup(self) -> None:
         self.name = "new measurement"
         self.settings.New("name", dtype=str, initial="my_measurement_name")
         self.settings.New(
@@ -26,7 +26,7 @@ class NewMeasurement(Page):
             "import",
         )
 
-    def new_measurement(self):
+    def new_measurement(self) -> None:
         info = new_measure(self.settings["name"])
         self.settings["import"] = info["ADD_TO_APP"]
         # self.settings["run"] = "python"
