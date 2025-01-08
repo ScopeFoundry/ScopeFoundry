@@ -1,18 +1,23 @@
 from pathlib import Path
+from typing import Dict, List, Set, Tuple
 
 import h5py
 
 LOADERS_FNAME = "h5_data_loaders.py"
 
-LOADERS_PY_HEADER = """# generated with ScopeFoundry.analyze_with_ipynb()
-# Probality you want to
+LOADERS_PY_HEADER = """# generated with ScopeFoundry.tools
 #
-# from h5_data_loaders import load
+# pip install ScopeFoundry
+# python -m ScopeFoundry.tools
+#
+# from h5_data_loaders import load, find_settings
 # data = load('your_file_name.h5')
 
 import functools
+import fnmatch
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict
 
 import h5py
 import numpy as np
@@ -20,19 +25,19 @@ import numpy as np
 load_funcs = {}
 
 
-def get_measurement_name(fname):
-    with h5py.File(fname) as file:
+def get_measurement_name(fname: str) -> str:
+    with h5py.File(fname, "r") as file:
         if len(file["measurement"].keys()) == 1:
             return list(file["measurement"].keys())[0]
         return file.attrs["measurement"]
 
 
-def load(fname: str):
+def load(fname: str) -> Any:
     mm_name = get_measurement_name(fname)
     return load_funcs[mm_name](fname)
 
 
-def load_settings(fname):
+def load_settings(fname: str) -> Dict[str, Any]:
     path = Path(fname)
     if not path.suffix == ".h5":
         return {}
@@ -40,13 +45,25 @@ def load_settings(fname):
     settings = {}
     visit_func = functools.partial(_settings_visitfunc, settings=settings)
 
-    with h5py.File(fname) as file:
+    with h5py.File(fname, "r") as file:
         file.visititems(visit_func)
 
     return settings
 
 
-def _settings_visitfunc(name, node, settings):
+def find_settings(settings: Dict, pattern: str = "measurement/*") -> Dict:
+    if type(settings) is str:
+        settings = load_settings(settings)
+    if hasattr(settings, "settings"):
+        settings = settings.settings
+    matching = [key for key in settings.keys() if fnmatch.fnmatch(key, pattern)]
+    if not matching:
+        print("no matching key found")
+        return {}
+    return {k: settings[k] for k in matching}
+
+
+def _settings_visitfunc(name: str, node: h5py.Group, settings: Dict[str, Any]) -> None:
     if not name.endswith("settings"):
         return
 
@@ -54,23 +71,23 @@ def _settings_visitfunc(name, node, settings):
         lq_path = f"{name.replace('settings', key)}"
         settings[lq_path] = val
 
-        
-def get_mm_name(fname):
-    with h5py.File(fname) as file:
+
+def get_mm_name(fname: str) -> str:
+    with h5py.File(fname, "r") as file:
         if len(file["measurement"].keys()) == 1:
             return list(file["measurement"].keys())[0]
         return file.attrs["measurement"]
 """
 
 
-def get_measurement_name(fname):
-    with h5py.File(fname) as file:
+def get_measurement_name(fname: str) -> str:
+    with h5py.File(fname, 'r') as file:
         if len(file["measurement"].keys()) == 1:
             return list(file["measurement"].keys())[0]
         return file.attrs["measurement"]
 
 
-def generate_loaders(dsets):
+def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
     lines = []
     for mm_name, key_set in dsets.items():
 
@@ -82,8 +99,8 @@ def generate_loaders(dsets):
             f"{' ':>4}settings: dict",
         ]
         load_func_lines = [
-            f"def load_{mm_name}(fname:str) -> {class_name}:",
-            f"{' ':>4}with h5py.File(fname) as file:",
+            f"def load_{mm_name}(fname: str) -> {class_name}:",
+            f"{' ':>4}with h5py.File(fname, 'r') as file:",
             f"{' ':>8}m = file['measurement/{mm_name}']",
             f"{' ':>8}return {class_name}(",
             f"{' ':>12}settings=load_settings(fname),",
@@ -108,12 +125,12 @@ def generate_loaders(dsets):
     return lines
 
 
-def get_dset_names(folder):
+def get_dset_names(folder: str) -> Dict[str, Set[str]]:
     path = Path(folder)
     dset_names = {}
     for fname in path.rglob("*.h5"):
         mm_name = get_measurement_name(fname)
-        with h5py.File(fname) as file:
+        with h5py.File(fname, 'r') as file:
             new_keys = set(
                 [
                     name
@@ -129,7 +146,7 @@ def get_dset_names(folder):
     return dset_names
 
 
-def generate_loaders_py(folder="."):
+def generate_loaders_py(folder: str = ".") -> Tuple[Path, Dict[str, Set[str]]]:
     path = Path(folder)
     fnames = tuple(path.rglob("*.h5"))
     lines = [LOADERS_PY_HEADER]
@@ -139,7 +156,7 @@ def generate_loaders_py(folder="."):
         lines += generate_loaders(dset_names)
     else:
         print(f"WARNING no h5 files found in {folder}. No loaders created.")
-        return [], []
+        return Path(), {}
 
     loaders_fname = path / LOADERS_FNAME
     with open(loaders_fname, "w") as file:
