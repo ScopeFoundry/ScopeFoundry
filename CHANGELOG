@@ -1,3 +1,33 @@
+ScopeFoundry 2.0.0 2025-01-10
+
+	* Features added:
+		- LQs can now hold 3 previous and 7 proposed values. Values are proposed when ini files are saved and read from .h5 and .ini files specified by the "inspect file" LQ. Right click on associated widgets  display, and allow user to set those values.
+		- settings can be set and inspected from .h5 and .ini files with drag and drop.
+		- settings: Can now be dynamical added removed.
+  		- operations: Can now be dynamical added removed. 
+		- added a function to generate a tree widget of operations and settings from BaseApp, Measurement and HardwareComponent. The tree widget updates when operations/LQ are added removed.
+		- darkmode: better support (in darkmode text is white, so one should not actively set any background to a light color)
+		- Measruement.new_start_stop_button convenience method added.
+		- `python -m ScopeFoundry.tools` to help build a new setup, new hardware components, new measurements, and generate files to analyze h5 files.
+    * Fixes:
+		- Issue #14 ini loading: no longer stops if failures occured, a report is shown if failures occured.
+		- Issue #46 connect name mangling with PySide.
+  		- Issue #57: fixed several cases where displayed values and actual values of settings were not consistent. (checked with unittests).
+		- ini file loading of bool lq arrays
+		- connected the ui's "about" and "doc" action to launching a webbrowser and displaying readme.md
+    * Architecture change:
+		- Split logged_quantity and base_app into packages.
+		- lq_path concept and .ini loading functionality moved from base_microscope_app to base_app.
+		- organized icons
+		- more typehints while removing `typing_extension` module dependence and keeping compatibility with python 3.8.
+		- `tools` module supersedes `plugin_manager`
+		- unittests: various tests added that can be run from a single file
+		- some style is controlled through .qss file.
+  	* Measurement bugfixes:
+		- PID controller: plant input can be limited by a min, max values.
+    	- sequencer: iterations, wait_until fixed. Better support for dark mode.
+
+
 ScopeFoundry 1.5.0 2024-10-21
 
 	* Measurement bugfixes:
