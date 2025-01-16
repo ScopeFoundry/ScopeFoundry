@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name = 'ScopeFoundry',
     
-    version = '1.6.0',
+    version = '2.0.0',
     
     description = 'a platform for laboratory equipment control and scientific data analysis',
     long_description =open('README.md', 'r').read(),
@@ -16,7 +16,7 @@ setup(
     # Choose your license
     license='BSD',
     
-    url='http://www.scopefoundry.org/',
+    url='https://www.scopefoundry.org/',
 
     package_dir={'ScopeFoundry': '.'},
     
