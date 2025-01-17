@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name = 'ScopeFoundry',
     
-    version = '2.0.0',
+    version = '2.0.1',
     
     description = 'a platform for laboratory equipment control and scientific data analysis',
     long_description =open('README.md', 'r').read(),
@@ -29,6 +29,8 @@ setup(
               'ScopeFoundry.dynamical_widgets',
               'ScopeFoundry.examples',
                   'ScopeFoundry.examples.ScopeFoundryHW',
+                  'ScopeFoundry.examples.ScopeFoundryHW.bsinc_noiser200',
+                  'ScopeFoundry.examples.ScopeFoundryHW.simulon_xyzstage',
               'ScopeFoundry.graphics',
               'ScopeFoundry.graphics.zoomable_map',
               'ScopeFoundry.logged_quantity',
