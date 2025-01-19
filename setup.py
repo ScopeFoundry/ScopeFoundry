@@ -46,15 +46,11 @@ setup(
     #packages=find_packages('.', exclude=['contrib', 'docs', 'tests']),
     #include_package_data=True,  
     
+    # include QT ui files and logo and icons
     package_data={
-        '':["*.ui", "*.icns", '*.png', '*.svg'], # include QT ui files and logo and icons
-        },
-        
-    install_requires = [
-    	'numpy', 'h5py', 'qtpy', 'xreload', 'uuid7'],
-    
-    extras_require={
-        'all' : ['qtconsole', 'pyqtdarktheme', 'qtpy6'],
-    }
+        "": ["*.ui", "*.icns", "*.png", "*.svg", "*.qss", "_LICENSE", "*.md"]
+    },
+    install_requires=["numpy", "h5py", "qtpy", "xreload", "uuid7"],
+    extras_require={"all": ["qtconsole", "pyqtdarktheme", "qtpy6"]},
 
     )
