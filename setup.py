@@ -50,7 +50,7 @@ setup(
     package_data={
         "": ["*.ui", "*.icns", "*.png", "*.svg", "*.qss", "_LICENSE", "*.md"]
     },
-    install_requires=["numpy", "h5py", "qtpy", "xreload", "uuid7"],
+    install_requires=["numpy", "h5py", "qtpy", "uuid7"],
     extras_require={"all": ["qtconsole", "pyqtdarktheme", "qtpy6"]},
 
     )
