@@ -514,13 +514,18 @@ class Measurement:
         return f"Hardware {self.name}"
 
     def reload_code(self):
+        import sys
         import inspect
 
-        import xreload
+        if sys.version_info[1] <= 11:
+            import xreload
+        else:
+            from ScopeFoundry import xreload
 
         mod = inspect.getmodule(self)
+
         x = xreload.xreload(mod)
-        print("Reloading from code", mod, x)
+        print("Reloaded code", x)
 
     def on_new_subtree(self, subtree: SubtreeManager):
         progress_bar = QtWidgets.QProgressBar()
