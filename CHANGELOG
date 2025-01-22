@@ -1,3 +1,10 @@
+ScopeFoundry 2.0.1 2025-01-22
+    
+	* Fixes:
+		- Issue #61 xreload stopped working in python version 3.12: For 3.12+ ScopeFoundry now uses its own modified version of xreload.py. Older version still need to install xreload
+		- Critical bugfix: .qss file required was not included in packaging
+		- ScopeFoundry.tools.new_app now has access to example hardware
+
 ScopeFoundry 2.0.0 2025-01-16
 	
 	* Features added:
