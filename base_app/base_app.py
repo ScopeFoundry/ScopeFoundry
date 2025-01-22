@@ -291,7 +291,7 @@ class BaseApp(QtCore.QObject):
             if lq is None:
                 continue
             lq.propose_value(name, val)
-        self.log.info(f"propesed values {name}")
+        self.log.info(f"proposed values {name}")
 
     def read_settings(
         self, paths: List[str] = None, ini_string_value: bool = False
