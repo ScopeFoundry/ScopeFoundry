@@ -10,8 +10,8 @@ experiments
 Requirements
 ------------
 
-* qtpy (PyQt5 or PyQt6 recommended, PySide6 currently unstable)
-* Python 3.8+ (Currently tested with 3.9, 3.10, 3.11, 3.12)
+* Python 3.8+ (Currently tested with 3.9, 3.10, 3.12, 3.13)
+* qtpy with any of Qt-binding: Pyqt6, PySide6, PyQt5, PySide
 * NumPy 1.24+
 * PyQtGraph
 * h5py
@@ -28,26 +28,30 @@ See <http://www.scopefoundry.org>
 Installation
 ------------
 
-If you have all the requirements:
+###### If you have all the requirements
 
 ```sh
 pip install scopefoundry
 ```
 
-Alternatively, use [Anaconda]([https://www.anaconda.com/download/success) Python distribution to create an environment with required dependencies. In `anaconda(3) prompt`run:
+###### From scratch
 
-```sh
-conda create -n scopefoundry python=3.12
-```
-```sh
-conda activate scopefoundry
-```
-```sh
-conda install numpy qtpy h5py pyqtgraph qtconsole
-```
-```sh
-pip install pyqt6 scopefoundry
-```
+1. Download and install [mininaconda]([https://www.anaconda.com/download/success) Python distribution 
+2. Create an environment with required dependencies. In `anaconda(3) prompt` run:
+	```sh
+	conda create -n scopefoundry python=3.13
+	```
+	```sh
+	conda activate scopefoundry
+	```
+3. to install `scopefoundry` 
+	```sh
+	pip install pyqt6 qtconsole matplotlib scopefoundry
+	```
+
+	*`qtconsole` `matplotlib` are optional*
+
+[more details](https://scopefoundry.org/docs/1_getting-started/)
 
 Upgrade
 -------
