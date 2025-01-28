@@ -51,17 +51,15 @@ class Sequencer(Measurement):
             description="number of times the sequence is executed",
         )
         self.settings.New("paused", bool, initial=False)
-        self.settings.new_file(
+        self.recipe_folder = self.settings.new_file(
             "recipe_folder", initial=str(Path.cwd()), is_dir=True
-        ).add_listener(self.update_load_file_comboBox)
+        )
         self.seq_file = self.settings.new_file(
             "sequence_file",
             initial="",
             is_dir=False,
             file_filters=("Sequence (*.json)"),
         )
-
-        self.seq_file.add_listener(self.on_load)
 
         self.iter_values = {}
         self.letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -152,6 +150,10 @@ class Sequencer(Measurement):
 
         self.editor_widget.keyPressEvent = self._editorKeyPressEvent
         self.item_list.get_view().keyReleaseEvent = self._keyReleaseEvent
+
+        # connect logged quantities
+        self.recipe_folder.add_listener(self.update_load_file_comboBox)
+        self.seq_file.add_listener(self.on_load)
 
         # try to load a file
         text = self.load_file_comboBox.currentText()
