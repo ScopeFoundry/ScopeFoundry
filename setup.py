@@ -44,9 +44,6 @@ setup(
         "ScopeFoundry.tools.templates",
         "ScopeFoundry.tools.pages",
     ],
-    # packages=find_packages('.', exclude=['contrib', 'docs', 'tests']),
-    # include_package_data=True,
-    # include QT ui files and logo and icons
     package_data={
         "": [
             "*.ui",
@@ -62,7 +59,6 @@ setup(
             "**/sweep_h_centers.json",
         ]
     },
-    install_requires=["numpy", "h5py", "qtpy", "uuid7"],
-    extras_require={"all": ["qtconsole", "pyqtdarktheme", "qtpy6"]},
-
-    )
+    install_requires=["numpy", "h5py", "uuid7", "qtpy", "pyqtgraph"],
+    extras_require={"all": ["PyQt6", "qtconsole", "matplotlib"]},
+)
