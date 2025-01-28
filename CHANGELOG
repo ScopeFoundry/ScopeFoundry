@@ -1,3 +1,9 @@
+ScopeFoundry 2.0.2 2025-01-28
+    
+	* Fixes:
+		- icons now packaged
+		- qtconsole installed through conda caused problems. Now recemend all dependencies installed in one pip command that lets pip find a set of compatible dependencies.
+
 ScopeFoundry 2.0.1 2025-01-22
     
 	* Fixes:
