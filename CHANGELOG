@@ -1,3 +1,15 @@
+ScopeFoundry 2.0.2 2025-02-14
+
+	* Features added:
+		- right click on hardware now lists documents that are in the HWs /docs folder
+
+    
+	* Fixes:
+		- icons now packaged
+		- qtconsole installed through conda caused problems. Now it is recomended all dependencies installed in one pip command that lets pip find a set of compatible dependencies.
+		- ScopeFoundry.tools.new_hw more stable when tools are called from the app
+
+
 ScopeFoundry 2.0.1 2025-01-22
     
 	* Fixes:
