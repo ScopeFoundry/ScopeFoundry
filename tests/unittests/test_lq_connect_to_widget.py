@@ -10,7 +10,7 @@ from ScopeFoundry.widgets import MinMaxQSlider
 class LQConnectToWidgetTest(unittest.TestCase):
 
     def setUp(self):
-        app = BaseApp([])
+        self.app = app = BaseApp([])
         self.settings = app.settings
         self.str = self.settings.New("str", str, initial="0")
         self.float = self.settings.New("float", float, vmin=-100, vmax=100)
@@ -20,6 +20,11 @@ class LQConnectToWidgetTest(unittest.TestCase):
             "choices", int, choices=(("one", 1), ("two", 2), ("three", 3))
         )
         self._dir = self.settings.New("dir", "file", initial="test_dir", is_dir=True)
+
+    def tearDown(self):
+        # self.app.on_close()
+        self.app.qtapp.exit()
+        del self.app
 
     def test_qdouble_spinbox(self):
         wf = QtWidgets.QDoubleSpinBox()
@@ -236,11 +241,13 @@ class LQConnectToWidgetTest(unittest.TestCase):
 
         # lq to widget
         lq.update_value(int(1e11))
-        self.assertAlmostEqual(lq._transform_from_slider(wi.value())/1e12, int(1e11)/1e12)
+        self.assertAlmostEqual(
+            lq._transform_from_slider(wi.value()) / 1e12, int(1e11) / 1e12
+        )
 
         # widget to lq
         wi.setValue(lq._transform_to_slider(2e11))
-        self.assertAlmostEqual(lq.value/1e12, 2e11/1e12)
+        self.assertAlmostEqual(lq.value / 1e12, 2e11 / 1e12)
 
     def test_qslider_float(self):
         wf = QtWidgets.QSlider()

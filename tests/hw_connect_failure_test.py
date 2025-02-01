@@ -5,7 +5,7 @@ import unittest
 from ScopeFoundry import BaseMicroscopeApp, HardwareComponent
 
 
-class TestFailHW(HardwareComponent):
+class FailHW(HardwareComponent):
 
     name = 'fail_hw'
 
@@ -26,22 +26,22 @@ class TestFailHW(HardwareComponent):
             raise IOError("DISCONNECT FAIL!")
 
 
-class TestApp(BaseMicroscopeApp):
+class App(BaseMicroscopeApp):
 
     name = 'test_app'
 
     def setup(self):
 
-        self.add_hardware(TestFailHW(self))
+        self.add_hardware(FailHW(self))
         logging.getLogger("LoggedQuantity").setLevel('DEBUG')
 
 
-class TestAppTest(unittest.TestCase):
+class AppTest(unittest.TestCase):
 
     def setUp(self):
         # import sys
 
-        self.app = TestApp([])
+        self.app = App([])
         self.hw = self.app.hardware["fail_hw"]
         logging.getLogger("LoggedQuantity").setLevel("ERROR")
 
@@ -77,6 +77,6 @@ class TestAppTest(unittest.TestCase):
 if __name__ == '__main__':
     # unittest.main()
     import sys
-    app = TestApp(sys.argv)
+    app = App(sys.argv)
 
     app.exec_()
