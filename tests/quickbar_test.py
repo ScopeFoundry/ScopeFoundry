@@ -5,7 +5,7 @@ from qtpy import QtWidgets
 from ScopeFoundry import BaseMicroscopeApp
 
 
-class TestApp(BaseMicroscopeApp):
+class App(BaseMicroscopeApp):
 
     name = "quickbar_test"
 
@@ -16,13 +16,13 @@ class TestApp(BaseMicroscopeApp):
 class QuickbarTest(unittest.TestCase):
 
     def test_no_crash(self):
-        self.app = TestApp()
+        self.app = App()
 
 
 if __name__ == "__main__":
     # unittest.main()
     import sys
 
-    app = TestApp(sys.argv)
+    app = App(sys.argv)
 
     app.exec_()

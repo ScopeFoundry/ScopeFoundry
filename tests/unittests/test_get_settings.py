@@ -35,11 +35,17 @@ class App(BaseMicroscopeApp):
         self.add_measurement(Measure1(self))
         self.hw = self.add_hardware(Hardware1(self))
 
+
 class GetSettingsTest(unittest.TestCase):
 
     def setUp(self):
         self.app = App([])
         self.hw = self.app.hw
+
+    def tearDown(self):
+        # self.app.on_close()
+        self.app.qtapp.exit()
+        del self.app
 
     def test_settings_persistance(self):
         all_settings_0 = list(self.app.get_setting_paths())
