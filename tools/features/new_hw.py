@@ -67,7 +67,8 @@ def gather_infos(
     overwrite_existing_module: bool,
 ) -> Dict[str, str]:
     module_name = f"{company.lower()}_{model.lower()}"
-    path_to_module = Path().cwd() / "ScopeFoundryHW" / module_name
+
+    path_to_module = assert_ScopeFoundryHW_directory() / module_name
 
     if path_to_module.exists() and not overwrite_existing_module:
         raise FileExistsError(
@@ -83,7 +84,7 @@ def gather_infos(
     import_dev = f"from .{dev_file_name.rstrip('.py')} import {dev_class_name}"
 
     hw_file_name = f"{pretty_name.lower()}_hw.py"
-    hw_class_name = to_class_name(f"{model.upper()}_HW")
+    hw_class_name = f"{to_class_name(model.upper())}HW"
 
     readout_file_name = f"{pretty_name.lower()}_readout.py"
     readout_class_name = to_class_name(f"{model.upper()}_Readout")
@@ -122,6 +123,36 @@ def gather_infos(
     infos.update(mk_dates())
     infos.update(mk_authors(authors))
     return infos
+
+
+def assert_ScopeFoundryHW_directory():
+    cwd = Path.cwd()
+    if has_ScopeFoundryHW_directory(cwd):
+        return cwd / "ScopeFoundryHW"
+    elif has_ScopeFoundryHW_directory(cwd.parent):
+        return cwd.parent / "ScopeFoundryHW"
+    elif has_ScopeFoundryHW_directory(cwd.parent.parent):
+        return cwd.parent.parent / "ScopeFoundryHW"
+    else:
+        try:
+            from qtpy import QtWidgets
+
+            a = QtWidgets.QFileDialog.getExistingDirectory(
+                caption="Select your ScopeFoundryHW folder or create one",
+                directory=str(cwd),
+            )
+            return Path(a)
+        except Exception as e:
+            print(
+                "No ScopeFoundryHW directory found and no qtpy available: cd to your project folder or pip install qtpy"
+            )
+
+
+def has_ScopeFoundryHW_directory(path: Path) -> bool:
+    for p in path.iterdir():
+        if p.is_dir() and p.name == "ScopeFoundryHW":
+            return True
+    return False
 
 
 if __name__ == "__main__":
