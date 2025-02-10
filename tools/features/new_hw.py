@@ -1,5 +1,6 @@
 from enum import Enum
 from functools import partial
+import json
 from pathlib import Path
 from typing import Dict
 
@@ -55,6 +56,15 @@ def new_hw(
     if com_type == ComTypes.OTHER.value:
         write(root / "templates/_serial_dev.py", infos["DEV_FILE_NAME"])
         write(root / "templates/_serial_hw.py", infos["HW_FILE_NAME"])
+
+    docs_path = path_to_module / "docs"
+    docs_path.mkdir()
+    with open(docs_path / "my_docs.md", "x", encoding="utf-8") as file:
+        file.write(
+            "place your documentation and sharable hardware manuals in this folder"
+        )
+    with open(docs_path / "links.json", "x", encoding="utf-8") as file:
+        json.dump({"my_link": "www.scopefoundry.com"}, file)
 
     return infos
 
