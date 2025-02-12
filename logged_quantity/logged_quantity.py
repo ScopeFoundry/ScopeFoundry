@@ -1260,14 +1260,14 @@ class LoggedQuantity(QtCore.QObject):
         layout.setSpacing(0)
 
         if self.is_clipboardable:
-            copy_button = QtWidgets.QPushButton(">>")
+            copy_button = QtWidgets.QPushButton("⎘")
             copy_button.setMaximumWidth(25)
             copy_button.setToolTip("copy to clipboard")
             copy_button.clicked.connect(self.copy_to_clipboard)
             layout.addWidget(copy_button)
 
         if self.is_cmd:
-            run_button = QtWidgets.QPushButton("run")
+            run_button = QtWidgets.QPushButton("➲")
             run_button.setMaximumWidth(33)
             run_button.setToolTip("run detached")
             run_button.clicked.connect(self.run_subprocess_detached)
