@@ -60,5 +60,5 @@ setup(
         ]
     },
     install_requires=["numpy", "h5py", "uuid7", "qtpy", "pyqtgraph"],
-    extras_require={"all": ["PyQt6", "qtconsole", "matplotlib"]},
+    extras_require={"all": ["PyQt6", "qtconsole", "pyqtdarktheme", "matplotlib"]},
 )

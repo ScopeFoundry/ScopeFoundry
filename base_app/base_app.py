@@ -99,7 +99,7 @@ class BaseApp(QtCore.QObject):
         return path.name
 
     def setup_dark_mode_option(self, dark_mode: bool = None) -> None:
-        if hasattr(self.qtapp.styleHints(), "setColorScheme"):
+        if hasattr(self.qtapp.styleHints(), "setColorScheme") and dark_mode is None:
             choices = QtCore.Qt.ColorScheme
             if dark_mode is None:
                 initial = QtCore.Qt.ColorScheme.Unknown.value
@@ -122,13 +122,13 @@ class BaseApp(QtCore.QObject):
             try:
                 import qdarktheme  # pip install pyqtdarktheme
 
-                qdarktheme.setup()
+                self.qtapp.setStyleSheet(self.qtapp.styleSheet() + qdarktheme.load_stylesheet("dark"))
             except Exception as err:
                 warn(
                     "trying to use qdarkmode failed. pip install pyqtdarktheme",
                     RuntimeWarning,
                 )
-            print(f"pyqdarktheme unavailable: {err}")
+                print(f"pyqdarktheme unavailable: {err}")
 
         else:
             warn(
