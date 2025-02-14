@@ -1,41 +1,25 @@
 # intended to make a new setup by running:
 # python -m ScopeFoundry.tools.new_setup
 
-import os
 import re
 import shutil
-import tempfile
 from pathlib import Path
 
 
-def convert_import_statement(original_import: str) -> str:
-    """
-    Convert a ScopeFoundry examples import statement to a local module import statement.
-
-    Parameters:
-    original_import (str): The original import statement.
-
-    Returns:
-    str: The converted import statement.
-    """
+def convert_import_statement(import_line: str) -> str:
     pattern = r"from ScopeFoundry\.examples\.((?:\w+\.)*\w+) imp(\w+)"
     replacement = r"from \1 imp\2"
-    new_import = re.sub(pattern, replacement, original_import)
+    new_import = re.sub(pattern, replacement, import_line)
     return new_import
 
 
-def apply_import_statement_conversion(input_file_path: str) -> None:
-    """
-    Parameters:
-    input_file_path (str): The path to the input Python file.
-    """
-    with tempfile.NamedTemporaryFile("w", delete=False) as temp_file:
-        temp_file_path = temp_file.name
-        with open(input_file_path, "r") as infile:
-            for line in infile:
-                temp_file.write(convert_import_statement(line))
+def convert_import_statements(input_file_path: str) -> None:
+    with open(input_file_path, "r") as infile:
+        lines = infile.readlines()
 
-    os.replace(temp_file_path, input_file_path)
+    with open(input_file_path, "w") as outfile:
+        for line in lines:
+            outfile.write(convert_import_statement(line))
 
 
 def copy_scopefoundry_examples() -> None:
@@ -61,7 +45,7 @@ def copy_scopefoundry_examples() -> None:
             dest_file_path.parent.mkdir(parents=True, exist_ok=True)
 
             shutil.copy2(file_path, dest_file_path)
-            apply_import_statement_conversion(dest_file_path)
+            convert_import_statements(dest_file_path)
             print(f"Copied {file_path} to {dest_file_path} and adjusted imports")
 
 
