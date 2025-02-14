@@ -21,8 +21,9 @@ QPushButton#show_ui {
     color: rgb(0, 168, 225);
     }
 QPushButton#start_stop_button {
-    background: rgba(105, 240, 104, 220);
+    background: rgba(105, 255, 104, 230);
     font: bold;
+    color: white;
     padding: 4px;
     border-radius: 6px;
     }
@@ -51,4 +52,14 @@ QGroupBox::title#sequencer_editor {
 QListWidget::item:selected#sequencer_item_list { 
     background:  rgba(105, 240, 104, 220);
     color: black;
-    }
+}
+QSplitter {
+    width: 4px;
+    height: 4px;
+    border: 0px;
+    padding: 0px;
+    margin: 0px;    
+}
+QSplitter::handle::pressed {
+    background: rgb(0, 168, 225);
+}

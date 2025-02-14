@@ -19,6 +19,7 @@ Requirements
 _Optional:_
 
 * qtconsole
+* pyqtdarktheme
 
 Documentation
 -------------
@@ -46,10 +47,10 @@ pip install scopefoundry
 	```
 3. to install `scopefoundry` 
 	```sh
-	pip install pyqt6 qtconsole matplotlib scopefoundry
+	pip install pyqt6 qtconsole pyqtdarktheme matplotlib scopefoundry
 	```
 
-	*`qtconsole` `matplotlib` are optional*
+	*`qtconsole` `matplotlib` `pyqtdarktheme` are optional*
 
 [more details](https://scopefoundry.org/docs/1_getting-started/)
 

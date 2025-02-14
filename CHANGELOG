@@ -1,3 +1,9 @@
+ScopeFoundry 2.0.3 2025-02-28
+
+	* Fixes:
+		- pyqtdarktheme when dark_mode = True is specified in initializer of an app.
+
+
 ScopeFoundry 2.0.2 2025-02-14
 
 	* Features added:
