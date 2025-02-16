@@ -3,6 +3,7 @@ import inspect
 import json
 import logging
 import subprocess
+import sys
 import time
 import warnings
 from collections import OrderedDict
@@ -19,20 +20,23 @@ from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
     confirm_on_close,
     find_matches,
+    get_child_path,
     get_scopefoundry_version,
     ignore_on_close,
+    itemize_launchers,
     load_qt_ui_file,
     open_file,
     sibling_path,
 )
+from ScopeFoundry.helper_funcs import init_docs_path
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 
 from .base_app import BaseApp
-from .logging_handlers import StatusBarHandler, new_log_file_handler
-from .show_io_report_dialog import show_io_report_dialog
 
 # useful for developing - may cause problems:
 from .base_microscope_app_mdi import Ui_MainWindow
+from .logging_handlers import StatusBarHandler, new_log_file_handler
+from .show_io_report_dialog import show_io_report_dialog
 
 
 class MeasurementProtocol(Protocol):
@@ -76,6 +80,7 @@ class BaseMicroscopeApp(BaseApp):
         self.measurements: Dict[str, MeasurementProtocol] = OrderedAttrDict()
         self.logo_path = str(self.icons_path / "scopefoundry_logo2B_1024.png")
         self.quickbar = None  # also with self.add_quickbar
+        self.docs_path = get_child_path(self) / "docs"
         self.setup()
 
         self._setup_ui_base()
@@ -87,6 +92,7 @@ class BaseMicroscopeApp(BaseApp):
         self.setup_ui()  # child may overrite
         self._post_setup_ui_quickaccess()
         self._setup_ui_logo()
+        self._add_docs_to_help_menu()
 
     def setup(self) -> None:
         """Override to add Hardware and Measurement Components"""
@@ -275,9 +281,7 @@ class BaseMicroscopeApp(BaseApp):
         )
 
         self.ui.action_docs.triggered.connect(
-            partial(
-                self.launch_browser, url="https://www.scopefoundry.org/#documentation"
-            )
+            partial(self.launch_browser, url="https://www.scopefoundry.org/docs")
         )
         self.ui.action_about.triggered.connect(self.on_about)
         # Refer to existing ui object:
@@ -912,3 +916,12 @@ class BaseMicroscopeApp(BaseApp):
             close_fds=True,
             start_new_session=True,
         )
+
+    def _add_docs_to_help_menu(self):
+        cmenu = self.ui.menuHelp
+        init_docs_path(self.docs_path, self.settings)
+        pairs = itemize_launchers(self.docs_path, self.launch_browser)
+        if pairs:
+            cmenu.addSeparator()
+            for name, func in pairs:
+                cmenu.addAction(name, func)

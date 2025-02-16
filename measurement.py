@@ -3,21 +3,28 @@ Created on Tue Apr  1 09:25:48 2014
 @author: esbarnard
 """
 
+import json
 import sys
 import threading
 import time
 import traceback
+from pathlib import Path
 from typing import Callable
 from warnings import warn
 
 from qtpy import QtCore, QtGui, QtWidgets
 
-from .operations import Operations
 from .base_app import BaseMicroscopeApp
 from .dynamical_widgets.generic_widget import add_to_layout, new_widget
 from .dynamical_widgets.tree_widget import SubtreeManager
-from .helper_funcs import get_logger_from_class, load_qt_ui_file
+from .helper_funcs import (
+    get_logger_from_class,
+    init_docs_path,
+    load_qt_ui_file,
+    itemize_launchers,
+)
 from .logged_quantity import LQCollection
+from .operations import Operations
 
 
 class MeasurementQThread(QtCore.QThread):
@@ -514,8 +521,8 @@ class Measurement:
         return f"Hardware {self.name}"
 
     def reload_code(self):
-        import sys
         import inspect
+        import sys
 
         if sys.version_info[1] <= 11:
             import xreload
@@ -558,13 +565,32 @@ class Measurement:
         cmenu = QtWidgets.QMenu()
         cmenu.addAction(self.name).setEnabled(False)
         cmenu.addSeparator()
+
         cmenu.addAction("Start", self.start)
         cmenu.addAction("Interrupt", self.interrupt)
-        cmenu.addSeparator()
         ui = self.app.load_measure_ui(self)
         if ui is not None:
             cmenu.addAction("Show", self.show_ui)
+
+        init_docs_path(self.docs_path, self.settings)
+        pairs = itemize_launchers(self.docs_path, self.app.launch_browser, False)
+        if pairs:
+            cmenu.addSeparator()
+            for name, func in pairs:
+                cmenu.addAction(name, func)
+
         cmenu.exec_(QtGui.QCursor.pos())
+
+    @property
+    def docs_path(self):
+        # need to get derived class directory and name
+        module = sys.modules[self.__class__.__module__]
+        if module.__name__ == "__main__":
+            child_dir = module._dh[0]
+        else:
+            child_dir = Path(module.__file__).parent
+
+        return child_dir / f"{module.__file__.strip('.py')}_docs"
 
 
 class MeasurementQObject(QtCore.QObject):
