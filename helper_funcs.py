@@ -1,11 +1,14 @@
 import fnmatch
+import json
 import logging
 import os
 import subprocess
 import sys
 import threading
 from collections import OrderedDict
+from functools import partial
 from pathlib import Path
+from typing import Callable, List, Tuple
 from warnings import warn
 
 import pyqtgraph as pg
@@ -434,3 +437,67 @@ def get_scopefoundry_version():
         pass
 
     return "dev 1.6+"
+
+
+def itemize_launchers(
+    docs_path: Path, launch_browser: Callable, include_parents_readme: bool = True
+) -> List[Tuple[str, Callable]]:
+
+    if not docs_path:
+        return []
+
+    items = [("...", partial(open_file, str(docs_path)))]
+
+    if include_parents_readme:
+        for path in docs_path.parent.iterdir():
+            if path.name.lower() == "readme.md":
+                items.append((path.name, partial(open_file, str(path))))
+
+    if not docs_path.exists():
+        return items
+
+    for path in docs_path.iterdir():
+        if path.name == "links.json":
+            items += get_links(path, launch_browser)
+        elif path.is_file() and path.name.startswith("__"):
+            continue
+        elif path.is_file():
+            items.append((path.name, partial(open_file, str(path))))
+
+    return items
+
+
+def get_links(fname, launch_browser):
+    with open(fname, "r") as file:
+        return [
+            (name, partial(launch_browser, url))
+            for name, url in json.load(file).items()
+        ]
+
+
+def get_child_path(parent_class) -> Path:
+    """folder where a subclass is stored"""
+    module = sys.modules[parent_class.__class__.__module__]
+    if module.__name__ == "__main__":
+        return module._dh[0]
+    else:
+        return Path(module.__file__).parent
+
+
+def init_docs_path(docs_path, settings):
+    if not docs_path.exists():
+        docs_path.mkdir()
+        with open(docs_path / "links.json", "w") as f:
+            json.dump({}, f)
+
+    with open(docs_path / f"__place_documentation_here_readme_first.md", "w") as f:
+        f.write(f"**this file will be overwriten! **\n\n")
+        f.write(
+            " - Write documentation describing your app, files starting __ are ignored.\n\n"
+        )
+        f.write(f" - or add to `links.json`\n\n")
+
+        f.write(f"## Settings\n\n")
+        for name in settings.keys():
+            lq = settings.get_lq(name)
+            f.write(f" - *{lq.name}*: {lq.description}\n\n")

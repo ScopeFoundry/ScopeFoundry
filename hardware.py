@@ -1,18 +1,24 @@
 import json
+import sys
 import threading
 import time
 import warnings
 from functools import partial
 from pathlib import Path
-import sys
-from typing import Callable, List, Tuple
+from typing import Callable
 
 from qtpy import QtCore, QtGui, QtWidgets
 
 from .base_app import BaseMicroscopeApp
 from .dynamical_widgets import add_to_layout, new_widget
 from .dynamical_widgets.tree_widget import SubtreeManager
-from .helper_funcs import QLock, get_logger_from_class, open_file
+from .helper_funcs import (
+    QLock,
+    get_child_path,
+    get_logger_from_class,
+    init_docs_path,
+    itemize_launchers,
+)
 from .logged_quantity import LQCollection
 from .operations import Operations
 
@@ -43,6 +49,7 @@ class HardwareComponent:
         self._widgets_managers_ = []
 
         self.log = get_logger_from_class(self)
+        self.docs_path = get_child_path(self) / "docs"
 
         # threading lock
         # self.lock = threading.Lock()
@@ -247,21 +254,17 @@ class HardwareComponent:
         connect = partial(self.settings.get_lq("connected").update_value, True)
         disconnect = partial(self.settings.get_lq("connected").update_value, False)
 
-        actions = {
-            cmenu.addAction("Connect"): connect,
-            cmenu.addAction("Disconnect"): disconnect,
-        }
+        cmenu.addAction("Connect", connect)
+        cmenu.addAction("Disconnect", disconnect)
 
-        # need to get /docs of the derived class directory
-        child_dir = Path(sys.modules[self.__class__.__module__].__file__).parent
-        pairs = process_docs_files(child_dir / "docs", self.app.launch_browser)
+        init_docs_path(self.docs_path, self.settings)
+        pairs = itemize_launchers(self.docs_path, self.app.launch_browser)
         if pairs:
             cmenu.addSeparator()
             for name, func in pairs:
-                actions[cmenu.addAction(name)] = func
+                cmenu.addAction(name, func)
 
-        func = actions.get(cmenu.exec_(QtGui.QCursor.pos()), print)
-        func()
+        cmenu.exec_(QtGui.QCursor.pos())
 
     def setup(self):
         """
@@ -290,31 +293,3 @@ class HardwareQObject(QtCore.QObject):
 
     connection_succeeded = QtCore.Signal()
     connection_failed = QtCore.Signal()
-
-
-def process_docs_files(
-    docs_path: Path, launch_browser: Callable
-) -> List[Tuple[str, Callable]]:
-
-    pairs = []
-
-    for file in docs_path.parent.iterdir():
-        if file.name.lower() == "readme.md":
-            pairs.append((file.name, partial(open_file, str(file))))
-
-    if not docs_path.exists():
-        return pairs
-
-    for file in (f for f in docs_path.iterdir() if f.is_file()):
-        if file.name != "links.json":
-            pairs.append((file.name, partial(open_file, str(file))))
-            continue
-
-        # get links from json file
-        with open(file, "r") as file:
-            pairs += [
-                (name, partial(launch_browser, url))
-                for name, url in json.load(file).items()
-            ]
-
-    return pairs
