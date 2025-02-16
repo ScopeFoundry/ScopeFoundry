@@ -57,6 +57,7 @@ setup(
             "**/default_settings.ini",
             "**/defaults.ini",
             "**/sweep_h_centers.json",
+            "**/.gitignore",
         ]
     },
     install_requires=["numpy", "h5py", "uuid7", "qtpy", "pyqtgraph"],

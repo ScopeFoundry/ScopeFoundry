@@ -46,6 +46,7 @@ def new_hw(
     write(root / "templates/___init__.py", "__init__.py")
     write(root / "templates/_LICENSE", "LICENSE")
     write(root / "templates/_README.md", "README.md")
+    write(root / "templates/.gitignore", ".gitignore")
 
     if com_type == ComTypes.DLL.value:
         write(root / "templates/_dll_dev.py", infos["DEV_FILE_NAME"])
