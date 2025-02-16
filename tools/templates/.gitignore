@@ -1,0 +1,5 @@
+*.pyc
+*.h5
+*log*.txt
+.project
+.pydevproject
