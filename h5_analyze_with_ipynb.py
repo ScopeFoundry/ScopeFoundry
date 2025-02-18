@@ -34,7 +34,7 @@ def update_cells(new_sources: List, nb_content: Dict) -> Dict:
     for new_line in new_sources[1]:
         skipp = False
         for old_line in nb_content["cells"][1]["source"]:
-            if new_line.strip().lower() in old_line.strip().lower() or old_line.strip().lower() in new_line.strip().lower():
+            if new_line.strip().lower() in old_line.strip().lower():
                 skipp = True
                 break
         if not skipp:
