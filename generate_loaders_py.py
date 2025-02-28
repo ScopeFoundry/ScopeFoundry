@@ -47,6 +47,8 @@ def load_settings(fname: str) -> Dict[str, Any]:
 
     with h5py.File(fname, "r") as file:
         file.visititems(visit_func)
+        for key, val in file.attrs.items():
+            settings[key] = val        
 
     return settings
 
@@ -81,7 +83,7 @@ def get_mm_name(fname: str) -> str:
 
 
 def get_measurement_name(fname: str) -> str:
-    with h5py.File(fname, 'r') as file:
+    with h5py.File(fname, "r") as file:
         if len(file["measurement"].keys()) == 1:
             return list(file["measurement"].keys())[0]
         return file.attrs["measurement"]
@@ -130,7 +132,7 @@ def get_dset_names(folder: str) -> Dict[str, Set[str]]:
     dset_names = {}
     for fname in path.rglob("*.h5"):
         mm_name = get_measurement_name(fname)
-        with h5py.File(fname, 'r') as file:
+        with h5py.File(fname, "r") as file:
             new_keys = set(
                 [
                     name
