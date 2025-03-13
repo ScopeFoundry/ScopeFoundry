@@ -842,7 +842,6 @@ class BaseMicroscopeApp(BaseApp):
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
     def on_about(self) -> None:
-
         with open(self.this_path / "README.md") as f:
             markdown = f.read().replace(
                 "ScopeFoundry", f"ScopeFoundry ({get_scopefoundry_version()})", 1
@@ -851,11 +850,11 @@ class BaseMicroscopeApp(BaseApp):
         readme = QtWidgets.QTextEdit()
         readme.setMarkdown(markdown)
 
-        dialog = QtWidgets.QWidget()
+        dialog = QtWidgets.QDialog()
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(readme)
         dialog.setLayout(layout)
-        dialog.show()
+        dialog.exec_()
 
     def on_drag_on_app_widget(self, event: QtGui.QDragEnterEvent) -> None:
         if event.mimeData().hasUrls():
