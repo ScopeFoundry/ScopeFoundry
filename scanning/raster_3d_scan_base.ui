@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>706</width>
-    <height>577</height>
+    <width>900</width>
+    <height>483</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -17,285 +17,306 @@
    <string>Simple XY Scan</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,0,0,0,0,0,0,0" columnstretch="0,0,0,0,0">
-    <item row="8" column="0" colspan="5">
-     <widget class="QGroupBox" name="plot_groupBox">
-      <property name="title">
-       <string>Plot</string>
-      </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2"/>
-     </widget>
-    </item>
-    <item row="0" column="0" colspan="5">
-     <layout class="QHBoxLayout" name="setting_hlayout">
+   <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0" columnstretch="0">
+    <property name="verticalSpacing">
+     <number>3</number>
+    </property>
+    <item row="0" column="0">
+     <layout class="QHBoxLayout" name="settings_horizontalLayout">
       <item>
        <widget class="QGroupBox" name="control_groupBox">
-        <property name="minimumSize">
-         <size>
-          <width>400</width>
-          <height>200</height>
-         </size>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="maximumSize">
          <size>
-          <width>400</width>
-          <height>200</height>
+          <width>16777215</width>
+          <height>16777215</height>
          </size>
         </property>
         <property name="title">
-         <string>HVZ Scan Control</string>
+         <string>3D Scan Control</string>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayout_6">
-         <item>
-          <layout class="QVBoxLayout" name="verticalLayout_3">
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout">
-             <item>
-              <widget class="QComboBox" name="scan_type_comboBox"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="start_pushButton">
-               <property name="text">
-                <string>Start</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="Line" name="line">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <layout class="QGridLayout" name="gridLayout_6">
-           <item row="0" column="0">
-            <widget class="QLabel" name="h_label">
-             <property name="text">
-              <string>H</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="2">
-            <widget class="QDoubleSpinBox" name="v1_doubleSpinBox"/>
-           </item>
-           <item row="0" column="3">
-            <widget class="QLabel" name="dv_label">
-             <property name="text">
-              <string>dh</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="6">
-            <widget class="QDoubleSpinBox" name="Nv_doubleSpinBox"/>
-           </item>
-           <item row="0" column="1">
-            <widget class="QDoubleSpinBox" name="h0_doubleSpinBox"/>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="v_label_2">
-             <property name="text">
-              <string>V</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="4">
-            <widget class="QDoubleSpinBox" name="dv_doubleSpinBox"/>
-           </item>
-           <item row="0" column="5">
-            <widget class="QLabel" name="label_2">
-             <property name="text">
-              <string>Nh</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="6">
-            <widget class="QDoubleSpinBox" name="Nh_doubleSpinBox"/>
-           </item>
-           <item row="1" column="3">
-            <widget class="QLabel" name="dv_label_2">
-             <property name="text">
-              <string>dv</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="5">
-            <widget class="QLabel" name="label_3">
-             <property name="text">
-              <string>Nv</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QDoubleSpinBox" name="v0_doubleSpinBox"/>
-           </item>
-           <item row="0" column="4">
-            <widget class="QDoubleSpinBox" name="dh_doubleSpinBox"/>
-           </item>
-           <item row="0" column="2">
-            <widget class="QDoubleSpinBox" name="h1_doubleSpinBox"/>
-           </item>
-           <item row="2" column="0">
-            <widget class="QLabel" name="label">
-             <property name="text">
-              <string>Z</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QDoubleSpinBox" name="z0_doubleSpinBox"/>
-           </item>
-           <item row="2" column="2">
-            <widget class="QDoubleSpinBox" name="z1_doubleSpinBox"/>
-           </item>
-           <item row="2" column="3">
-            <widget class="QLabel" name="label_4">
-             <property name="text">
-              <string>dz</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="4">
-            <widget class="QDoubleSpinBox" name="dz_doubleSpinBox"/>
-           </item>
-           <item row="2" column="5">
-            <widget class="QLabel" name="label_5">
-             <property name="text">
-              <string>Nz</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="6">
-            <widget class="QDoubleSpinBox" name="Nz_doubleSpinBox"/>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="status_lineEdit">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>400</width>
-             <height>300</height>
-            </size>
-           </property>
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
+        <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0,0,0,0,0,0">
+         <item row="1" column="0" colspan="8">
           <layout class="QGridLayout" name="gridLayout_5">
-           <item row="1" column="4">
-            <widget class="QDoubleSpinBox" name="progress_doubleSpinBox"/>
-           </item>
-           <item row="1" column="0">
-            <widget class="QDoubleSpinBox" name="x_doubleSpinBox"/>
-           </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="x_label">
-             <property name="text">
-              <string>current X</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
+           <item row="0" column="2">
             <widget class="QLabel" name="y_label">
              <property name="text">
-              <string>current Y</string>
+              <string>current V</string>
              </property>
             </widget>
            </item>
-           <item row="1" column="1">
-            <widget class="QDoubleSpinBox" name="y_doubleSpinBox"/>
-           </item>
-           <item row="0" column="2">
-            <widget class="QLabel" name="z_label">
+           <item row="0" column="3">
+            <widget class="QLabel" name="label_4">
              <property name="text">
               <string>current Z</string>
              </property>
             </widget>
            </item>
-           <item row="1" column="2">
-            <widget class="QDoubleSpinBox" name="z_doubleSpinBox"/>
-           </item>
-           <item row="0" column="4">
-            <widget class="QLabel" name="progres_label">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label">
              <property name="text">
-              <string>Progress:</string>
+              <string>Progress</string>
              </property>
             </widget>
            </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="x_label">
+             <property name="text">
+              <string>current H</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QProgressBar" name="progressBar">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="value">
+              <number>24</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QDoubleSpinBox" name="x_doubleSpinBox"/>
+           </item>
+           <item row="1" column="2">
+            <widget class="QDoubleSpinBox" name="y_doubleSpinBox"/>
+           </item>
+           <item row="1" column="3">
+            <widget class="QDoubleSpinBox" name="z_doubleSpinBox"/>
+           </item>
           </layout>
+         </item>
+         <item row="5" column="6">
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Nh</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="1">
+          <widget class="QComboBox" name="z_axis_comboBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="h_label">
+           <property name="text">
+            <string>H</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="4">
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>dz</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="3">
+          <widget class="QDoubleSpinBox" name="v1_doubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="4">
+          <widget class="QLabel" name="dv_label_2">
+           <property name="text">
+            <string>dv</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0" colspan="4">
+          <widget class="QComboBox" name="scan_type_comboBox"/>
+         </item>
+         <item row="8" column="6">
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>Nz</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QComboBox" name="h_axis_comboBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0" colspan="8">
+          <widget class="Line" name="line">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="5">
+          <widget class="QDoubleSpinBox" name="dv_doubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="0">
+          <widget class="QLabel" name="v_label_2">
+           <property name="text">
+            <string>V</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="5">
+          <widget class="QDoubleSpinBox" name="dz_doubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="6">
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>Nv</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="7">
+          <widget class="QDoubleSpinBox" name="Nh_doubleSpinBox"/>
+         </item>
+         <item row="7" column="2">
+          <widget class="QDoubleSpinBox" name="v0_doubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="0">
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>Z</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="4">
+          <widget class="QLabel" name="dv_label">
+           <property name="text">
+            <string>dh</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="3">
+          <widget class="QDoubleSpinBox" name="z1_doubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="5">
+          <widget class="QDoubleSpinBox" name="dh_doubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="2">
+          <widget class="QDoubleSpinBox" name="z0_doubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="7">
+          <widget class="QDoubleSpinBox" name="Nv_doubleSpinBox"/>
+         </item>
+         <item row="5" column="3">
+          <widget class="QDoubleSpinBox" name="h1_doubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="4" colspan="4">
+          <widget class="QPushButton" name="start_pushButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>Start</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="1">
+          <widget class="QComboBox" name="v_axis_comboBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="7">
+          <widget class="QDoubleSpinBox" name="Nz_doubleSpinBox"/>
+         </item>
+         <item row="5" column="2">
+          <widget class="QDoubleSpinBox" name="h0_doubleSpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
          </item>
         </layout>
        </widget>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_5">
-        <item>
-         <widget class="QGroupBox" name="groupBox_2">
-          <property name="minimumSize">
-           <size>
-            <width>150</width>
-            <height>100</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>150</width>
-            <height>100</height>
-           </size>
-          </property>
-          <property name="title">
-           <string>View</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout_4">
-           <item row="0" column="0">
-            <layout class="QHBoxLayout" name="horizontalLayout_2">
-             <item>
-              <widget class="QCheckBox" name="show_previous_scans_checkBox">
-               <property name="text">
-                <string>Show 
-Prev Scans</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item row="2" column="0">
-            <widget class="QPushButton" name="clear_previous_scans_pushButton">
-             <property name="text">
-              <string>Clear Prev</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
+       <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
          <widget class="QGroupBox" name="groupBox">
-          <property name="minimumSize">
-           <size>
-            <width>100</width>
-            <height>80</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>150</width>
-            <height>80</height>
-           </size>
-          </property>
           <property name="title">
            <string>Data</string>
           </property>
@@ -317,6 +338,29 @@ Prev Scans</string>
           </layout>
          </widget>
         </item>
+        <item>
+         <widget class="QGroupBox" name="groupBox_2">
+          <property name="title">
+           <string>View</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_4">
+           <item row="0" column="0">
+            <widget class="QCheckBox" name="show_previous_scans_checkBox">
+             <property name="text">
+              <string>Show Prev Scans</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QPushButton" name="clear_previous_scans_pushButton">
+             <property name="text">
+              <string>Clear Prev</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
        </layout>
       </item>
       <item>
@@ -324,29 +368,78 @@ Prev Scans</string>
         <property name="title">
          <string>Details</string>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayout">
-         <item>
-          <layout class="QVBoxLayout" name="verticalLayout_4"/>
-         </item>
-        </layout>
+        <layout class="QVBoxLayout" name="details_layout"/>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="device_details_GroupBox">
+        <property name="title">
+         <string>Device Details</string>
+        </property>
+        <layout class="QGridLayout" name="device_details_layout"/>
        </widget>
       </item>
      </layout>
     </item>
+    <item row="1" column="0">
+     <widget class="QGroupBox" name="plot_groupBox">
+      <property name="title">
+       <string/>
+      </property>
+      <property name="flat">
+       <bool>true</bool>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+      </layout>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>706</width>
+     <width>900</width>
      <height>17</height>
     </rect>
    </property>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QStatusBar" name="statusbar">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+  </widget>
  </widget>
+ <tabstops>
+  <tabstop>start_pushButton</tabstop>
+  <tabstop>h0_doubleSpinBox</tabstop>
+  <tabstop>h1_doubleSpinBox</tabstop>
+  <tabstop>dh_doubleSpinBox</tabstop>
+  <tabstop>Nh_doubleSpinBox</tabstop>
+  <tabstop>v0_doubleSpinBox</tabstop>
+  <tabstop>v1_doubleSpinBox</tabstop>
+  <tabstop>dv_doubleSpinBox</tabstop>
+  <tabstop>Nv_doubleSpinBox</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

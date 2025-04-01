@@ -15,14 +15,6 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
     def run(self):
         S = self.settings
 
-        # Hardware
-        # self.apd_counter_hc = self.app.hardware_components['apd_counter']
-        # self.apd_count_rate = self.apd_counter_hc.apd_count_rate
-        # self.stage = self.app.hardware_components['dummy_xy_stage']
-
-        # Data File
-        # H5
-
         # Compute data arrays
         self.compute_scan_arrays()
 
@@ -41,7 +33,6 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                 if self.settings["save_h5"]:
                     self.h5_file = h5_io.h5_base_file(self.app, measurement=self)
                     self.h5_filename = self.h5_file.filename
-
                     self.h5_file.attrs["time_id"] = self.t0
                     H = self.h5_meas_group = h5_io.h5_create_measurement_group(
                         self, self.h5_file
@@ -129,22 +120,22 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
                     break
         print(self.name, "done")
 
+    def new_pt_pos(self, x, y):
+        self.move_position_start(x, y)
+
+    # Override these methods in subclasses to implement hardware specific movement
     def move_position_start(self, h, v):
-        self.stage.settings.x_position.update_value(h)
-        self.stage.settings.y_position.update_value(v)
+        if hasattr(self, "stage"):
+            self.stage.settings["x_position"] = h
+            self.stage.settings["y_position"] = v
+        else:
+            print(self.name, "move_position_start not implemented")
 
     def move_position_slow(self, h, v, dh, dv):
-        self.stage.settings.x_position.update_value(h)
-        self.stage.settings.y_position.update_value(v)
+        return self.move_position_fast(h, v, dh, dv)
 
     def move_position_fast(self, h, v, dh, dv):
-        self.stage.settings.x_position.update_value(h)
-        self.stage.settings.y_position.update_value(v)
-        # x = self.stage.settings['x_position']
-        # y = self.stage.settings['y_position']
-        # x = self.stage.settings.x_position.read_from_hardware()
-        # y = self.stage.settings.y_position.read_from_hardware()
-        # print(x,y)
+        return self.move_position_start(h, v)
 
     def pre_scan_setup(self):
         print(self.name, "pre_scan_setup not implemented")
@@ -152,16 +143,13 @@ class BaseRaster2DSlowScan(BaseRaster2DScan):
         # create data arrays
         # update figure
 
-    def collect_pixel(self, pixel_num, k, j, i):
+    def collect_pixel(self, pixel_num: int, k: int, j: int, i: int):
         # collect data
         # store in arrays
         print(self.name, "collect_pixel", pixel_num, k, j, i, "not implemented")
 
     def post_scan_cleanup(self):
         print(self.name, "post_scan_cleanup not implemented")
-
-    def new_pt_pos(self, x, y):
-        self.move_position_start(x, y)
 
 
 class BaseRaster3DSlowScan(BaseRaster3DScan):
@@ -170,14 +158,6 @@ class BaseRaster3DSlowScan(BaseRaster3DScan):
 
     def run(self):
         S = self.settings
-
-        # Hardware
-        # self.apd_counter_hc = self.app.hardware_components['apd_counter']
-        # self.apd_count_rate = self.apd_counter_hc.apd_count_rate
-        # self.stage = self.app.hardware_components['dummy_xy_stage']
-
-        # Data File
-        # H5
 
         # Compute data arrays
         self.compute_scan_arrays()
@@ -298,23 +278,23 @@ class BaseRaster3DSlowScan(BaseRaster3DScan):
                     break
         print(self.name, "done")
 
-    def move_position_start(self, h, v, z):
-        self.stage.settings.x_position.update_value(h)
-        self.stage.settings.y_position.update_value(v)
-        self.stage.settings.z_position.update_value(z)
+    def new_pt_pos(self, x, y):
+        self.move_position_slow(x, y, 0, 0)
 
-    def move_position_slow(self, h, v, dh, dv):
-        self.stage.settings.x_position.update_value(h)
-        self.stage.settings.y_position.update_value(v)
+    # Override these methods in subclasses to implement hardware specific movement
+    def move_position_start(self, h: float, v: float, z: float):
+        if hasattr(self, "stage"):
+            self.stage.settings["x_position"] = h
+            self.stage.settings["y_position"] = v
+            self.stage.settings["z_position"] = z
 
-    def move_position_fast(self, h, v, dh, dv):
-        self.stage.settings.x_position.update_value(h)
-        self.stage.settings.y_position.update_value(v)
-        # x = self.stage.settings['x_position']
-        # y = self.stage.settings['y_position']
-        # x = self.stage.settings.x_position.read_from_hardware()
-        # y = self.stage.settings.y_position.read_from_hardware()
-        # print(x,y)
+    def move_position_slow(self, h: float, v: float, dh: float, dv: float):
+        if hasattr(self, "stage"):
+            self.stage.settings["x_position"] = h
+            self.stage.settings["y_position"] = v
+
+    def move_position_fast(self, h: float, v: float, dh: float, dv: float):
+        return self.move_position_slow(h, v, dh, dv)
 
     def pre_scan_setup(self):
         print(self.name, "pre_scan_setup not implemented")
@@ -322,13 +302,10 @@ class BaseRaster3DSlowScan(BaseRaster3DScan):
         # create data arrays
         # update figure
 
-    def collect_pixel(self, pixel_num, k, j, i):
+    def collect_pixel(self, pixel_num: int, k: int, j: int, i: int):
         # collect data
         # store in arrays
         print(self.name, "collect_pixel", pixel_num, k, j, i, "not implemented")
 
     def post_scan_cleanup(self):
         print(self.name, "post_scan_cleanup not implemented")
-
-    def new_pt_pos(self, x, y):
-        self.move_position_start(x, y, self.stage.z_position.val)
