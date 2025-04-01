@@ -33,7 +33,7 @@
  },
  {
   "type": "timeout",
-  "time": 0.1
+  "time": 0.2
  },
  {
   "type": "end-iteration",
