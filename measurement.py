@@ -18,6 +18,7 @@ from .base_app import BaseMicroscopeApp
 from .dynamical_widgets.generic_widget import add_to_layout, new_widget
 from .dynamical_widgets.tree_widget import SubtreeManager
 from .helper_funcs import (
+    get_child_path,
     get_logger_from_class,
     init_docs_path,
     load_qt_ui_file,
@@ -585,12 +586,12 @@ class Measurement:
     def docs_path(self):
         # need to get derived class directory and name
         module = sys.modules[self.__class__.__module__]
-        if module.__name__ == "__main__":
-            child_dir = module._dh[0]
-        else:
-            child_dir = Path(module.__file__).parent
-
-        return child_dir / f"{module.__file__.strip('.py')}_docs"
+        if self.__class__.__module__ == "__main__":
+            self.log.warning(
+                f"Measurement.docs_path called from __main__, place {self.__class__} in a separate file"
+            )
+            return get_child_path(self) / "docs"
+        return Path(module.__file__).parent / f"{module.__file__.strip('.py')}_docs"
 
     def new_dataset_metadata(self, fname=None):
         """Create a new dataset info. Use dataset_metadata to save data in multiple forms (h5, csv, png with persistent indentifyer)"""

@@ -479,8 +479,8 @@ def get_child_path(parent_class) -> Path:
     """folder where a subclass is stored"""
     module = sys.modules[parent_class.__class__.__module__]
     if module.__name__ == "__main__":
-        return module._dh[0]
-    else:
+        return Path.cwd()
+    elif hasattr(module, "__file__"):
         return Path(module.__file__).parent
 
 
