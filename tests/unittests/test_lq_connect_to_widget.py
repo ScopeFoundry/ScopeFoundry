@@ -42,8 +42,8 @@ class LQConnectToWidgetTest(unittest.TestCase):
         # lq to widget
         self.float.update_value(1.0)
         self.int.update_value(1.0)
-        self.assertEqual(wf.value(), 1)
-        self.assertEqual(wf.value(), 1)
+        self.assertEqual(wf.value(), 1.0)
+        self.assertEqual(wi.value(), 1)
 
         # widget to lq
         wf.setValue(2)
