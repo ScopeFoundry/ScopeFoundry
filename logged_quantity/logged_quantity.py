@@ -3,7 +3,7 @@ from collections import deque
 from enum import Enum
 from functools import partial
 from inspect import signature
-from typing import Any, List, Tuple, Union
+from typing import Any, Iterable, List, Tuple, Union
 
 import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
@@ -50,21 +50,21 @@ class LoggedQuantity(QtCore.QObject):
         name,
         dtype=float,
         initial=0,
-        fmt="%g",
-        si=False,
-        ro=False,  # read only flag
-        unit=None,
-        spinbox_decimals=2,
-        spinbox_step=0.1,
-        vmin=-1e12,
-        vmax=+1e12,
-        choices=None,
-        reread_from_hardware_after_write=False,
-        description=None,
+        fmt: str = "%g",
+        si: bool = False,
+        ro: bool = False,  # read only flag
+        unit: str = None,
+        spinbox_decimals: int = 2,
+        spinbox_step: float = 0.1,
+        vmin: float = -1e12,
+        vmax: float = +1e12,
+        choices: Iterable = None,
+        reread_from_hardware_after_write: bool = False,
+        description: str = None,
         colors=None,
-        protected=False,  # a guard that prevents from being updated, i.e. file loading
-        is_cmd=False,
-        is_clipboardable=False,
+        protected: bool = False,  # a guard that prevents from being updated, i.e. file loading
+        is_cmd: bool = False,
+        is_clipboardable: bool = False,
         default_widget_factory=None,
     ):
         QtCore.QObject.__init__(self)
@@ -169,7 +169,7 @@ class LoggedQuantity(QtCore.QObject):
     def val_str(self):
         self.coerce_to_str(self.val)
 
-    def _expand_choices(self, choices) -> Union[Tuple[str, Any], None]:
+    def _expand_choices(self, choices: Iterable) -> Union[Tuple[str, Any], None]:
         """returns [(name, val)...] or None"""
         if choices is None:
             return None
@@ -181,7 +181,7 @@ class LoggedQuantity(QtCore.QObject):
     def __repr__(self):
         return f"LQ: {self.name} = {self.val}"
 
-    def read_from_hardware(self, send_signal=True):
+    def read_from_hardware(self, send_signal: bool = True):
         self.log.debug(f"{self.name}: read_from_hardware send_signal={send_signal}")
         if self.hardware_read_func is not None:
             with self.lock:
@@ -449,7 +449,9 @@ class LoggedQuantity(QtCore.QObject):
                     widget.blockSignals(False)
 
             # self.updated_value[float].connect(widget.setValue)
-            self.updated_value[float].connect(update_widget_value)
+            widget.to_connection = self.updated_value[float].connect(
+                update_widget_value
+            )
             # if not self.ro:
             widget.valueChanged[float].connect(self.update_value)
 
@@ -716,6 +718,46 @@ class LoggedQuantity(QtCore.QObject):
         # self.widget = widget
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
+
+    def disconnect_from_widget(self, widget: QtWidgets.QWidget):
+        """
+        Disconnects the Qt signal-slot connections between LQ and the QtWidget *widget*
+
+        :returns: None
+
+        """
+        if widget not in self.widget_list:
+            # print(f"Widget {widget} not connected to {self.name}")
+            return
+
+        self.widget_list.remove(widget)
+
+        widget.disconnect()
+
+        if hasattr(widget, "to_connection"):
+            if isinstance(widget, QtWidgets.QDoubleSpinBox):
+                self.updated_value[float].disconnect(widget.to_connection)
+            # TODO: other widgets!
+
+            # elif isinstance(widget, QtWidgets.QCheckBox):
+            #     self.updated_value[bool].disconnect(widget.setChecked)
+            # elif isinstance(widget, QtWidgets.QLineEdit):
+            #     self.updated_value[str].disconnect(widget.setText)
+            #     self.updated_text_value[str].disconnect(widget.setText)
+            # elif isinstance(widget, QtWidgets.QPlainTextEdit):
+            #     self.updated_text_value[str].disconnect(widget.document().setPlainText)
+            #     self.updated_value[str].disconnect(widget.document().setPlainText)
+            # elif isinstance(widget, QtWidgets.QSlider):
+            #     self.updated_value[float].disconnect(widget.setValue)
+            # elif isinstance(widget, MinMaxQSlider):
+            #     self.updated_value[float].disconnect(widget.update_value)
+            # elif isinstance(widget, QtWidgets.QLCDNumber):
+            #     self.update_value[float].disconnect(widget.display)
+            # elif isinstance(widget, QtWidgets.QProgressBar):
+            #     self.updated_value.disconnect(widget.setValue)
+            # elif isinstance(widget, QtWidgets.QComboBox):
+            #     self.updated_choice_index_value[int].disconnect(widget.setCurrentIndex)
+            #     widget.currentIndexChanged.disconnect(self.update_choice_index_value)
 
     def connect_to_widget_one_way(self, widget):
         """
@@ -1405,6 +1447,7 @@ def _expand_choice(c, dtype):
     elif isinstance(c, Enum):
         return (c.name, dtype(c.value))
     return (str(c), dtype(c))
+
 
 # https://stackoverflow.com/questions/480214/how-do-i-remove-duplicates-from-a-list-while-preserving-order
 def remove_duplicates(l: List) -> List:
