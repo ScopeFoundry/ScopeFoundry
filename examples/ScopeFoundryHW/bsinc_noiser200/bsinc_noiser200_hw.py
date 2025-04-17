@@ -1,5 +1,3 @@
-import time
-
 from ScopeFoundry import HardwareComponent
 from ScopeFoundry.examples.ScopeFoundryHW.bsinc_noiser200.bsinc_noiser200_dev import (
     Noiser200Dev,

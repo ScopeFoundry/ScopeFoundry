@@ -1,8 +1,5 @@
-import time
-
 from ScopeFoundry import HardwareComponent
 from ScopeFoundry.scanning import BaseRaster2DSlowScanV2
-
 
 
 class Example2DSlowScanMeasure(BaseRaster2DSlowScanV2):
