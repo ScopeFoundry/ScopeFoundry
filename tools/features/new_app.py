@@ -55,12 +55,12 @@ def new_app() -> str:
         """
 test installation by calling
     
-    python -m example_slowscan_app
+    python -m fancy_app
 
 rename/modify *app.py file to your liking.
 """
     )
-    return "python -m example_slowscan_app"
+    return "python -m fancy_app"
 
 
 if __name__ == "__main__":
