@@ -1,10 +1,14 @@
 import sys
 
 from ScopeFoundry import BaseMicroscopeApp
-from ScopeFoundry.examples.example_2d_slowscan_measure import Example2DSlowScanMeasure
-from ScopeFoundry.examples.example_3d_slowscan_measure import Example3DSlowScanMeasure
 from ScopeFoundry.examples.ScopeFoundryHW.bsinc_noiser200 import Noiser200HW
 from ScopeFoundry.examples.ScopeFoundryHW.simulon_xyzstage import SimulonXYZStageHW
+from ScopeFoundry.examples.measurements.example_2d_slowscan_measure import (
+    Example2DSlowScanMeasure,
+)
+from ScopeFoundry.examples.measurements.example_3d_slowscan_measure import (
+    Example3DSlowScanMeasure,
+)
 
 
 class FancyApp(BaseMicroscopeApp):
@@ -46,6 +50,14 @@ class FancyApp(BaseMicroscopeApp):
 
         self.add_measurement(Example2DSlowScanMeasure(self, actuators=actuators))
         self.add_measurement(Example3DSlowScanMeasure(self, actuators=actuators))
+
+        ## Example of Sweep4D with a custom collector
+        from ScopeFoundry import Sweep2D, Sweep4D
+        from measurements.collectors import Noiser200Collector
+
+        collectors = [Noiser200Collector(self)]
+
+        self.add_measurement(Sweep4D(self, actuators=actuators, collectors=collectors))
 
 
 if __name__ == "__main__":
