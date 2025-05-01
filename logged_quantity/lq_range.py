@@ -1,5 +1,5 @@
 import numpy as np
-from qtpy import QtCore, QtWidgets
+from qtpy import QtWidgets
 
 from ScopeFoundry.helper_funcs import get_logger_from_class
 
@@ -28,7 +28,6 @@ class LQRange(LQCircularNetwork):
         span_lq: LoggedQuantity = None,
         sweep_type_lq: LoggedQuantity = None,
     ):
-        QtCore.QObject.__init__(self)
         self.log = get_logger_from_class(self)
         self.min = min_lq
         self.max = max_lq
