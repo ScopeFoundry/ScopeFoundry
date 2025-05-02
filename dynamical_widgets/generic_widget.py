@@ -62,7 +62,12 @@ def new_widget(
 
 def add_to_layout(
     obj: Union[Widgetable, Operations, LQCollection],
-    layout: Union[QtWidgets.QFormLayout, QtWidgets.QHBoxLayout, QtWidgets.QVBoxLayout],
+    layout: Union[
+        QtWidgets.QFormLayout,
+        QtWidgets.QHBoxLayout,
+        QtWidgets.QVBoxLayout,
+        QtWidgets.QGridLayout,
+    ],
     include=None,
     exclude=None,
 ) -> None:
