@@ -53,11 +53,10 @@ def new_app() -> str:
     copy_scopefoundry_examples()
     print(
         """
-test installation by calling
+test installation by running:
     
     python -m fancy_app
 
-rename/modify *app.py file to your liking.
 """
     )
     return "python -m fancy_app"

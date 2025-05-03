@@ -4,8 +4,8 @@ Created on $DATE_PRETTY
 @author: $AUTHORS
 '''
 
-# INFO: GOAL OF THIS FILE IS TO HANDLE LOW LEVEL COMMUNICATION THROUGH A DLL
-# SHOULD BE INDEPENDENT OF ANY SCOPEFOUNDRY FUNCTIONALITY
+# INFO: THE GOAL OF THIS FILE IS TO HANDLE LOW-LEVEL COMMUNICATION THROUGH A DLL
+# IT SHOULD BE INDEPENDENT OF ANY SCOPEFOUNDRY FUNCTIONALITY
 
 import ctypes
 from threading import Lock
@@ -24,50 +24,47 @@ class $DEV_CLASS_NAME:
 
     def open(self):
         raise NotImplementedError
-        # assuming dll .h file has init()
+        # Assuming the DLL header file (.5) has a init function:
         # self.dll.init()
         #
-        # Assuming dll .h file has
+        # Assuming the DLL header file (.5) has:
         #   void OpenFirst(int *id)
         # _id = ctypes.c_int()
         # with self.lock:
         #     self.dll.OpenFirst(ctypes.byref(_id))
-        # return _id  #typically can be left as a ctype
+        # return _id  # Typically can be left as a ctypes object.
 
     def close(self):
         raise NotImplementedError
-        # good pratice to implement a close function
-        # find CLOSE function in dll header file
+        # Example implementation:
         # with self.lock:
         #     self.dll.CLOSE(self._id)
 
     def write_property_x(self, value):
         raise NotImplementedError
-
-        # assuming header file says
-        #   void SET_PROPERTY_X(_id, float value)
+        # Example implementation:
+        # Assuming the DLL header file has:
+        #   void SET_PROPERTY_X(int id, float value)
         # with self.lock:
         #     self.dll.SET_PROPERTY_X(ctypes.c_float(value))
         # if self.debug:
-        #     print(write_property_x to value)
-        # find CLOSE function in dll header file
+        #     print(f"write_property_x to value: {value}")
 
     def read_property_x(self):
         raise NotImplementedError
-
-        # assuming header file says
+        # Example implementation:
+        # Assuming the DLL header file has:
         #   void GET_PROPERTY_X(int id, float *value)
         # value = ctypes.c_float()
         # with self.lock:
-        #     self.dll.SET_PROPERTY_X(self._id, ctypes.byref(cvalue))
+        #     self.dll.GET_PROPERTY_X(self._id, ctypes.byref(value))
         # if self.debug:
-        #     print(cvalue.value)
-        # return cvalue.value
+        #     print(f"read_property_x: {value.value}")
+        # return value.value
 
     def read_data(self):
         raise NotImplementedError
-        # function name to generic, be more specific
-        #
+        # Example implementation:
         # return a list of data points
 
 

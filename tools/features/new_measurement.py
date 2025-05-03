@@ -35,7 +35,12 @@ def gather_infos(name: str, module_path: str = ".") -> Dict[str, str]:
 
 
 def new_measure(name: str) -> Dict[str, str]:
-    infos = gather_infos(name, ".")
+
+    path_to_module = Path("measurements")
+    if not path_to_module.exists():
+        path_to_module.mkdir(parents=True)
+
+    infos = gather_infos(name, str(path_to_module))
     root = Path(__file__).parent.parent
 
     write_templated_file(

@@ -1,0 +1,55 @@
+import sys
+
+
+def invalid_input():
+    print("----------------------------------------------------------")
+    print("Invalid command. Please use one of the following commands:")
+    print("----------------------------------------------------------")
+    show_cmds()
+
+
+def show_cmds():
+    print("python -m ScopeFoundry init")
+    print("python -m ScopeFoundry ipynb")
+    print("python -m ScopeFoundry tools")
+    print("python -m ScopeFoundry new_hardware")
+    print("python -m ScopeFoundry new_measurement")
+
+
+if __name__ == "__main__":
+
+    cmd = sys.argv[1].lower() if len(sys.argv) > 1 else None
+    if cmd is None:
+        invalid_input()
+
+    if cmd in ("init"):
+        from ScopeFoundry.tools.features.new_app import new_app
+
+        new_app()
+
+        print("")
+        print("Or use one of the following commmands to extent your app")
+        print("--------------------------------------------------------")
+        print("python -m ScopeFoundry new_hardware")
+        print("python -m ScopeFoundry new_measurement")
+        show_cmds()
+
+    elif cmd in ("ipynb",):
+        from ScopeFoundry.h5_analyze_with_ipynb import analyze_with_ipynb
+
+        analyze_with_ipynb()
+    elif cmd in ("tools",):
+        from ScopeFoundry.tools.app import start_app
+
+        start_app()
+    elif cmd in ("new_hw", "new_hardware"):
+        from ScopeFoundry.tools.app import start_app
+
+        start_app("new hardware")
+    elif cmd in ("new_mm", "new_measurement"):
+        from ScopeFoundry.tools.features.new_measurement import main
+
+        main()
+
+    else:
+        invalid_input()
