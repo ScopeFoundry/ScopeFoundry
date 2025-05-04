@@ -34,7 +34,7 @@ setup(
         "ScopeFoundry.examples",
         "ScopeFoundry.examples.ScopeFoundryHW",
         "ScopeFoundry.examples.ScopeFoundryHW.bsinc_noiser200",
-        "ScopeFoundry.examples.ScopeFoundryHW.simulon_xyzstage",
+        "ScopeFoundry.examples.ScopeFoundryHW.simulon_xyz_stage",
         "ScopeFoundry.examples.docs",
         "ScopeFoundry.examples.measurements",
         "ScopeFoundry.examples.measurements.example_2d_slowscan_measure_docs",

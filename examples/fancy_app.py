@@ -2,7 +2,7 @@ import sys
 
 from ScopeFoundry import BaseMicroscopeApp
 from ScopeFoundry.examples.ScopeFoundryHW.bsinc_noiser200 import Noiser200HW
-from ScopeFoundry.examples.ScopeFoundryHW.simulon_xyzstage import SimulonXYZStageHW
+from ScopeFoundry.examples.ScopeFoundryHW.simulon_xyz_stage import SimulonXYZStageHW
 from ScopeFoundry.examples.measurements.example_2d_slowscan_measure import (
     Example2DSlowScanMeasure,
 )

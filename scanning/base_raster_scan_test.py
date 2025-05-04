@@ -6,7 +6,7 @@ import numpy as np
 
 from ScopeFoundry import BaseMicroscopeApp
 from ScopeFoundry.examples.ScopeFoundryHW.bsinc_noiser200 import Noiser200HW
-from ScopeFoundry.examples.ScopeFoundryHW.simulon_xyzstage import SimulonXYZStageHW
+from ScopeFoundry.examples.ScopeFoundryHW.simulon_xyz_stage import SimulonXYZStageHW
 from ScopeFoundry.scanning import (
     BaseRaster2DFrameSlowScan,
     BaseRaster2DSlowScan,
