@@ -14,6 +14,7 @@ def show_cmds():
     print("python -m ScopeFoundry tools")
     print("python -m ScopeFoundry new_hardware")
     print("python -m ScopeFoundry new_measurement")
+    print("python -m ScopeFoundry publish_hardware")
 
 
 if __name__ == "__main__":
@@ -30,8 +31,6 @@ if __name__ == "__main__":
         print("")
         print("Or use one of the following commmands to extent your app")
         print("--------------------------------------------------------")
-        print("python -m ScopeFoundry new_hardware")
-        print("python -m ScopeFoundry new_measurement")
         show_cmds()
 
     elif cmd in ("ipynb",):
@@ -50,6 +49,11 @@ if __name__ == "__main__":
         from ScopeFoundry.tools.features.new_measurement import main
 
         main()
+
+    elif cmd in ("publish_hw", "publish_hardware"):
+        from ScopeFoundry.tools.app import start_app
+
+        start_app("publish HW on GitHub")
 
     else:
         invalid_input()

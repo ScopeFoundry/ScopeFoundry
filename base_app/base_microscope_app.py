@@ -293,6 +293,9 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.menuAdvanced.addAction(
             "new measurement", partial(self.start_tools, "new measurement")
         )
+        self.ui.menuAdvanced.addAction(
+            "publish hardware", partial(self.start_tools, "publish HW on GitHub")
+        )
 
         if self.mdi:
             self.ui.tab_action.triggered.connect(self.set_tab_mode)
