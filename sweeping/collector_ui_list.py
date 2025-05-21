@@ -8,9 +8,11 @@ from qtpy.QtWidgets import (
     QListWidgetItem,
     QWidget,
 )
+from qtpy import QtCore
 
 
 from .collector import Collector
+from qtpy.QtWidgets import QSizePolicy
 
 
 class CustomListItem(QWidget):
@@ -32,16 +34,23 @@ class CustomListItem(QWidget):
         else:
             self.reps_widget = QDoubleSpinBox()
 
+        self.name_widget = QLabel(self.collector.name)
+        self.name_widget.setMinimumWidth(180)
+        self.name_widget.setSizePolicy(
+            QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred
+        )
+        layout.addWidget(self.name_widget)
+
         if self.collector.int_lq:
             self.int_widget = self.collector.int_lq.new_default_widget()
-            self.int_widget.setMaximumWidth(100)
             layout.addWidget(self.int_widget)
+
         else:
             # widget is assumed to exist by remaining code
             self.int_widget = QDoubleSpinBox()
-
-        self.name_widget = QLabel(self.collector.name)
-        layout.addWidget(self.name_widget)
+        self.int_widget.setSizePolicy(
+            QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred
+        )
 
         if self.collector.target_measure is not None:
             btn = self.collector.target_measure.operations.new_button("show_ui")

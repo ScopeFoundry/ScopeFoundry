@@ -20,12 +20,10 @@ class FancyApp(BaseMicroscopeApp):
         self.add_hardware(SimulonXYZStageHW(self))
         self.add_hardware(Noiser200HW(self))
 
-        # Define the actuators for the scans
         # Each actuator can be defined with a tuple of settings paths. The following formats are supported:
-        # 1. (name, position_path, target_position_path)
-        # 2. (name, target_position_path) -> position_path=target_position_path
-        # 3. (position_path, target_position_path) -> name=position_path
-        # 4. (target_position_path) -> name=target_position_path=position_path
+        # 1. (name, position_path | position_read_func, target_position_path | target_position_write_func)
+        # 2. (name, target_position_path | target_position_write_func) -> target_position_path=position_path
+        # 3. (target_position_path) -> name=target_position_path=position_path
         actuators = (
             (
                 "x_position",

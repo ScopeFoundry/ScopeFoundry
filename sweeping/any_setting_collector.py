@@ -46,5 +46,6 @@ class AnySettingCollector(Collector):
         int_time: float = None,
         **kwargs,
     ):
+        self.repeated_dset_names = (self.setting_lq.val,)
         new_val = self.app.get_lq(self.setting_lq.val).read_from_hardware()
         self.data = {self.setting_lq.val: new_val}

@@ -6,6 +6,10 @@ from ScopeFoundry.measurement import Measurement
 from .collector import Collector
 
 
+def to_dstname(name: str) -> str:
+    return name.replace("/", "__")
+
+
 class NDScanData:
 
     def __init__(
@@ -47,19 +51,19 @@ class NDScanData:
                     )
                     print(err)
             if name in collector.repeated_dset_names:
-                global_name = f"{collector.name}_{name}_raw"
+                global_name = to_dstname(f"{collector.name}_{name}_raw")
                 shape = self.base_shape + (collector.reps,) + d.shape
                 self.data[global_name] = np.zeros(shape, dtype=d.dtype)
                 collector.repeats.append((name, global_name))
                 self.h5_meas_group.create_dataset(global_name, shape, dtype=d.dtype)
                 print("init", global_name, shape, d.dtype)
             else:
-                global_name = f"{collector.name}_{name}"
+                global_name = to_dstname(f"{collector.name}_{name}")
                 self.data[global_name] = d
                 self.h5_meas_group.create_dataset(global_name, data=d)
 
         for lq_path in collector.settings_to_collect:
-            self.h5_meas_group.create_dataset(shape=shape, name=lq_path)
+            self.h5_meas_group.create_dataset(to_dstname(lq_path), shape)
 
     def incorporate(self, collector: Collector, *indices):
         """collects data from collectors and writes it to the h5 file"""
@@ -69,7 +73,7 @@ class NDScanData:
             self.h5_meas_group[global_name][indices] = collector.data[name]
         for lq_path in collector.settings_to_collect:
             val = self.app.get_lq(lq_path).read_from_hardware()
-            self.h5_meas_group[lq_path][indices] = val
+            self.h5_meas_group[to_dstname(lq_path)][indices] = val
 
     def flush_h5(self):
         self.h5_file.flush()

@@ -1,4 +1,5 @@
 import time
+from copy import copy
 from typing import List, Tuple
 
 import numpy as np
@@ -9,7 +10,7 @@ from ScopeFoundry import Measurement
 from ScopeFoundry.scanning.actuators import (
     ACTUATOR_DEFINITION,
     get_actuator_funcs,
-    parse_actuator_definitions,
+    add_all_possible_actuators_and_parse_definitions,
 )
 from .sweep_2D_modes import (
     DIM_NUMS,
@@ -47,9 +48,7 @@ class Sweep2D(Measurement):
             print("set a collector repetitions to non-zero")
             return
 
-        actuators = [
-            self.actuators_funcs[s[f"actuator_{i}"]] for i in DIM_NUMS
-        ]
+        actuators = [self.actuators_funcs[s[f"actuator_{i}"]] for i in DIM_NUMS]
 
         if not actuators:
             self.set_status("no actuators selected", "r")
@@ -70,6 +69,7 @@ class Sweep2D(Measurement):
             base_shape=mk_data_shape(*arrays, s["scan_mode"]),
             measurement=self,
         )
+        print(scan_data.base_shape)
 
         N = np.prod(scan_data.base_shape)
         self.index = 0
@@ -175,7 +175,7 @@ class Sweep2D(Measurement):
         collectors: List[Collector] = None,
         actuators: List[ACTUATOR_DEFINITION] = None,
     ):
-        self.collectors = [x for x in collectors]
+        self.collectors = [copy(x) for x in collectors]
         self.user_defined_actuators = actuators
         super().__init__(app, name)
 
@@ -246,10 +246,8 @@ class Sweep2D(Measurement):
 
         s.get_lq("any_setting").change_choice_list(self.app.get_setting_paths())
 
-        defs = parse_actuator_definitions(
-            actuator_definitions=self.user_defined_actuators,
-            app=self.app,
-            include_all_connected_actuators=True,
+        defs = add_all_possible_actuators_and_parse_definitions(
+            actuator_definitions=self.user_defined_actuators, app=self.app
         )
         self.actuators_funcs = get_actuator_funcs(self.app, defs)
 
@@ -291,12 +289,12 @@ class Sweep2D(Measurement):
         if not self.display_ready or not self.settings["plot_option"]:
             return
 
-        dset = np.array(self.scan_data.data[self.settings["plot_option"]]).sum(
+        dset = np.array(self.scan_data.data[self.settings["plot_option"]]).mean(
             axis=N_DIMS
         )
-        dlen = np.prod(dset.shape[N_DIMS :])  # len of data
+        dlen = np.prod(dset.shape[N_DIMS:])  # len of data
 
-        ddim = len(dset.shape[N_DIMS :])
+        ddim = len(dset.shape[N_DIMS:])
 
         curr = self.index * dlen
 
@@ -313,6 +311,8 @@ class Sweep2D(Measurement):
                     # np.arange(curr) / plen,
                     dset.ravel()[:curr]
                 )
+        else:
+            self.line.setData(dset)
         #
         # elif ddim in (2, 3):
         #     self.img_item.setVisible(True)
@@ -346,7 +346,7 @@ class Sweep2D(Measurement):
 
     def mk_scan_settings_widget(self):
         h_layout = QtWidgets.QHBoxLayout()
-        w3 = self.settings.New_UI(("repetitions", "scan_mode"))
+        w3 = self.settings.New_UI(("scan_mode",))
         w3.layout().setSpacing(1)
         h_layout.addWidget(w3)
         for i in DIM_NUMS:
@@ -367,7 +367,7 @@ class Sweep2D(Measurement):
     def mk_collect_widget(self):
 
         collect_widget = QtWidgets.QGroupBox(
-            title="choose detectors: repetitions, acquisition duration"
+            title="choose the number of repetion for each detectors - drag and drop to change order"
         )
         layout = QtWidgets.QVBoxLayout(collect_widget)
 

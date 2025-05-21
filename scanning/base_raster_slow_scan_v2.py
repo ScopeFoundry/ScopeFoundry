@@ -3,7 +3,7 @@ from typing import Iterable, List, Tuple
 from ScopeFoundry.scanning.actuators import (
     ACTUATOR_DEFINITION,
     get_actuator_funcs,
-    parse_actuator_definitions,
+    add_all_possible_actuators_and_parse_definitions,
 )
 
 from .base_raster_slow_scan import BaseRaster2DSlowScan, BaseRaster3DSlowScan
@@ -48,7 +48,9 @@ class BaseRaster2DSlowScanV2(BaseRaster2DSlowScan):
 
     def setup(self):
         super().setup()
-        self.actuator_defs = parse_actuator_definitions(self.actuators, self.app)
+        self.actuator_defs = add_all_possible_actuators_and_parse_definitions(
+            self.actuators, self.app
+        )
         self.actuator_funcs = get_actuator_funcs(self.app, self.actuator_defs)
         self.h_axis = self.settings.New(
             "h_axis",
@@ -162,9 +164,10 @@ class BaseRaster3DSlowScanV2(BaseRaster3DSlowScan):
 
     def setup(self):
         super().setup()
-        self.actuator_defs = parse_actuator_definitions(self.actuators, self.app)
+        self.actuator_defs = add_all_possible_actuators_and_parse_definitions(
+            self.actuators, self.app
+        )
         self.actuator_funcs = get_actuator_funcs(self.app, self.actuator_defs)
-
         self.h_axis = self.settings.New(
             "h_axis",
             str,
