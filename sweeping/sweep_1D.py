@@ -1,14 +1,14 @@
 import time
 from copy import copy
-from typing import List, Tuple
+from typing import Iterable, List, Tuple, Union
 
 import numpy as np
 import pyqtgraph as pg
 from qtpy import QtWidgets
 
-from ScopeFoundry.measurement import Measurement
+from ScopeFoundry import BaseMicroscopeApp, Measurement
 from ScopeFoundry.scanning.actuators import (
-    ACTUATOR_DEFINITION,
+    ActuatorDefinitions,
     get_actuator_funcs,
     add_all_possible_actuators_and_parse_definitions,
 )
@@ -80,7 +80,7 @@ class Sweep1D(Measurement):
             for (_, write), position in zip(actuators, positions):
                 write(position)
             time.sleep(s["collection_delay"])
-            read_positions = [read() for read, _ in actuators]
+            read_positions = tuple([read() for read, _ in actuators])
 
             base_indices = next(scan_iteration_indices)
 
@@ -174,13 +174,13 @@ class Sweep1D(Measurement):
 
     def __init__(
         self,
-        app,
-        name=None,
-        collectors: List[Collector] = (),
-        actuators: List[ACTUATOR_DEFINITION] = (),
+        app: BaseMicroscopeApp,
+        name: Union[str, None] = None,
+        collectors: Iterable[Collector] = (),
+        actuators: Iterable[ActuatorDefinitions] = (),
     ):
         self.collectors = [copy(x) for x in collectors]
-        self.user_defined_actuators = actuators
+        self.user_defined_actuators = list(actuators)
         super().__init__(app, name)
 
     def setup(self):

@@ -1,7 +1,7 @@
 from typing import Iterable, List, Tuple
 
 from ScopeFoundry.scanning.actuators import (
-    ACTUATOR_DEFINITION,
+    ActuatorDefinitions,
     get_actuator_funcs,
     add_all_possible_actuators_and_parse_definitions,
 )
@@ -17,7 +17,7 @@ class BaseRaster2DSlowScanV2(BaseRaster2DSlowScan):
         self,
         app,
         name: str = None,
-        actuators: Iterable[ACTUATOR_DEFINITION] = (),
+        actuators: Iterable[ActuatorDefinitions] = (),
         h_limits: Tuple[float, float] = (-1_000_000_000_000, 1_000_000_000_000),
         v_limits: Tuple[float, float] = (-1_000_000_000_000, 1_000_000_000_000),
         h_unit: str = "",
@@ -125,7 +125,7 @@ class BaseRaster3DSlowScanV2(BaseRaster3DSlowScan):
         self,
         app,
         name: str = None,
-        actuators: List[ACTUATOR_DEFINITION] = (),
+        actuators: List[ActuatorDefinitions] = (),
         h_limits: Tuple[float, float] = (-1_000_000_000_000, 1_000_000_000_000),
         v_limits: Tuple[float, float] = (-1_000_000_000_000, 1_000_000_000_000),
         z_limits: Tuple[float, float] = (-1_000_000_000_000, 1_000_000_000_000),

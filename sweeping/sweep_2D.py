@@ -1,32 +1,33 @@
 import time
 from copy import copy
-from typing import List, Tuple
+from typing import Iterable, List, Tuple, Union
 
 import numpy as np
 import pyqtgraph as pg
 from qtpy import QtWidgets
 
-from ScopeFoundry import Measurement
+from ScopeFoundry import BaseMicroscopeApp, Measurement
 from ScopeFoundry.scanning.actuators import (
-    ACTUATOR_DEFINITION,
-    get_actuator_funcs,
+    ActuatorDefinitions,
     add_all_possible_actuators_and_parse_definitions,
+    get_actuator_funcs,
 )
-from .sweep_2D_modes import (
-    DIM_NUMS,
-    N_DIMS,
-    SCAN_MODES,
-    SCAN_MODES_DESCRIPTION,
-    mk_ranges_consistent,
-    mk_positions_gen,
-    mk_data_shape,
-    mk_indices_gen,
-)
+
 from .any_measurement_collector import AnyMeasurementCollector
 from .any_setting_collector import AnySettingCollector
 from .collector import Collector
 from .collector_ui_list import InteractiveCollectorList
 from .nd_scan_data import NDScanData
+from .sweep_2D_modes import (
+    DIM_NUMS,
+    N_DIMS,
+    SCAN_MODES,
+    SCAN_MODES_DESCRIPTION,
+    mk_data_shape,
+    mk_indices_gen,
+    mk_positions_gen,
+    mk_ranges_consistent,
+)
 from .utils import filtered_lq_paths, mk_new_dir
 
 
@@ -84,7 +85,7 @@ class Sweep2D(Measurement):
             for (_, write), position in zip(actuators, positions):
                 write(position)
             time.sleep(s["collection_delay"])
-            read_positions = [read() for read, _ in actuators]
+            read_positions = tuple([read() for read, _ in actuators])
 
             base_indices = next(scan_iteration_indices)
 
@@ -115,6 +116,8 @@ class Sweep2D(Measurement):
 
             if self.interrupt_measurement_called:
                 break
+
+        self.post_scan()
 
         scan_data.close_h5()
 
@@ -168,15 +171,21 @@ class Sweep2D(Measurement):
         """
         collector.release(self, positions)
 
+    def post_scan(self):
+        """Optional override.
+        Gets called after data collection is finished - before file is closed.
+        """
+        pass
+
     def __init__(
         self,
-        app,
-        name=None,
-        collectors: List[Collector] = None,
-        actuators: List[ACTUATOR_DEFINITION] = None,
+        app: BaseMicroscopeApp,
+        name: Union[str, None] = None,
+        collectors: Iterable[Collector] = (),
+        actuators: Iterable[ActuatorDefinitions] = (),
     ):
         self.collectors = [copy(x) for x in collectors]
-        self.user_defined_actuators = actuators
+        self.user_defined_actuators = list(actuators)
         super().__init__(app, name)
 
     def setup(self):
