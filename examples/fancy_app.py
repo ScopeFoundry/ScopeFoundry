@@ -20,6 +20,7 @@ class FancyApp(BaseMicroscopeApp):
         self.add_hardware(SimulonXYZStageHW(self))
         self.add_hardware(Noiser200HW(self))
 
+        # ## Example scan measurements
         # Each actuator can be defined with a tuple of settings paths. The following formats are supported:
         # 1. (name, position_path | position_read_func, target_position_path | target_position_write_func)
         # 2. (name, target_position_path | target_position_write_func) -> target_position_path=position_path
@@ -45,21 +46,14 @@ class FancyApp(BaseMicroscopeApp):
         self.add_measurement(Example2DSlowScanMeasure(self, actuators=actuators))
         self.add_measurement(Example3DSlowScanMeasure(self, actuators=actuators))
 
-        # ## Example of Sweep4D with a custom collector
-        # from ScopeFoundry import Sweep2D, Sweep4D
-        # from measurements.collectors import Noiser200Collector
-
-        # collectors = [Noiser200Collector(self)]
-
-        # self.add_measurement(Sweep4D(self, actuators=actuators, collectors=collectors))
-
-        # ## Built-in Measurements
+        # ## Other Built-in Measurements
+        # https://scopefoundry.org/docs/20_built-in-measurements/
+        #
         # from ScopeFoundry.sequencer import Sequencer, SweepSequencer
 
         # self.add_measurement(Sequencer)
         # self.add_measurement(SweepSequencer)
 
-        # ## Other built-in measurements
         # from ScopeFoundry import RangedOptimization
 
         # self.add_measurement(RangedOptimization(self))
@@ -67,6 +61,20 @@ class FancyApp(BaseMicroscopeApp):
         # from ScopeFoundry import PIDFeedbackControl
 
         # self.add_measurement(PIDFeedbackControl(self))
+
+        # -------------------------------------------------------------------------------
+        # ## SweepND are experimental and may be subjected to change
+        # from ScopeFoundry import Sweep1D, Sweep2D, Sweep4D
+
+        # from measurements.collectors import Noiser200Collector
+
+        # collectors = [Noiser200Collector(self)]
+
+        # self.add_measurement(Sweep1D(self, actuators=actuators, collectors=collectors))
+        # self.add_measurement(Sweep2D(self, actuators=actuators, collectors=collectors))
+        # self.add_measurement(Sweep4D(self, actuators=actuators, collectors=collectors))
+        # ## SweepND are experimental and may be subjected to change
+        # -------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
