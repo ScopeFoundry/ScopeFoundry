@@ -1,25 +1,18 @@
 from setuptools import setup
 
 setup(
-    name = 'ScopeFoundry',
-    
-    version = "2.0.2",
-    
-    description = 'a platform for laboratory equipment control and scientific data analysis',
-    long_description =open('README.md', 'r').read(),
-    long_description_content_type='text/markdown',
-    
+    name="ScopeFoundry",
+    version="2.1.0",
+    description="a platform for laboratory equipment control and scientific data analysis",
+    long_description=open("README.md", "r").read(),
+    long_description_content_type="text/markdown",
     # Author details
-    author='Edward S. Barnard',
-    author_email='esbarnard@lbl.gov',
-
+    author="Edward S. Barnard",
+    author_email="esbarnard@lbl.gov",
     # Choose your license
-    license='BSD',
-    
-    url='https://www.scopefoundry.org/',
-
-    package_dir={'ScopeFoundry': '.'},
-    
+    license="BSD",
+    url="https://www.scopefoundry.org/",
+    package_dir={"ScopeFoundry": "."},
     packages=[
         "ScopeFoundry",
         "ScopeFoundry.base_app",
@@ -69,6 +62,8 @@ setup(
             "**/defaults.ini",
             "**/sweep_h_centers.json",
             "**/.gitignore",
+            # for docs
+            "*links.json",
         ]
     },
     install_requires=["numpy", "h5py", "uuid7", "qtpy", "pyqtgraph"],
