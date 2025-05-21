@@ -27,7 +27,7 @@ from .any_setting_collector import AnySettingCollector
 from .collector import Collector
 from .collector_ui_list import InteractiveCollectorList
 from .nd_scan_data import NDScanData
-from .utils import mk_new_dir
+from .utils import filtered_lq_paths, mk_new_dir
 
 
 class Sweep2D(Measurement):
@@ -244,7 +244,7 @@ class Sweep2D(Measurement):
 
         s = self.settings
 
-        s.get_lq("any_setting").change_choice_list(self.app.get_setting_paths())
+        s.get_lq("any_setting").change_choice_list(filtered_lq_paths(self.app))
 
         defs = add_all_possible_actuators_and_parse_definitions(
             actuator_definitions=self.user_defined_actuators, app=self.app
