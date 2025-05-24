@@ -5,10 +5,10 @@ def invalid_input():
     print("----------------------------------------------------------")
     print("Invalid command. Please use one of the following commands:")
     print("----------------------------------------------------------")
-    show_cmds()
+    print_cmds()
 
 
-def show_cmds():
+def print_cmds():
     print("python -m ScopeFoundry init")
     print("python -m ScopeFoundry ipynb")
     print("python -m ScopeFoundry tools")
@@ -23,15 +23,19 @@ if __name__ == "__main__":
     if cmd is None:
         invalid_input()
 
-    if cmd in ("init"):
+    if cmd in ("init", "new_app"):
         from ScopeFoundry.tools.features.new_app import new_app
 
-        new_app()
+        run_str = new_app()
 
         print("")
         print("Or use one of the following commmands to extent your app")
-        print("--------------------------------------------------------")
-        show_cmds()
+        print("----------------------------------------------------------")
+        print_cmds()
+        print("----------------------------------------------------------")
+        print("")
+        print("To run your app, use the following command:")
+        print(run_str)
 
     elif cmd in ("ipynb",):
         from ScopeFoundry.h5_analyze_with_ipynb import analyze_with_ipynb
