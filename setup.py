@@ -1,30 +1,25 @@
 from setuptools import setup
 
 setup(
-    name = 'ScopeFoundry',
-    
-    version = "2.0.2",
-    
-    description = 'a platform for laboratory equipment control and scientific data analysis',
-    long_description =open('README.md', 'r').read(),
-    long_description_content_type='text/markdown',
-    
+    name="ScopeFoundry",
+    version="2.1.0",
+    description="a platform for laboratory equipment control and scientific data analysis",
+    long_description=open("README.md", "r").read(),
+    long_description_content_type="text/markdown",
     # Author details
-    author='Edward S. Barnard',
-    author_email='esbarnard@lbl.gov',
-
+    author="Edward S. Barnard",
+    author_email="esbarnard@lbl.gov",
     # Choose your license
-    license='BSD',
-    
-    url='https://www.scopefoundry.org/',
-
-    package_dir={'ScopeFoundry': '.'},
-    
+    license="BSD",
+    url="https://www.scopefoundry.org/",
+    package_dir={"ScopeFoundry": "."},
     packages=[
         "ScopeFoundry",
         "ScopeFoundry.base_app",
         "ScopeFoundry.base_app.icons",
         "ScopeFoundry.controlling",
+        "ScopeFoundry.controlling.pid_feedback_control_measure_docs",
+        "ScopeFoundry.controlling.ranged_optimization_docs",
         "ScopeFoundry.data_browser",
         "ScopeFoundry.data_browser.viewers",
         "ScopeFoundry.data_browser.plug_ins",
@@ -32,13 +27,19 @@ setup(
         "ScopeFoundry.examples",
         "ScopeFoundry.examples.ScopeFoundryHW",
         "ScopeFoundry.examples.ScopeFoundryHW.bsinc_noiser200",
-        "ScopeFoundry.examples.ScopeFoundryHW.simulon_xyzstage",
+        "ScopeFoundry.examples.ScopeFoundryHW.simulon_xyz_stage",
+        "ScopeFoundry.examples.docs",
+        "ScopeFoundry.examples.measurements",
+        "ScopeFoundry.examples.measurements.example_2d_slowscan_measure_docs",
+        "ScopeFoundry.examples.measurements.example_3d_slowscan_measure_docs",
         "ScopeFoundry.graphics",
         "ScopeFoundry.graphics.zoomable_map",
         "ScopeFoundry.logged_quantity",
         "ScopeFoundry.scanning",
         "ScopeFoundry.sequencer",
         "ScopeFoundry.sequencer.item_types",
+        "ScopeFoundry.sequencer.sequencer_docs",
+        "ScopeFoundry.sequencer.sweep_sequencer_docs",
         "ScopeFoundry.tools",
         "ScopeFoundry.tools.features",
         "ScopeFoundry.tools.templates",
@@ -58,6 +59,8 @@ setup(
             "**/defaults.ini",
             "**/sweep_h_centers.json",
             "**/.gitignore",
+            # for docs
+            "*links.json",
         ]
     },
     install_requires=["numpy", "h5py", "uuid7", "qtpy", "pyqtgraph"],
