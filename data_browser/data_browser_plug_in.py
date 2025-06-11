@@ -11,7 +11,6 @@ class PlugInQObject(QtCore.QObject):
 
 
 class DataBrowserPlugIn:
-
     """Abstract class for DataBrowserPlugIn"""
 
     name = "base plugin"  # Override me
@@ -32,7 +31,7 @@ class DataBrowserPlugIn:
     def __init__(self, databrowser):
         self.databrowser = databrowser
         self.settings = LQCollection(path=f"plugin/{self.name}")
-        self.operations = Operations()
+        self.operations = Operations(path=f"plugin/{self.name}")
         self.q_object = PlugInQObject()
         self._subtree_managers_ = []
         self._widgets_managers_ = []

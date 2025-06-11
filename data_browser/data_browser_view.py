@@ -18,7 +18,7 @@ class DataBrowserView:
     def __init__(self, databrowser):
         self.databrowser = databrowser
         self.settings = LQCollection(path=f"view/{self.name}")
-        self.operations = Operations()
+        self.operations = Operations(path=f"view/{self.name}")
         self.q_object = ViewQObject()
         self._subtree_managers_ = []
         self._widgets_managers_ = []

@@ -74,7 +74,7 @@ class BaseApp(QtCore.QObject):
         self._subtree_managers_ = []
         self._widgets_managers_ = []
         self._setting_paths: SETTINGS_PATH_TYPE = {}
-        self.operations = Operations()
+        self.operations = Operations(path="app")
         self.settings = LQCollection(path="app")
         self.add_lq_collection_to_settings_path(self.settings)
 
