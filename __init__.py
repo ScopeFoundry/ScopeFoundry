@@ -18,3 +18,4 @@ from ScopeFoundry.scanning import (
 )
 from .sequencer import Sequencer, SweepSequencer
 from .controlling import PIDFeedbackControl, RangedOptimization
+from .sweeping import Collector, Sweep1D, Sweep2D, Sweep3D, Sweep4D
