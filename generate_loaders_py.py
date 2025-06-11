@@ -46,10 +46,10 @@ def load_settings(fname: str) -> Dict[str, Any]:
     visit_func = functools.partial(_settings_visitfunc, settings=settings)
 
     with h5py.File(fname, "r") as file:
-        file.visititems(visit_func)
         for key, val in file.attrs.items():
-            settings[key] = val        
-
+            settings[key] = val       
+        file.visititems(visit_func)
+ 
     return settings
 
 
@@ -80,6 +80,16 @@ def get_mm_name(fname: str) -> str:
             return list(file["measurement"].keys())[0]
         return file.attrs["measurement"]
 """
+__STR__INFO = r"""
+
+    def __str__(self) -> str:
+        lines = [f"{self.path}"]
+        for key, value in self.__dict__.items():
+            if isinstance(value, np.ndarray):
+                lines.append(f"-D {key}: {value.shape}")
+        lines += [f"{key}: {value}" for key, value in self.settings.items()]
+        return "\n".join(lines)
+"""
 
 
 def get_measurement_name(fname: str) -> str:
@@ -98,6 +108,7 @@ def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
         data_class_lines = [
             "@dataclass",
             f"class {class_name}:",
+            f"{' ':>4}path: Path",
             f"{' ':>4}settings: dict",
         ]
         load_func_lines = [
@@ -105,6 +116,7 @@ def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
             f"{' ':>4}with h5py.File(fname, 'r') as file:",
             f"{' ':>8}m = file['measurement/{mm_name}']",
             f"{' ':>8}return {class_name}(",
+            f"{' ':>12}path=Path(fname),",
             f"{' ':>12}settings=load_settings(fname),",
         ]
         for name in key_set:
@@ -112,6 +124,9 @@ def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
             load_func_lines.append(
                 f"{' ':>12}{name}=m['{name}'][:] if '{name}' in m else None,"
             )
+
+        data_class_lines.append(__STR__INFO)
+
         load_func_lines.append(f"{' ':>8})")
 
         lines.append("")
