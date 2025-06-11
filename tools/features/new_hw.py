@@ -60,13 +60,12 @@ def new_hw(
 
     docs_path = path_to_module / "docs"
     docs_path.mkdir()
-    with open(docs_path / "my_docs.md", "x", encoding="utf-8") as file:
-        file.write(
-            "place your documentation and sharable hardware manuals in this folder"
-        )
-    with open(docs_path / "links.json", "x", encoding="utf-8") as file:
-        json.dump({"my_link": "www.scopefoundry.com"}, file)
 
+    with open(docs_path / "links.json", "x", encoding="utf-8") as file:
+        content = {
+            "What's this?": "https://scopefoundry.org/docs/30_tips-and-tricks/document-your-components/"
+        }
+        json.dump(content, file)
     return infos
 
 
