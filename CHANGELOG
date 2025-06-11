@@ -1,3 +1,19 @@
+ScopeFoundry 2.1.0 2025-05-30
+
+	* Features added:
+		- [documentation files] Measurement, HardwareComponent, and BaseMicroscopeApp now include links to their respective documentation files placed in designated folders. If the designated folder does not exist, it will be created. Links are shown on right-click in the tree and the "Help" menu in the app.
+		- [dataset_metadata] Metadata such as filename and UUID are now separated from h5_io, allowing them to be reused to save data in different file formats.
+		- [measurement] Added a convenience method to open a new h5 file and retrieve dataset_metadata.
+		- [logged_quantity] Can now disconnect from QDoubleSpinBox.
+		- [scanning] Added version 2 of BaseRasterScans, where stages are defined with lq_paths.
+		- [publish_hw] A ScopeFoundry.tool to publish HardwareComponents on GitHub.
+		- [LoggedQuantity.change_readonly_on] added. Special listener function. When other_lq changes, LQ will changes its readonly status to func(other_lq.val).
+		
+	* Fixes:
+		- pyqtdarktheme when dark_mode = True is specified in initializer of an app.
+		- ScopeFoundry.tools.new_app for Linux. Thanks for M. Gamba for reporting this bug.
+
+
 ScopeFoundry 2.0.2 2025-02-14
 
 	* Features added:
