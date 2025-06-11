@@ -7,11 +7,16 @@ from ScopeFoundry.operations import Operations
 
 
 class Page:
-    def __init__(self) -> None:
+    name = None
+
+    def __init__(self, app) -> None:
+        if self.name is None:
+            self.name = "page"
+
         self.settings = LQCollection()
         self.operations = Operations()
         self.procedure = ()
-        self.name = "page"
+        self.app = app
 
     def setup(self):
         """override me"""
