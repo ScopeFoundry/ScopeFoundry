@@ -21,6 +21,8 @@ class LQCircularNetwork(QtCore.QObject):
                 lq_dict[lq.name] = lq
         self.lq_dict = lq_dict  # {lq_key:lq}
         self.locked = False  # some lock that does NOT allow blocked routines to be executed after release()
+        QtCore.QObject.__init__(self)
+
         # a flag (as it is now) works well.
 
     def update_values_synchronously(self, **kwargs):
