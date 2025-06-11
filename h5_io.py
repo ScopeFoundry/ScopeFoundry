@@ -63,7 +63,7 @@ def h5_base_file(
 
     h5_file = h5py.File(dataset_metadata.h5_file_path, "a")
     root = h5_file["/"]
-    root.attrs["ScopeFoundry_version"] = 203
+    root.attrs["ScopeFoundry_version"] = 210
     root.attrs["time_id"] = int(dataset_metadata.t0)
     root.attrs["unique_id"] = dataset_metadata.unique_id
     root.attrs["uuid"] = str(dataset_metadata.u)
