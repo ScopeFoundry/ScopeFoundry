@@ -43,6 +43,7 @@ from .show_io_report_dialog import show_io_report_dialog
 class MeasurementProtocol(Protocol):
     name: str
     settings: LQCollection
+    operations: Operations
     ui: QtWidgets.QWidget
     subwin: QtWidgets.QMdiSubWindow
     activation: LoggedQuantity
@@ -55,6 +56,7 @@ class MeasurementProtocol(Protocol):
 class HardwareProtocol(Protocol):
     name: str
     settings: LQCollection
+    operations: Operations
     connected: LoggedQuantity
 
     def connect(self): ...
@@ -132,6 +134,11 @@ class BaseMicroscopeApp(BaseApp):
             self.on_analyze_with_ipynb,
             "generates h5_data_loaders.py, overview.ipynb, and tries to launch overview.ipynb (vscode with jupyter extension recommended)",
             self.jupyter_logo_path,
+        )
+        self.add_operation(
+            "Read from Hardwares",
+            self.read_from_hardwares,
+            description="reads settings from <b>connected</b> hardwares",
         )
 
     def _setup_log_file_handler(self) -> None:
@@ -440,6 +447,11 @@ class BaseMicroscopeApp(BaseApp):
         if ipynb_path.exists():
             open_file(ipynb_path)
         return ipynb_path
+
+    def read_from_hardwares(self):
+        for hw in self.hardware.values():
+            if hw.settings["connected"]:
+                hw.read_from_hardware()
 
     def add_hardware(self, hw: HardwareProtocol) -> HardwareProtocol:
         """Loads a HardwareComponent object into the app.
