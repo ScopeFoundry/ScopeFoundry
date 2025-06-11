@@ -1,5 +1,5 @@
 from ScopeFoundry import HardwareComponent
-from ScopeFoundry.examples.ScopeFoundryHW.simulon_xyzstage.simulon_xyz_stage_dev import (
+from ScopeFoundry.examples.ScopeFoundryHW.simulon_xyz_stage.simulon_xyz_stage_dev import (
     SimulonXYZStageDev,
 )
 
