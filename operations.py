@@ -19,13 +19,13 @@ class Operation:
     func: Callable
     description: str = field(default="")
     icon_path: str = field(default="")
+    path: str = field(default="")
 
     def new_button(self) -> QtWidgets.QPushButton:
         op_button = QtWidgets.QPushButton(self.name)
         op_button.setObjectName(self.name)
         op_button.clicked.connect(lambda checked, f=self.func: f())
-        if self.description:
-            op_button.setToolTip(self.description)
+        op_button.setToolTip(f"<b>{self.path}</b><p><p>{self.description}")
         if self.icon_path:
             op_button.setIcon(QtGui.QIcon(str(self.icon_path)))
         return op_button
@@ -33,15 +33,18 @@ class Operation:
 
 class Operations:
 
-    def __init__(self) -> None:
+    def __init__(self, path="") -> None:
         self.q_object = OperationsQObject()
         self._widgets_managers_: List[OperationWidgetsManager] = []
         self._operations: Dict[str, Operation] = {}
+        self.path = path
 
     def new(
         self, name: str, func: Callable, description: str = "", icon_path: str = ""
     ) -> Operation:
-        return self.add(Operation(name, func, description, icon_path))
+        return self.add(
+            Operation(name, func, description, icon_path, f"{self.path}/{name}")
+        )
 
     def add(self, operation: Operation) -> Operation:
         assert operation.name not in self._operations

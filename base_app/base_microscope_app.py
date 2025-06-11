@@ -30,6 +30,7 @@ from ScopeFoundry.helper_funcs import (
 )
 from ScopeFoundry.helper_funcs import init_docs_path
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
+from ScopeFoundry.operations import Operation, Operations
 
 from .base_app import BaseApp
 
@@ -622,14 +623,25 @@ class BaseMicroscopeApp(BaseApp):
         )
         self.settings_load_file(fname)
 
+    def get_operation(self, path: str) -> Operation:
+        parts = path.split("/")
+        section = parts[0].lower()
+        if section in ("hw", "hardware"):
+            return self.hardware[parts[1]].operations.get(parts[2])
+        if section in ("mm", "measurement", "measure", "measurements"):
+            return self.measurements[parts[1]].operations.get(parts[2])
+        if section in ("app", "application"):
+            return self.operations.get(parts[1])
+        print(f"WARNING: {path} does not exist")
+
     def get_lq(self, path: str) -> LoggedQuantity:
         """
         returns the LoggedQuantity defined by a path string of the form 'section/[component/]setting'
         where section are "mm", "hw" or "app"
         """
         parts = path.split("/")
-        section = parts[0]
-        if section in ("HW", "hardware"):
+        section = parts[0].lower()
+        if section in ("hw", "hardware"):
             path = f"hw/{parts[1]}/{parts[2]}"
         elif section in ("measurement", "measure", "measurements"):
             path = f"mm/{parts[1]}/{parts[2]}"

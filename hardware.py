@@ -44,7 +44,7 @@ class HardwareComponent:
             self.name = name
 
         self.settings = LQCollection(path=f"hw/{self.name}")
-        self.operations = Operations()
+        self.operations = Operations(path=f"hw/{self.name}")
         self._subtree_managers_ = []
         self._widgets_managers_ = []
 
