@@ -141,6 +141,7 @@ class LoggedQuantity(QtCore.QObject):
 
         self.prev_vals = deque([], 3)
         self.proposed_values = deque([], 7)
+        self.actions = []
 
     def coerce_to_type(self, x):
         """
@@ -1386,6 +1387,9 @@ class LoggedQuantity(QtCore.QObject):
     def on_right_click(self, position=None):
         cmenu = QtWidgets.QMenu()
         cmenu.addAction(f"{self.path}")
+        cmenu.addSeparator()
+        for action in self.actions:
+            cmenu.addAction(*action)
         cmenu.addSeparator()
 
         # prev. values
