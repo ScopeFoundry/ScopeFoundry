@@ -369,6 +369,12 @@ class LoggedQuantity(QtCore.QObject):
         self.updated_value[argtype].connect(func, **kwargs)
         self.listeners.append(func)
 
+    def change_readonly_on(self, other_lq, func=bool):
+        """
+        When the other_lq updates, this LQ will be change its readonly status to func(other_lq.val).
+        """
+        other_lq.add_listener(lambda: self.change_readonly(func(other_lq.val)))
+
     def connect_bidir_to_widget(self, widget):
         # DEPRECATED
         return self.connect_to_widget(widget)
@@ -1143,10 +1149,7 @@ class LoggedQuantity(QtCore.QObject):
         with self.lock:
             self.ro = ro
             for widget in self.widget_list:
-                if type(widget) in [
-                    QtWidgets.QDoubleSpinBox,
-                    pg.widgets.SpinBox.SpinBox,
-                ]:
+                if hasattr(widget, "setReadOnly"):
                     widget.setReadOnly(self.ro)
                 else:
                     widget.setEnabled(not self.ro)
