@@ -8,7 +8,7 @@ import threading
 import time
 import traceback
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Dict, Union
 from warnings import warn
 
 from qtpy import QtCore, QtGui, QtWidgets
@@ -56,7 +56,7 @@ class Measurement:
 
     """
 
-    def __init__(self, app: BaseMicroscopeApp, name: str = None):
+    def __init__(self, app: BaseMicroscopeApp, name: Union[str, None] = None):
 
         self.q_object = MeasurementQObject(self)
         self.measurement_sucessfully_completed = (
@@ -124,6 +124,7 @@ class Measurement:
         if hasattr(self, "ui_filename"):
             self.load_ui()
         self.setup()
+        self.subwin = None  # will be set when the measurement is added to the app
 
     def setup(self):
         """Override this to set up logged quantities and gui connections
@@ -594,12 +595,36 @@ class Measurement:
         return Path(module.__file__).parent / f"{module.__file__.strip('.py')}_docs"
 
     def new_dataset_metadata(self, fname=None):
-        """Create a new dataset info. Use dataset_metadata to save data in multiple forms (h5, csv, png with persistent indentifyer)"""
+        """Creates and returns Measurement.dataset_metadata
+
+        Use Measurement.dataset_metadata for consistent (h5, csv, png with persistent indentifyer)
+        """
         self.dataset_metadata = new_dataset_metadata(measurement=self, fname=fname)
         return self.dataset_metadata
 
-    def open_new_h5_file(self, dataset_metadata=None):
-        """returns the h5 group for the measurement"""
+    def save_h5(self, data: Dict[str, Any], dataset_metadata=None):
+        """
+        opens new a .h5 file, stores *data*, and closes the file.
+
+        If *dataset_metadata* is None, Measurement.new_dataset_metadata() is called which updates
+        Measurement.dataset_metadata
+        """
+        self.open_new_h5_file(data=data, dataset_metadata=dataset_metadata)
+        self.close_h5_file()
+
+    def open_new_h5_file(self, data: Dict[str, Any] = None, dataset_metadata=None):
+        """
+        sets attributes:
+          - Measurement.h5_file
+          - Measurement.h5_meas_group
+
+        If *dataset_metadata* is None, Measurement.new_dataset_metadata() is called which updates
+        Measurement.dataset_metadata
+
+        returns Measurement.h5_meas_group
+        """
+
+        # there might be a file open already
         self.close_h5_file()
 
         if dataset_metadata is None:
@@ -609,6 +634,18 @@ class Measurement:
 
         self.h5_file = h5_io.h5_base_file(self.app, dataset_metadata=dataset_metadata)
         self.h5_meas_group = h5_io.h5_create_measurement_group(self, self.h5_file)
+
+        if data:
+            for name, value in data.items():
+                try:
+                    _ = iter(value)
+                except TypeError:
+                    # not iterable
+                    self.h5_meas_group.attrs[name] = value
+                else:
+                    # iterable
+                    self.h5_meas_group.create_dataset(name=name, data=value)
+
         return self.h5_meas_group
 
     def close_h5_file(self):
