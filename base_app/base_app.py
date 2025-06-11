@@ -7,6 +7,7 @@ UI enhancements by Ed Barnard, Alan Buckley
 
 import asyncio
 import enum
+from functools import partial
 import logging
 import sys
 import traceback
@@ -21,6 +22,7 @@ from ScopeFoundry.base_app.console_widget import new_console_widget
 from ScopeFoundry.base_app.logging_handlers import HtmlHandler
 from ScopeFoundry.base_app.logging_widget import LoggingWidget
 from ScopeFoundry.dynamical_widgets.tree_widget import SubtreeManager
+from ScopeFoundry.dynamical_widgets import new_favorites_widget
 from ScopeFoundry.helper_funcs import get_logger_from_class
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 from ScopeFoundry.operations import Operations
@@ -47,6 +49,8 @@ if sys.platform == "win32":
 
 
 SETTINGS_PATH_TYPE = Dict[str, LoggedQuantity]
+
+
 class WRITE_RES(enum.Enum):
     SUCCESS = enum.auto()
     MISSING = enum.auto()
@@ -74,6 +78,7 @@ class BaseApp(QtCore.QObject):
         self._subtree_managers_ = []
         self._widgets_managers_ = []
         self._setting_paths: SETTINGS_PATH_TYPE = {}
+        self.favorites_widget = new_favorites_widget(self)
         self.operations = Operations(path="app")
         self.settings = LQCollection(path="app")
         self.add_lq_collection_to_settings_path(self.settings)
@@ -122,7 +127,9 @@ class BaseApp(QtCore.QObject):
             try:
                 import qdarktheme  # pip install pyqtdarktheme
 
-                self.qtapp.setStyleSheet(self.qtapp.styleSheet() + qdarktheme.load_stylesheet("dark"))
+                self.qtapp.setStyleSheet(
+                    self.qtapp.styleSheet() + qdarktheme.load_stylesheet("dark")
+                )
             except Exception as err:
                 warn(
                     "trying to use qdarkmode failed. pip install pyqtdarktheme",
@@ -198,6 +205,9 @@ class BaseApp(QtCore.QObject):
     def on_right_click(self) -> None: ...
 
     def add_setting_path(self, lq: LoggedQuantity) -> None:
+        lq.actions.append(
+            (QtGui.QIcon(str(self.icons_path / "favorite.png")), "add to favorites", partial(self.favorites_widget.add_lq_path, lq.path))
+        )
         self._setting_paths[lq.path] = lq
 
     def remove_setting_path(self, lq: LoggedQuantity) -> None:

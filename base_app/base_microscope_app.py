@@ -233,6 +233,7 @@ class BaseMicroscopeApp(BaseApp):
         app_widget.setTitle("to inspect drop a .h5 or .ini, to load also press ctrl")
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
+        splitter.addWidget(self.favorites_widget.main_widget)
         splitter.addWidget(hw_tree)
         splitter.addWidget(mm_tree)
         splitter.addWidget(app_widget)
@@ -300,6 +301,9 @@ class BaseMicroscopeApp(BaseApp):
         )
         self.ui.menuAdvanced.addAction(
             "new measurement", partial(self.start_tools, "new measurement")
+        )
+        self.ui.menuAdvanced.addAction(
+            "publish hardware", partial(self.start_tools, "publish HW on GitHub")
         )
 
         if self.mdi:
@@ -499,6 +503,16 @@ class BaseMicroscopeApp(BaseApp):
     ) -> MeasurementProtocol:
         # DEPRECATED, use add_measurement()
         return self.add_measurement(measure)
+
+    def add_favorites(
+        self,
+        lq_paths=(),
+        lq_paths_lists=(),
+        operation_paths=(),
+    ) -> None:
+        self.favorites_widget.add_lq_paths(lq_paths)
+        self.favorites_widget.add_lq_paths_lists(lq_paths_lists)
+        self.favorites_widget.add_operation_paths(operation_paths)
 
     def settings_save_h5(self, fname: str) -> None:
         """

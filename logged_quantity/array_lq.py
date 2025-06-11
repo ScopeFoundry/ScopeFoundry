@@ -73,6 +73,7 @@ class ArrayLQ(LoggedQuantity):
 
         self.prev_vals = deque([], 3)
         self.proposed_values = deque([], 7)
+        self.actions = []
 
     def same_values(self, v1, v2):
         if v1.shape == v2.shape:
