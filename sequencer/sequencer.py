@@ -198,9 +198,19 @@ class Sequencer(Measurement):
             item = self.item_list.get_current_item()
             self.item_double_clicked(item)
 
+    def is_valid_file(self, fname: Path) -> bool:
+        if fname.name == ("links.json"):
+            return False
+        with open(fname, "r") as f:
+            items = json.loads(f.read())
+        for kwargs in items:
+            if not isinstance(kwargs, dict) or not "type" in kwargs:
+                return False
+        return True
+
     def update_load_file_comboBox(self):
         root = Path(self.settings["recipe_folder"])
-        fnames = list(root.rglob("*.json"))
+        fnames = [fname for fname in root.rglob("*.json") if self.is_valid_file(fname)]
         index0 = self.load_file_comboBox.currentIndex()
         self.load_file_comboBox.clear()
         self.seq_fnames = {}
@@ -214,6 +224,8 @@ class Sequencer(Measurement):
     def insert_load_files(self, fname: Path):
         root = Path(self.settings["recipe_folder"])
         abbrev_fname = str(fname.relative_to(root))
+        if abbrev_fname in self.seq_fnames:
+            return
         self.seq_fnames.update({abbrev_fname: fname})
         self.load_file_comboBox.insertItem(0, abbrev_fname)
         self.load_file_comboBox.setCurrentIndex(0)
@@ -243,7 +255,6 @@ class Sequencer(Measurement):
     def on_load(self) -> str:
         fname = Path(self.seq_file.val)
         if fname.exists() and not fname.is_dir():
-            print(fname)
             self.load_file(fname)
             self.insert_load_files(fname)
         return fname
