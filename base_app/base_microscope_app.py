@@ -47,6 +47,7 @@ class MeasurementProtocol(Protocol):
     ui: QtWidgets.QWidget
     subwin: QtWidgets.QMdiSubWindow
     activation: LoggedQuantity
+    show_btn: QtWidgets.QPushButton
 
     def setup_figure(self): ...
     def setup(self): ...
@@ -388,6 +389,8 @@ class BaseMicroscopeApp(BaseApp):
         measure.setup_figure()
         if not hasattr(measure, "ui"):
             self._loaded_measure_uis[measure.name] = None
+            for btn in measure._show_btns:
+                btn.setVisible(False)
             return None
 
         self._loaded_measure_uis[measure.name] = measure.ui
