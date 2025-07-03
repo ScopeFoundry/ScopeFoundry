@@ -41,6 +41,7 @@ class NDScanData:
         self.indices.append(indices)
 
     def init_dsets(self, collector: Collector):
+        collector.repeats = []
         for name, d in collector.data.items():
             if not hasattr(d, "dtype"):
                 try:

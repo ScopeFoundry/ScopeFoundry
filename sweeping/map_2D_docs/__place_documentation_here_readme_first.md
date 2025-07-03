@@ -6,7 +6,7 @@
 
 ## Settings
 
- - *activation*: <i>sweep_2d</i>
+ - *activation*: <i>map_2d</i>
 
  - *run_state*: None
 
