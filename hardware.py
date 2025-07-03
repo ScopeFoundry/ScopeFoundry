@@ -58,6 +58,8 @@ class HardwareComponent:
 
         self.app = app
 
+        self.toggle_to_connected_count = 0
+
         self.connected = self.settings.New(
             "connected",
             dtype=bool,
@@ -265,6 +267,20 @@ class HardwareComponent:
                 cmenu.addAction(name, func)
 
         cmenu.exec_(QtGui.QCursor.pos())
+
+    @property
+    def has_been_connected_once(self) -> bool:
+        """
+        Returns True if the hardware has been connected at least once
+        """
+        return self.toggle_to_connected_count > 0
+
+    @property
+    def is_connected(self) -> bool:
+        """
+        Returns True if the hardware is currently connected
+        """
+        return self.settings["connected"]
 
     def setup(self):
         """
