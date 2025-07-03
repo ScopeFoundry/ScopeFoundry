@@ -64,6 +64,7 @@ class Sequencer(Measurement):
         self.iter_values = {}
         self.letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         self.current_item = None
+        self.seq_fnames = {}
 
     def setup_figure(self):
         # measurement controls and settings
@@ -78,7 +79,6 @@ class Sequencer(Measurement):
         # select file combobox
         self.load_file_comboBox = QtWidgets.QComboBox()
         self.load_file_comboBox.setToolTip("previously saved sequences")
-        self.update_load_file_comboBox()
         self.load_file_comboBox.currentTextChanged.connect(
             self.on_load_file_comboBox_changed
         )
