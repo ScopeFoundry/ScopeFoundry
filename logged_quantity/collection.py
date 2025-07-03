@@ -43,8 +43,8 @@ class LQCollection:
 
     def __init__(self, path="") -> None:
         self._logged_quantities = OrderedDict()
-        self.ranges = OrderedDict()
-        self.vectors = OrderedDict()
+        self.ranges: Dict[str, LQRange] = OrderedDict()
+        self.vectors: Dict[str, LQ3Vector] = OrderedDict()
         self.log = get_logger_from_class(self)
         self.q_object = LQCollectionQObject(self)
         self.path = path
