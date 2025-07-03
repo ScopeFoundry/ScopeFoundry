@@ -261,6 +261,7 @@ class HardwareComponent:
 
         cmenu.addAction("Connect", connect)
         cmenu.addAction("Disconnect", disconnect)
+        cmenu.addAction("Read from Hardware", self.read_from_hardware)
 
         init_docs_path(self.docs_path, self.settings)
         pairs = itemize_launchers(self.docs_path, self.app.launch_browser)
