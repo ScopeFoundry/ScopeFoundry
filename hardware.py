@@ -104,11 +104,14 @@ class HardwareComponent:
                     self._update_thread.start()
 
                 self.connection_succeeded.emit()
+                self.toggle_to_connected_count += 1
+                print(f"{self.name} connected {self.toggle_to_connected_count} times")
             except Exception as err:
                 self.connection_failed.emit()
                 raise err
         else:
-            print("disabling connection")
+            if not self.has_been_connected_once:
+                return
             try:
                 try:
                     if hasattr(self, "run") and hasattr(self, "_update_thread"):
