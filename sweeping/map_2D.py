@@ -14,6 +14,7 @@ class Map2D(Sweep2D):
         ans = super().setup()
         self.add_operation("clear_previous_scans", self.clear_previous_scans)
         self.settings["scan_mode"] = "nested"
+        return ans
 
     def setup_figure(self):
         super().setup_figure()

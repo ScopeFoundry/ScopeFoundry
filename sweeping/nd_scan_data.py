@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Dict
 
 import numpy as np
 
@@ -17,7 +17,7 @@ class NDScanData:
         base_shape: Tuple[int],
         measurement: Measurement,
     ):
-        self.data = {}
+        self.data: Dict[str, np.ndarray] = {}
         self.base_shape = base_shape
 
         self.measurement = measurement
@@ -75,6 +75,15 @@ class NDScanData:
         for lq_path in collector.settings_to_collect:
             val = self.app.get_lq(lq_path).read_from_hardware()
             self.h5_meas_group[to_dstname(lq_path)][indices] = val
+
+    def average_repeats(self, collector: Collector):
+        for name, d in collector.data.items():
+            if name in collector.repeated_dset_names:
+                avg_name = to_dstname(f"{collector.name}_{name}")
+                global_name = to_dstname(f"{collector.name}_{name}_raw")
+                d = self.data[global_name].mean(axis=len(self.base_shape))
+                self.h5_meas_group.create_dataset(avg_name, data=d)
+                print("saved", avg_name, d.shape, d.dtype)
 
     def flush_h5(self):
         self.h5_file.flush()
