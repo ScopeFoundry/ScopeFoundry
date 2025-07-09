@@ -117,6 +117,8 @@ class Sweep2D(Measurement):
 
         self.post_scan()
 
+        for collector in collectors:
+            scan_data.average_repeats(collector)
         scan_data.close_h5()
 
         if s["res_in_new_dir"]:
