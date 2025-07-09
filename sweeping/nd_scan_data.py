@@ -2,7 +2,7 @@ from typing import Tuple, Dict
 
 import numpy as np
 
-from ScopeFoundry.measurement import Measurement
+from ScopeFoundry import Measurement
 from .collector import Collector
 
 
