@@ -13,6 +13,7 @@ from ScopeFoundry.logged_quantity import (
     LQ3Vector,
     LQRange,
 )
+from ScopeFoundry.logged_quantity.multi_ranges import MultiRanges
 
 
 class LQCollectionQObject(QtCore.QObject):
@@ -275,7 +276,12 @@ class LQCollection:
         )
 
         step_lq = self.New(
-            f"{name}_step", initial=d, spinbox_decimals=spinbox_decimals + 1, **kwargs
+            f"{name}_step",
+            initial=d,
+            unit=unit,
+            si=si,
+            spinbox_decimals=spinbox_decimals + 1,
+            **kwargs,
         )
         step0 = int((initials[1] - initials[0]) / d) + 1
         num_lq = self.New(f"{name}_num", dtype=int, vmin=1, initial=step0, **kwargs)
@@ -314,6 +320,71 @@ class LQCollection:
 
         self.ranges[name] = lqrange
         return lqrange
+
+    def new_multi_range(
+        self,
+        name: str,
+        n=5,
+        include_center_span: bool = False,
+        include_sweep_type: bool = False,
+        initials=None,
+        unit=None,
+        si=False,
+        ro=False,
+        vmin=-1_000_000_000_000,
+        vmax=1_000_000_000_000,
+        spinbox_decimals=4,
+        description="",
+        **kwargs,
+    ):
+        """
+        Create a new TripleLQRange with n ranges.
+        Each range is an ActiveLQRange with min, max, step, num, center, span, sweep_type, and is_active.
+        """
+
+        if initials is None:
+            initials = [(ii < 3, ii, ii + 1, 0.1) for ii in range(n)]
+        elif len(initials) != n:
+            raise ValueError("invalid initials length, must match n")
+
+        lq_ranges = [
+            self.New_Range(
+                name=f"{name}_{i}",
+                include_center_span=include_center_span,
+                include_sweep_type=False,
+                unit=unit,
+                si=si,
+                ro=ro,
+                vmin=vmin,
+                vmax=vmax,
+                spinbox_decimals=spinbox_decimals,
+                description=description,
+                initials=initials[i][1:],
+                **kwargs,
+            )
+            for i in range(n)
+        ]
+        is_active_lqs = [
+            self.New(f"{name}_{i}_is_active", bool, initial=initials[i][0])
+            for i in range(n)
+        ]
+        if include_sweep_type:
+            sweep_type = self.New(
+                f"{name}_sweep_type",
+                str,
+                choices=("up", "down", "up_down", "down_up", "zig_zag", "zag_zig"),
+            )
+        else:
+            sweep_type = None
+
+        no_duplicates = self.New(
+            f"{name}_no_duplicates",
+            bool,
+            initial=True,
+            description="Remove adjacent duplicates from *up* and *down* sweep ranges",
+        )
+
+        return MultiRanges(lq_ranges, is_active_lqs, no_duplicates, sweep_type)
 
     def New_Vector(self, name, components="xyz", initial=[1, 0, 0], **kwargs):
 
