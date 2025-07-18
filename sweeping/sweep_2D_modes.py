@@ -19,7 +19,7 @@ def mk_positions_gen(ar_1, ar_2, mode="nested"):
             for l, lv in enumerate(ar_2):
                 yield (kv, lv)
 
-    if mode == "nested_swap_order":
+    elif mode == "nested_swap_order":
         for l, lv in enumerate(ar_2):
             for k, kv in enumerate(ar_1):
                 yield (kv, lv)
