@@ -60,7 +60,7 @@ class Sweep1D(Measurement):
             self.root = self.app.settings["save_dir"]
             self.app.settings["save_dir"] = mk_new_dir(self.root, self.name)
 
-        arrays = tuple([r.array for r in s.ranges.values()])
+        arrays = tuple([r.sweep_array for r in s.ranges.values()])
 
         self.scan_data = scan_data = NDScanData(
             base_shape=mk_data_shape(*arrays, s["scan_mode"]),
