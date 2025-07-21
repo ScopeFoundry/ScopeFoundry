@@ -102,7 +102,8 @@ class IntervaledLQRange:
         grid_layout.addWidget(QtWidgets.QLabel("max"), 0, 2)
         grid_layout.addWidget(QtWidgets.QLabel("step"), 0, 3)
         grid_layout.addWidget(QtWidgets.QLabel("num"), 0, 4)
-        grid_layout.addWidget(QtWidgets.QLabel("span"), 0, 5)
+        if self.ranges[0].lq_range.span:
+            grid_layout.addWidget(QtWidgets.QLabel("span"), 0, 5)
         grid_layout.setColumnMinimumWidth(0, 20)
         grid_layout.setColumnMinimumWidth(1, 100)
         grid_layout.setColumnMinimumWidth(2, 100)
@@ -116,24 +117,25 @@ class IntervaledLQRange:
             w2 = r.lq_range.max.new_default_widget()
             w3 = r.lq_range.step.new_default_widget()
             w4 = r.lq_range.num.new_default_widget()
-            w5 = r.lq_range.span.new_default_widget()
             grid_layout.addWidget(w0, ii + 1, 0)
             grid_layout.addWidget(w1, ii + 1, 1)
             grid_layout.addWidget(w2, ii + 1, 2)
             grid_layout.addWidget(w3, ii + 1, 3)
             grid_layout.addWidget(w4, ii + 1, 4)
-            grid_layout.addWidget(w5, ii + 1, 5)
             w0.stateChanged.connect(w1.setEnabled)
             w0.stateChanged.connect(w2.setEnabled)
             w0.stateChanged.connect(w3.setEnabled)
             w0.stateChanged.connect(w4.setEnabled)
-            w0.stateChanged.connect(w5.setEnabled)
+
+            if r.lq_range.span:
+                w5 = r.lq_range.span.new_default_widget()
+                grid_layout.addWidget(w5, ii + 1, 5)
+                w0.stateChanged.connect(w5.setEnabled)
 
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(widget)
         layout.addLayout(header_layout)
         layout.addLayout(grid_layout)
-
         return widget
 
     def add_listener(self, func, argtype=(), **kwargs):
