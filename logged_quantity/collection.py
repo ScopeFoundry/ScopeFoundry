@@ -12,8 +12,8 @@ from ScopeFoundry.logged_quantity import (
     LoggedQuantity,
     LQ3Vector,
     LQRange,
+    IntervaledLQRange,
 )
-from ScopeFoundry.logged_quantity.multi_ranges import MultiRanges
 
 
 class LQCollectionQObject(QtCore.QObject):
@@ -321,10 +321,10 @@ class LQCollection:
         self.ranges[name] = lqrange
         return lqrange
 
-    def new_multi_range(
+    def new_intervaled_range(
         self,
         name: str,
-        n=5,
+        n_intervals=5,
         include_center_span: bool = False,
         include_sweep_type: bool = False,
         initials=None,
@@ -343,8 +343,8 @@ class LQCollection:
         """
 
         if initials is None:
-            initials = [(ii < 3, ii, ii + 1, 0.1) for ii in range(n)]
-        elif len(initials) != n:
+            initials = [(ii < 3, ii, ii + 1, 0.1) for ii in range(n_intervals)]
+        elif len(initials) != n_intervals:
             raise ValueError("invalid initials length, must match n")
 
         lq_ranges = [
@@ -362,11 +362,11 @@ class LQCollection:
                 initials=initials[i][1:],
                 **kwargs,
             )
-            for i in range(n)
+            for i in range(n_intervals)
         ]
         is_active_lqs = [
             self.New(f"{name}_{i}_is_active", bool, initial=initials[i][0])
-            for i in range(n)
+            for i in range(n_intervals)
         ]
         if include_sweep_type:
             sweep_type = self.New(
@@ -384,7 +384,9 @@ class LQCollection:
             description="Remove adjacent duplicates from *up* and *down* sweep ranges",
         )
 
-        return MultiRanges(lq_ranges, is_active_lqs, no_duplicates, sweep_type)
+        i_range = IntervaledLQRange(lq_ranges, is_active_lqs, no_duplicates, sweep_type)
+        self.ranges[name] = i_range
+        return i_range
 
     def New_Vector(self, name, components="xyz", initial=[1, 0, 0], **kwargs):
 

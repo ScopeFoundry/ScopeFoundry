@@ -28,7 +28,7 @@ class ActivatableRange:
         return widget
 
 
-class MultiRanges:
+class IntervaledLQRange:
     """
     A class to represent a range of three values, with a start, stop, and step.
     """

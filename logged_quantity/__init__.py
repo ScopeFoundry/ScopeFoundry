@@ -3,4 +3,5 @@ from .array_lq import ArrayLQ
 from .file_lq import FileLQ
 from .lq_3_vector import LQ3Vector
 from .lq_range import LQRange
+from .lq_intervaled_range import IntervaledLQRange
 from .collection import LQCollection
