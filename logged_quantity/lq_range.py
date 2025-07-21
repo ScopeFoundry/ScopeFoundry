@@ -186,20 +186,3 @@ class LQRange(LQCircularNetwork):
         for lqname, lq in self.lq_dict.items():
             formLayout.addRow(lqname, lq.new_default_widget())
         return ui_widget
-
-
-class TripleRange(LQRange):
-    """
-    LQRangeABC is a collection of logged quantities that describe a
-    numpy.linspace array inputs.
-    Four (or six) LQ's are defined, min, max, num, step (center, span)
-    and are connected by signals/slots that keep the quantities
-    in sync.
-    LQRange.array is the linspace array and is kept upto date
-    with changes to the 4 (or 6) LQ's
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.log.warning("LQRangeABC is deprecated, use LQRange instead")
-        
