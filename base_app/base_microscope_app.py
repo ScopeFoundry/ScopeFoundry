@@ -234,7 +234,7 @@ class BaseMicroscopeApp(BaseApp):
         app_widget.setTitle("to inspect drop a .h5 or .ini, to load also press ctrl")
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
-        splitter.addWidget(self.favorites_widget.main_widget)
+        splitter.addWidget(self.favorites_widget.scroll_area)
         splitter.addWidget(hw_tree)
         splitter.addWidget(mm_tree)
         splitter.addWidget(app_widget)

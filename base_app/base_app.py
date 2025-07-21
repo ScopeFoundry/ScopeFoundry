@@ -79,6 +79,7 @@ class BaseApp(QtCore.QObject):
         self._widgets_managers_ = []
         self._setting_paths: SETTINGS_PATH_TYPE = {}
         self.favorites_widget = new_favorites_widget(self)
+        self.favorites_widget.main_widget.setMaximumWidth(300)
         self.operations = Operations(path="app")
         self.settings = LQCollection(path="app")
         self.add_lq_collection_to_settings_path(self.settings)
@@ -206,7 +207,11 @@ class BaseApp(QtCore.QObject):
 
     def add_setting_path(self, lq: LoggedQuantity) -> None:
         lq.actions.append(
-            (QtGui.QIcon(str(self.icons_path / "favorite.png")), "add to favorites", partial(self.favorites_widget.add_lq_path, lq.path))
+            (
+                QtGui.QIcon(str(self.icons_path / "favorite.png")),
+                "add to favorites",
+                partial(self.favorites_widget.add_lq_path, lq.path),
+            )
         )
         self._setting_paths[lq.path] = lq
 
