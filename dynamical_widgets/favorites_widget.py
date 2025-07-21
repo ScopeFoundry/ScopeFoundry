@@ -19,6 +19,7 @@ class FavoritesWidget:
         self._operations = []
         self._lq_paths_list = []
 
+
         self.main_widget = QtWidgets.QWidget()
         self.main_widget.setSizePolicy(
             QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred
@@ -27,6 +28,11 @@ class FavoritesWidget:
         self.layout = QtWidgets.QVBoxLayout(self.main_widget)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(2)
+
+        self.scroll_area = QtWidgets.QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setWidget(self.main_widget)
+
 
     def refresh_widgets(self):
         while self.layout.count():
