@@ -9,15 +9,15 @@ import logging
 logging.basicConfig(level="DEBUG")
 
 
-class MultiLQRangeTestApp(BaseApp):
+class IntervaledLQRangeTestApp(BaseApp):
 
     def __init__(self, argv):
         BaseApp.__init__(self, argv)
 
         ### LQ
-        self.x_range = self.settings.new_multi_range(
+        self.x_range = self.settings.new_intervaled_range(
             "x",
-            n=5,
+            n_intervals=5,
             include_center_span=True,
             include_sweep_type=True,
             unit="s",
@@ -38,10 +38,10 @@ class MultiLQRangeTestApp(BaseApp):
         self.ui.layout().addWidget(self.console_widget)
         # self.plot.show()
         self.ui.show()
-        self.ui.setWindowTitle("MultiLQRangeTestApp")
+        self.ui.setWindowTitle("Intervaled Range")
         # self.console_widget.show()
 
 
 if __name__ == "__main__":
-    app = MultiLQRangeTestApp([])
+    app = IntervaledLQRangeTestApp([])
     app.exec_()
