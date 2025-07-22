@@ -26,7 +26,9 @@ class Operation:
         op_button.setObjectName(self.name)
         op_button.clicked.connect(lambda checked, f=self.func: f())
         op_button.setToolTip(f"<b>{self.path}</b><p><p>{self.description}")
-        if self.icon_path:
+        if isinstance(self.icon_path, QtGui.QIcon):
+            op_button.setIcon(self.icon_path)
+        elif self.icon_path:
             op_button.setIcon(QtGui.QIcon(str(self.icon_path)))
         return op_button
 
