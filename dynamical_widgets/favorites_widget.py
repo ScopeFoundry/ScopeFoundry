@@ -19,7 +19,6 @@ class FavoritesWidget:
         self._operations = []
         self._lq_paths_list = []
 
-
         self.main_widget = QtWidgets.QWidget()
         self.main_widget.setSizePolicy(
             QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred
@@ -32,7 +31,6 @@ class FavoritesWidget:
         self.scroll_area = QtWidgets.QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(self.main_widget)
-
 
     def refresh_widgets(self):
         while self.layout.count():
@@ -80,7 +78,7 @@ class FavoritesWidget:
         btn.setMaximumWidth(24)
         btn.setToolTip("Remove from favorites")
         btn.setIcon(
-            self.app.qtapp.style().standardIcon(QtWidgets.QStyle.SP_DialogCloseButton)
+            self.app.qtapp.style().standardIcon(QtWidgets.QStyle.SP_TabCloseButton)
         )
         btn.clicked.connect(partial(self.remove_lq_path, lq_path))
 
