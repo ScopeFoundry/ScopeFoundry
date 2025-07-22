@@ -59,8 +59,6 @@
 
  - *range_1_span*: 
 
- - *range_1_sweep_type*: None
-
  - *actuator_2*: None
 
  - *range_2_min*: 
@@ -74,6 +72,4 @@
  - *range_2_center*: 
 
  - *range_2_span*: 
-
- - *range_2_sweep_type*: None
 

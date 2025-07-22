@@ -44,17 +44,57 @@
 
  - *actuator_1*: None
 
- - *range_1_min*: 
+ - *range_1_0_min*: 
 
- - *range_1_max*: 
+ - *range_1_0_max*: 
 
- - *range_1_step*: 
+ - *range_1_0_step*: 
 
- - *range_1_num*: 
+ - *range_1_0_num*: 
 
- - *range_1_center*: 
+ - *range_1_1_min*: 
 
- - *range_1_span*: 
+ - *range_1_1_max*: 
+
+ - *range_1_1_step*: 
+
+ - *range_1_1_num*: 
+
+ - *range_1_2_min*: 
+
+ - *range_1_2_max*: 
+
+ - *range_1_2_step*: 
+
+ - *range_1_2_num*: 
+
+ - *range_1_3_min*: 
+
+ - *range_1_3_max*: 
+
+ - *range_1_3_step*: 
+
+ - *range_1_3_num*: 
+
+ - *range_1_4_min*: 
+
+ - *range_1_4_max*: 
+
+ - *range_1_4_step*: 
+
+ - *range_1_4_num*: 
+
+ - *range_1_0_is_active*: None
+
+ - *range_1_1_is_active*: None
+
+ - *range_1_2_is_active*: None
+
+ - *range_1_3_is_active*: None
+
+ - *range_1_4_is_active*: None
 
  - *range_1_sweep_type*: None
+
+ - *range_1_no_duplicates*: Remove adjacent duplicates from *up* and *down* sweep ranges
 

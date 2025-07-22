@@ -29,7 +29,7 @@ class CustomListItem(QWidget):
 
         if self.collector.reps_lq:
             self.reps_widget = self.collector.reps_lq.new_default_widget()
-            self.reps_widget.setMaximumWidth(50)
+            self.reps_widget.setMaximumWidth(65)
             layout.addWidget(self.reps_widget)
         else:
             self.reps_widget = QDoubleSpinBox()

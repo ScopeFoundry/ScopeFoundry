@@ -181,10 +181,12 @@ class Sweep1D(Measurement):
         collectors: Sequence[Collector] = (),
         actuators: Sequence[ActuatorDefinitions] = (),
         actuator_names: Sequence[str] = "1",
+        range_n_intervals: Sequence[int] = (1,),
     ):
         self.collectors = [copy(x) for x in collectors]
         self.user_defined_actuators = list(actuators)
         self.actuator_names = actuator_names
+        self.range_n_intervals = range_n_intervals
         self.ndim = len(actuator_names)
         super().__init__(app, name)
 
@@ -243,11 +245,21 @@ class Sweep1D(Measurement):
                 description="number of times data gets collected at each position",
             )
 
-        for i in self.actuator_names:
-            s.New(f"actuator_{i}", dtype=str, choices=["none"])
-            s.New_Range(f"range_{i}", True, True, initials=(1, 2, 2))
+        for name, n in zip(self.actuator_names, self.range_n_intervals):
+            s.New(f"actuator_{name}", dtype=str, choices=["none"])
+            if n == 1:
+                s.New_Range(f"range_{name}", True, False, initials=(1, 2, 11))
+            else:
+                s.new_intervaled_range(f"range_{name}", n, False, True)
 
-        self.add_operation("update widgets", self.update_widgets)
+        self.add_operation(
+            "update widgets",
+            self.update_widgets,
+            description="click after connecting to a hardware to extend actuator options",
+            icon_path=self.app.qtapp.style().standardIcon(
+                QtWidgets.QStyle.SP_BrowserReload
+            ),
+        )
 
     def update_widgets(self):
 
@@ -259,6 +271,7 @@ class Sweep1D(Measurement):
             actuator_definitions=self.user_defined_actuators,
             app=self.app,
         )
+
         self.actuators_funcs = get_actuator_funcs(self.app, defs)
 
         for i in self.actuator_names:
@@ -355,23 +368,18 @@ class Sweep1D(Measurement):
         return run_widget
 
     def mk_scan_settings_widget(self):
-        h_layout = QtWidgets.QHBoxLayout()
-        # w3 = self.settings.New_UI(("scan_mode"))
-        # w3.layout().setSpacing(1)
-        # h_layout.addWidget(w3)
-        for i in self.actuator_names:
-            r = self.settings.ranges[f"range_{i}"]
-            w1 = r.New_UI()
-            w1.layout().insertRow(
-                0, self.settings.get_lq(f"actuator_{i}").new_default_widget()
-            )
-            # w1.layout().insertRow(0, QtWidgets.QLabel(f"actuator_{i}"))
-            w1.layout().setSpacing(1)
-            h_layout.addWidget(w1)
 
-        widget = QtWidgets.QGroupBox("scan settings")
-        widget.setLayout(h_layout)
-        widget.setFlat(False)
+        name = self.actuator_names[0]
+        r = self.settings.ranges[f"range_{name}"]
+
+        selector_w = self.settings.get_lq(f"actuator_{name}").new_default_widget()
+        range_w = r.New_UI()
+
+        w = widget = QtWidgets.QGroupBox("scan settings")
+        layout = QtWidgets.QVBoxLayout(w)
+        layout.addWidget(selector_w)
+        layout.addWidget(range_w)
+        layout.setSpacing(1)
         return widget
 
     def mk_collect_widget(self):

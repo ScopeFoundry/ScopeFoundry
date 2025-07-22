@@ -184,10 +184,12 @@ class Sweep2D(Measurement):
         collectors: Sequence[Collector] = (),
         actuators: Sequence[ActuatorDefinitions] = (),
         actuator_names: Sequence[str] = "12",
+        range_n_intervals: Sequence[int] = (1, 1),
     ):
         self.collectors = [copy(x) for x in collectors]
         self.user_defined_actuators = list(actuators)
         self.actuator_names = actuator_names
+        self.range_n_intervals = range_n_intervals
         self.ndim = len(actuator_names)
         super().__init__(app, name)
 
@@ -246,11 +248,21 @@ class Sweep2D(Measurement):
                 description="number of times data gets collected at each position",
             )
 
-        for i in self.actuator_names:
-            s.New(f"actuator_{i}", dtype=str, choices=["none"])
-            s.New_Range(f"range_{i}", True, True, initials=(1, 2, 2))
+        for name, n in zip(self.actuator_names, self.range_n_intervals):
+            s.New(f"actuator_{name}", dtype=str, choices=["none"])
+            if n == 1:
+                s.New_Range(f"range_{name}", True, False, initials=(1, 2, 11))
+            else:
+                s.new_intervaled_range(f"range_{name}", n, False, True)
 
-        self.add_operation("update widgets", self.update_widgets)
+        self.add_operation(
+            "update widgets",
+            self.update_widgets,
+            description="click after connecting to a hardware to extend actuator options",
+            icon_path=self.app.qtapp.style().standardIcon(
+                QtWidgets.QStyle.SP_BrowserReload
+            ),
+        )
 
     def update_widgets(self):
 
