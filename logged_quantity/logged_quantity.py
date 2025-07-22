@@ -1386,7 +1386,10 @@ class LoggedQuantity(QtCore.QObject):
 
     def on_right_click(self, position=None):
         cmenu = QtWidgets.QMenu()
-        cmenu.addAction(f"{self.path}")
+        cmenu.addAction(f"{self.path}").setEnabled(False)
+        if self.has_hardware_read():
+            cmenu.addAction("Read from Hardware", self.read_from_hardware)
+            
         cmenu.addSeparator()
         for action in self.actions:
             cmenu.addAction(*action)
