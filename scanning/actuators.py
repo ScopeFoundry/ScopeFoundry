@@ -27,8 +27,9 @@ def add_all_possible_actuators_and_parse_definitions(
     actuator_definitions: Iterable[ActuatorDefinitions],
     app: BaseMicroscopeApp,
 ) -> Dict[str, ActuatorInfos]:
-    ds = list(actuator_definitions)
-    ds.extend(app.get_setting_paths(filter_has_hardware_write=True))
+    ds = list(actuator_definitions) + app.get_setting_paths(
+        filter_has_hardware_write=True
+    )
     return parse_definitions(ds)
 
 
@@ -38,12 +39,13 @@ def parse_definitions(
     """returns a list of tuples with the actuator name, read path and write path"""
     d = {}
     for defs in actuator_definitions:
-        label = defs[0]
         if isinstance(defs, str):
-            d[label] = (None, defs)
-        elif len(defs) == 1:
+            d[defs] = (None, defs)
+            continue
+        label = defs[0]
+        if len(defs) == 1:
             d[label] = (None, defs[0])
-        if len(defs) == 2:
+        elif len(defs) == 2:
             d[label] = (None, defs[1])
         elif len(defs) == 3:
             d[label] = (defs[1], defs[2])
