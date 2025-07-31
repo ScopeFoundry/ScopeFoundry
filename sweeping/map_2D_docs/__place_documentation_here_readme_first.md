@@ -18,6 +18,7 @@
 <p><i>co-move:</i> all actuators co-move
 <p><i>nested:</i> actuators move all combinations where 1st is slowest ...
 <p><i>serpentine:</i> actuators move all combinations where 1st is slowest, 2nd is fastest and 2nd reverses direction every row.
+<p><i>*_swap_order</i> modes are the same as above, but the order of the actuators is swapped.</p>
 
 
  - *collection_delay*: after setting the wheel position, data collection is delayed allowing system to reach steady state
@@ -58,8 +59,6 @@
 
  - *range_1_span*: 
 
- - *range_1_sweep_type*: None
-
  - *actuator_2*: None
 
  - *range_2_min*: 
@@ -73,6 +72,4 @@
  - *range_2_center*: 
 
  - *range_2_span*: 
-
- - *range_2_sweep_type*: None
 

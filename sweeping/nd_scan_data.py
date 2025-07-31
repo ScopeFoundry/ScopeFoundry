@@ -88,6 +88,10 @@ class NDScanData:
     def flush_h5(self):
         self.h5_file.flush()
 
+    def create_dataset(self, name, shape=None, dtype=None, data=None, **kwds):
+        self.h5_meas_group.create_dataset(name, shape, dtype, data, **kwds)
+
+
     def close_h5(self):
         self.h5_meas_group.create_dataset("positions", data=self.positions)
         self.h5_meas_group.create_dataset("read_positions", data=self.read_positions)

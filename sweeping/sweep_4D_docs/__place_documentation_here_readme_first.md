@@ -32,6 +32,8 @@
 
  - *powermeter_monitoring_repetitions*: number of times data gets collected at each position
 
+ - *powermeter_monitoring_with_slider_repetitions*: number of times data gets collected at each position
+
  - *blaze_repetitions*: number of times data gets collected at each position
 
  - *pylon_repetitions*: number of times data gets collected at each position

@@ -22,12 +22,9 @@ class Map2D(Sweep2D):
         r1.add_listener(self.connect_pos_widgets)
         r2.add_listener(self.connect_pos_widgets)
 
-    def new_img_item(self, set_rect=True):
+    def new_img_item(self):
         """Create a new image item and add it to the plot."""
         self.img_item = img_item = pg.ImageItem()
-        if set_rect:
-            # Set the rectangle to cover the full range of the scan
-            img_item.setRect(*self.calc_rect())
         self.img_items.append(img_item)
         self.axes.addItem(img_item)
         self.hist_lut.setImageItem(img_item)
@@ -46,7 +43,7 @@ class Map2D(Sweep2D):
 
         self.hist_lut = pg.HistogramLUTItem()
         graph_layout.addItem(self.hist_lut)
-        self.new_img_item(False)
+        self.new_img_item()
 
         self.scan_roi = pg.ROI([0, 0], [1, 1], movable=True)
         self.scan_roi.addScaleHandle([1, 1], [0, 0])
@@ -85,7 +82,7 @@ class Map2D(Sweep2D):
 
         dset = np.array(self.scan_data.data[self.settings["plot_option"]])
         img = dset.reshape(*(*self.scan_data.base_shape, -1)).mean(axis=-1)
-        self.img_item.setImage(img, autoLevels=False)
+        self.img_item.setImage(img, rect=self.calc_rect())
 
     def get_ranges(self):
         r1 = self.settings.ranges["range_1"]
@@ -105,9 +102,10 @@ class Map2D(Sweep2D):
             r2.max.val + 0.5 * r2.step.val,
         ]
 
-    def calc_rect(self):
+    def calc_rect(self) -> QtCore.QRectF:
         x0, x1, y0, y1 = self.calc_imshow_extent()
-        return (x0, y0, x1 - x0, y1 - y0)
+        print(x0, y0, x1 - x0, (y1 - y0))
+        return QtCore.QRectF(x0, y0, x1 - x0, (y1 - y0))
 
     def on_mouse_update_scan_roi(self):
         x0, y0 = self.scan_roi.pos()
@@ -182,7 +180,6 @@ class Map2D(Sweep2D):
         f1(xc)
         f2(yc)
 
-        print("on_update_pt_roi", x0, y0, xc, yc)
 
     def new_pt_pos(self, x, y):
         """override this method to handle new point position"""
