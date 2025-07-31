@@ -70,7 +70,9 @@ class Sweep3D(Measurement):
             base_shape=mk_data_shape(*arrays, s["scan_mode"]),
             measurement=self,
         )
-        print(scan_data.base_shape)
+
+        for array, name in zip(arrays, self.actuator_names):
+            self.scan_data.create_dataset(f"range_{name}", data=array)
 
         N = np.prod(scan_data.base_shape)
         self.index = 0

@@ -71,6 +71,9 @@ class Sweep4D(Measurement):
             measurement=self,
         )
 
+        for array, name in zip(arrays, self.actuator_names):
+            self.scan_data.create_dataset(f"range_{name}", data=array)
+
         N = np.prod(scan_data.base_shape)
         self.index = 0
 
