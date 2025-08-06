@@ -62,7 +62,7 @@ class Sweep2D(Measurement):
             self.root = self.app.settings["save_dir"]
             self.app.settings["save_dir"] = mk_new_dir(self.root, self.name)
 
-        arrays = tuple([r.sweep_array for r in s.ranges.values()])
+        arrays = tuple([r.sweep_array for r in self.scan_ranges])
 
         self.scan_data = scan_data = NDScanData(
             base_shape=mk_data_shape(*arrays, s["scan_mode"]),
@@ -250,12 +250,17 @@ class Sweep2D(Measurement):
                 description="number of times data gets collected at each position",
             )
 
+        self.scan_ranges = []
         for name, n in zip(self.actuator_names, self.range_n_intervals):
             s.New(f"actuator_{name}", dtype=str, choices=["none"])
             if n == 1:
-                s.New_Range(f"range_{name}", True, False, initials=(1, 2, 11))
+                self.scan_ranges.append(
+                    s.New_Range(f"range_{name}", True, False, initials=(1, 2, 11))
+                )
             else:
-                s.new_intervaled_range(f"range_{name}", n, False, True)
+                self.scan_ranges.append(
+                    s.new_intervaled_range(f"range_{name}", n, False, True)
+                )
 
         self.add_operation(
             "update widgets",
@@ -344,7 +349,7 @@ class Sweep2D(Measurement):
         curr = self.index * dlen
 
         if ddim >= 1:
-            f = max(1, 10_000 // dlen)
+            f = max(1, 100_000 // dlen)
 
             if self.index > f:
                 self.line.setData(
@@ -357,7 +362,7 @@ class Sweep2D(Measurement):
                     dset.ravel()[:curr]
                 )
         else:
-            self.line.setData(dset)
+            self.line.setData(np.squeeze(dset))
         #
         # elif ddim in (2, 3):
         #     self.img_item.setVisible(True)

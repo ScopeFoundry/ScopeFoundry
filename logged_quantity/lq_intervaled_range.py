@@ -50,27 +50,26 @@ class IntervaledLQRange:
         """
         Returns a list of the current values of the ranges.
         """
-        values = [r.lq_range.array for r in self.ranges if r.is_active.val]
-        if len(values) == 0:
-            return np.array([])
-        arr = np.concatenate(values).flatten()
+        arr = np.array(
+            [r.lq_range.array[:] for r in self.ranges if r.is_active.val]
+        ).flatten()
         if self.no_duplicates.val:
             return filter_adjancent_duplicates(arr)
         return arr
 
     @property
-    def sweep_range(self):
+    def sweep_array(self):
         if self.sweep_type.val == "up":
             return self.array
         elif self.sweep_type.val == "down":
             return self.array[::-1]
         elif self.sweep_type.val == "up_down":
-            return np.concatenate((self.array, self.array[::-1]))
+            return np.append((self.array, self.array[::-1]))
         elif self.sweep_type.val == "down_up":
-            return np.concatenate((self.array[::-1], self.array))
+            return np.append((self.array[::-1], self.array))
         elif self.sweep_type.val == "zig_zag":
             mid = len(self.array) // 2
-            return np.concatenate(
+            return np.append(
                 [
                     self.array[mid::],
                     self.array[::-1],
@@ -79,7 +78,7 @@ class IntervaledLQRange:
             )
         elif self.sweep_type.val == "zag_zip":
             mid = len(self.array) // 2
-            return np.concatenate(
+            return np.append(
                 [
                     self.array[mid:0:-1],
                     self.array[0::],
@@ -93,7 +92,7 @@ class IntervaledLQRange:
         if self.sweep_type is not None:
             header_layout.addWidget(QtWidgets.QLabel("Sweep type:"))
             header_layout.addWidget(self.sweep_type.new_default_widget())
-        header_layout.addWidget(QtWidgets.QLabel("No duplicates:"))
+        header_layout.addWidget(QtWidgets.QLabel("remove adjacent duplicates:"))
         header_layout.addWidget(self.no_duplicates.new_default_widget())
 
         grid_layout = QtWidgets.QGridLayout()
@@ -102,7 +101,7 @@ class IntervaledLQRange:
         grid_layout.addWidget(QtWidgets.QLabel("max"), 0, 2)
         grid_layout.addWidget(QtWidgets.QLabel("step"), 0, 3)
         grid_layout.addWidget(QtWidgets.QLabel("num"), 0, 4)
-        #if self.ranges[0].lq_range.span:
+        # if self.ranges[0].lq_range.span:
         #    grid_layout.addWidget(QtWidgets.QLabel("span"), 0, 5)
         grid_layout.setColumnMinimumWidth(0, 20)
         grid_layout.setColumnMinimumWidth(1, 100)
@@ -122,12 +121,16 @@ class IntervaledLQRange:
             grid_layout.addWidget(w2, ii + 1, 2)
             grid_layout.addWidget(w3, ii + 1, 3)
             grid_layout.addWidget(w4, ii + 1, 4)
+            w1.setEnabled(r.is_active.val)
+            w2.setEnabled(r.is_active.val)
+            w3.setEnabled(r.is_active.val)
+            w4.setEnabled(r.is_active.val)
             w0.stateChanged.connect(w1.setEnabled)
             w0.stateChanged.connect(w2.setEnabled)
             w0.stateChanged.connect(w3.setEnabled)
             w0.stateChanged.connect(w4.setEnabled)
 
-            #if r.lq_range.span:
+            # if r.lq_range.span:
             #    w5 = r.lq_range.span.new_default_widget()
             #    grid_layout.addWidget(w5, ii + 1, 5)
             #   w0.stateChanged.connect(w5.setEnabled)

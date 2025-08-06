@@ -343,7 +343,7 @@ class LQCollection:
         """
 
         if initials is None:
-            initials = [(ii < 3, ii, ii + 1, 0.1) for ii in range(n_intervals)]
+            initials = [(ii < 1, ii, ii + 1, 0.1) for ii in range(n_intervals)]
         elif len(initials) != n_intervals:
             raise ValueError("invalid initials length, must match n")
 
