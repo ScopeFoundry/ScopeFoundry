@@ -40,6 +40,20 @@ def update_cells(new_sources: List, nb_content: Dict) -> Dict:
         if not skipp:
             nb_content["cells"][1]["source"].append(new_line)
     nb_content["cells"][1]["execution_count"] = None
+
+    # append a cell with a line that loads the latest data file
+    # if new_sources[1]: and (nb_content["cells"][-1]["source"] and not nb_content["cells"][-1]["source"][0].startswith(new_line) or not nb_content["cells"][-1]["source"]):
+    if new_sources[1]:
+        nb_content["cells"].append(
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [new_line],
+            }
+        )
+
     return nb_content
 
 
