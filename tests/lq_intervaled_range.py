@@ -26,7 +26,7 @@ class IntervaledLQRangeTestApp(BaseApp):
             description="range",
         )  # , preserve_num=True)
 
-        self.x_range.add_listener(lambda: print(self.x_range.array))
+        self.x_range.add_listener(lambda: print(self.x_range.sweep_array))
 
         self.ui = QtWidgets.QScrollArea()
         self.ui.setWidgetResizable(True)
