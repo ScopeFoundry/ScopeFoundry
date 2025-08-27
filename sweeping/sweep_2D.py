@@ -238,13 +238,7 @@ class Sweep2D(Measurement):
             self.collectors.append(AnySettingCollector(self, name=f"any_setting_{i}"))
 
         for collector in self.collectors:
-            s.New(
-                name=f"{collector.name}_repetitions",
-                dtype=int,
-                initial=0,
-                vmin=0,
-                description="number of times data gets collected at each position",
-            )
+            collector.setup_reps_lq(s)
 
         self.scan_ranges = []
         for name, n in zip(self.actuator_names, self.range_n_intervals):
@@ -423,9 +417,6 @@ class Sweep2D(Measurement):
 
         self.collector_list_widget = InteractiveCollectorList()
         for collector in self.collectors:
-            collector.reps_lq_path = self.settings.get_lq(
-                f"{collector.name}_repetitions"
-            ).path
             self.collector_list_widget.add_item(collector)
 
         layout.addWidget(self.collector_list_widget)

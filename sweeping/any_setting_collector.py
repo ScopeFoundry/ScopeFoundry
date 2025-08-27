@@ -16,7 +16,6 @@ class AnySettingCollector(Collector):
         self,
         host_measurement: Measurement,
         name: str = None,
-        reps_lq_path: str = None,
         color: Tuple[int] = None,
     ):
         self.host_measurement = host_measurement

@@ -29,7 +29,6 @@ class Collector:
         app: BaseMicroscopeApp,
         name: str = None,
         acquisition_duration_path: str = None,
-        reps_lq_path: str = None,
         target_measure_name: str = None,
         color: Tuple[int] = None,
         to_sec_multiplier: float = None,
@@ -42,8 +41,6 @@ class Collector:
             self.name = name
         if acquisition_duration_path is not None:
             self.acquisition_duration_path = acquisition_duration_path
-        if reps_lq_path is not None:
-            self.reps_lq_path = reps_lq_path
         if target_measure_name is not None:
             self.target_measure_name = target_measure_name
         if color is not None:
@@ -101,13 +98,19 @@ class Collector:
         """override me! clean up after acquisition or undo prepare"""
         pass
 
+    def setup_reps_lq(self, settings):
+        self.reps_lq = settings.New(
+            name=f"{self.name}_repetitions",
+            dtype=int,
+            initial=0,
+            vmin=0,
+            description="number of times data gets collected at each position",
+        )
+        self.reps_lq_path = self.reps_lq.path
+
     @property
     def reps(self) -> int:
         return self.reps_lq.val
-
-    @property
-    def reps_lq(self) -> LoggedQuantity:
-        return self.app.get_lq(self.reps_lq_path)
 
     @property
     def int_lq(self) -> LoggedQuantity:
