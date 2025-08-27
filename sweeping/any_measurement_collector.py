@@ -26,7 +26,6 @@ class AnyMeasurementCollector(Collector):
             host_measurement.app,
             name,
             self.measure_lq.path,
-            None,
             target_measure_name,
             color,
             1,
