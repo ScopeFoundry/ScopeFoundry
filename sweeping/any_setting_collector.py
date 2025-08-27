@@ -14,28 +14,22 @@ class AnySettingCollector(Collector):
 
     def __init__(
         self,
-        app: BaseMicroscopeApp,
+        host_measurement: Measurement,
         name: str = None,
-        acquisition_duration_path: str = None,
         reps_lq_path: str = None,
-        target_measure_name: str = None,
         color: Tuple[int] = None,
-        to_sec_multiplier: float = None,
-        description: str = None,
-        setting_lq: LoggedQuantity = None,
     ):
+        self.host_measurement = host_measurement
+        self.setting_lq = host_measurement.settings.New(name, str, choices=[])
 
         super().__init__(
-            app,
-            name,
-            acquisition_duration_path,
-            reps_lq_path,
-            target_measure_name,
-            color,
-            to_sec_multiplier,
-            description,
+            app=host_measurement.app,
+            name=name,
+            acquisition_duration_path=self.setting_lq.path,
+            color=color,
+            to_sec_multiplier=1,
+            description="read a setting and collect it",
         )
-        self.setting_lq = setting_lq
 
     def run(
         self,

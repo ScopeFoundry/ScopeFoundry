@@ -189,12 +189,16 @@ class Sweep3D(Measurement):
         actuators: Sequence[ActuatorDefinitions] = (),
         actuator_names: Sequence[str] = "123",
         range_n_intervals: Sequence[int] = (1, 1, 1),
+        n_read_any_settings: int = 2,
+        n_any_measurements: int = 2,
     ):
         self.collectors = [copy(x) for x in collectors]
         self.user_defined_actuators = list(actuators)
         self.actuator_names = actuator_names
         self.range_n_intervals = range_n_intervals
         self.ndim = len(actuator_names)
+        self.n_read_any_settings = n_read_any_settings
+        self.n_any_measurements = n_any_measurements
         super().__init__(app, name)
 
     def setup(self):
@@ -227,21 +231,13 @@ class Sweep3D(Measurement):
             description="plot option",
         )
 
-        s.New("any_measurement", str, choices=[""])
-        s.New("any_setting", str, choices=[""])
+        for i in range(self.n_any_measurements):
+            self.collectors.append(
+                AnyMeasurementCollector(self, name=f"any_measurement_{i}")
+            )
 
-        self.any_measurement_collector = AnyMeasurementCollector(
-            app=self.app,
-            measure_lq=self.settings.get_lq("any_measurement"),
-            acquisition_duration_path=self.settings.get_lq("any_measurement").path,
-        )
-        self.collectors.append(self.any_measurement_collector)
-        self.any_setting_collector = AnySettingCollector(
-            app=self.app,
-            setting_lq=self.settings.get_lq("any_setting"),
-            acquisition_duration_path=self.settings.get_lq("any_setting").path,
-        )
-        self.collectors.append(self.any_setting_collector)
+        for i in range(self.n_read_any_settings):
+            self.collectors.append(AnySettingCollector(self, name=f"any_setting_{i}"))
 
         for collector in self.collectors:
             s.New(
@@ -277,7 +273,8 @@ class Sweep3D(Measurement):
 
         s = self.settings
 
-        s.get_lq("any_setting").change_choice_list(filtered_lq_paths(self.app))
+        for i in range(self.n_read_any_settings):
+            s.get_lq(f"any_setting_{i}").change_choice_list(filtered_lq_paths(self.app))
 
         defs = add_all_possible_actuators_and_parse_definitions(
             actuator_definitions=self.user_defined_actuators, app=self.app
@@ -309,8 +306,14 @@ class Sweep3D(Measurement):
         self.display_ready = False
         self.set_status("starting power scan", "y")
         s.get_lq("plot_option").add_listener(self.update_display)
-        s.get_lq("any_measurement").change_choice_list(self.app.measurements.keys())
-        s.get_lq("any_setting").change_choice_list(self.app.get_setting_paths(True))
+        for i in range(self.n_any_measurements):
+            s.get_lq(f"any_measurement_{i}").change_choice_list(
+                self.app.measurements.keys()
+            )
+        for i in range(self.n_read_any_settings):
+            s.get_lq(f"any_setting_{i}").change_choice_list(
+                self.app.get_setting_paths(True)
+            )
         self.set_status("welc\u1e4fme", (253, 188, 24), True)
 
         self.update_widgets()
