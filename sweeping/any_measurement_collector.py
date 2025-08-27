@@ -14,28 +14,24 @@ class AnyMeasurementCollector(Collector):
 
     def __init__(
         self,
-        app: BaseMicroscopeApp,
+        host_measurement: Measurement,
         name: str = None,
-        acquisition_duration_path: str = None,
-        reps_lq_path: str = None,
         target_measure_name: str = None,
         color: Tuple[int] = None,
-        to_sec_multiplier: float = None,
-        description: str = None,
-        measure_lq: LoggedQuantity = None,
     ):
+        self.host_measurement = host_measurement
+        self.measure_lq = self.host_measurement.settings.New(name, str, choices=[])
 
         super().__init__(
-            app,
+            host_measurement.app,
             name,
-            acquisition_duration_path,
-            reps_lq_path,
+            self.measure_lq.path,
+            None,
             target_measure_name,
             color,
-            to_sec_multiplier,
-            description,
+            1,
+            "runs any measurement and collects its data",
         )
-        self.measure_lq = measure_lq
 
     def run(
         self,
