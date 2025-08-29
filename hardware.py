@@ -43,7 +43,11 @@ class HardwareComponent:
         if name is not None:
             self.name = name
 
-        self.settings = LQCollection(path=f"hw/{self.name}")
+        self.app = app
+
+        self.settings = LQCollection(
+            path=f"hw/{self.name}", event_filter=self.app.event_filter
+        )
         self.operations = Operations(path=f"hw/{self.name}")
         self._subtree_managers_ = []
         self._widgets_managers_ = []
@@ -55,8 +59,6 @@ class HardwareComponent:
         # self.lock = threading.Lock()
         # self.lock = DummyLock()
         self.lock = QLock(mode=1)  # mode 0 is non-reentrant lock
-
-        self.app = app
 
         self.toggle_to_connected_count = 0
 

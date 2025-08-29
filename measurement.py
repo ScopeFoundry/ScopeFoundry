@@ -80,7 +80,9 @@ class Measurement:
 
         self.interrupt_measurement_called = False
 
-        self.settings = LQCollection(path=f"mm/{self.name}")
+        self.settings = LQCollection(
+            path=f"mm/{self.name}", event_filter=self.app.event_filter
+        )
         self.operations = Operations(path=f"mm/{self.name}")
         self._subtree_managers_ = []
         self._widgets_managers_ = []

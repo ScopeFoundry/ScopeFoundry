@@ -42,7 +42,7 @@ class LQCollection:
 
     """
 
-    def __init__(self, path="") -> None:
+    def __init__(self, path="", event_filter=None) -> None:
         self._logged_quantities = OrderedDict()
         self.ranges: Dict[str, LQRange] = OrderedDict()
         self.vectors: Dict[str, LQ3Vector] = OrderedDict()
@@ -50,6 +50,7 @@ class LQCollection:
         self.q_object = LQCollectionQObject(self)
         self.path = path
         self._widgets_managers_ = []
+        self.event_filter = event_filter
 
     def new_file(
         self,
@@ -158,6 +159,7 @@ class LQCollection:
                 default_widget_factory=default_widget_factory,
                 **kwargs,
             )
+        lq.event_filter = self.event_filter
 
         return self.Add(lq)
 

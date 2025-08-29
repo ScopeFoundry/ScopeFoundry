@@ -142,6 +142,7 @@ class LoggedQuantity(QtCore.QObject):
         self.prev_vals = deque([], 3)
         self.proposed_values = deque([], 7)
         self.actions = []
+        self.event_filter: QtCore.QObject = None
 
     def coerce_to_type(self, x):
         """
@@ -725,6 +726,8 @@ class LoggedQuantity(QtCore.QObject):
         # self.widget = widget
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
+        if self.event_filter:
+            widget.installEventFilter(self.event_filter)
 
     def disconnect_from_widget(self, widget: QtWidgets.QWidget):
         """
@@ -1016,6 +1019,8 @@ class LoggedQuantity(QtCore.QObject):
         # self.widget = widget
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
+        if self.event_filter:
+            widget.installEventFilter(self.event_filter)
 
     def connect_to_pushButton(
         self,
@@ -1389,7 +1394,7 @@ class LoggedQuantity(QtCore.QObject):
         cmenu.addAction(f"{self.path}").setEnabled(False)
         if self.has_hardware_read():
             cmenu.addAction("Read from Hardware", self.read_from_hardware)
-            
+
         cmenu.addSeparator()
         for action in self.actions:
             cmenu.addAction(*action)

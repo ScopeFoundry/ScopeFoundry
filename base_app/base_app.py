@@ -57,6 +57,21 @@ class WRITE_RES(enum.Enum):
     PROTECTED = enum.auto()
 
 
+class EventFilter(QtCore.QObject):
+    def eventFilter(self, obj, event):
+        # Handle selected events
+        if (
+            event.type() == QtCore.QEvent.Wheel
+            and not self.app_settings["wheel manipulation"]
+        ):
+            return True
+        # Otherwise propagate other events
+        return super().eventFilter(obj, event)
+
+    def install_settings(self, settings):
+        self.app_settings = settings
+
+
 class BaseApp(QtCore.QObject):
 
     name = "ScopeFoundry"
@@ -81,7 +96,17 @@ class BaseApp(QtCore.QObject):
         self.favorites_widget = new_favorites_widget(self)
         self.favorites_widget.main_widget.setMaximumWidth(300)
         self.operations = Operations(path="app")
-        self.settings = LQCollection(path="app")
+
+        self.event_filter = EventFilter(self.qtapp)
+        self.settings = LQCollection(path="app", event_filter=self.event_filter)
+        self.settings.New(
+            "wheel manipulation",
+            dtype=bool,
+            initial=True,
+            description="Allows the mouse wheel to manipulate the values of settings.",
+        )
+        self.event_filter.install_settings(self.settings)
+
         self.add_lq_collection_to_settings_path(self.settings)
 
         # self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
