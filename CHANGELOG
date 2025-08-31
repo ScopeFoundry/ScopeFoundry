@@ -1,3 +1,17 @@
+ScopeFoundry 2.2.0 2025-09-01
+
+	* Features added:
+		- [sweeping] A new generic measurement that sweep a settings and collects data by either invoking read_from_hardware from any applicable setting, running any measurement (here, data in the final h5 are collected from the measurements .data dict if defined), or subclasses of Collector that allow more specialized data collection. Can be subclassed or used as a standalone.
+		- [favorites_widget] can now dynamically add the default widget of a settings above the tree panel.
+		- [hardware] added properties and attributes: has_been_connected_once, is_connected, toggle_to_connected_count. Added read_from_hardware action to the tree.
+		- [measurement] added show buttons to the tree.
+		- [app settings] added wheel manipulation. When unchecked, the mouse wheel does no longer manipulate widget connected to LoggedQuantity using connect_to_widget. Resolves Issue #69
+		- [intervaled ranges] allows to define ranges with varying densisities of data points.
+		- [analyze with ipynb] now appends a cell in the notebook that loads the latest measurement.
+
+	* Fixes:
+		- Issue #70: removed hard dependency on PyQt6
+
 ScopeFoundry 2.1.0 2025-05-30
 
 	* Features added:
@@ -8,10 +22,7 @@ ScopeFoundry 2.1.0 2025-05-30
 		- [scanning] Added version 2 of BaseRasterScans, where stages are defined with lq_paths.
 		- [publish_hw] A ScopeFoundry.tool to publish HardwareComponents on GitHub.
 		- [LoggedQuantity.change_readonly_on] added. Special listener function. When other_lq changes, LQ will changes its readonly status to func(other_lq.val).
-		- [sweeping] A new generic measurement that sweeps a setting and collects data. It can be subclassed or used as a standalone.
-		- [favorites_widget] can now dynamically add the default widget of a settings above the tree panel.
-		- [hardware] added properties and attributes: has_been_connected_once, is_connected, toggle_to_connected_count. Added read_from_hardware action to the tree.
-		- [measurement] added show buttons to the tree.
+
 		
 	* Fixes:
 		- pyqtdarktheme when dark_mode = True is specified in initializer of an app.
