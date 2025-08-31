@@ -15,9 +15,6 @@ from ScopeFoundry import LQRange, Measurement
 from ScopeFoundry.helper_funcs import load_qt_ui_file, sibling_path
 from ScopeFoundry.logged_quantity.collection import LQCollection
 
-from .raster_3d_scan_base import Ui_SimpleXYScanWindow as UI_Simple3DScanWindow
-from .raster_scan_base import Ui_SimpleXYScanWindow
-
 
 class BaseRaster2DScan(Measurement):
     name = "base_raster_2D_scan"
@@ -52,7 +49,7 @@ class BaseRaster2DScan(Measurement):
 
     def setup(self):
         self.base_ui_filename = sibling_path(__file__, "raster_scan_base.ui")
-        self.ui: Ui_SimpleXYScanWindow = load_qt_ui_file(self.base_ui_filename)
+        self.ui = load_qt_ui_file(self.base_ui_filename)
         self.ui.h_axis_comboBox.setVisible(False)
         self.ui.v_axis_comboBox.setVisible(False)
         self.ui.setWindowTitle(self.name)
@@ -705,7 +702,7 @@ class BaseRaster3DScan(Measurement):
 
     def setup(self):
         self.base_ui_filename = sibling_path(__file__, "raster_3d_scan_base.ui")
-        self.ui: UI_Simple3DScanWindow = load_qt_ui_file(self.base_ui_filename)
+        self.ui = load_qt_ui_file(self.base_ui_filename)
         self.ui.h_axis_comboBox.setVisible(False)
         self.ui.v_axis_comboBox.setVisible(False)
         self.ui.z_axis_comboBox.setVisible(False)
