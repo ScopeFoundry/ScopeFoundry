@@ -29,7 +29,7 @@ class AnyMeasurementCollector(Collector):
             target_measure_name,
             color,
             1,
-            "runs any measurement and collects its data",
+            "runs any measurement and collects its .data dictionary if it exists",
         )
 
     def run(
@@ -47,4 +47,7 @@ class AnyMeasurementCollector(Collector):
         host_measurement.start_nested_measure_and_wait(
             measurement, False, polling_func, polling_time
         )
-        self.data = {}
+        if hasattr(measurement, "data") and type(measurement.data) is dict:
+            self.data = measurement.data
+        else:
+            self.data = {}
