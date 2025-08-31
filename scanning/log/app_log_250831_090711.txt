@@ -1,0 +1,30 @@
+2025-08-31T09:07:11|INFO|TestRaster2DSlowScan|test_cart_2d_slow_scan start_stop False
+2025-08-31T09:07:11|INFO|TestRaster2DSlowScan|measurement test_cart_2d_slow_scan stopping stop_first
+2025-08-31T09:07:11|INFO|TestRaster2DFrameSlowScan|test_cart_2d_frame_slow_scan start_stop False
+2025-08-31T09:07:11|INFO|TestRaster2DFrameSlowScan|measurement test_cart_2d_frame_slow_scan stopping stop_first
+2025-08-31T09:07:11|INFO|TestRaster3DSlowScan|test_cart_3d_slow_scan start_stop False
+2025-08-31T09:07:11|INFO|TestRaster3DSlowScan|measurement test_cart_3d_slow_scan stopping stop_first
+2025-08-31T09:07:11|INFO|Example2DSlowScanMeasure|example_2d_scan start_stop False
+2025-08-31T09:07:11|INFO|Example2DSlowScanMeasure|measurement example_2d_scan stopping stop_first
+2025-08-31T09:07:11|INFO|Example3DSlowScanMeasure|example_3d_scan start_stop False
+2025-08-31T09:07:11|INFO|Example3DSlowScanMeasure|measurement example_3d_scan stopping stop_first
+2025-08-31T09:07:11|INFO|TestRaster2DSlowScan|test_cart_2d_slow_scan start_stop False
+2025-08-31T09:07:11|INFO|TestRaster2DSlowScan|measurement test_cart_2d_slow_scan stopping stop_first
+2025-08-31T09:07:12|INFO|TestRaster2DSlowScan|test_cart_2d_slow_scan start_stop False
+2025-08-31T09:07:12|INFO|TestRaster2DSlowScan|measurement test_cart_2d_slow_scan stopping stop_first
+2025-08-31T09:07:12|INFO|TestRaster2DFrameSlowScan|test_cart_2d_frame_slow_scan start_stop False
+2025-08-31T09:07:12|INFO|TestRaster2DFrameSlowScan|measurement test_cart_2d_frame_slow_scan stopping stop_first
+2025-08-31T09:07:12|INFO|TestRaster2DFrameSlowScan|test_cart_2d_frame_slow_scan start_stop False
+2025-08-31T09:07:12|INFO|TestRaster2DFrameSlowScan|measurement test_cart_2d_frame_slow_scan stopping stop_first
+2025-08-31T09:07:12|INFO|TestRaster3DSlowScan|test_cart_3d_slow_scan start_stop False
+2025-08-31T09:07:12|INFO|TestRaster3DSlowScan|measurement test_cart_3d_slow_scan stopping stop_first
+2025-08-31T09:07:12|INFO|TestRaster3DSlowScan|test_cart_3d_slow_scan start_stop False
+2025-08-31T09:07:12|INFO|TestRaster3DSlowScan|measurement test_cart_3d_slow_scan stopping stop_first
+2025-08-31T09:07:12|INFO|Example2DSlowScanMeasure|example_2d_scan start_stop False
+2025-08-31T09:07:12|INFO|Example2DSlowScanMeasure|measurement example_2d_scan stopping stop_first
+2025-08-31T09:07:12|INFO|Example2DSlowScanMeasure|example_2d_scan start_stop False
+2025-08-31T09:07:12|INFO|Example2DSlowScanMeasure|measurement example_2d_scan stopping stop_first
+2025-08-31T09:07:12|INFO|Example3DSlowScanMeasure|example_3d_scan start_stop False
+2025-08-31T09:07:12|INFO|Example3DSlowScanMeasure|measurement example_3d_scan stopping stop_first
+2025-08-31T09:07:12|INFO|Example3DSlowScanMeasure|example_3d_scan start_stop False
+2025-08-31T09:07:12|INFO|Example3DSlowScanMeasure|measurement example_3d_scan stopping stop_first
