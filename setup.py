@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="ScopeFoundry",
-    version="2.2.0",
+    version="2.2.1",
     description="a platform for laboratory equipment control and scientific data analysis",
     long_description=open("README.md", "r").read(),
     long_description_content_type="text/markdown",
@@ -41,10 +41,10 @@ setup(
         "ScopeFoundry.sequencer.sequencer_docs",
         "ScopeFoundry.sequencer.sweep_sequencer_docs",
         "ScopeFoundry.sweeping",
-        "ScopeFoundry.sweeping.sweep_1d_docs",
-        "ScopeFoundry.sweeping.sweep_2d_docs",
-        "ScopeFoundry.sweeping.sweep_3d_docs",
-        "ScopeFoundry.sweeping.sweep_4d_docs",
+        "ScopeFoundry.sweeping.sweep_1D_docs",
+        "ScopeFoundry.sweeping.sweep_2D_docs",
+        "ScopeFoundry.sweeping.sweep_3D_docs",
+        "ScopeFoundry.sweeping.sweep_4D_docs",
         "ScopeFoundry.tools",
         "ScopeFoundry.tools.features",
         "ScopeFoundry.tools.templates",
