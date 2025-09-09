@@ -139,7 +139,7 @@ class Sweep3D(Measurement):
     ) -> None:
         """Optional override.
 
-        Intended for setting up detectors.
+        Intended for setting up collectors.
         Gets called after position is set, But before data collection.
 
         - positions: tuple of positions
@@ -386,7 +386,9 @@ class Sweep3D(Measurement):
             w1.layout().setSpacing(1)
             h_layout.addWidget(w1)
 
-        widget = QtWidgets.QGroupBox("scan settings")
+        widget = QtWidgets.QGroupBox(
+            "scan settings, choose actuators and the scan option"
+        )
         widget.setLayout(h_layout)
         widget.setFlat(False)
         return widget
@@ -394,7 +396,7 @@ class Sweep3D(Measurement):
     def mk_collect_widget(self):
 
         collect_widget = QtWidgets.QGroupBox(
-            title="choose the number of repetion for each detectors - drag and drop to change order"
+            title="choose the number of repetion for each collectors - drag and drop to change order"
         )
         layout = QtWidgets.QVBoxLayout(collect_widget)
 

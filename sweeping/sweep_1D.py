@@ -135,7 +135,7 @@ class Sweep1D(Measurement):
     ) -> None:
         """Optional override.
 
-        Intended for setting up detectors.
+        Intended for setting up collectors.
         Gets called after position is set, But before data collection.
 
         - positions: tuple of positions
@@ -380,7 +380,9 @@ class Sweep1D(Measurement):
         selector_w = self.settings.get_lq(f"actuator_{name}").new_default_widget()
         range_w = r.New_UI()
 
-        w = widget = QtWidgets.QGroupBox("scan settings")
+        w = widget = QtWidgets.QGroupBox(
+            "scan settings, choose actuators and the scan option"
+        )
         layout = QtWidgets.QVBoxLayout(w)
         layout.addWidget(selector_w)
         layout.addWidget(range_w)
@@ -390,7 +392,7 @@ class Sweep1D(Measurement):
     def mk_collect_widget(self):
 
         widget = QtWidgets.QGroupBox(
-            title="choose the number of repetion for each detectors - drag and drop to change order"
+            title="choose the number of repetion for each collectors - drag and drop to change order"
         )
         layout = QtWidgets.QVBoxLayout(widget)
 

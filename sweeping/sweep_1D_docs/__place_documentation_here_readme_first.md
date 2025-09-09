@@ -24,9 +24,13 @@
 
  - *plot_option*: plot option
 
- - *any_measurement*: None
+ - *any_measurement_0*: None
 
- - *any_setting*: None
+ - *any_measurement_1*: None
+
+ - *any_setting_0*: None
+
+ - *any_setting_1*: None
 
  - *powermeter_monitoring_repetitions*: number of times data gets collected at each position
 
@@ -40,21 +44,67 @@
 
  - *thorcam_repetitions*: number of times data gets collected at each position
 
- - *any_measurement_repetitions*: number of times data gets collected at each position
+ - *any_measurement_0_repetitions*: number of times data gets collected at each position
 
- - *read_any_setting_repetitions*: number of times data gets collected at each position
+ - *any_measurement_1_repetitions*: number of times data gets collected at each position
+
+ - *any_setting_0_repetitions*: number of times data gets collected at each position
+
+ - *any_setting_1_repetitions*: number of times data gets collected at each position
 
  - *actuator_1*: None
 
- - *range_1_min*: 
+ - *range_1_0_min*: 
 
- - *range_1_max*: 
+ - *range_1_0_max*: 
 
- - *range_1_step*: 
+ - *range_1_0_step*: 
 
- - *range_1_num*: 
+ - *range_1_0_num*: 
 
- - *range_1_center*: 
+ - *range_1_1_min*: 
 
- - *range_1_span*: 
+ - *range_1_1_max*: 
+
+ - *range_1_1_step*: 
+
+ - *range_1_1_num*: 
+
+ - *range_1_2_min*: 
+
+ - *range_1_2_max*: 
+
+ - *range_1_2_step*: 
+
+ - *range_1_2_num*: 
+
+ - *range_1_3_min*: 
+
+ - *range_1_3_max*: 
+
+ - *range_1_3_step*: 
+
+ - *range_1_3_num*: 
+
+ - *range_1_4_min*: 
+
+ - *range_1_4_max*: 
+
+ - *range_1_4_step*: 
+
+ - *range_1_4_num*: 
+
+ - *range_1_0_is_active*: None
+
+ - *range_1_1_is_active*: None
+
+ - *range_1_2_is_active*: None
+
+ - *range_1_3_is_active*: None
+
+ - *range_1_4_is_active*: None
+
+ - *range_1_sweep_type*: None
+
+ - *range_1_no_duplicates*: Remove adjacent duplicates from *up* and *down* sweep ranges
 
