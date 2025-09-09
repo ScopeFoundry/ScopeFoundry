@@ -415,13 +415,18 @@ class BaseMicroscopeApp(BaseApp):
             widget,
             QtCore.Qt.WindowType.CustomizeWindowHint
             | QtCore.Qt.WindowType.WindowTitleHint
-            | QtCore.Qt.WindowType.WindowMinMaxButtonsHint,
+            | QtCore.Qt.WindowType.WindowMinMaxButtonsHint
         )
         ignore_on_close(subwin)
         subwin.setWindowTitle(name)
         subwin.setWindowIcon(widget.windowIcon())
+        
+        # subwin.setParent(self.ui.mdiArea)
+        subwin.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+        )
         subwin.show()
-
         return subwin
 
     def add_quickbar(self, widget: QtWidgets.QWidget) -> QtWidgets.QWidget:
