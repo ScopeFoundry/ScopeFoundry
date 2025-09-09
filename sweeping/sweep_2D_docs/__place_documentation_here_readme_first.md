@@ -27,9 +27,13 @@
 
  - *plot_option*: plot option
 
- - *any_measurement*: None
+ - *any_measurement_0*: None
 
- - *any_setting*: None
+ - *any_measurement_1*: None
+
+ - *any_setting_0*: None
+
+ - *any_setting_1*: None
 
  - *powermeter_monitoring_repetitions*: number of times data gets collected at each position
 
@@ -43,9 +47,13 @@
 
  - *thorcam_repetitions*: number of times data gets collected at each position
 
- - *any_measurement_repetitions*: number of times data gets collected at each position
+ - *any_measurement_0_repetitions*: number of times data gets collected at each position
 
- - *read_any_setting_repetitions*: number of times data gets collected at each position
+ - *any_measurement_1_repetitions*: number of times data gets collected at each position
+
+ - *any_setting_0_repetitions*: number of times data gets collected at each position
+
+ - *any_setting_1_repetitions*: number of times data gets collected at each position
 
  - *actuator_1*: None
 
