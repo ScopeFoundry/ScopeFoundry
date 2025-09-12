@@ -379,7 +379,7 @@ class Sweep2D(Measurement):
 
     def mk_run_widget(self):
         run_widget = QtWidgets.QGroupBox("run")
-        vlayout = QtWidgets.QVBoxLayout(run_widget)
+        self.run_layout = vlayout = QtWidgets.QVBoxLayout(run_widget)
         vlayout.addWidget(self.new_start_stop_button())
         include = (
             # "plot_option",
@@ -390,6 +390,7 @@ class Sweep2D(Measurement):
         vlayout.addWidget(self.settings.New_UI(include))
         vlayout.addWidget(self.operations.new_button("update widgets"))
         run_widget.setFlat(False)
+        run_widget.setMaximumWidth(280)
         return run_widget
 
     def mk_scan_settings_widget(self):
