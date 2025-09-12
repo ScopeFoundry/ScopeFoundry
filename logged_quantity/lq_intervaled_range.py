@@ -48,13 +48,16 @@ class IntervaledLQRange:
     @property
     def array(self):
         """
-        Returns a list of the current values of the ranges.
+        concatinates the arrays of all active ranges and returns a single 1D array.
         """
-        arr = np.array(
-            [r.lq_range.array[:] for r in self.ranges if r.is_active.val]
-        ).flatten()
+        l = []
+        for r in self.ranges:
+            if r.is_active.val:
+                l.extend(r.lq_range.array)
+        arr = np.array(l)
+
         if self.no_duplicates.val:
-            return filter_adjancent_duplicates(arr)
+            return remove_adjancent_duplicates(arr)
         return arr
 
     @property
@@ -87,7 +90,6 @@ class IntervaledLQRange:
             )
 
     def New_UI(self):
-
         header_layout = QtWidgets.QHBoxLayout()
         if self.sweep_type is not None:
             header_layout.addWidget(QtWidgets.QLabel("Sweep type:"))
@@ -112,10 +114,10 @@ class IntervaledLQRange:
 
         for ii, r in enumerate(self.ranges):
             w0: QtWidgets.QCheckBox = r.is_active.new_default_widget()
-            w1 = r.lq_range.min.new_default_widget()
-            w2 = r.lq_range.max.new_default_widget()
-            w3 = r.lq_range.step.new_default_widget()
-            w4 = r.lq_range.num.new_default_widget()
+            w1: QtWidgets.QDoubleSpinBox = r.lq_range.min.new_default_widget()
+            w2: QtWidgets.QDoubleSpinBox = r.lq_range.max.new_default_widget()
+            w3: QtWidgets.QDoubleSpinBox = r.lq_range.step.new_default_widget()
+            w4: QtWidgets.QDoubleSpinBox = r.lq_range.num.new_default_widget()
             grid_layout.addWidget(w0, ii + 1, 0)
             grid_layout.addWidget(w1, ii + 1, 1)
             grid_layout.addWidget(w2, ii + 1, 2)
@@ -150,7 +152,7 @@ class IntervaledLQRange:
             r.is_active.add_listener(func, argtype, **kwargs)
 
 
-def filter_adjancent_duplicates(ar: np.ndarray, tol: float = 0) -> np.ndarray:
+def remove_adjancent_duplicates(ar: np.ndarray, tol: float = 0) -> np.ndarray:
     """
     Filters adjacent duplicates in a numpy array based on a tolerance.
     Returns the filtered array.
