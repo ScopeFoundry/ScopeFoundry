@@ -192,12 +192,18 @@ def update_settings(
         else:
             continue
 
+        mwidget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(mwidget)
+        layout.addWidget(widget)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+
         new_item = SFQTreeWidgetItem(root_item, [lqname, ""])
         new_item.obj = lq
 
         children[lqname] = new_item
         root_item.addChild(new_item)
-        root_item.treeWidget().setItemWidget(new_item, 1, widget)
+        root_item.treeWidget().setItemWidget(new_item, 1, mwidget)
 
 
 def on_right_click(position, tree: QtWidgets.QTreeWidget) -> None:
