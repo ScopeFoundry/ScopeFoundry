@@ -390,16 +390,12 @@ class Sweep1D(Measurement):
         return widget
 
     def mk_collect_widget(self):
-
-        widget = QtWidgets.QGroupBox(
-            title="choose the number of repetion for each collectors - drag and drop to change order"
-        )
-        layout = QtWidgets.QVBoxLayout(widget)
-
         self.collector_list_widget = InteractiveCollectorList()
         for collector in self.collectors:
             self.collector_list_widget.add_item(collector)
 
+        widget = QtWidgets.QGroupBox(title="Collectors: order and set repetitions")
+        layout = QtWidgets.QVBoxLayout(widget)
         layout.addWidget(self.collector_list_widget)
         return widget
 
