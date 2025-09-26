@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 
 from ScopeFoundry.dataset_metadata import DatasetMetadata, new_dataset_metadata
+from ScopeFoundry.git_funcs import get_git_info_for_h5
 
 """
 recommended HDF5 file format for ScopeFoundry
@@ -14,10 +15,23 @@ recommended HDF5 file format for ScopeFoundry
 D = data_set
 
 * /
-    - scope_foundry_version = 130
+    - scope_foundry_version = 230
     - time_id = # unix epoch timestamp
     - unique_id = # persistent identifer for dataset, 26 character
     - uuid = # uuid string representation of unique_id
+    * git
+        - project_commit_hash = # full commit hash of user project
+        - project_short_hash = # short commit hash of user project
+        - project_branch = # branch name of user project
+        - project_origin_url = # origin URL of user project
+        - project_has_uncommitted_changes = # boolean
+        - project_status = # git status output
+        - scopefoundry_commit_hash = # full commit hash of ScopeFoundry
+        - scopefoundry_short_hash = # short commit hash of ScopeFoundry
+        - scopefoundry_branch = # branch name of ScopeFoundry
+        - scopefoundry_origin_url = # origin URL of ScopeFoundry
+        - scopefoundry_installation_type = # git_repository or pip_installed
+        - ... # additional git attributes as available
     * app
         - ScopeFoundry_Type = App
         - name = test_app
@@ -48,8 +62,8 @@ D = data_set
             D ...
 
 other thoughts:
-    store git revision of code
-    store git revision of ScopeFoundry
+    DONE store git revision of code (implemented in /git group)
+    DONE store git revision of ScopeFoundry (implemented in /git group)
     EMD compatibility, NeXUS compatibility
 """
 
@@ -63,10 +77,21 @@ def h5_base_file(
 
     h5_file = h5py.File(dataset_metadata.h5_file_path, "a")
     root = h5_file["/"]
-    root.attrs["ScopeFoundry_version"] = 210
+    root.attrs["ScopeFoundry_version"] = 230
     root.attrs["time_id"] = int(dataset_metadata.t0)
     root.attrs["unique_id"] = dataset_metadata.unique_id
     root.attrs["uuid"] = str(dataset_metadata.u)
+    
+    # Add git information in dedicated /git group
+    try:
+        git_group = root.create_group("git")
+        git_attrs = get_git_info_for_h5()
+        for key, value in git_attrs.items():
+            git_group.attrs[key] = value
+    except Exception as e:
+        # If git info collection fails, create git group with error info
+        git_group = root.create_group("git")
+        git_group.attrs["error"] = str(e)
 
     h5_save_app_lq(app, root)
     h5_save_hardware_lq(app, root)
