@@ -232,7 +232,69 @@ def get_project_and_scopefoundry_git_info():
     This is the recommended function for adding git info to H5 files.
     """
     return {
-        'user_project': get_git_info(Path.cwd()),
+        'project': get_git_info(Path.cwd()),
         'scopefoundry': get_scopefoundry_git_info()
     }
+
+
+def flatten_git_info_for_h5(git_info, prefix=""):
+    """
+    Flatten git info dictionary into H5-attribute-friendly format.
+    
+    Args:
+        git_info: Dictionary from get_git_info() or get_scopefoundry_git_info()
+        prefix: String prefix for attribute names (e.g., "project_" or "scopefoundry_")
+    
+    Returns:
+        Dictionary with simple key-value pairs suitable for H5 attributes
+    """
+    h5_attrs = {}
+    
+    if 'error' in git_info:
+        h5_attrs[f"{prefix}error"] = git_info['error']
+        h5_attrs[f"{prefix}installation_type"] = git_info.get('installation_type', 'unknown')
+        if 'package_location' in git_info:
+            h5_attrs[f"{prefix}package_location"] = git_info['package_location']
+        return h5_attrs
+    
+    # Simple scalar values that work well as H5 attributes
+    simple_fields = [
+        'commit_hash', 'short_hash', 'branch', 'repo_root', # 'method',
+        'installation_type', 'has_uncommitted_changes'
+    ]
+    
+    for field in simple_fields:
+        if field in git_info and git_info[field] is not None:
+            h5_attrs[f"{prefix}{field}"] = git_info[field]
+    
+    # Handle remotes dictionary - flatten to individual attributes
+    if 'remotes' in git_info and git_info['remotes']:
+        for remote_name, remote_url in git_info['remotes'].items():
+            h5_attrs[f"{prefix}remote_{remote_name}"] = remote_url
+    
+    # Handle origin_url separately for convenience
+    if 'origin_url' in git_info and git_info['origin_url']:
+        h5_attrs[f"{prefix}origin_url"] = git_info['origin_url']
+    
+    # Handle status - clean up for H5 storage
+    if 'status' in git_info and git_info['status']:
+        # Replace newlines with semicolons for H5 storage
+        clean_status = git_info['status'].replace('\n', '; ')
+        h5_attrs[f"{prefix}status"] = clean_status
+    
+    return h5_attrs
+
+
+def get_git_info_for_h5():
+    """
+    Get git information formatted specifically for H5 file attributes.
+    Returns flattened dictionary ready to be added as H5 attributes.
+    """
+    git_data = get_project_and_scopefoundry_git_info()
+    
+    h5_attrs = {}
+    h5_attrs.update(flatten_git_info_for_h5(git_data['project'], 'project_'))
+    h5_attrs.update(flatten_git_info_for_h5(git_data['scopefoundry'], 'scopefoundry_'))
+    
+    return h5_attrs
 
