@@ -139,8 +139,8 @@ class LoggedQuantity(QtCore.QObject):
         self.is_clipboardable = is_clipboardable
         self.is_cmd = is_cmd
 
-        self.prev_vals = deque([], 3)
-        self.proposed_values = deque([], 7)
+        self.prev_vals = deque([], 7)
+        self.proposed_values = deque([], 3)
         self.actions = []
         self.event_filter: QtCore.QObject = None
 
