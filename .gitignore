@@ -2,3 +2,4 @@ __pycache__/
 .project
 .pydevproject
 tools/tools_defaults.ini
+ScopeFoundry.egg-info
