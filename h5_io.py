@@ -346,3 +346,28 @@ def _settings_visitfunc(name: str, node: h5py.Group, settings: Dict[str, Any]) -
     for key, val in node.attrs.items():
         lq_path = f"{name.replace('settings', key)}"
         settings[lq_path] = val
+
+def load_non_settings_attrs(fname: str) -> Dict[str, Any]:
+    path = Path(fname)
+    if not path.suffix == ".h5":
+        return {}
+
+    attrs = {}
+    visit_func = functools.partial(_non_settings_attrs_visitfunc, attrs=attrs)
+
+    with h5py.File(fname, "r") as file:
+        for key, val in file.attrs.items():
+            attrs[key] = val
+        file.visititems(visit_func)
+
+    return attrs
+
+def _non_settings_attrs_visitfunc(
+    name: str, node: h5py.Group, attrs: Dict[str, Any]
+) -> None:
+    if name.endswith("settings") or name.endswith("settings/units"):
+        return
+
+    for key, val in node.attrs.items():
+        lq_path = f"{name}/{key}"
+        attrs[lq_path] = val
