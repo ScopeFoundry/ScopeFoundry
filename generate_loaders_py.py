@@ -118,10 +118,11 @@ __STR__INFO = r"""
 
 def get_measurement_name(fname: str) -> str:
     with h5py.File(fname, "r") as file:
-        if len(file["measurement"].keys()) == 1:
-            return list(file["measurement"].keys())[0]
-        return file.attrs["measurement"]
-
+        if "measurement" in file.attrs:
+            mm_name = file.attrs["measurement"]
+        else:
+            mm_name = list(file["measurement"].keys())[0]
+    return mm_name
 
 def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
     lines = []

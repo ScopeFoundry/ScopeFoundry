@@ -15,7 +15,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry import h5_io, ini_io
 from ScopeFoundry.dynamical_widgets import new_tree_widget, new_widget
-from ScopeFoundry.h5_analyze_with_ipynb import generate_ipynb, generate_loaders_py
+from ScopeFoundry.h5_analyze_with_ipynb import generate_loaders_py, update_ipynb
 from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
     confirm_on_close,
@@ -97,6 +97,9 @@ class BaseMicroscopeApp(BaseApp):
         self._post_setup_ui_quickaccess()
         self._setup_ui_logo()
         self._add_docs_to_help_menu()
+
+        # self.snippets = {}
+        # self.descriptive_snippets = ()
 
     def setup(self) -> None:
         """Override to add Hardware and Measurement Components"""
@@ -415,12 +418,12 @@ class BaseMicroscopeApp(BaseApp):
             widget,
             QtCore.Qt.WindowType.CustomizeWindowHint
             | QtCore.Qt.WindowType.WindowTitleHint
-            | QtCore.Qt.WindowType.WindowMinMaxButtonsHint
+            | QtCore.Qt.WindowType.WindowMinMaxButtonsHint,
         )
         ignore_on_close(subwin)
         subwin.setWindowTitle(name)
         subwin.setWindowIcon(widget.windowIcon())
-        
+
         # subwin.setParent(self.ui.mdiArea)
         subwin.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.MinimumExpanding,
@@ -450,7 +453,13 @@ class BaseMicroscopeApp(BaseApp):
         if folder is None:
             folder = self.settings["save_dir"]
         loaders_fname, dset_names = generate_loaders_py(folder)
-        ipynb_path = generate_ipynb(folder)
+
+        ipynb_path = update_ipynb(
+            folder,
+            # snippets=self.snippets,
+            # descriptive_snippets=self.descriptive_snippets,
+        )
+
         print("")
         print("generated", loaders_fname, f"with {len(dset_names)} loader(s)")
         print("")
