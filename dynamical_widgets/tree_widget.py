@@ -131,6 +131,35 @@ class SubtreeManager:
         if color is not None:
             self.header_item.setForeground(col, QtGui.QColor(color))
 
+    def cleanup(self):
+        self.settings.q_object.lq_added.disconnect(self.add_lq_child_item)
+        self.settings.q_object.lq_removed.disconnect(self.remove_lq_child_item)
+        self.operations.q_object.added.disconnect(self.add_operation_child_item)
+        self.operations.q_object.removed.disconnect(self.remove_operation_child_item)
+        
+        for child_item in list(self.settings_items.values()):
+            widget = self.tree_widget.itemWidget(child_item, 1)
+            if widget:
+                widget.deleteLater()
+            self.header_item.removeChild(child_item)
+        
+        for child_item in list(self.operation_items.values()):
+            widget = self.tree_widget.itemWidget(child_item, 1)
+            if widget:
+                widget.deleteLater()
+            self.header_item.removeChild(child_item)
+        
+        header_widget = self.tree_widget.itemWidget(self.header_item, 1)
+        if header_widget:
+            header_widget.deleteLater()
+        
+        index = self.tree_widget.indexOfTopLevelItem(self.header_item)
+        if index >= 0:
+            self.tree_widget.takeTopLevelItem(index)
+        
+        self.settings_items.clear()
+        self.operation_items.clear()
+
 
 def remove_from_tree(
     name: str,

@@ -209,8 +209,8 @@ class BaseMicroscopeApp(BaseApp):
 
     def _setup_ui_tree_column(self) -> None:
 
-        mm_tree = new_tree_widget(self.measurements.values(), ["Measurements", "Value"])
-        hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
+        self.mm_tree = new_tree_widget(self.measurements.values(), ["Measurements", "Value"])
+        self.hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
         app_widget = new_widget(
             obj=self,
             title="app",
@@ -238,8 +238,8 @@ class BaseMicroscopeApp(BaseApp):
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
         splitter.addWidget(self.favorites_widget.scroll_area)
-        splitter.addWidget(hw_tree)
-        splitter.addWidget(mm_tree)
+        splitter.addWidget(self.hw_tree)
+        splitter.addWidget(self.mm_tree)
         splitter.addWidget(app_widget)
         self.ui.tree_layout.addWidget(splitter)
 
@@ -480,21 +480,52 @@ class BaseMicroscopeApp(BaseApp):
         If *hw* is a class, rather an instance, create an instance
         and add it to self.hardware
         """
-        assert not hw.name in self.hardware.keys()
-
         # If *hw* is a class, rather an instance, create an instance
         if inspect.isclass(hw):
             hw = hw(app=self)
 
+        if hw.name in self.hardware.keys():
+            raise ValueError(f"Hardware '{hw.name}' already exists. Remove it first with app.remove_hardware('{hw.name}')")
+
         self.hardware.add(hw.name, hw)
 
         self.add_lq_collection_to_settings_path(hw.settings)
+
+        if hasattr(self, 'hw_tree'):
+            from ScopeFoundry.dynamical_widgets.tree_widget import SubtreeManager
+            SubtreeManager(self.hw_tree, hw)
 
         return hw
 
     def add_hardware_component(self, hw: HardwareProtocol) -> HardwareProtocol:
         # DEPRECATED use add_hardware()
         return self.add_hardware(hw)
+
+    def remove_hardware(self, name: str) -> None:
+        if name not in self.hardware:
+            self.log.warning(f"Hardware {name} not found")
+            return
+        
+        hw = self.hardware[name]
+        
+        if hw.is_connected:
+            self.log.info(f"Disconnecting {name} before removal")
+            hw.settings["connected"] = False
+        
+        for subtree_manager in list(hw._subtree_managers_):
+            subtree_manager.cleanup()
+        hw._subtree_managers_.clear()
+        
+        for widget_manager in list(hw._widgets_managers_):
+            if hasattr(widget_manager, 'deleteLater'):
+                widget_manager.deleteLater()
+        hw._widgets_managers_.clear()
+        
+        self.remove_lq_collection_from_settings_path(hw.settings)
+        
+        del self.hardware[name]
+        
+        self.log.info(f"Hardware {name} removed")
 
     def add_measurement(self, measure: MeasurementProtocol) -> MeasurementProtocol:
         """Loads a Measurement object into the app.
@@ -507,11 +538,22 @@ class BaseMicroscopeApp(BaseApp):
         if inspect.isclass(measure):
             measure = measure(app=self)
 
-        assert not measure.name in self.measurements.keys()
+        if measure.name in self.measurements.keys():
+            raise ValueError(f"Measurement '{measure.name}' already exists. Remove it first with app.remove_measurement('{measure.name}')")
 
         self.measurements.add(measure.name, measure)
 
         self.add_lq_collection_to_settings_path(measure.settings)
+
+        if hasattr(self, 'mm_tree'):
+            from ScopeFoundry.dynamical_widgets.tree_widget import SubtreeManager
+            SubtreeManager(self.mm_tree, measure)
+
+        if self.mdi and hasattr(self, 'ui'):
+            ui = self.load_measure_ui(measure)
+            if ui is not None:
+                subwin = self.add_mdi_subwin(ui, measure.name)
+                measure.subwin = subwin
 
         return measure
 
@@ -520,6 +562,57 @@ class BaseMicroscopeApp(BaseApp):
     ) -> MeasurementProtocol:
         # DEPRECATED, use add_measurement()
         return self.add_measurement(measure)
+
+    def remove_measurement(self, name: str) -> None:
+        if name not in self.measurements:
+            self.log.warning(f"Measurement {name} not found")
+            return
+        
+        measure = self.measurements[name]
+        
+        if measure.is_measuring():
+            self.log.info(f"Interrupting {name} before removal")
+            measure.interrupt()
+            if hasattr(measure, 'acq_thread') and measure.acq_thread:
+                measure.acq_thread.wait(5000)
+        
+        if hasattr(measure, 'q_object') and hasattr(measure.q_object, 'display_update_timer'):
+            measure.q_object.display_update_timer.stop()
+        
+        for subtree_manager in list(measure._subtree_managers_):
+            subtree_manager.cleanup()
+        measure._subtree_managers_.clear()
+        
+        for widget_manager in list(measure._widgets_managers_):
+            if hasattr(widget_manager, 'deleteLater'):
+                widget_manager.deleteLater()
+        measure._widgets_managers_.clear()
+        
+        for show_btn in measure._show_btns:
+            show_btn.deleteLater()
+        measure._show_btns.clear()
+        
+        if name in self._loaded_measure_uis:
+            ui = self._loaded_measure_uis[name]
+            if ui and hasattr(measure, 'subwin') and measure.subwin:
+                if self.mdi:
+                    self.ui.mdiArea.removeSubWindow(measure.subwin)
+                    measure.subwin.deleteLater()
+                else:
+                    ui.close()
+                    ui.deleteLater()
+            del self._loaded_measure_uis[name]
+        
+        for action in self.ui.menuWindow.actions():
+            if action.text() == name:
+                self.ui.menuWindow.removeAction(action)
+                break
+        
+        self.remove_lq_collection_from_settings_path(measure.settings)
+        
+        del self.measurements[name]
+        
+        self.log.info(f"Measurement {name} removed")
 
     def add_favorites(
         self,

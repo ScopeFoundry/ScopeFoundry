@@ -25,6 +25,12 @@ class OrderedAttrDict(object):
         self.__dict__[name] = obj
         return obj
 
+    def __delitem__(self, name):
+        if name in self._odict:
+            del self._odict[name]
+            if name in self.__dict__:
+                del self.__dict__[name]
+
     def keys(self):
         return self._odict.keys()
 

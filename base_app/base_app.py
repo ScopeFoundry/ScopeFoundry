@@ -249,6 +249,12 @@ class BaseApp(QtCore.QObject):
         for lq in settings.as_dict().values():
             self.add_setting_path(lq)
 
+    def remove_lq_collection_from_settings_path(self, settings: LQCollection) -> None:
+        settings.q_object.lq_added.disconnect(self.add_setting_path)
+        settings.q_object.lq_removed.disconnect(self.remove_setting_path)
+        for lq in settings.as_dict().values():
+            self.remove_setting_path(lq)
+
     def write_setting(self, path: str, value: Any) -> WRITE_RES:
         lq = self.get_lq(path)
         if lq is None:
