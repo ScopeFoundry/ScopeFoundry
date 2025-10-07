@@ -2,8 +2,11 @@ import json
 from pathlib import Path
 from typing import List, Dict, Tuple, Union
 
-from ScopeFoundry.generate_loaders_py import generate_loaders_py, get_measurement_name,\
-    get_dset_names
+from ScopeFoundry.generate_loaders_py import (
+    generate_loaders_py,
+    get_measurement_name,
+    get_dset_names,
+)
 from .helper_funcs import open_file
 
 
@@ -53,12 +56,12 @@ def get_files_metadata(
     for fname in path.rglob("*.h5"):
         try:
             rel_fname = fname.relative_to(folder)
-            file_name = str(rel_fname.stem) + ".h5"            
-            if not file_name in files_metadata:                
+            file_name = str(rel_fname.stem) + ".h5"
+            if not file_name in files_metadata:
                 files_metadata[file_name] = {
                     "exists": True,
                     "rel_path": str(rel_fname),
-                    "measurement_name":get_measurement_name(fname),
+                    "measurement_name": get_measurement_name(fname),
                     "dataset_names": get_dset_names(fname),
                     "processed": False,
                 }
@@ -71,8 +74,10 @@ def get_files_metadata(
 
 
 def process_metadata(
-    meta_data: Dict, snippets: Dict, descriptive_snippets: Dict
-) -> None:
+    meta_data: Dict,
+    snippets: Dict,
+    descriptive_snippets: Tuple,
+) -> Dict:
     source = [mk_load_line(meta_data)]
 
     snippet = snippets.get(meta_data.get("measurement_name", ""), None)
@@ -100,7 +105,7 @@ def mk_load_line(meta_data):
 
 
 def mk_cell_1_source(files_metadata) -> List[str]:
-    last_file_meta = find_latest_file(files_metadata)
+    # last_file_meta = find_latest_file(files_metadata)
 
     rel_fnames = []
     for fname in files_metadata.values():
@@ -115,7 +120,7 @@ def mk_cell_1_source(files_metadata) -> List[str]:
         "",
         f"from h5_data_loaders import load, find_settings",
         "",
-        #f'# data = load(r"{last_file_meta["rel_path"]}")',
+        # f'# data = load(r"{last_file_meta["rel_path"]}")',
     ] + [f"fnames=[{', '.join(rel_fnames)}]\n"]
 
     return lines
@@ -159,22 +164,6 @@ def find_latest_file(files_metadata: Dict) -> Union[Dict, None]:
         index -= 1
 
 
-def add_last_file_cell(
-    nb_content: Dict,
-    files_metadata: Dict,
-    snippets: Dict,
-    descriptive_snippets: Tuple,
-) -> Dict:
-    last_file = find_latest_file(files_metadata)
-    if last_file is None:
-        print("no existing data file found")
-        return nb_content
-    nb_content["cells"].append(
-        process_metadata(last_file, snippets, descriptive_snippets)
-    )
-    return nb_content
-
-
 def generate_ipynb(
     folder: str = ".", ipynb_fname: Union[Path, None] = None
 ) -> Tuple[Path, Dict]:
@@ -208,13 +197,19 @@ def update_ipynb(
     ipynb_fname: Union[Path, None] = None,
     snippets: Dict = {},
     descriptive_snippets: Tuple = (),
+    option: str = "last",
 ) -> Path:
     ipynb_fname, nb_content = generate_ipynb(folder, ipynb_fname)
 
     files_metadata = get_files_metadata(folder, nb_content)
     update_cell_1(nb_content, files_metadata)
     update_cell_2(nb_content, files_metadata)
-    add_last_file_cell(nb_content, files_metadata, snippets, descriptive_snippets)
+    if option == "all":
+        add_all_files(nb_content, files_metadata, snippets, descriptive_snippets)
+    elif option == "last":
+        add_last_file(nb_content, files_metadata, snippets, descriptive_snippets)
+    elif option == "remaining":
+        add_files_remaining(nb_content, files_metadata, snippets, descriptive_snippets)
     update_files_metadata(nb_content, files_metadata)
 
     with open(ipynb_fname, "w") as file:
@@ -223,10 +218,53 @@ def update_ipynb(
     return ipynb_fname
 
 
-def analyze_with_ipynb(folder: str = ".", snippets={}, descriptive_snippets=()) -> None:
+def add_all_files(nb_content, files_metadata, snippets, descriptive_snippets):
+    for meta_data in files_metadata.values():
+        if not meta_data["exists"]:
+            continue
+        nb_content["cells"].append(
+            process_metadata(meta_data, snippets, descriptive_snippets)
+        )
+
+
+def add_last_file(
+    nb_content: Dict,
+    files_metadata: Dict,
+    snippets: Dict,
+    descriptive_snippets: Tuple,
+) -> Dict:
+    last_file = find_latest_file(files_metadata)
+    if last_file is None:
+        print("no existing data file found")
+        return nb_content
+    nb_content["cells"].append(
+        process_metadata(last_file, snippets, descriptive_snippets)
+    )
+    return nb_content
+
+
+def add_files_remaining(nb_content, files_metadata, snippets, descriptive_snippets):
+    for meta_data in files_metadata.values():
+        if not meta_data["exists"]:
+            continue
+        if not meta_data.get("processed", False):
+            nb_content["cells"].append(
+                process_metadata(meta_data, snippets, descriptive_snippets)
+            )
+
+
+def analyze_with_ipynb(
+    folder: str = ".",
+    snippets={},
+    descriptive_snippets=(),
+    option="last",
+) -> None:
     loaders_fname, dset_names = generate_loaders_py(folder)
     ipynb_path = update_ipynb(
-        folder, snippets=snippets, descriptive_snippets=descriptive_snippets
+        folder,
+        snippets=snippets,
+        descriptive_snippets=descriptive_snippets,
+        option=option,
     )
 
     print("")
