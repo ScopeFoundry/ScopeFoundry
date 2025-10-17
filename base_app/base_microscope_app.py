@@ -579,28 +579,38 @@ class BaseMicroscopeApp(BaseApp):
         if hasattr(measure, 'q_object') and hasattr(measure.q_object, 'display_update_timer'):
             measure.q_object.display_update_timer.stop()
         
+        if name in self._loaded_measure_uis:
+            ui = self._loaded_measure_uis[name]
+            if ui:
+                try:
+                    ui.hide()
+                    ui.setEnabled(False)
+                except RuntimeError:
+                    pass
+        
+        
         for subtree_manager in list(measure._subtree_managers_):
             subtree_manager.cleanup()
         measure._subtree_managers_.clear()
         
-        for widget_manager in list(measure._widgets_managers_):
-            if hasattr(widget_manager, 'deleteLater'):
-                widget_manager.deleteLater()
-        measure._widgets_managers_.clear()
-        
-        for show_btn in measure._show_btns:
-            show_btn.deleteLater()
-        measure._show_btns.clear()
-        
         if name in self._loaded_measure_uis:
             ui = self._loaded_measure_uis[name]
-            if ui and hasattr(measure, 'subwin') and measure.subwin:
-                if self.mdi:
-                    self.ui.mdiArea.removeSubWindow(measure.subwin)
-                    measure.subwin.deleteLater()
-                else:
-                    ui.close()
-                    ui.deleteLater()
+            if ui:
+                try:
+                    ui.setParent(None)
+                    ui.hide()
+                except RuntimeError:
+                    pass
+                if hasattr(measure, 'subwin') and measure.subwin:
+                    try:
+                        measure.subwin.hide()
+                        if self.mdi:
+                            self.ui.mdiArea.removeSubWindow(measure.subwin)
+                    except RuntimeError:
+                        pass
+                if not hasattr(self, '_hidden_measure_uis'):
+                    self._hidden_measure_uis = []
+                self._hidden_measure_uis.append(ui)
             del self._loaded_measure_uis[name]
         
         for action in self.ui.menuWindow.actions():
@@ -613,6 +623,20 @@ class BaseMicroscopeApp(BaseApp):
         del self.measurements[name]
         
         self.log.info(f"Measurement {name} removed")
+
+    def reload_measurement(self, name: str) -> None:
+        if name not in self.measurements:
+            self.log.warning(f"Measurement {name} not found")
+            return
+        
+        measure = self.measurements[name]
+        measure_class = type(measure)
+        
+        self.remove_measurement(name)
+        
+        self.add_measurement(measure_class(app=self))
+        
+        self.log.info(f"Measurement {name} reloaded")
 
     def add_favorites(
         self,

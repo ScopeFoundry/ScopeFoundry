@@ -547,7 +547,7 @@ class LoggedQuantity(QtCore.QObject):
                 finally:
                     widget.blockSignals(False)
 
-            self.updated_value[bool].connect(update_widget_value)
+            widget.to_connection = self.updated_value[bool].connect(update_widget_value)
 
             if self.ro:
                 widget.setEnabled(False)
@@ -742,32 +742,23 @@ class LoggedQuantity(QtCore.QObject):
 
         self.widget_list.remove(widget)
 
-        widget.disconnect()
+        try:
+            widget.disconnect()
+        except RuntimeError:
+            pass
 
-        if hasattr(widget, "to_connection"):
-            if isinstance(widget, QtWidgets.QDoubleSpinBox):
-                self.updated_value[float].disconnect(widget.to_connection)
-            # TODO: other widgets!
-
-            # elif isinstance(widget, QtWidgets.QCheckBox):
-            #     self.updated_value[bool].disconnect(widget.setChecked)
-            # elif isinstance(widget, QtWidgets.QLineEdit):
-            #     self.updated_value[str].disconnect(widget.setText)
-            #     self.updated_text_value[str].disconnect(widget.setText)
-            # elif isinstance(widget, QtWidgets.QPlainTextEdit):
-            #     self.updated_text_value[str].disconnect(widget.document().setPlainText)
-            #     self.updated_value[str].disconnect(widget.document().setPlainText)
-            # elif isinstance(widget, QtWidgets.QSlider):
-            #     self.updated_value[float].disconnect(widget.setValue)
-            # elif isinstance(widget, MinMaxQSlider):
-            #     self.updated_value[float].disconnect(widget.update_value)
-            # elif isinstance(widget, QtWidgets.QLCDNumber):
-            #     self.update_value[float].disconnect(widget.display)
-            # elif isinstance(widget, QtWidgets.QProgressBar):
-            #     self.updated_value.disconnect(widget.setValue)
-            # elif isinstance(widget, QtWidgets.QComboBox):
-            #     self.updated_choice_index_value[int].disconnect(widget.setCurrentIndex)
-            #     widget.currentIndexChanged.disconnect(self.update_choice_index_value)
+        for sig in [self.updated_value, self.updated_text_value, self.updated_choice_index_value]:
+            if sig is None:
+                continue
+            try:
+                sig.disconnect(widget)
+            except (RuntimeError, TypeError, AttributeError):
+                pass
+            for dtype in [float, int, bool, str]:
+                try:
+                    sig[dtype].disconnect(widget)
+                except (RuntimeError, TypeError, KeyError, AttributeError):
+                    pass
 
     def connect_to_widget_one_way(self, widget):
         """
