@@ -301,7 +301,7 @@ class Measurement:
         else:
             text = self.name
 
-        if hasattr(self, "subwin"):
+        if self.subwin is not None:
             self.subwin.setWindowTitle(text)
 
         for manager in self._subtree_managers_:
