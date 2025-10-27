@@ -46,9 +46,15 @@
        <bool>true</bool>
       </property>
       <widget class="QScrollArea" name="quickaccess_scrollArea">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="minimumSize">
         <size>
-         <width>400</width>
+         <width>325</width>
          <height>0</height>
         </size>
        </property>
@@ -60,11 +66,25 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>398</width>
-          <height>734</height>
+          <width>323</width>
+          <height>744</height>
          </rect>
         </property>
-        <layout class="QVBoxLayout" name="quickaccess_layout"/>
+        <layout class="QVBoxLayout" name="quickaccess_layout">
+         <item>
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
        </widget>
       </widget>
       <widget class="QWidget" name="lq_trees_widget" native="true">
@@ -97,8 +117,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>1298</width>
-          <height>738</height>
+          <width>1292</width>
+          <height>734</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout">
@@ -131,7 +151,7 @@
      <x>0</x>
      <y>0</y>
      <width>1105</width>
-     <height>21</height>
+     <height>17</height>
     </rect>
    </property>
    <property name="nativeMenuBar">

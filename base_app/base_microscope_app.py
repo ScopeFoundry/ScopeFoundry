@@ -242,7 +242,6 @@ class BaseMicroscopeApp(BaseApp):
         app_widget.setTitle("to inspect drop a .h5 or .ini, to load also press ctrl")
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
-        splitter.addWidget(self.favorites_widget.scroll_area)
         splitter.addWidget(self.hw_tree)
         splitter.addWidget(self.mm_tree)
         splitter.addWidget(app_widget)
@@ -347,6 +346,8 @@ class BaseMicroscopeApp(BaseApp):
                 layout.addWidget(self.quickbar)
         else:
             self.ui.quickaccess_scrollArea.setVisible(False)
+        self.ui.quickaccess_layout.addWidget(self.favorites_widget.scroll_area)
+        self.ui.quickaccess_scrollArea.setVisible(self.favorites_widget.has_items())
 
     def _setup_ui_logo(self) -> None:
         logo_icon = QtGui.QIcon(self.logo_path)

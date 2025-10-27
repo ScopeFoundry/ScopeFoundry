@@ -21,7 +21,7 @@ class FavoritesWidget:
 
         self.main_widget = QtWidgets.QWidget()
         self.main_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
         )
         self._widgets: Dict[str, QtWidgets.QWidget] = {}
         self.layout = QtWidgets.QVBoxLayout(self.main_widget)
@@ -40,7 +40,10 @@ class FavoritesWidget:
             widget = self._widgets[name]
             self.layout.addWidget(widget)
 
-        self.main_widget.setVisible(bool(self._widgets))
+        self.scroll_area.setVisible(self.has_items())
+        self.app.ui.quickaccess_scrollArea.setVisible(
+            self.has_items() or self.app.quickbar is not None
+        )
 
     def add_lq_paths(self, lq_paths: list):
         for lq_path in lq_paths:
@@ -51,16 +54,17 @@ class FavoritesWidget:
         for path in operation_paths:
             if path in self._operations:
                 continue
-            self._widgets[path] = self.app.get_operation(path).new_button()
+            self._widgets[path] = self.new_operation_widget(path)
             self._operations.append(path)
         self.refresh_widgets()
 
     def add_lq_paths_lists(self, lq_paths_lists: list):
         for paths in lq_paths_lists:
-            if paths[1] in self._lq_paths_list:
+            label_text = paths[0]
+            if label_text in self._lq_paths_list:
                 continue
-            self._widgets[paths[1]] = self.new_lq_paths_list(paths)
-            self._lq_paths_list.append(paths)
+            self._widgets[label_text] = self.new_lq_paths_list(paths)
+            self._lq_paths_list.append(label_text)
         self.refresh_widgets()
 
     def add_lq_path(self, lq_path: str, refresh: bool = True):
@@ -73,13 +77,45 @@ class FavoritesWidget:
         if refresh:
             self.refresh_widgets()
 
-    def new_lq_widget(self, lq_path: str):
+    def remove_lq_path(self, lq_path: str):
+        if lq_path in self._lq_paths:
+            self._lq_paths.remove(lq_path)
+            widget = self._widgets.pop(lq_path, None)
+            widget.setVisible(False)
+        self.refresh_widgets()
+
+    def remove_lq_paths_list(self, label_text: str):
+        if not label_text in self._lq_paths_list:
+            return
+        widget = self._widgets.pop(label_text, None)
+        widget.setVisible(False)
+        self._lq_paths_list.remove(label_text)
+        self.refresh_widgets()
+
+    def remove_operation(self, operation_path: str):
+        if not operation_path in self._operations:
+            return
+        widget = self._widgets.pop(operation_path, None)
+        widget.setVisible(False)
+        self._operations.remove(operation_path)
+        self.refresh_widgets()
+
+    def has_items(self):
+        return (
+            bool(self._operations) or bool(self._lq_paths) or bool(self._lq_paths_list)
+        )
+
+    def new_remove_btn(self, lq_path):
         btn = QtWidgets.QPushButton()
         btn.setMaximumWidth(24)
         btn.setToolTip("Remove from favorites")
         btn.setIcon(
             self.app.qtapp.style().standardIcon(QtWidgets.QStyle.SP_TabCloseButton)
         )
+        return btn
+
+    def new_lq_widget(self, lq_path: str):
+        btn = self.new_remove_btn(lq_path)
         btn.clicked.connect(partial(self.remove_lq_path, lq_path))
 
         widget = QtWidgets.QWidget()
@@ -95,21 +131,31 @@ class FavoritesWidget:
         layout.addWidget(self.app.get_lq(lq_path).new_default_widget())
         return widget
 
-    def remove_lq_path(self, lq_path: str):
-        if lq_path in self._lq_paths:
-            self._lq_paths.remove(lq_path)
-            widget = self._widgets.pop(lq_path, None)
-            widget.setVisible(False)
-        self.refresh_widgets()
-
     def new_lq_paths_list(self, paths_list: list):
+        btn = self.new_remove_btn(paths_list[1])
+        label_text = paths_list[0]
+        btn.clicked.connect(partial(self.remove_lq_paths_list, label_text))
+
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QHBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
-        layout.addWidget(QtWidgets.QLabel(paths_list[0]))
+        layout.addWidget(btn)
+        layout.addWidget(QtWidgets.QLabel(label_text))
         for element in paths_list[1:]:
             layout.addWidget(self.app.get_lq(element).new_default_widget())
+        return widget
+
+    def new_operation_widget(self, operation_path: str):
+        btn = self.new_remove_btn(operation_path)
+        btn.clicked.connect(partial(self.remove_operation, operation_path))
+
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        layout.addWidget(btn)
+        layout.addWidget(self.app.get_operation(operation_path).new_button())
         return widget
 
     def load(self, fname: str):
