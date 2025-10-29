@@ -20,9 +20,7 @@ class FavoritesWidget:
         self._lq_paths_list = []
 
         self.main_widget = QtWidgets.QWidget()
-        self.main_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
-        )
+
         self._widgets: Dict[str, QtWidgets.QWidget] = {}
         self.layout = QtWidgets.QVBoxLayout(self.main_widget)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -31,6 +29,8 @@ class FavoritesWidget:
         self.scroll_area = QtWidgets.QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(self.main_widget)
+        self.scroll_area.setMinimumWidth(280)
+        self.scroll_area.setContentsMargins(0, 0, 0, 0)
 
     def refresh_widgets(self):
         while self.layout.count():
@@ -39,6 +39,12 @@ class FavoritesWidget:
         for name in sorted(self._widgets.keys()):
             widget = self._widgets[name]
             self.layout.addWidget(widget)
+
+        self.layout.addSpacerItem(
+            QtWidgets.QSpacerItem(
+                0, 0, QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum
+            )
+        )
 
         self.scroll_area.setVisible(self.has_items())
         self.app.ui.quickaccess_scrollArea.setVisible(
@@ -123,10 +129,12 @@ class FavoritesWidget:
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
         layout.addWidget(btn)
-        label = QtWidgets.QLabel(
-            " ".join(lq_path.lstrip("mm/").lstrip("hw/").split("/"))
+        text = "<i>{}</i> <b>{}</b>".format(
+            *lq_path.lstrip("mm/").lstrip("hw/").split("/")
         )
-        label.setStyleSheet("font-weight: bold;")
+        label = QtWidgets.QLabel(text)
+        # label.setStyleSheet("font-weight: bold;")
+
         layout.addWidget(label)
         layout.addWidget(self.app.get_lq(lq_path).new_default_widget())
         return widget
