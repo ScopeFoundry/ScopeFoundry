@@ -27,6 +27,11 @@ class ArrayLQ(LoggedQuantity):
         choices=None,
         description=None,
         protected=False,
+        spinbox_decimals=2,
+        spinbox_step=0.1,
+        is_clipboardable=False,
+        colors=None,
+        **kwargs,
     ):
         QtCore.QObject.__init__(self)
 
@@ -41,21 +46,36 @@ class ArrayLQ(LoggedQuantity):
         self.fmt = fmt  # % string formatting string. This is ignored if dtype==str
         if self.dtype == str:
             self.fmt = "%s"
+        self.si = si  # currently ignored for array LQ
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
         self.ro = ro  # Read-Only
+        self.is_array = True
         self.choices = choices
         self.description = description
         self.protected = protected
+
+        # currently ignored for array LQ
+        self.colors = colors
+        self.qcolors = []
+        # if colors:
+        #     self.qcolors = [to_q_color(color) for color in colors]
+        # else:
+        #     self.qcolors = []
 
         self.log = get_logger_from_class(self)
 
         if self.dtype == int:
             self.spinbox_decimals = 0
         else:
-            self.spinbox_decimals = 2
+            self.spinbox_decimals = spinbox_decimals
         self.reread_from_hardware_after_write = False
+
+        if self.dtype == int:
+            self.spinbox_step = 1
+        else:
+            self.spinbox_step = spinbox_step
 
         self.oldval = None
 
@@ -67,7 +87,11 @@ class ArrayLQ(LoggedQuantity):
         # threading lock
         self.lock = QLock(mode=0)  # mode 0 is non-reentrant lock
 
-        self.is_array = True
+        self.path = ""
+        self.protected = protected
+
+        self.is_clipboardable = is_clipboardable
+        self.is_cmd = False
 
         self._tableView = None
 
