@@ -55,7 +55,7 @@ class LQCollection:
     def new_file(
         self,
         name: str,
-        initial: float = 0.0,
+        initial: str = "",
         is_dir: bool = False,
         default_dir: str = None,
         file_filters=(),
@@ -87,7 +87,7 @@ class LQCollection:
         self,
         name: str,
         dtype: type = float,
-        initial: float = 0.0,
+        initial=0.0,
         unit: str = None,
         si: bool = False,
         vmin: float = -1_000_000_000_000,
