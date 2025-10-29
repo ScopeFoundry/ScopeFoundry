@@ -67,6 +67,18 @@
          <height>0</height>
         </size>
        </property>
+       <property name="frameShape">
+        <enum>QFrame::Shape::NoFrame</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Shadow::Plain</enum>
+       </property>
+       <property name="lineWidth">
+        <number>1</number>
+       </property>
+       <property name="sizeAdjustPolicy">
+        <enum>QAbstractScrollArea::SizeAdjustPolicy::AdjustToContents</enum>
+       </property>
        <property name="widgetResizable">
         <bool>true</bool>
        </property>
@@ -75,8 +87,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>16</width>
-          <height>742</height>
+          <width>24</width>
+          <height>720</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -127,8 +139,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>399</width>
-          <height>742</height>
+          <width>387</width>
+          <height>718</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -176,7 +188,7 @@
      <x>0</x>
      <y>0</y>
      <width>1105</width>
-     <height>17</height>
+     <height>24</height>
     </rect>
    </property>
    <property name="nativeMenuBar">
