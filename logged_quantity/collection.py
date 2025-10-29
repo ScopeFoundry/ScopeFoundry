@@ -459,6 +459,37 @@ class LQCollection:
         for lq in self.as_list():
             lq.disconnect_from_hardware()
 
+    def mk_serializable_info(self):
+        """
+        Make a serializable dictionary of the LoggedQuantities in this collection.
+        Elements, are to be passed to self.New(...) to recreate the LQs and collection.
+        """
+
+        # TODO: Complete me. Incomplete as some LoggedQuantity types do not all attributes.
+        # Also currently self.New(...) does not support all attributes.
+        info = {}
+        for name, lq in self._logged_quantities.items():
+            i = info[name] = {}
+            i["name"] = name
+            i["is_array"] = lq.is_array
+            if lq.is_array:
+                value = lq.value.tolist()
+            else:
+                value = lq.value
+            i["value"] = value
+            i["dtype"] = str(lq.dtype)
+            i["path"] = lq.path
+            i["ro"] = lq.ro if hasattr(lq, "ro") else False
+            i["unit"] = lq.unit if hasattr(lq, "unit") else None
+            i["si"] = lq.si if hasattr(lq, "si") else False
+            i["protected"] = lq.protected if hasattr(lq, "protected") else False
+            i["description"] = lq.description if hasattr(lq, "description") else None
+            i["is_clipboardable"] = (
+                lq.is_clipboardable if hasattr(lq, "is_clipboardable") else False
+            )
+
+        return info
+
 
 class LQCollectionWidgetsManager:
 
