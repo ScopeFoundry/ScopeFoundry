@@ -52,12 +52,12 @@ class Map2D(Sweep2D):
             icon_path=self.app.qtapp.style().standardIcon(QtWidgets.QStyle.SP_FileIcon),
         )
         self.settings["scan_mode"] = "nested"
+        self._current_arrow_lqs = ()
 
     def setup_figure(self):
         super().setup_figure()
-        r1, r2 = self.get_ranges()
-        r1.add_listener(self.connect_pos_widgets)
-        r2.add_listener(self.connect_pos_widgets)
+        self.settings.get_lq("actuator_1").add_listener(self.connect_pos_widgets)
+        self.settings.get_lq("actuator_2").add_listener(self.connect_pos_widgets)
         self.axes.getViewBox().invertX(self.invert_h)
         self.axes.getViewBox().invertY(self.invert_v)
         self.run_layout.addWidget(self.operations.new_button("load image from h5"))
@@ -222,20 +222,40 @@ class Map2D(Sweep2D):
         self.scan_roi.setSize((x1 - x0, y1 - y0, 0))
         self.scan_roi.blockSignals(False)
 
-    # def disconnect_pos_widgets(self):
-    #     lq1, lq2 = self.current_positions_lqs
-    #     lq1.disconnect_from_widget(self.ui.x_doubleSpinBox)
-    #     lq2.disconnect_from_widget(self.ui.y_doubleSpinBox)
+    def disconnect_pos_widgets(self):
+        if self._current_arrow_lqs:
+            lq1, lq2 = self._current_arrow_lqs
+            lq1.updated_value.disconnect(self._con_1)
+            lq2.updated_value.disconnect(self._con_2)
+            self._current_arrow_lqs = ()
 
     def connect_pos_widgets(self):
-        # self.disconnect_pos_widgets()
+        print("connect_pos_widgets")
+        self.disconnect_pos_widgets()
 
-        lq1, lq2 = self.current_positions_lqs
-        lq1.updated_value.connect(self.update_arrow_pos)
-        lq2.updated_value.connect(self.update_arrow_pos)
+        defs = list(self.get_current_actuators_defs())
+
+        read_def_1 = defs[0][1]
+        read_def_2 = defs[1][1]
+
+        print(read_def_1, read_def_2)
+
+        lq_1 = self.app.get_lq(read_def_1) if isinstance(read_def_1, str) else None
+        lq_2 = self.app.get_lq(read_def_2) if isinstance(read_def_2, str) else None
+
+        if lq_1 is None or lq_2 is None:
+            self._con_1 = None
+            self._con_2 = None
+            self._current_arrow_lqs = ()
+        else:
+            self._con_1 = lq_1.updated_value.connect(self.update_arrow_pos)
+            self._con_2 = lq_2.updated_value.connect(self.update_arrow_pos)
+            self._current_arrow_lqs = (lq_1, lq_2)
 
     def update_arrow_pos(self):
-        lq1, lq2 = self.current_positions_lqs
+        if not self._current_arrow_lqs:
+            return
+        lq1, lq2 = self._current_arrow_lqs
         self.current_pos_arrow.setPos(lq1.val, lq2.val)
 
     def on_goto_position(self):
@@ -271,7 +291,7 @@ class Map2D(Sweep2D):
         xc = x0 + self.circ_roi_size / 2.0
         yc = y0 + self.circ_roi_size / 2.0
 
-        f1, f2 = self.current_target_position_funcs
+        f1, f2 = self.get_current_target_position_funcs()
         f1(xc)
         f2(yc)
 
