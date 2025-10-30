@@ -477,7 +477,7 @@ class LQCollection:
             else:
                 value = lq.value
             i["value"] = value
-            i["dtype"] = str(lq.dtype)
+            i["dtype"] = lq.dtype.__name__
             i["path"] = lq.path
             i["ro"] = lq.ro if hasattr(lq, "ro") else False
             i["unit"] = lq.unit if hasattr(lq, "unit") else None
@@ -487,8 +487,20 @@ class LQCollection:
             i["is_clipboardable"] = (
                 lq.is_clipboardable if hasattr(lq, "is_clipboardable") else False
             )
+            i["choices"] = self.serialize_choices(lq)
 
         return info
+
+    def serialize_choices(self, lq):
+        print("serializing choice", lq.name, lq.choices)
+        if not hasattr(lq, "choices"):
+            return None
+        if not lq.choices:
+            return None
+        if lq.dtype not in [str, int, float, bool]:
+            print("Warning", lq.name, "can not be serialized")
+            return None
+        return [val for k,val in lq.choices] #FIXME for when name and value are not the same!
 
 
 class LQCollectionWidgetsManager:
