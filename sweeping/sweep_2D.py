@@ -1,6 +1,6 @@
 import time
 from copy import copy
-from typing import Sequence, Tuple, Union
+from typing import Sequence, Tuple, Union, List
 
 import numpy as np
 import pyqtgraph as pg
@@ -9,6 +9,7 @@ from qtpy import QtWidgets
 from ScopeFoundry import BaseMicroscopeApp, Measurement
 from ScopeFoundry.scanning.actuators import (
     ActuatorDefinitions,
+    ActuatorInfos,
     add_all_possible_actuators_and_parse_definitions,
     get_actuator_funcs,
 )
@@ -47,7 +48,7 @@ class Sweep2D(Measurement):
             print("set a collector repetitions to non-zero")
             return
 
-        actuators = self.current_actuator_funcs
+        actuators = self.get_current_actuator_funcs()
 
         if not actuators:
             self.set_status("no actuators selected", "r")
@@ -276,25 +277,6 @@ class Sweep2D(Measurement):
         for i in self.actuator_names:
             s.get_lq(f"actuator_{i}").change_choice_list(self.actuators_funcs.keys())
 
-    @property
-    def current_actuators_defs(self):
-        """Returns a list of currently selected actuator definitions."""
-        s = self.settings
-        return [self.actuator_defs[s[f"actuator_{i}"]] for i in self.actuator_names]
-
-    @property
-    def current_actuator_funcs(self):
-        s = self.settings
-        return [self.actuators_funcs[s[f"actuator_{i}"]] for i in self.actuator_names]
-
-    @property
-    def current_positions_lqs(self):
-        return (self.app.get_lq(paths[1]) for paths in self.current_actuators_defs)
-
-    @property
-    def current_target_position_funcs(self):
-        return (a[-1] for a in self.current_actuator_funcs)
-
     def setup_figure(self):
 
         s = self.settings
@@ -415,7 +397,7 @@ class Sweep2D(Measurement):
         self.collector_list_widget = InteractiveCollectorList()
         for collector in self.collectors:
             self.collector_list_widget.add_item(collector)
-            
+
         widget = QtWidgets.QGroupBox(title="Collectors: order and set repetitions")
         layout = QtWidgets.QVBoxLayout(widget)
         layout.addWidget(self.collector_list_widget)
@@ -431,3 +413,15 @@ class Sweep2D(Measurement):
         # self.img_item.setVisible(False)
         # self.axes.addItem(self.img_item)
         return graph_widget
+
+    def get_current_actuators_defs(self) -> List[ActuatorInfos]:
+        """Returns a list of currently selected actuator definitions."""
+        s = self.settings
+        return [self.actuator_defs[s[f"actuator_{i}"]] for i in self.actuator_names]
+
+    def get_current_actuator_funcs(self):
+        s = self.settings
+        return [self.actuators_funcs[s[f"actuator_{i}"]] for i in self.actuator_names]
+
+    def get_current_target_position_funcs(self):
+        return (a[-1] for a in self.get_current_actuator_funcs())
