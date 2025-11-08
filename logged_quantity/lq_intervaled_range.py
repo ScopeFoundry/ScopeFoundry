@@ -110,7 +110,6 @@ class IntervaledLQRange:
         grid_layout.setColumnMinimumWidth(2, 100)
         grid_layout.setColumnMinimumWidth(3, 100)
         grid_layout.setColumnMinimumWidth(4, 50)
-        grid_layout.setColumnMinimumWidth(5, 100)
 
         for ii, r in enumerate(self.ranges):
             w0: QtWidgets.QCheckBox = r.is_active.new_default_widget()
