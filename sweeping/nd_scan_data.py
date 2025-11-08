@@ -19,6 +19,7 @@ class NDScanData:
     ):
         self.data: Dict[str, np.ndarray] = {}
         self.base_shape = base_shape
+        self.scan_dims = len(base_shape)
 
         self.measurement = measurement
         self.app = measurement.app
@@ -42,6 +43,9 @@ class NDScanData:
 
     def init_dsets(self, collector: Collector):
         collector.repeats = []
+        if not len(collector.repeated_dset_names):
+            # assume all datasets are repeated, user should set to None if explicitly does not want to collect anything.
+            collector.repeated_dset_names = list(collector.data.keys())
         for name, d in collector.data.items():
             if not hasattr(d, "dtype"):
                 try:
@@ -85,12 +89,31 @@ class NDScanData:
                 self.h5_meas_group.create_dataset(avg_name, data=d)
                 print("saved", avg_name, d.shape, d.dtype)
 
+    def get_dset_size_per_position(self, name: str) -> int:
+        if name in self.data:
+            return int(np.prod(self.data[name].shape[self.scan_dims :]))
+        return 0
+
+    def get_dset_dims_per_position(self, name: str) -> Tuple[int]:
+        if name in self.data:
+            return self.data[name].shape[self.scan_dims :]
+        return ()
+
+    def get_dset_size_per_position_and_repeats(self, name: str) -> int:
+        if name in self.data:
+            return int(np.prod(self.data[name].shape[self.scan_dims + 1 :]))
+        return 0
+
+    def get_dset_dims_per_position_and_repeats(self, name: str) -> Tuple[int]:
+        if name in self.data:
+            return self.data[name].shape[self.scan_dims + 1 :]
+        return ()
+
     def flush_h5(self):
         self.h5_file.flush()
 
     def create_dataset(self, name, shape=None, dtype=None, data=None, **kwds):
         self.h5_meas_group.create_dataset(name, shape, dtype, data, **kwds)
-
 
     def close_h5(self):
         self.h5_meas_group.create_dataset("positions", data=self.positions)
