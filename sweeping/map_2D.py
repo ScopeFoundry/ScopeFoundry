@@ -129,6 +129,12 @@ class Map2D(Sweep2D):
         self.new_img_item()
         return super().pre_run()
 
+    def mk_plot_options_widget(self):
+        plot_option_widget = QtWidgets.QWidget()
+        plot_option_layout = QtWidgets.QHBoxLayout(plot_option_widget)
+        plot_option_layout.addWidget(self.settings.New_UI(["data_set"]))
+        return plot_option_widget
+
     def mk_graph_widget(self):
         graph_layout = graph_widget = pg.GraphicsLayoutWidget()
 
@@ -172,10 +178,10 @@ class Map2D(Sweep2D):
     def update_display(self):
         self.update_status_display()
 
-        if not self.display_ready or not self.settings["plot_option"]:
+        if not self.display_ready or not self.settings["data_set"]:
             return
 
-        dset = np.array(self.scan_data.data[self.settings["plot_option"]])
+        dset = np.array(self.scan_data.data[self.settings["data_set"]])
         img = dset.reshape(*(*self.scan_data.base_shape, -1)).mean(axis=-1)
         self.img_item.setImage(img, rect=self.calc_rect())
 

@@ -15,8 +15,10 @@ class Collector:
     """triggers measuements and collects data"""
 
     name: str
-    repeated_dset_names: Tuple[str] = ()  # datasets collected at every scan poin
-    settings_to_collect: Tuple[str] = ()  # lq_paths collected at every scan poin
+    # datasets collected at every scan point, if not specified it is assumed that all dsets are repeated.
+    # if user does not want to collect anything, set to None.
+    repeated_dset_names: Tuple[str] = ()
+    settings_to_collect: Tuple[str] = ()  # lq_paths collected at every scan point
     acquisition_duration_path: str = ""  # lq will be displayed in the GUI
     reps_lq_path: str = ""  # lq will be displayed in the GUI
     target_measure_name: str = ""  # used for default prepare and run methods

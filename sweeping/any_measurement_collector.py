@@ -49,5 +49,6 @@ class AnyMeasurementCollector(Collector):
         )
         if hasattr(measurement, "data") and type(measurement.data) is dict:
             self.data = measurement.data
+            self.repeated_dset_names = list(self.data.keys())
         else:
             self.data = {}

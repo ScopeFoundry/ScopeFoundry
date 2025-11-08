@@ -4,7 +4,7 @@ from typing import Sequence, Tuple, Union, List
 
 import numpy as np
 import pyqtgraph as pg
-from qtpy import QtWidgets
+from qtpy import QtWidgets, QtCore
 
 from ScopeFoundry import BaseMicroscopeApp, Measurement
 from ScopeFoundry.scanning.actuators import (
@@ -29,6 +29,8 @@ from .collector_ui_list import InteractiveCollectorList
 from .nd_scan_data import NDScanData
 from .utils import filtered_lq_paths, mk_new_dir
 
+MAX_N_DPOINTS_SHOWN = 1_000_000
+
 
 class Sweep1D(Measurement):
 
@@ -37,7 +39,6 @@ class Sweep1D(Measurement):
     def run(self):
         s = self.settings
 
-        s.get_lq("plot_option").change_choice_list([])
         self.display_ready = False
 
         mk_ranges_consistent(s, self.actuator_names)
@@ -65,6 +66,7 @@ class Sweep1D(Measurement):
             base_shape=mk_data_shape(*arrays, s["scan_mode"]),
             measurement=self,
         )
+        self.data = self.scan_data.data
 
         for array, name in zip(arrays, self.actuator_names):
             self.scan_data.create_dataset(f"range_{name}", data=array)
@@ -74,6 +76,7 @@ class Sweep1D(Measurement):
 
         scan_iteration_indices = mk_indices_gen(*arrays, s["scan_mode"])
 
+        data_set_names = []
         for positions in mk_positions_gen(*arrays, s["scan_mode"]):
 
             # set positions and wait
@@ -97,11 +100,13 @@ class Sweep1D(Measurement):
                     # collect data
                     if self.index == 0 and r == 0:
                         scan_data.init_dsets(collector)
-                        s.get_lq("plot_option").add_choices(list(scan_data.data.keys()))
+                        data_set_names.extend([q[-1] for q in collector.repeats])
                         self.display_ready = True
 
                     scan_data.incorporate(collector, *base_indices, r)
                 self.release_collector(collector, positions, base_indices)
+            if self.index == 0:
+                s.get_lq("data_set").change_choice_list(data_set_names)
 
             scan_data.add_position(positions)
             scan_data.add_read_positions(read_positions)
@@ -197,6 +202,8 @@ class Sweep1D(Measurement):
         super().__init__(app, name)
 
     def setup(self):
+        self.display_ready = False
+
         s = self.settings
         s.New(
             name="scan_mode",
@@ -219,12 +226,24 @@ class Sweep1D(Measurement):
             description="dumps data in a new sub folder. Intended for <i>any_measurement</i> where a file is stored per acquisition",
         )
         s.New(
-            name="plot_option",
+            name="data_set",
             dtype=str,
             initial="powers",
             choices=("",),
             description="plot option",
+        ).add_listener(self.update_display)
+        s.New("average_over_repetitions", dtype=bool, initial=True).add_listener(
+            self.update_display
         )
+        s.New("average_to_scan_shape", dtype=bool, initial=False).add_listener(
+            self.update_display
+        )
+        s.New(
+            name="locator",
+            dtype=bool,
+            initial=False,
+            description="show locator line",
+        ).add_listener(self.on_locator_changed)
 
         for i in range(self.n_any_measurements):
             self.collectors.append(
@@ -274,27 +293,47 @@ class Sweep1D(Measurement):
             s.get_lq(f"actuator_{i}").change_choice_list(self.actuators_funcs.keys())
 
     def setup_figure(self):
-
         s = self.settings
 
+        # Top horizontal section
         h_widget = QtWidgets.QWidget()
         h_widget.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed
         )
         h_layout = QtWidgets.QHBoxLayout(h_widget)
+        h_layout.setSpacing(4)
+        h_layout.setContentsMargins(2, 0, 2, 0)
         h_layout.addWidget(self.mk_run_widget())
         h_layout.addWidget(self.mk_scan_settings_widget())
         h_layout.addWidget(self.mk_collect_widget())
 
         self.ui = QtWidgets.QWidget()
+        self.ui.setStyleSheet(
+            """
+            QGroupBox {
+                font-weight: 600;
+                border: 1px solid #888888;
+                border-radius: 3px;
+                margin-top: 8px;
+                padding-top: 6px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 8px;
+                padding: 0 4px 0 4px;
+            }
+        """
+        )
         layout = QtWidgets.QVBoxLayout(self.ui)
+        layout.setSpacing(4)
+        layout.setContentsMargins(8, 8, 8, 8)
         layout.addWidget(h_widget)
-        layout.addWidget(s.get_lq("plot_option").new_default_widget())
+        layout.addWidget(self.mk_plot_options_widget())
         layout.addWidget(self.mk_graph_widget())
 
         self.display_ready = False
         self.set_status("starting power scan", "y")
-        s.get_lq("plot_option").add_listener(self.update_display)
+        s.get_lq("data_set").add_listener(self.update_display)
         for i in range(self.n_any_measurements):
             s.get_lq(f"any_measurement_{i}").change_choice_list(
                 self.app.measurements.keys()
@@ -311,33 +350,36 @@ class Sweep1D(Measurement):
 
         self.update_status_display()
 
-        if not self.display_ready or not self.settings["plot_option"]:
+        if not self.display_ready or not self.settings["data_set"]:
             return
 
-        dset = np.array(self.scan_data.data[self.settings["plot_option"]]).mean(
-            axis=self.ndim
-        )
-        dlen = np.prod(dset.shape[self.ndim :])  # len of data
+        option = self.settings["data_set"]
+        if self.settings["average_over_repetitions"]:
+            dset = np.array(self.scan_data.data[option]).mean(axis=self.ndim)
+            size = self.scan_data.get_dset_size_per_position_and_repeats(option)
+            ddim = self.scan_data.get_dset_dims_per_position_and_repeats(option)
+        else:
+            dset = self.scan_data.data[option]
+            size = self.scan_data.get_dset_size_per_position(option)
+            ddim = self.scan_data.get_dset_dims_per_position(option)
 
-        ddim = len(dset.shape[self.ndim :])
-
-        curr = self.index * dlen
-
-        if ddim >= 1:
-            f = max(1, 100_000 // dlen)
+        if size == 1:
+            # special case where we can put position as x-axis
+            self._positions_on_x_axis = True
+            x = np.squeeze(self.scan_data.positions[: self.index])
+            y = np.squeeze(dset[: self.index])
+            self.line.setData(x, y)
+        else:
+            self._positions_on_x_axis = False
+            f = max(1, MAX_N_DPOINTS_SHOWN // size)
+            curr = self.index * size
 
             if self.index > f:
                 self.line.setData(
-                    # np.arange(curr - f * plen, curr) / plen,
-                    dset.ravel()[curr - f * dlen : curr],
+                    dset.ravel()[curr - f * size : curr],
                 )
             else:
-                self.line.setData(
-                    # np.arange(curr) / plen,
-                    dset.ravel()[:curr]
-                )
-        else:
-            self.line.setData(dset)
+                self.line.setData(dset.ravel()[:curr])
 
         # elif ddim in (2, 3):
         #     self.img_item.setVisible(True)
@@ -353,37 +395,67 @@ class Sweep1D(Measurement):
             self.update_status_display()
 
     def update_status_display(self):
+        if not self.display_ready:
+            return
         self.axes.setTitle(**self.status)
 
     def mk_run_widget(self):
-        run_widget = QtWidgets.QGroupBox("run")
-        vlayout = QtWidgets.QVBoxLayout(run_widget)
-        vlayout.addWidget(self.new_start_stop_button())
-        include = (
-            # "plot_option",
-            "collection_delay",
-            "res_in_new_dir",
+        run_widget = QtWidgets.QGroupBox("Run Control")
+        run_widget.setStyleSheet(
+            """
+            QPushButton {
+                padding: 4px 8px;
+                font-weight: 500;
+            }
+        """
         )
+
+        vlayout = QtWidgets.QVBoxLayout(run_widget)
+        vlayout.setSpacing(4)
+        vlayout.setContentsMargins(8, 12, 8, 8)
+
+        vlayout.addWidget(self.new_start_stop_button())
+
+        include = ("collection_delay", "res_in_new_dir")
         vlayout.addWidget(self.settings.New_UI(include))
-        vlayout.addWidget(self.operations.new_button("update widgets"))
+
+        update_btn = self.operations.new_button("update widgets")
+        update_btn.setStyleSheet(
+            """
+            QPushButton {
+                color: #1976d2;
+                font-weight: 500;
+            }
+        """
+        )
+        vlayout.addWidget(update_btn)
+
         run_widget.setFlat(False)
+        run_widget.setMaximumWidth(220)
         return run_widget
 
     def mk_scan_settings_widget(self):
+        # mode_selector_mode = self.settings.New_UI(("scan_mode",))
 
-        name = self.actuator_names[0]
-        r = self.settings.ranges[f"range_{name}"]
+        # For 1D, we only have one actuator
+        r = self.settings.ranges[f"range_{self.actuator_names[0]}"]
+        w1 = r.New_UI()
+        w1.layout().setSpacing(4)
+        w1.setMaximumWidth(450)  # Slightly wider for 1D
 
-        selector_w = self.settings.get_lq(f"actuator_{name}").new_default_widget()
-        range_w = r.New_UI()
-
-        w = widget = QtWidgets.QGroupBox(
-            "scan settings, choose actuators and the scan option"
+        widget = QtWidgets.QGroupBox("Actuators")
+        v_layout = QtWidgets.QVBoxLayout(widget)
+        v_layout.setSpacing(4)
+        v_layout.setContentsMargins(3, 5, 3, 3)
+        # v_layout.addWidget(mode_selector_mode)
+        v_layout.addWidget(
+            self.settings.get_lq(
+                f"actuator_{self.actuator_names[0]}"
+            ).new_default_widget()
         )
-        layout = QtWidgets.QVBoxLayout(w)
-        layout.addWidget(selector_w)
-        layout.addWidget(range_w)
-        layout.setSpacing(1)
+        v_layout.addWidget(w1)
+        widget.setFlat(False)
+
         return widget
 
     def mk_collect_widget(self):
@@ -391,22 +463,171 @@ class Sweep1D(Measurement):
         for collector in self.collectors:
             self.collector_list_widget.add_item(collector)
 
-        widget = QtWidgets.QGroupBox(title="Collectors: order and set repetitions")
+        widget = QtWidgets.QGroupBox("Data Collectors: set repetitions and order")
         layout = QtWidgets.QVBoxLayout(widget)
+        layout.setSpacing(4)
+        layout.setContentsMargins(8, 12, 8, 8)
         layout.addWidget(self.collector_list_widget)
         return widget
 
+    def mk_plot_options_widget(self):
+        # Plot options group
+        plot_gb = QtWidgets.QGroupBox("Plot Options")
+        plot_layout = QtWidgets.QHBoxLayout(plot_gb)
+        plot_layout.setContentsMargins(6, 6, 6, 6)
+        plot_layout.setSpacing(4)
+        plot_layout.addWidget(
+            self.settings.New_UI(["data_set", "average_over_repetitions"])
+        )
+
+        # Locator group
+        locator_gb = QtWidgets.QGroupBox("Locator")
+        locator_layout = QtWidgets.QVBoxLayout(locator_gb)
+        locator_layout.setContentsMargins(6, 6, 6, 6)
+        locator_layout.setSpacing(4)
+
+        self.locator_btn = QtWidgets.QPushButton("")
+        self.locator_btn.clicked.connect(self.on_push_locator_btn)
+        self.locator_btn.setVisible(self.settings["locator"])
+
+        cb = self.settings.New_UI(["locator"])
+
+        locator_layout.addWidget(cb)
+        locator_layout.addWidget(self.locator_btn)
+        locator_gb.setMaximumWidth(400)
+
+        # Container with horizontal layout holding both group boxes
+        container = QtWidgets.QWidget()
+        h_layout = QtWidgets.QHBoxLayout(container)
+        h_layout.setContentsMargins(3, 3, 3, 3)
+        h_layout.setSpacing(4)
+        h_layout.addWidget(plot_gb)
+        h_layout.addWidget(locator_gb)
+
+        return container
+
     def mk_graph_widget(self):
         graph_widget = pg.GraphicsLayoutWidget()
+        graph_widget.setStyleSheet(
+            """
+            QGraphicsView {
+                border: 1px solid #888888;
+                border-radius: 3px;
+            }
+        """
+        )
+
         self.axes = graph_widget.addPlot(title=self.name)
         self.axes.setLogMode(False, False)
-        self.axes.showGrid(True, True)
+        self.axes.showGrid(True, True, alpha=0.4)
+
+        # Improved line with better color
         self.line = self.axes.plot()
-        # self.img_axes = graph_widget.addPlot(title=self.name)
-        # self.img_item = pg.ImageItem()
-        # self.img_item.setVisible(False)
-        # self.img_axes.addItem(self.img_item)
+
+        # Enhanced infinite line
+        self.infinite_line = pg.InfiniteLine(
+            angle=90,
+            label="locator",
+            movable=True,
+            pen=pg.mkPen(color="#FF5722", width=2, style=QtCore.Qt.DashLine),
+            labelOpts={
+                "color": "#FFFFFF",
+                "movable": True,
+                "fill": "#FF56221E",  # faint semi-transparent background
+            },
+        )
+        self.infinite_line.setVisible(self.settings["locator"])
+        self.infinite_line.sigPositionChanged.connect(self.on_infinite_line_moved)
+        self.axes.addItem(self.infinite_line)
+
         return graph_widget
+
+    def get_locator_position(self, line=None):
+        if not hasattr(self, "scan_data"):
+            return
+        if not self.scan_data.data:
+            return
+        if line is None:
+            line = self.infinite_line
+
+        if self._positions_on_x_axis:
+            return line.value()
+
+        if self.settings["average_over_repetitions"]:
+            size = self.scan_data.get_dset_size_per_position_and_repeats(
+                self.settings["data_set"]
+            )
+        else:
+            size = self.scan_data.get_dset_size_per_position(self.settings["data_set"])
+
+        index = int(line.value() // size)
+
+        if self.index * size >= MAX_N_DPOINTS_SHOWN:
+            smallest_index_shown = self.index - (MAX_N_DPOINTS_SHOWN // size)
+            index += smallest_index_shown
+
+        if index < 0 or index >= len(self.scan_data.positions):
+            return
+        return self.scan_data.positions[index]
+
+    def on_infinite_line_moved(self, line=None):
+        positions = self.get_locator_position(line)
+
+        if positions is None:
+            self.locator_btn.setEnabled(False)
+            self.locator_btn.setText("Invalid Position: Drag locator within data range")
+            self.locator_btn.setStyleSheet(
+                """
+                QPushButton {
+                    color: #f44336;
+                    font-weight: 600;
+                }
+            """
+            )
+            return
+
+        actuator_names = [i[0] for i in self.get_current_actuators_defs()]
+        ext_pretty_pos = "<br>".join(
+            [
+                f"<span style='font-weight: 600;'>{name}:</span> {p:.2f}"
+                for name, p in zip(actuator_names, positions)
+            ]
+        )
+        self.infinite_line.label.setHtml(
+            f"<div style='padding: 3px;'>"
+            f"<span style='font-weight: 700; font-size: 13px;'>Actuator Positions</span><br>"
+            f"<span style='font-size: 10px;'>{ext_pretty_pos}</span></div>"
+        )
+        self.infinite_line.label.setMovable(True)
+        self.locator_btn.setEnabled(True)
+
+        pretty_pos = ", ".join([f"{p:.2f}" for p in positions])
+        self.locator_btn.setText(f"Set Actuator Position ({pretty_pos})")
+        self.locator_btn.setStyleSheet(
+            """
+            QPushButton {
+                color: #4caf50;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                color: #388e3c;
+            }
+        """
+        )
+
+    def on_push_locator_btn(self):
+        positions = self.get_locator_position()
+        funcs = self.get_current_target_position_funcs()
+        for p, f in zip(positions, funcs):
+            f(p)
+        self.locator_btn.setStyleSheet("color: blue; font-weight: normal;")
+
+    def on_locator_changed(self):
+        if not hasattr(self, "infinite_line"):
+            return
+        enabled = self.settings["locator"]
+        self.locator_btn.setVisible(enabled)
+        self.infinite_line.setVisible(enabled)
 
     def get_current_actuators_defs(self) -> List[ActuatorInfos]:
         """Returns a list of currently selected actuator definitions."""
