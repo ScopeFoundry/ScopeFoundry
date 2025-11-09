@@ -28,8 +28,7 @@ from .sweep_3D_modes import (
     mk_ranges_consistent,
 )
 from .utils import filtered_lq_paths, mk_new_dir
-
-MAX_N_DPOINTS_SHOWN = 1_000_000
+from .locator import Locator
 
 
 class Sweep3D(Measurement):
@@ -203,6 +202,7 @@ class Sweep3D(Measurement):
         self.ndim = len(actuator_names)
         self.n_read_any_settings = n_read_any_settings
         self.n_any_measurements = n_any_measurements
+        self.max_npoints_shown = 1_000_000
         super().__init__(app, name)
 
     def setup(self):
@@ -232,19 +232,22 @@ class Sweep3D(Measurement):
         s.New(
             name="data_set",
             dtype=str,
-            initial="powers",
+            initial="Select data set to plot",
             choices=("",),
             description="plot option",
         ).add_listener(self.update_display)
         s.New("average_over_repetitions", dtype=bool, initial=True).add_listener(
             self.update_display
         )
+
+        # Initialize locator composition
+        self.locator = Locator(self)
         s.New(
             name="locator",
             dtype=bool,
             initial=False,
             description="show locator line",
-        ).add_listener(self.on_locator_changed)
+        ).add_listener(self.locator.on_locator_changed)
 
         for i in range(self.n_any_measurements):
             self.collectors.append(
@@ -304,7 +307,6 @@ class Sweep3D(Measurement):
         )
         h_layout = QtWidgets.QHBoxLayout(h_widget)
         h_layout.setSpacing(4)
-        h_layout.setContentsMargins(2, 0, 2, 0)
         h_layout.addWidget(self.mk_run_widget())
         h_layout.addWidget(self.mk_scan_settings_widget())
         h_layout.addWidget(self.mk_collect_widget())
@@ -336,6 +338,7 @@ class Sweep3D(Measurement):
         self.display_ready = False
         self.set_status("starting power scan", "y")
         s.get_lq("data_set").add_listener(self.update_display)
+
         for i in range(self.n_any_measurements):
             s.get_lq(f"any_measurement_{i}").change_choice_list(
                 self.app.measurements.keys()
@@ -344,8 +347,8 @@ class Sweep3D(Measurement):
             s.get_lq(f"any_setting_{i}").change_choice_list(
                 self.app.get_setting_paths(True)
             )
-        self.set_status("welc\u1e4fme", (253, 188, 24), True)
 
+        self.set_status("welc\u1e4fme", (253, 188, 24), True)
         self.update_widgets()
 
     def update_display(self):
@@ -367,17 +370,16 @@ class Sweep3D(Measurement):
 
         if size == 1 and self.settings["scan_mode"] == "co-move":
             # special case where we can put position as x-axis
-            self._positions_on_x_axis = True
-            x = np.squeeze([p[0] for p in self.scan_data.positions[: self.index]])
+            self.locator._positions_on_x_axis = True
+            self.axes.setLabel("bottom", self.settings["actuator_1"])
+            x = np.squeeze(self.scan_data.positions[: self.index])
             y = np.squeeze(dset[: self.index])
             self.line.setData(x, y)
         else:
-            self._positions_on_x_axis = False
-            f = max(1, MAX_N_DPOINTS_SHOWN // size)
+            self.locator._positions_on_x_axis = False
+            self.axes.setLabel("bottom", "arbitrary")
+            f = max(1, self.max_npoints_shown // size)
             curr = self.index * size
-
-            # flatten the scan dimensions
-            dset = dset[tuple(zip(*self.scan_data.indices))]
 
             if self.index > f:
                 self.line.setData(
@@ -385,12 +387,6 @@ class Sweep3D(Measurement):
                 )
             else:
                 self.line.setData(dset.ravel()[:curr])
-
-        #
-        # elif ddim in (2, 3):
-        #     self.img_item.setVisible(True)
-        #     images = dset.reshape((-1,)+ dset.shape[4:])
-        #     self.img_item.setImage(images[curr], autoLevels=True)
 
     def set_status(self, msg, color="w", force_report=False):
         self.status = {
@@ -413,7 +409,7 @@ class Sweep3D(Measurement):
                 padding: 4px 8px;
                 font-weight: 500;
             }
-        """
+            """
         )
 
         vlayout = QtWidgets.QVBoxLayout(run_widget)
@@ -441,9 +437,12 @@ class Sweep3D(Measurement):
         return run_widget
 
     def mk_scan_settings_widget(self):
-        mode_selector_mode = self.settings.New_UI(("scan_mode",))
+        w3 = self.settings.New_UI(("scan_mode",))
+        w3.layout().setSpacing(4)
 
         h_layout = QtWidgets.QHBoxLayout()
+        h_layout.setSpacing(6)
+
         for i in self.actuator_names:
             r = self.settings.ranges[f"range_{i}"]
             w1 = r.New_UI()
@@ -451,17 +450,17 @@ class Sweep3D(Measurement):
                 0, self.settings.get_lq(f"actuator_{i}").new_default_widget()
             )
             w1.layout().setSpacing(2)
-            w1.setMaximumWidth(180)
+            w1.setMaximumWidth(120)
             h_layout.addWidget(w1)
 
-        widget = QtWidgets.QGroupBox("Actuators")
+        widget = QtWidgets.QGroupBox("Scan Settings")
         v_layout = QtWidgets.QVBoxLayout(widget)
-        v_layout.setSpacing(4)
-        v_layout.setContentsMargins(3, 5, 3, 3)
-        v_layout.addWidget(mode_selector_mode)
+        v_layout.setSpacing(6)
+        v_layout.setContentsMargins(8, 12, 8, 8)
+        v_layout.addWidget(w3)
         v_layout.addLayout(h_layout)
-        widget.setFlat(False)
 
+        widget.setFlat(False)
         return widget
 
     def mk_collect_widget(self):
@@ -486,21 +485,8 @@ class Sweep3D(Measurement):
             self.settings.New_UI(["data_set", "average_over_repetitions"])
         )
 
-        # Locator group
-        locator_gb = QtWidgets.QGroupBox("Locator")
-        locator_layout = QtWidgets.QVBoxLayout(locator_gb)
-        locator_layout.setContentsMargins(6, 6, 6, 6)
-        locator_layout.setSpacing(4)
-
-        self.locator_btn = QtWidgets.QPushButton("")
-        self.locator_btn.clicked.connect(self.on_push_locator_btn)
-        self.locator_btn.setVisible(self.settings["locator"])
-
-        cb = self.settings.New_UI(["locator"])
-
-        locator_layout.addWidget(cb)
-        locator_layout.addWidget(self.locator_btn)
-        locator_gb.setMaximumWidth(400)
+        # Use locator composition
+        locator_gb = self.locator.setup_ui(self)
 
         # Container with horizontal layout holding both group boxes
         container = QtWidgets.QWidget()
@@ -530,112 +516,10 @@ class Sweep3D(Measurement):
         # Improved line with better color
         self.line = self.axes.plot()
 
-        # Enhanced infinite line
-        self.infinite_line = pg.InfiniteLine(
-            angle=90,
-            label="locator",
-            movable=True,
-            pen=pg.mkPen(color="#FF5722", width=2, style=QtCore.Qt.DashLine),
-            labelOpts={
-                "color": "#FFFFFF",
-                "movable": True,
-                "fill": "#FF56221E",  # faint semi-transparent background
-            },
-        )
-        self.infinite_line.sigPositionChanged.connect(self.on_infinite_line_moved)
-        self.infinite_line.setVisible(self.settings["locator"])
-        self.axes.addItem(self.infinite_line)
+        # Setup infinite line through locator composition
+        self.locator.setup_infinite_line(self.axes)
 
         return graph_widget
-
-    def get_locator_position(self, line=None):
-        if not hasattr(self, "scan_data"):
-            return
-        if not self.scan_data.data:
-            return
-        if line is None:
-            line = self.infinite_line
-
-        if self._positions_on_x_axis:
-            positions = np.array(self.scan_data.positions)[:, 0]
-            index = np.argmin(np.abs(positions - line.value()))
-            return self.scan_data.positions[index]
-
-        if self.settings["average_over_repetitions"]:
-            size = self.scan_data.get_dset_size_per_position_and_repeats(
-                self.settings["data_set"]
-            )
-        else:
-            size = self.scan_data.get_dset_size_per_position(self.settings["data_set"])
-
-        index = int(line.value() // size)
-
-        if self.index * size >= MAX_N_DPOINTS_SHOWN:
-            smallest_index_shown = self.index - (MAX_N_DPOINTS_SHOWN // size)
-            index += smallest_index_shown
-
-        if index < 0 or index >= len(self.scan_data.positions):
-            return
-        return self.scan_data.positions[index]
-
-    def on_infinite_line_moved(self, line=None):
-        positions = self.get_locator_position(line)
-
-        if positions is None:
-            self.locator_btn.setEnabled(False)
-            self.locator_btn.setText("Invalid Position: Drag locator within data range")
-            self.locator_btn.setStyleSheet(
-                """
-                QPushButton {
-                    color: #f44336;
-                    font-weight: 600;
-                }
-            """
-            )
-            return
-
-        actuator_names = [i[0] for i in self.get_current_actuators_defs()]
-        ext_pretty_pos = "<br>".join(
-            [
-                f"<span style='font-weight: 600;'>{name}:</span> {p:.2f}"
-                for name, p in zip(actuator_names, positions)
-            ]
-        )
-        self.infinite_line.label.setHtml(
-            f"<div style='padding: 3px;'>"
-            f"<span style='font-weight: 700; font-size: 13px;'>Actuator Positions</span><br>"
-            f"<span style='font-size: 10px;'>{ext_pretty_pos}</span></div>"
-        )
-        self.infinite_line.label.setMovable(True)
-        self.locator_btn.setEnabled(True)
-
-        pretty_pos = ", ".join([f"{p:.2f}" for p in positions])
-        self.locator_btn.setText(f"Set Actuator Position ({pretty_pos})")
-        self.locator_btn.setStyleSheet(
-            """
-            QPushButton {
-                color: #4caf50;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                color: #388e3c;
-            }
-        """
-        )
-
-    def on_push_locator_btn(self):
-        positions = self.get_locator_position()
-        funcs = self.get_current_target_position_funcs()
-        for p, f in zip(positions, funcs):
-            f(p)
-        self.locator_btn.setStyleSheet("color: blue; font-weight: normal;")
-
-    def on_locator_changed(self):
-        if not hasattr(self, "infinite_line"):
-            return
-        enabled = self.settings["locator"]
-        self.locator_btn.setVisible(enabled)
-        self.infinite_line.setVisible(enabled)
 
     def get_current_actuators_defs(self) -> List[ActuatorInfos]:
         """Returns a list of currently selected actuator definitions."""
