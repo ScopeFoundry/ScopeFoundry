@@ -186,3 +186,12 @@ class LQRange(LQCircularNetwork):
         for lqname, lq in self.lq_dict.items():
             formLayout.addRow(lqname, lq.new_default_widget())
         return ui_widget
+
+    def set_center(self, center):
+        if self.span is not None:
+            span = self.span.val
+        else:
+            span = self.max.val - self.min.val
+        min_ = self.calc_min(center, span)
+        max_ = self.calc_max(center, span)
+        self.update_values_synchronously(min=min_, max=max_)

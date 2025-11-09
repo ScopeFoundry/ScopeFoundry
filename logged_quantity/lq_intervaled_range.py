@@ -150,6 +150,16 @@ class IntervaledLQRange:
             r.lq_range.add_listener(func, argtype, **kwargs)
             r.is_active.add_listener(func, argtype, **kwargs)
 
+    def set_center(self, center):
+        """
+        Sets the center of all active ranges to the specified value.
+        """
+        for r in self.ranges:
+            if not r.is_active.val:
+                continue
+            if r.lq_range.min.val < center < r.lq_range.max.val:
+                r.lq_range.set_center(center)
+
 
 def remove_adjancent_duplicates(ar: np.ndarray, tol: float = 0) -> np.ndarray:
     """
