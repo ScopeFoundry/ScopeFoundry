@@ -50,6 +50,7 @@ class FavoritesWidget:
         self.app.ui.quickaccess_scrollArea.setVisible(
             self.has_items() or self.app.quickbar is not None
         )
+        self.layout.addStretch()
 
     def add_lq_paths(self, lq_paths: list):
         for lq_path in lq_paths:
