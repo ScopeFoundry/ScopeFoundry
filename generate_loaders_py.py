@@ -171,20 +171,22 @@ def get_dset_names(folder: str) -> Dict[str, Set[str]]:
     path = Path(folder)
     dset_names = {}
     for fname in path.rglob("*.h5"):
-        mm_name = get_measurement_name(fname)
-        with h5py.File(fname, "r") as file:
-            new_keys = set(
-                [
-                    name
-                    for name, val in file[f"measurement/{mm_name}"].items()
-                    if isinstance(val, h5py.Dataset)
-                ]
-            )
-            if mm_name in dset_names:
-                dset_names[mm_name] = dset_names[mm_name].union(new_keys)
-            else:
-                dset_names[mm_name] = new_keys
-
+        try:
+            mm_name = get_measurement_name(fname)
+            with h5py.File(fname, "r") as file:
+                new_keys = set(
+                    [
+                        name
+                        for name, val in file[f"measurement/{mm_name}"].items()
+                        if isinstance(val, h5py.Dataset)
+                    ]
+                )
+                if mm_name in dset_names:
+                    dset_names[mm_name] = dset_names[mm_name].union(new_keys)
+                else:
+                    dset_names[mm_name] = new_keys
+        except OSError as err:
+            print("Skipping", fname, err)
     return dset_names
 
 
