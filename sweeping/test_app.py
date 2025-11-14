@@ -11,8 +11,10 @@ class MyFancyApp(BaseMicroscopeApp):
     def setup(self):
         from ScopeFoundry import Map2D, Sweep1D, Sweep2D, Sweep3D, Sweep4D
 
-        self.add_measurement(Sweep2D(self))
-        ...
+        self.add_measurement(Sweep1D(self, range_n_intervals=(5,)))
+        self.add_measurement(Sweep2D(self, range_n_intervals=(5, 1)))
+        self.add_measurement(Sweep3D(self))
+        self.add_measurement(Sweep4D(self))
 
 
 if __name__ == "__main__":

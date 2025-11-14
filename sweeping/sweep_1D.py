@@ -71,25 +71,3 @@ class Sweep1D(SweepNDBase):
     def should_show_positions_on_x_axis(self):
         """For 1D, don't check scan_mode, just return True if size == 1."""
         return True
-
-    def mk_scan_settings_widget(self):
-        """Override to customize layout for 1D scans - no scan mode selector."""
-        # For 1D, we only have one actuator
-        r = self.settings.ranges[f"range_{self.actuator_names[0]}"]
-        w1 = r.New_UI()
-        w1.layout().setSpacing(4)
-        w1.setMaximumWidth(450)  # Slightly wider for 1D
-
-        widget = QtWidgets.QGroupBox("Actuators")
-        v_layout = QtWidgets.QVBoxLayout(widget)
-        v_layout.setSpacing(4)
-        v_layout.setContentsMargins(3, 5, 3, 3)
-        v_layout.addWidget(
-            self.settings.get_lq(
-                f"actuator_{self.actuator_names[0]}"
-            ).new_default_widget()
-        )
-        v_layout.addWidget(w1)
-        widget.setFlat(False)
-
-        return widget

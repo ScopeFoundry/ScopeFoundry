@@ -21,7 +21,8 @@ from .collector import Collector
 from .collector_ui_list import InteractiveCollectorList
 from .nd_scan_data import NDScanData
 from .utils import filtered_lq_paths, mk_new_dir
-from .locator import Locator
+from .locator import Locator1D
+from functools import partial
 
 
 class SweepNDBase(Measurement, ABC):
@@ -61,12 +62,20 @@ class SweepNDBase(Measurement, ABC):
             self.root = self.app.settings["save_dir"]
             self.app.settings["save_dir"] = mk_new_dir(self.root, self.name)
 
-        if s["scan_mode"] == "listed_positions":
+        if s["scan_mode"] == "Position List":
             arrays = tuple(np.array(self.locator.get_positions_list()).T)
-            print("Using listed positions for scan:", arrays)
         else:
-            arrays = tuple([r.sweep_array for r in self.scan_ranges])
-            print("Using sweep positions for scan:", arrays)
+            arrays = []
+            for name in self.actuator_names:
+                if self.settings[f"from_list_{name}"]:
+                    pos_list = self.list_uis[name].toPlainText().splitlines()
+                    pos_list = [float(p) for p in pos_list if p.strip() != ""]
+                    arrays.append(np.array(pos_list))
+                else:
+                    arrays.append(
+                        np.array(self.settings.ranges[f"range_{name}"].sweep_array)
+                    )
+            arrays = tuple(arrays)
 
         self.scan_data = scan_data = NDScanData(
             base_shape=self.mk_data_shape(*arrays, s["scan_mode"]),
@@ -111,7 +120,7 @@ class SweepNDBase(Measurement, ABC):
                     scan_data.incorporate(collector, *base_indices, r)
                 self.release_collector(collector, positions, base_indices)
             if self.index == 0:
-                s.get_lq("data_set").change_choice_list(data_set_names)
+                self.settings.get_lq("data_set").change_choice_list(data_set_names)
 
             scan_data.add_position(positions)
             scan_data.add_read_positions(read_positions)
@@ -211,6 +220,7 @@ class SweepNDBase(Measurement, ABC):
         self.n_read_any_settings = n_read_any_settings
         self.n_any_measurements = n_any_measurements
         self.max_npoints_shown = 1_000_000
+        self.data = {}
         super().__init__(app, name)
 
     def setup(self):
@@ -255,14 +265,6 @@ class SweepNDBase(Measurement, ABC):
             description="data representation mode: <p>full: data is raveled to 1D for plotting<p>averaged_to_1D: data is averaged over all but the first dimension, ie. x-axis is first actuator, y-axis is data averaged over all other actuators",
         ).add_listener(self.update_display)
 
-        self.locator = Locator(self)
-        s.New(
-            name="locator",
-            dtype=bool,
-            initial=False,
-            description="show locator line",
-        ).add_listener(self.locator.on_locator_changed)
-
         for i in range(self.n_any_measurements):
             self.collectors.append(
                 AnyMeasurementCollector(self, name=f"any_measurement_{i}")
@@ -277,6 +279,12 @@ class SweepNDBase(Measurement, ABC):
         self.scan_ranges = []
         for name, n in zip(self.actuator_names, self.range_n_intervals):
             s.New(f"actuator_{name}", dtype=str, choices=["none"])
+            s.New(
+                f"from_list_{name}",
+                dtype=bool,
+                initial=False,
+                description="use a manual list instead of a parametric range",
+            )
             if n == 1:
                 self.scan_ranges.append(
                     s.New_Range(f"range_{name}", True, False, initials=(1, 2, 11))
@@ -294,6 +302,12 @@ class SweepNDBase(Measurement, ABC):
                 QtWidgets.QStyle.SP_BrowserReload
             ),
         )
+
+        self.scan_data = NDScanData(
+            base_shape=(2,),
+            measurement=self,
+        )
+        self.data = self.scan_data.data
 
     def update_widgets(self):
 
@@ -314,18 +328,22 @@ class SweepNDBase(Measurement, ABC):
         s = self.settings
 
         # Top horizontal section
-        h_widget = QtWidgets.QWidget()
-        h_widget.setSizePolicy(
+        top_widget = QtWidgets.QWidget()
+        top_widget.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed
         )
-        h_layout = QtWidgets.QHBoxLayout(h_widget)
-        h_layout.setSpacing(4)
-        h_layout.setContentsMargins(2, 0, 2, 0)
+        top_layout = QtWidgets.QHBoxLayout(top_widget)
+        top_layout.setSpacing(4)
+        top_layout.setContentsMargins(2, 0, 2, 0)
         self.run_widget = self.mk_run_widget()
         self.run_layout = self.run_widget.layout()
-        h_layout.addWidget(self.run_widget)
-        h_layout.addWidget(self.mk_scan_settings_widget())
-        h_layout.addWidget(self.mk_collect_widget())
+        top_layout.addWidget(self.run_widget)
+        top_layout.addWidget(self.mk_scan_settings_widget())
+        top_layout.addWidget(self.mk_collect_widget())
+
+        # order creation matters here
+        graph_widget = self.mk_graph_widget()
+        plot_options_widget = self.mk_plot_options_widget()
 
         self.ui = QtWidgets.QWidget()
         self.ui.setStyleSheet(
@@ -347,9 +365,10 @@ class SweepNDBase(Measurement, ABC):
         layout = QtWidgets.QVBoxLayout(self.ui)
         layout.setSpacing(4)
         layout.setContentsMargins(8, 8, 8, 8)
-        layout.addWidget(h_widget)
-        layout.addWidget(self.mk_plot_options_widget())
-        layout.addWidget(self.mk_graph_widget())
+        layout.addWidget(top_widget)
+
+        layout.addWidget(plot_options_widget)
+        layout.addWidget(graph_widget)
 
         self.display_ready = False
         self.set_status("starting power scan", "y")
@@ -362,6 +381,7 @@ class SweepNDBase(Measurement, ABC):
             s.get_lq(f"any_setting_{i}").change_choice_list(
                 self.app.get_setting_paths(True)
             )
+
         self.set_status("welc\u1e4fme", (253, 188, 24), True)
 
         self.update_widgets()
@@ -374,6 +394,8 @@ class SweepNDBase(Measurement, ABC):
             return
 
         option = self.settings["data_set"]
+        print(self.data)
+        print(option)
 
         # Set left label if applicable (1D case)
         if hasattr(self, "set_left_label_in_update") and self.set_left_label_in_update:
@@ -393,7 +415,11 @@ class SweepNDBase(Measurement, ABC):
             self.locator._positions_on_x_axis = True
             self.axes.setLabel("bottom", self.settings["actuator_1"])
             x = np.squeeze(self.scan_data.positions[: self.index])
+            if x.ndim > 1:
+                x = x[:, 0]
             y = np.squeeze(dset[: self.index])
+            print("a;lskdjf")
+            print(x, y)
             self.line.setData(x, y)
         else:
             self.locator._positions_on_x_axis = False
@@ -460,26 +486,70 @@ class SweepNDBase(Measurement, ABC):
         """Create the scan settings widget. Override in child classes for custom layout."""
         mode_selector_mode = self.settings.New_UI(("scan_mode",))
 
-        h_layout = QtWidgets.QHBoxLayout()
-        for i in self.actuator_names:
-            r = self.settings.ranges[f"range_{i}"]
-            w1 = r.New_UI()
-            w1.layout().insertRow(
-                0, self.settings.get_lq(f"actuator_{i}").new_default_widget()
-            )
-            w1.layout().setSpacing(2)
-            w1.setMaximumWidth(190)
-            h_layout.addWidget(w1)
+        h_widget = QtWidgets.QWidget()
+        h_layout = QtWidgets.QHBoxLayout(h_widget)
+        self.list_uis = {}
+        for ii, name in enumerate(self.actuator_names):
 
-        widget = QtWidgets.QGroupBox("Actuators")
+            r = self.settings.ranges[f"range_{name}"]
+
+            range_ui = r.New_UI()
+            list_ui = QtWidgets.QTextEdit()
+
+            range_ui.setMaximumWidth(self.range_n_intervals[ii] * 180)
+            list_ui.setMaximumWidth(180)
+
+            self.list_uis[name] = list_ui
+            list_ui.setVisible(False)
+
+            from_list_lq = self.settings.get_lq(f"from_list_{name}")
+
+            def toggle_list_ui(range_ui, list_ui, checked):
+                list_ui.setVisible(checked)
+                range_ui.setVisible(not checked)
+
+            from_list_lq.updated_value[bool].connect(
+                partial(toggle_list_ui, range_ui, list_ui)
+            )
+
+            layout = QtWidgets.QVBoxLayout()
+            layout.addWidget(
+                self.settings.get_lq(f"actuator_{name}").new_default_widget()
+            )
+            layout.addWidget(self.settings.New_UI((f"from_list_{name}",)))
+            layout.addWidget(list_ui)
+            layout.addWidget(range_ui)
+            layout.setSpacing(3)
+            h_layout.addLayout(layout)
+
+        place_holder = QtWidgets.QLabel("place holder")
+        place_holder.setVisible(False)
+        place_holder.setMaximumHeight(50)
+
+        def toggle_mode_selector(mode):
+            enable = mode != "Position List"
+            h_widget.setVisible(enable)
+            place_holder.setVisible(not enable)
+            place_holder.setText(f"Will sweep over Position List of this Measurement")
+
+        self.settings.get_lq("scan_mode").updated_value[str].connect(
+            toggle_mode_selector
+        )
+
+        widget = QtWidgets.QGroupBox("Actuators: Define scan positions")
         v_layout = QtWidgets.QVBoxLayout(widget)
         v_layout.setSpacing(4)
         v_layout.setContentsMargins(3, 5, 3, 3)
         v_layout.addWidget(mode_selector_mode)
-        v_layout.addLayout(h_layout)
+        v_layout.addWidget(h_widget)
+        v_layout.addWidget(place_holder)
         widget.setFlat(False)
 
-        return widget
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(widget)
+        scroll_area.setMaximumWidth(sum(self.range_n_intervals) * 182 + 20)
+        return scroll_area
 
     def mk_collect_widget(self):
         self.collector_list_widget = InteractiveCollectorList()
@@ -503,16 +573,20 @@ class SweepNDBase(Measurement, ABC):
             self.settings.New_UI(["data_set", "average_over_repetitions"])
         )
 
-        # Use locator composition
-        locator_gb = self.locator.setup_ui(self)
-
         # Container with horizontal layout holding both group boxes
         container = QtWidgets.QWidget()
         h_layout = QtWidgets.QHBoxLayout(container)
         h_layout.setContentsMargins(3, 3, 3, 3)
         h_layout.setSpacing(4)
         h_layout.addWidget(plot_gb)
-        h_layout.addWidget(locator_gb)
+
+        self.locator = Locator1D(self, layout=h_layout, axes=self.axes)
+
+        container.setMaximumHeight(150)
+        container.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Minimum,
+        )
 
         return container
 
@@ -534,8 +608,11 @@ class SweepNDBase(Measurement, ABC):
         # Improved line with better color
         self.line = self.axes.plot()
 
-        # Setup infinite line through locator composition
-        self.locator.setup_infinite_line(self.axes)
+        graph_widget.setMinimumHeight(400)
+        graph_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+        )
 
         return graph_widget
 
@@ -550,6 +627,14 @@ class SweepNDBase(Measurement, ABC):
 
     def get_current_target_position_funcs(self):
         return (a[-1] for a in self.get_current_actuator_funcs())
+
+    def load_data(self, raw_data):
+        self.scan_data.data = {n: v for n, v in raw_data.items() if n.endswith("_raw")}
+        self.data = self.scan_data.data
+        self.settings.get_lq("data_set").change_choice_list(list(self.data.keys()))
+        self.scan_data.positions = raw_data["positions"]
+        self.index = len(raw_data["positions"] - 1)
+        self.display_ready = True
 
     # Abstract methods that child classes should implement
     def get_scan_modes(self):

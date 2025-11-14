@@ -63,29 +63,3 @@ class Sweep4D(SweepNDBase):
 
     def mk_ranges_consistent(self, settings, actuator_names):
         return mk_ranges_consistent(settings, actuator_names)
-
-    def mk_scan_settings_widget(self):
-        """Override to customize layout for 4D scans."""
-        mode_selector_mode = self.settings.New_UI(("scan_mode",))
-        h_layout = QtWidgets.QHBoxLayout()
-        h_layout.setSpacing(0)
-        h_layout.setContentsMargins(0, 0, 0, 0)
-        for i in self.actuator_names:
-            l = QtWidgets.QVBoxLayout()
-            l.setSpacing(0)
-            l.setContentsMargins(0, 0, 0, 0)
-            l.addWidget(self.settings.get_lq(f"actuator_{i}").new_default_widget())
-            r = self.settings.ranges[f"range_{i}"]
-            w = r.New_UI()
-            l.addWidget(w)
-            h_layout.addLayout(l)
-
-        widget = QtWidgets.QGroupBox("Actuators")
-        layout = QtWidgets.QVBoxLayout(widget)
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(mode_selector_mode)
-        layout.addLayout(h_layout)
-        widget.setMaximumWidth(500)
-        widget.setFlat(False)
-        return widget

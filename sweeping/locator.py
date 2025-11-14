@@ -5,18 +5,19 @@ from typing import Tuple, Union, List, Any
 import numpy as np
 
 
-class RemovableItemList(QtWidgets.QGroupBox):
+class RemovableItemList:
     """A widget that displays a list of items with remove buttons and provides an easy append API."""
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, ndims: int = 1):
+        self.ndims = ndims
         self.items = []
         self.item_widgets = []
 
-        self.setTitle("Marked Positions")
+    def mk_list_widget(self):
+        widget = QtWidgets.QGroupBox("Positions List")
 
         # Main layout
-        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout = QtWidgets.QVBoxLayout(widget)
         self.layout.setSpacing(2)
         self.layout.setContentsMargins(4, 4, 4, 4)
 
@@ -37,24 +38,6 @@ class RemovableItemList(QtWidgets.QGroupBox):
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.setSpacing(4)
 
-        # Add button
-        self.add_button = QtWidgets.QPushButton("Add Current Position")
-        self.add_button.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #4caf50;
-                color: white;
-                border: none;
-                padding: 4px 8px;
-                border-radius: 3px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """
-        )
-
         # Clear button
         self.clear_button = QtWidgets.QPushButton("Clear All")
         self.clear_button.clicked.connect(self.clear)
@@ -74,14 +57,25 @@ class RemovableItemList(QtWidgets.QGroupBox):
         """
         )
 
-        button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.clear_button)
 
+        copy_buttons_layout = QtWidgets.QHBoxLayout()
+        for i in range(self.ndims):
+            btn = QtWidgets.QPushButton(f"Copy Col {i+1}")
+            btn.clicked.connect(
+                lambda checked, col=i: self.copy_column_to_clipboard(col)
+            )
+            copy_buttons_layout.addWidget(btn)
+
+        self.layout.addLayout(copy_buttons_layout)
         self.layout.addLayout(button_layout)
         self.layout.addWidget(self.scroll_area)
 
         # Stretch to push everything to top
         self.container_layout.addStretch()
+
+        widget.setMaximumWidth(350)
+        return widget
 
     def append(self, item: Any, display_text: str = None) -> None:
         """Add an item to the list with optional custom display text."""
@@ -181,64 +175,53 @@ class RemovableItemList(QtWidgets.QGroupBox):
         """Return the number of items in the list."""
         return len(self.items)
 
+    def copy_column_to_clipboard(self, col_index: int) -> None:
+        """Copy a specific column of positions to the clipboard."""
 
-class Locator:
+        column_values = np.array(self.items)[:, col_index].astype(str)
+        clipboard_text = "\n".join(column_values)
+        print(f"Copying to clipboard:\n{clipboard_text}")
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(clipboard_text)
 
-    def __init__(self, sweep_measurement):
+
+class Locator1D:
+
+    def __init__(self, sweep_measurement, layout, axes):
         self.sweep = sweep_measurement
         self._positions_on_x_axis = False
-        self.locator_btn = None
-        self.as_center_btn = None
-        self.infinite_line = None
-        self.position_list = None
-        self.plot_axes = (
-            sweep_measurement.axes if hasattr(sweep_measurement, "axes") else None
-        )
+        self.position_list = RemovableItemList(sweep_measurement.ndim)
+        self.plot_axes = axes
 
-    def set_plot_axes(self, plot_axes):
-        """Set the plot axes for the locator."""
-        self.plot_axes = plot_axes
+        layout.addWidget(self.mk_controls_widget())
+        layout.addWidget(self.mk_list_widget())
+        self.setup_infinite_line(self.plot_axes)
+        self.update_display()
 
-    # def setup_ui(self, parent_widget) -> QtWidgets.QGroupBox:
-    #     """Setup and return the locator UI group box."""
+    def mk_controls_widget(self):
+        self.widget = QtWidgets.QGroupBox("Locator")
+        self.widget.setMaximumWidth(450)
 
-    # locator_gb = QtWidgets.QGroupBox("Locator")
-    # locator_layout = QtWidgets.QVBoxLayout(locator_gb)
-    # locator_layout.setContentsMargins(6, 6, 6, 6)
-    # locator_layout.setSpacing(4)
-    #
-    # self.locator_btn = QtWidgets.QPushButton("")
-    # self.locator_btn.clicked.connect(self.on_push_locator_btn)
-    # self.locator_btn.setVisible(self.sweep.settings["locator"])
-    #
-    # self.as_center_btn = QtWidgets.QPushButton("")
-    # self.as_center_btn.clicked.connect(self.on_push_as_center_btn)
-    # self.as_center_btn.setVisible(self.sweep.settings["locator"])
-    #
-    # cb = self.sweep.settings.New_UI(["locator"])
+        self.go_to_btn = QtWidgets.QPushButton("Go To")
+        self.as_center_btn = QtWidgets.QPushButton("Set as Center")
+        self.add_btn = QtWidgets.QPushButton("Add to Position List")
 
-    def setup_ui(self, parent_widget):
-        self.position_list = RemovableItemList()
-        
-        self.position_list.setMaximumWidth(450)
-        self.position_list.setMaximumHeight(200)
-        return self.position_list
-        # return 
-        # # Create position list widget
-        #
-        # self.position_list = RemovableItemList()
-        # self.position_list.add_button.setText("Add Current Position")
-        # self.position_list.add_button.clicked.connect(self.on_add_current_position)
-        #
-        # locator_gb = QtWidgets.QGroupBox("Marked positions")
-        # locator_layout = QtWidgets.QVBoxLayout(locator_gb)
-        #
-        # # locator_layout.addWidget(self.locator_btn)
-        # # locator_layout.addWidget(self.as_center_btn)
-        # locator_layout.addWidget(self.position_list)
-        # locator_gb.setMaximumWidth(450)
-        # locator_gb.setMaximumHeight(200)
-        # return locator_gb
+        self.widget = QtWidgets.QGroupBox("Locator Controls")
+        layout = QtWidgets.QVBoxLayout(self.widget)
+        layout.addWidget(self.as_center_btn)
+        layout.addWidget(self.go_to_btn)
+        layout.addWidget(self.add_btn)
+        layout.addStretch()
+
+        self.go_to_btn.clicked.connect(self.on_go_to_btn_clicked)
+        self.as_center_btn.clicked.connect(self.on_as_center_clicked)
+        self.add_btn.clicked.connect(self.on_add_current_position)
+
+        return self.widget
+
+    def mk_list_widget(self):
+        """Create and return the position list widget."""
+        return self.position_list.mk_list_widget()
 
     def setup_infinite_line(self, plot_axes):
         """Setup the infinite line on the plot."""
@@ -255,7 +238,6 @@ class Locator:
                 "fill": "#FF56221E",  # faint semi-transparent background
             },
         )
-        self.infinite_line.setVisible(self.sweep.settings["locator"])
         self.infinite_line.sigPositionChanged.connect(self.on_infinite_line_moved)
         plot_axes.addItem(self.infinite_line)
 
@@ -326,10 +308,10 @@ class Locator:
 
     def _update_invalid_position_ui(self):
         """Update UI for invalid locator position."""
-        if self.locator_btn:
-            self.locator_btn.setEnabled(False)
-            self.locator_btn.setText("Invalid Position: Drag locator within data range")
-            self.locator_btn.setStyleSheet(
+        if self.go_to_btn:
+            self.go_to_btn.setEnabled(False)
+            self.go_to_btn.setText("Invalid Position: Drag locator within data range")
+            self.go_to_btn.setStyleSheet(
                 """
                 QPushButton {
                     color: #f44336;
@@ -344,6 +326,17 @@ class Locator:
                 "Invalid Position: Drag locator within data range"
             )
             self.as_center_btn.setStyleSheet(
+                """
+                QPushButton {
+                    color: #f44336;
+                    font-weight: 600;
+                }
+            """
+            )
+        if self.add_btn:
+            self.add_btn.setEnabled(False)
+            self.add_btn.setText("Invalid Position: Drag locator within data range")
+            self.add_btn.setStyleSheet(
                 """
                 QPushButton {
                     color: #f44336;
@@ -368,16 +361,17 @@ class Locator:
             html = f"""<div style='padding: 3px;'>
                 <span style='font-weight: 700; font-size: 13px;'>Actuator Positions</span><br>
                 <span style='font-size: 10px;'>{ext_pretty_pos}</span></div>
-                <div style='padding: 3px; font-size: 10px; font-style: italic; color: #FFD700;'>Crtl-click to add to Marked List <br>Alt-click to move to position</div>
+                <div style='padding: 3px; font-size: 10px; font-style: italic; color: #FFD700;'>Crtl-click to add to Position List <br>Alt-click to move to position</div>
                 """
             self.infinite_line.label.setHtml(html)
             self.infinite_line.label.setMovable(True)
 
-        if self.locator_btn:
-            self.locator_btn.setEnabled(True)
-            pretty_pos = ", ".join([f"{p:.2f}" for p in positions])
-            self.locator_btn.setText(f"Set Actuator Position ({pretty_pos})")
-            self.locator_btn.setStyleSheet(
+        pretty_pos = ", ".join([f"{p:.2f}" for p in positions])
+
+        if self.go_to_btn:
+            self.go_to_btn.setEnabled(True)
+            self.go_to_btn.setText(f"Set Actuator Position ({pretty_pos})")
+            self.go_to_btn.setStyleSheet(
                 """
                 QPushButton {
                     color: #4caf50;
@@ -391,12 +385,10 @@ class Locator:
 
         if self.as_center_btn:
             self.as_center_btn.setEnabled(True)
-            pretty_pos = ", ".join([f"{p:.2f}" for p in positions])
             self.as_center_btn.setText(f"Set as Center ({pretty_pos})")
             self.as_center_btn.setStyleSheet(
                 """
                 QPushButton {
-                    color: "#FF5622FF";
                     font-weight: 600;
                 }
                 QPushButton:hover {
@@ -405,33 +397,37 @@ class Locator:
             """
             )
 
-    def set_visibility(self, visible: bool) -> None:
-        """Set visibility of locator components."""
-        if self.locator_btn:
-            self.locator_btn.setVisible(visible)
-        if self.as_center_btn:
-            self.as_center_btn.setVisible(visible)
-        if self.infinite_line:
-            self.infinite_line.setVisible(visible)
-        if self.position_list:
-            self.position_list.setVisible(visible)
+        if self.add_btn:
+            self.add_btn.setEnabled(True)
+            self.add_btn.setText(f"Add to Position List ({pretty_pos})")
+            self.add_btn.setStyleSheet(
+                """
+                QPushButton {
+                    color: #2196f3;
+                    font-weight: 600;
+                }
+                QPushButton:hover {
+                    color: #1976d2;
+                }
+            """
+            )
 
     def on_infinite_line_moved(self, line=None):
         """Handle infinite line movement."""
         self.update_display(line)
 
-    def on_push_locator_btn(self):
+    def on_go_to_btn_clicked(self):
         """Handle locator button click."""
         positions = self.resolve_actuators_positions()
-        if positions:
+        if positions is not None:
             self.set_actuator_positions(positions)
-            if self.locator_btn:
-                self.locator_btn.setStyleSheet("color: blue; font-weight: normal;")
+            if self.go_to_btn:
+                self.go_to_btn.setStyleSheet("color: blue; font-weight: normal;")
 
-    def on_push_as_center_btn(self):
+    def on_as_center_clicked(self):
         """Handle as center button click."""
         positions = self.resolve_actuators_positions()
-        if positions:
+        if positions is not None:
             self.set_as_center(positions)
             if self.as_center_btn:
                 self.as_center_btn.setStyleSheet("color: blue; font-weight: normal;")
@@ -455,17 +451,20 @@ class Locator:
             self.set_line_position(positions, mouse_point.x())
             pretty_pos = ", ".join([f"{float(p):1.2f}" for p in positions])
 
+        else:
+            return
+
         if event.modifiers() == QtCore.Qt.ControlModifier:
             # Ctrl+Click detected
             if positions is not None:
-                self._add_position_to_list(positions)
+                self.add_position_to_list(positions)
 
             self.sweep.set_status(f"({pretty_pos}), added to list", "y", True)
         elif event.modifiers() == QtCore.Qt.AltModifier:
             self.sweep.go_to_positions(positions)
             self.sweep.set_status(f"moved Actuators to ({pretty_pos})", "b", True)
 
-    def _add_position_to_list(self, positions):
+    def add_position_to_list(self, positions):
         """Add a position to the saved positions list."""
         if positions is not None and self.position_list is not None:
             display_text = ", ".join([f"{pos:.2f}" for pos in positions])
@@ -475,22 +474,10 @@ class Locator:
     def on_add_current_position(self):
         """Add the current locator position to the saved positions list."""
         positions = self.resolve_actuators_positions()
-        self._add_position_to_list(positions)
+        self.add_position_to_list(positions)
 
     def get_positions_list(self) -> List[Tuple[float, ...]]:
-        """Return the list of saved positions."""
-        if self.position_list:
-            return self.position_list.get_items()
-        return []
-
-    def on_locator_changed(self):
-        """Handle locator visibility change."""
-        if hasattr(self, "infinite_line") and self.infinite_line:
-            enabled = self.sweep.settings["locator"]
-            self.set_visibility(enabled)
-            # Also update position list visibility
-            if self.position_list:
-                self.position_list.setVisible(enabled)
+        return self.position_list.get_items()
 
     def set_line_position(self, positions, x_plot_position: float) -> None:
         """Set the infinite line position."""
