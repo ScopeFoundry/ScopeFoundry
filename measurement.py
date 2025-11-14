@@ -53,7 +53,7 @@ class Measurement:
     stop_first -> run_starting -> run_pre_run --> run_thread_starting --> run_thread_run -->
 
     run_thread_end --> run_post_run --> stop_success | stop_interrupted | stop_failure
-
+    
     """
 
     def __init__(self, app: BaseMicroscopeApp, name: Union[str, None] = None):
@@ -663,6 +663,15 @@ class Measurement:
     def close_h5_file(self):
         if hasattr(self, "h5_file") and self.h5_file.id is not None:
             self.h5_file.close()
+
+    def load_data(self, data):
+        self.data = data
+        print(
+            "WARNING",
+            f"  load_data for {self.name} not implemented - override load_data if data is not shown correctly",
+            "   see https://scopefoundry.org/docs/30_tips-and-tricks/load_data/ for details",
+            sep="\n",
+        )
 
 
 class MeasurementQObject(QtCore.QObject):

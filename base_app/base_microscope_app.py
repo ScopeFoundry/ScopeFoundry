@@ -272,6 +272,9 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.action_auto_save_ini.triggered.connect(self.settings_auto_save_ini)
         self.ui.action_save_ini.triggered.connect(self.settings_save_dialog)
         self.ui.action_load_last.triggered.connect(self.settings_load_last)
+        self.ui.action_load_measurement_data.triggered.connect(
+            self.load_measurement_data_dialog
+        )
         if self.mdi:
             self.ui.action_console.triggered.connect(
                 partial(self.bring_mdi_subwin_to_front, subwin=self.console_subwin)
@@ -972,6 +975,16 @@ class BaseMicroscopeApp(BaseApp):
         if fname:
             self.save_window_positions_json(fname)
 
+    def load_measurement_data_dialog(self) -> None:
+        """Opens a load measurement data dialogue in the app user interface"""
+        fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(
+            self.ui,
+            "Open Measurement Data file",
+            "",
+            "Measurement Data File (*.h5)",
+        )
+        self.load_measurement_data(fname)
+
     def generate_data_path(
         self, measurement: MeasurementProtocol, ext: str, t: float = None
     ) -> Path:
@@ -1038,8 +1051,43 @@ class BaseMicroscopeApp(BaseApp):
         fname = Path([u.toLocalFile() for u in event.mimeData().urls()][0])
         if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
             self.settings_load_file(fname)
+            self.load_measurement_data(fname)
         else:
             self.propose_settings_values_from_file(fname)
+
+    def load_measurement_data(self, fname: str) -> None:
+        if Path(fname).suffix == ".h5":
+            self.load_h5_measurement_data(fname)
+
+    def load_h5_measurement_data(self, fname):
+        import h5py
+
+        with h5py.File(fname, "r") as file:
+            if "measurement" in file.attrs:
+                mm_name = file.attrs["measurement"]
+            else:
+                mm_name = list(file["measurement"].keys())[0]
+            m = file[f"measurement/{mm_name}"]
+
+            if not mm_name in self.measurements:
+                QtWidgets.QMessageBox.warning(
+                    self.ui,
+                    f"Cannot load data for measurement data",
+                    f"your app does not have a measurement {mm_name} required to load {fname}",
+                    buttons=QtWidgets.QMessageBox.StandardButton.Ok,
+                )
+                return
+            measure = self.measurements[mm_name]
+
+            raw_data = {}
+            for k, v in m.items():
+                if not isinstance(v, h5py.Dataset):
+                    continue
+                raw_data[k] = v[:]
+
+        measure.load_data(raw_data)
+        measure.update_display()
+        self.bring_measure_ui_to_front(measure)
 
     def show_app_settings(self) -> None:
         if not hasattr(self, "_app_settings_widget"):

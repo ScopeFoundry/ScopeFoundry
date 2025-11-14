@@ -87,8 +87,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>24</width>
-          <height>720</height>
+          <width>18</width>
+          <height>734</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -139,8 +139,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>387</width>
-          <height>718</height>
+          <width>393</width>
+          <height>732</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -188,7 +188,7 @@
      <x>0</x>
      <y>0</y>
      <width>1105</width>
-     <height>24</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="nativeMenuBar">
@@ -204,6 +204,8 @@
     <addaction name="action_auto_save_ini"/>
     <addaction name="action_save_ini"/>
     <addaction name="action_load_last"/>
+    <addaction name="separator"/>
+    <addaction name="action_load_measurement_data"/>
    </widget>
    <widget class="QMenu" name="menuAdvanced">
     <property name="title">
@@ -409,6 +411,11 @@
    </property>
    <property name="text">
     <string>analyze with ipynb</string>
+   </property>
+  </action>
+  <action name="action_load_measurement_data">
+   <property name="text">
+    <string>Load Measurement data</string>
    </property>
   </action>
  </widget>
