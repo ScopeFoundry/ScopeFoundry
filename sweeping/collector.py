@@ -71,7 +71,7 @@ class Collector:
             if "save_h5" in self.target_measure.settings:
                 self.target_measure.settings["save_h5"] = False
             if "run_mode" in self.target_measure.settings:
-                self.target_measure.settings["run_mode"] = "finite"
+                self.target_measure.settings["run_mode"] = "single"
 
     def run(
         self,
