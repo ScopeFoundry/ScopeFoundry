@@ -1,4 +1,5 @@
 from .collector import Collector
+from .sweep_nd_base import SweepNDBase
 from .sweep_1D import Sweep1D
 from .sweep_2D import Sweep2D
 from .sweep_3D import Sweep3D

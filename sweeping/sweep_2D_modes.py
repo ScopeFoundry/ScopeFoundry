@@ -4,6 +4,7 @@ SCAN_MODES = (
     "nested_swap_order",
     "serpentine",
     "serpentine_swap_order",
+    "listed_positions",
 )
 SCAN_MODES_DESCRIPTION = """
 <p><i>co-move:</i> all actuators co-move
@@ -24,7 +25,7 @@ def mk_positions_gen(ar_1, ar_2, mode="nested"):
             for k, kv in enumerate(ar_1):
                 yield (kv, lv)
 
-    elif mode == "co-move":
+    elif mode == "co-move" or mode == "listed_positions":
         for l, lv in enumerate(ar_2):
             yield (ar_1[l], ar_2[l])
 
@@ -52,14 +53,16 @@ def mk_data_shape(ar_1, ar_2, mode="nested"):
         return len(ar_1), len(ar_2)
     elif mode == "nested_swap_order":
         return len(ar_2), len(ar_1)
-    elif mode == "co-move":
+    elif mode == "co-move" or mode == "listed_positions":
         return 1, len(ar_2)
     elif mode == "serpentine":
         return len(ar_1), len(ar_2)
+    elif mode == "serpentine_swap_order":
+        return len(ar_2), len(ar_1)
 
 
 def mk_indices_gen(ar_1, ar_2, mode="nested"):
-    if mode == "nested":
+    if mode == "nested" or "listed_positions":
         for k, v in enumerate(ar_1):
             for l, v in enumerate(ar_2):
                 yield k, l
