@@ -1,9 +1,10 @@
-SCAN_MODES = ("co-move", "nested", "2,3_co-move", "1,2_co-move")
+SCAN_MODES = ("co-move", "nested", "2,3_co-move", "1,2_co-move", "Position List")
 SCAN_MODES_DESCRIPTION = """
 <p><i>co-move:</i> all actuators co-move
 <p><i>nested:</i> actuators move all combinations where 1st is slowest ...
 <p><i>2,3_co-move:</i> 2st and 3nd move simultaneously, 1rd moves individually
 <p><i>1,2_co-move:</i> 1st and 2nd move simultaneously, 3rd moves individually
+<p><i>Position List:</i> positions are defined by this Measurement's Position List.</p>
 """
 
 
@@ -14,7 +15,7 @@ def mk_positions_gen(ar_1, ar_2, ar_3, mode="nested"):
                 for m, mv in enumerate(ar_3):
                     yield (kv, lv, mv)
 
-    elif mode == "co-move":
+    elif mode == "co-move" or mode == "Position List":
         for k, v in enumerate(ar_1):
             yield (ar_1[k], ar_2[k], ar_3[k])
 
@@ -32,7 +33,7 @@ def mk_positions_gen(ar_1, ar_2, ar_3, mode="nested"):
 def mk_data_shape(ar_1, ar_2, ar_3, mode="nested"):
     if mode == "nested":
         return len(ar_1), len(ar_2), len(ar_3)
-    elif mode == "co-move":
+    elif mode == "co-move" or mode == "Position List":
         return 1, 1, len(ar_3)
     elif mode == "2,3_co-move":
         return len(ar_1), 1, len(ar_3)
@@ -47,7 +48,7 @@ def mk_indices_gen(ar_1, ar_2, ar_3, mode="nested"):
                 for m, v in enumerate(ar_3):
                     yield k, l, m,
 
-    elif mode == "co-move":
+    elif mode == "co-move" or mode == "Position List":
         for n, v in enumerate(ar_3):
             yield 0, 0, n
 
