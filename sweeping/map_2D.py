@@ -3,6 +3,9 @@ import numpy as np
 import pyqtgraph as pg
 from qtpy import QtCore, QtWidgets
 
+from ScopeFoundry.sweeping.position_list import PositionList
+
+from .locator import LocatorRoi
 from .sweep_2D import Sweep2D
 
 
@@ -130,10 +133,40 @@ class Map2D(Sweep2D):
         return super().pre_run()
 
     def mk_plot_options_widget(self):
-        plot_option_widget = QtWidgets.QWidget()
-        plot_option_layout = QtWidgets.QHBoxLayout(plot_option_widget)
-        plot_option_layout.addWidget(self.settings.New_UI(["data_set"]))
-        return plot_option_widget
+
+        plot_gb = QtWidgets.QGroupBox("Plot Options")
+        plot_layout = QtWidgets.QHBoxLayout(plot_gb)
+        plot_layout.setContentsMargins(6, 6, 6, 6)
+        plot_layout.setSpacing(4)
+        plot_layout.addWidget(
+            self.settings.New_UI(["data_set", "average_over_repetitions"])
+        )
+
+        # Container with horizontal layout holding both group boxes
+        container = QtWidgets.QWidget()
+        h_layout = QtWidgets.QHBoxLayout(container)
+        h_layout.setContentsMargins(3, 3, 3, 3)
+        h_layout.setSpacing(4)
+        h_layout.addWidget(plot_gb)
+
+        # Create PositionList and inject it into Locator1D
+        position_list = PositionList(self.ndim)
+        self.locator = LocatorRoi(
+            self,
+            axes=self.axes,
+            position_list=position_list,  # pt_roi=self.pt_roi
+        )
+
+        h_layout.addWidget(self.locator.mk_widget())
+        h_layout.addWidget(position_list.mk_widget())
+
+        container.setMaximumHeight(150)
+        container.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Minimum,
+        )
+
+        return container
 
     def mk_graph_widget(self):
         graph_layout = graph_widget = pg.GraphicsLayoutWidget()

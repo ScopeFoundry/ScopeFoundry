@@ -1,204 +1,40 @@
 import pyqtgraph as pg
 from qtpy import QtCore, QtWidgets
 
-from typing import Tuple, Union, List, Any
+from typing import Tuple, Union, List
 import numpy as np
 
 
-class RemovableItemList:
-    """A widget that displays a list of items with remove buttons and provides an easy append API."""
+class LocatorBase:
 
-    def __init__(self, ndims: int = 1):
-        self.ndims = ndims
-        self.items = []
-        self.item_widgets = []
-
-    def mk_list_widget(self):
-        widget = QtWidgets.QGroupBox("Positions List")
-
-        # Main layout
-        self.layout = QtWidgets.QVBoxLayout(widget)
-        self.layout.setSpacing(2)
-        self.layout.setContentsMargins(4, 4, 4, 4)
-
-        # Scroll area for the list
-        self.scroll_area = QtWidgets.QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setMaximumHeight(150)
-
-        # Container widget for items
-        self.container_widget = QtWidgets.QWidget()
-        self.container_layout = QtWidgets.QVBoxLayout(self.container_widget)
-        self.container_layout.setSpacing(1)
-        self.container_layout.setContentsMargins(2, 2, 2, 2)
-
-        self.scroll_area.setWidget(self.container_widget)
-
-        # Button layout for add and clear buttons
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.setSpacing(4)
-
-        # Clear button
-        self.clear_button = QtWidgets.QPushButton("Clear All")
-        self.clear_button.clicked.connect(self.clear)
-        self.clear_button.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #ff0000;
-                color: clear;
-                border: none;
-                padding: 4px 8px;
-                border-radius: 3px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #f57c00;
-            }
-        """
-        )
-
-        button_layout.addWidget(self.clear_button)
-
-        copy_buttons_layout = QtWidgets.QHBoxLayout()
-        for i in range(self.ndims):
-            btn = QtWidgets.QPushButton(f"Copy Col {i+1}")
-            btn.clicked.connect(
-                lambda checked, col=i: self.copy_column_to_clipboard(col)
-            )
-            copy_buttons_layout.addWidget(btn)
-
-        self.layout.addLayout(copy_buttons_layout)
-        self.layout.addLayout(button_layout)
-        self.layout.addWidget(self.scroll_area)
-
-        # Stretch to push everything to top
-        self.container_layout.addStretch()
-
-        widget.setMaximumWidth(350)
-        return widget
-
-    def append(self, item: Any, display_text: str = None) -> None:
-        """Add an item to the list with optional custom display text."""
-        if display_text is None:
-            if isinstance(item, (tuple, list)):
-                display_text = ", ".join([f"{x:.2f}" for x in item])
-            else:
-                display_text = str(item)
-
-        self.items.append(item)
-
-        # Create item widget
-        item_widget = QtWidgets.QWidget()
-        item_layout = QtWidgets.QHBoxLayout(item_widget)
-        item_layout.setContentsMargins(4, 2, 4, 2)
-        item_layout.setSpacing(4)
-
-        # Item label
-        label = QtWidgets.QLabel(display_text)
-        label.setStyleSheet(
-            """
-            QLabel {
-                background-color: palette(base);
-                color: palette(text);
-                padding: 2px 6px;
-                border-radius: 2px;
-                border: 1px solid palette(mid);
-            }
-        """
-        )
-
-        # Remove button
-        remove_btn = QtWidgets.QPushButton("×")
-        remove_btn.setFixedSize(20, 20)
-        remove_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #f44336;
-                color: white;
-                border: none;
-                border-radius: 10px;
-                font-weight: bold;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #d32f2f;
-            }
-        """
-        )
-
-        # Connect remove button
-        index = len(self.items) - 1
-        remove_btn.clicked.connect(lambda: self.remove_item(index))
-
-        item_layout.addWidget(label)
-        item_layout.addStretch()
-        item_layout.addWidget(remove_btn)
-
-        # Insert before the stretch
-        self.container_layout.insertWidget(len(self.item_widgets), item_widget)
-        self.item_widgets.append(item_widget)
-
-    def remove_item(self, index: int) -> None:
-        """Remove item at the specified index."""
-        if 0 <= index < len(self.items):
-            # Remove from data
-            self.items.pop(index)
-
-            # Remove widget
-            widget = self.item_widgets.pop(index)
-            self.container_layout.removeWidget(widget)
-            widget.deleteLater()
-
-            # Update button connections for remaining items
-            self._update_button_connections()
-
-    def _update_button_connections(self) -> None:
-        """Update remove button connections after item removal."""
-        for i, widget in enumerate(self.item_widgets):
-            # Find the remove button and reconnect it
-            layout = widget.layout()
-            remove_btn = layout.itemAt(layout.count() - 1).widget()
-            if isinstance(remove_btn, QtWidgets.QPushButton):
-                remove_btn.disconnect()
-                remove_btn.clicked.connect(lambda checked, idx=i: self.remove_item(idx))
-
-    def clear(self) -> None:
-        """Remove all items from the list."""
-        while self.items:
-            self.remove_item(0)
-
-    def get_items(self) -> List[Any]:
-        """Return a copy of all items in the list."""
-        return self.items.copy()
-
-    def count(self) -> int:
-        """Return the number of items in the list."""
-        return len(self.items)
-
-    def copy_column_to_clipboard(self, col_index: int) -> None:
-        """Copy a specific column of positions to the clipboard."""
-
-        column_values = np.array(self.items)[:, col_index].astype(str)
-        clipboard_text = "\n".join(column_values)
-        print(f"Copying to clipboard:\n{clipboard_text}")
-        clipboard = QtWidgets.QApplication.clipboard()
-        clipboard.setText(clipboard_text)
-
-
-class Locator1D:
-
-    def __init__(self, sweep_measurement, layout, axes):
+    def __init__(self, sweep_measurement, axes, position_list):
         self.sweep = sweep_measurement
-        self._positions_on_x_axis = False
-        self.position_list = RemovableItemList(sweep_measurement.ndim)
-        self.plot_axes = axes
+        self.position_list = position_list
+        self.axes = axes
+        self.setup_indicator()
 
-        layout.addWidget(self.mk_controls_widget())
-        layout.addWidget(self.mk_list_widget())
-        self.setup_infinite_line(self.plot_axes)
-        self.update_display()
+        # Connect mouse events for Ctrl+Click functionality
+        self.axes.scene().sigMouseClicked.connect(self.on_plot_mouse_clicked)
 
-    def mk_controls_widget(self):
+    def setup_indicator(self):
+        """Setup the infinite line on the plot."""
+        pass
+
+    def set_indicator_position(self, positions, plot_position: Tuple[float]) -> None:
+        """Set the infinite line position."""
+        pass
+
+    def update_indicator_label(self, actuator_names, positions):
+        """Gets called to update the indicator label."""
+        pass
+
+    def resolve_actuators_positions(
+        self, plot_position=None
+    ) -> Union[Tuple[float, ...], None]:
+        """Get the current locator position."""
+        pass
+
+    def mk_widget(self):
         self.widget = QtWidgets.QGroupBox("Locator")
         self.widget.setMaximumWidth(450)
 
@@ -223,68 +59,6 @@ class Locator1D:
         """Create and return the position list widget."""
         return self.position_list.mk_list_widget()
 
-    def setup_infinite_line(self, plot_axes):
-        """Setup the infinite line on the plot."""
-        self.plot_axes = plot_axes  # Store reference to plot axes
-
-        self.infinite_line = pg.InfiniteLine(
-            angle=90,
-            label="locator",
-            movable=True,
-            pen=pg.mkPen(color="#FF5722", width=2, style=QtCore.Qt.DashLine),
-            labelOpts={
-                "color": "#FFFFFF",
-                "movable": True,
-                "fill": "#FF56221E",  # faint semi-transparent background
-            },
-        )
-        self.infinite_line.sigPositionChanged.connect(self.on_infinite_line_moved)
-        plot_axes.addItem(self.infinite_line)
-
-        # Connect mouse events for Ctrl+Click functionality
-        plot_axes.scene().sigMouseClicked.connect(self.on_plot_mouse_clicked)
-
-    def resolve_actuators_positions(
-        self, line=None, x_plot_position=None
-    ) -> Union[Tuple[float, ...], None]:
-        """Get the current locator position."""
-        if not hasattr(self.sweep, "scan_data") or not self.sweep.scan_data.data:
-            return None
-
-        if x_plot_position is None:
-            if line is None:
-                line = self.infinite_line
-            x_plot_position = line.value()
-
-        if self._positions_on_x_axis:
-            if hasattr(self.sweep, "ndim") and self.sweep.ndim > 1:
-                positions = np.array(self.sweep.scan_data.positions)[:, 0]
-                index = np.argmin(np.abs(positions - x_plot_position))
-                return self.sweep.scan_data.positions[index]
-            else:
-                return (x_plot_position,)
-
-        settings = self.sweep.settings
-        if settings["average_over_repetitions"]:
-            size = self.sweep.scan_data.get_dset_size_per_position_and_repeats(
-                settings["data_set"]
-            )
-        else:
-            size = self.sweep.scan_data.get_dset_size_per_position(settings["data_set"])
-
-        index = int(x_plot_position // size)
-
-        if self.sweep.index * size >= self.sweep.max_npoints_shown:
-            smallest_index_shown = self.sweep.index - (
-                self.sweep.max_npoints_shown // size
-            )
-            index += smallest_index_shown
-
-        if index < 0 or index >= len(self.sweep.scan_data.positions):
-            return None
-
-        return self.sweep.scan_data.positions[index]
-
     def set_actuator_positions(self, positions: Tuple[float, ...]) -> None:
         """Set actuator positions based on locator position."""
         funcs = self.sweep.get_current_target_position_funcs()
@@ -296,9 +70,9 @@ class Locator1D:
         for p, r in zip(positions, self.sweep.scan_ranges):
             r.set_center(p)
 
-    def update_display(self, line=None) -> None:
+    def update_display(self) -> None:
         """Update locator display and button states."""
-        positions = self.resolve_actuators_positions(line)
+        positions = self.resolve_actuators_positions()
 
         if positions is None:
             self._update_invalid_position_ui()
@@ -350,21 +124,8 @@ class Locator1D:
     ) -> None:
         """Update UI for valid locator position."""
         actuator_names = [i[0] for i in self.sweep.get_current_actuators_defs()]
-        ext_pretty_pos = "<br>".join(
-            [
-                f"<span style='font-weight: 600;'>{name}:</span> {p:.2f}"
-                for name, p in zip(actuator_names, positions)
-            ]
-        )
 
-        if self.infinite_line:
-            html = f"""<div style='padding: 3px;'>
-                <span style='font-weight: 700; font-size: 13px;'>Actuator Positions</span><br>
-                <span style='font-size: 10px;'>{ext_pretty_pos}</span></div>
-                <div style='padding: 3px; font-size: 10px; font-style: italic; color: #FFD700;'>Crtl-click to add to Position List <br>Alt-click to move to position</div>
-                """
-            self.infinite_line.label.setHtml(html)
-            self.infinite_line.label.setMovable(True)
+        self.update_indicator_label(actuator_names, positions)
 
         pretty_pos = ", ".join([f"{p:.2f}" for p in positions])
 
@@ -412,9 +173,9 @@ class Locator1D:
             """
             )
 
-    def on_infinite_line_moved(self, line=None):
+    def on_indicator_moved(self):
         """Handle infinite line movement."""
-        self.update_display(line)
+        self.update_display()
 
     def on_go_to_btn_clicked(self):
         """Handle locator button click."""
@@ -435,27 +196,26 @@ class Locator1D:
     def on_plot_mouse_clicked(self, event):
         """Handle mouse clicks on the plot axes."""
 
-        if event.button() == QtCore.Qt.LeftButton:
-            # Get the position in plot coordinates
-            pos = event.pos()
-            mouse_point = self.plot_axes.vb.mapSceneToView(pos)
-
-            # Convert click position to actual position based on current display mode
-            positions = self.resolve_actuators_positions(
-                x_plot_position=mouse_point.x()
-            )
-            if positions is None:
-                self.sweep.set_status("clicked outside data range", "w", True)
-                return
-
-            self.set_line_position(positions, mouse_point.x())
-            pretty_pos = ", ".join([f"{float(p):1.2f}" for p in positions])
-
-        else:
+        if event.button() != QtCore.Qt.LeftButton:
             return
 
+        # Get the position in plot coordinates
+        mouse_point = self.axes.vb.mapSceneToView(event.scenePos())
+
+        positions = self.resolve_actuators_positions(
+            plot_position=(mouse_point.x(), mouse_point.y())
+        )
+        if positions is None:
+            self.sweep.set_status("clicked outside data range", "w", True)
+            return
+
+        self.set_indicator_position(
+            positions, plot_position=(mouse_point.x(), mouse_point.y())
+        )
+        pretty_pos = ", ".join([f"{float(p):1.2f}" for p in positions])
+        self._update_valid_position_ui(positions)
+
         if event.modifiers() == QtCore.Qt.ControlModifier:
-            # Ctrl+Click detected
             if positions is not None:
                 self.add_position_to_list(positions)
 
@@ -466,9 +226,8 @@ class Locator1D:
 
     def add_position_to_list(self, positions):
         """Add a position to the saved positions list."""
-        if positions is not None and self.position_list is not None:
+        if positions is not None:
             display_text = ", ".join([f"{pos:.2f}" for pos in positions])
-
             self.position_list.append(positions, display_text)
 
     def on_add_current_position(self):
@@ -476,11 +235,133 @@ class Locator1D:
         positions = self.resolve_actuators_positions()
         self.add_position_to_list(positions)
 
-    def get_positions_list(self) -> List[Tuple[float, ...]]:
-        return self.position_list.get_items()
 
-    def set_line_position(self, positions, x_plot_position: float) -> None:
+class LocatorRoi(LocatorBase):
+    """Locator for ROI positioning. Assumes that the axes are image with the extents matching the actuators positions."""
+
+    def __init__(
+        self,
+        sweep_measurement,
+        axes,
+        position_list,
+    ):
+        super().__init__(sweep_measurement, axes, position_list)
+
+    def setup_indicator(self):
+        self.circ_roi_size = 0.1
+
+        pen = pg.mkPen(color="#FF5722", width=5, style=QtCore.Qt.DashLine)
+
+        self.pt_roi = pg.CircleROI(
+            (0, 0), (self.circ_roi_size, self.circ_roi_size), movable=True, pen=pen
+        )
+
+        self.pt_roi.removeHandle(0)
+        self.pt_roi.sigRegionChangeFinished.connect(self.on_indicator_moved)
+        self.axes.addItem(self.pt_roi)
+
+    def resolve_actuators_positions(self, plot_position=None):
+        if plot_position is None:
+            roi_state = self.pt_roi.saveState()
+            x0, y0 = roi_state["pos"]
+        else:
+            x0, y0 = plot_position
+        return (x0, y0)
+        xc = x0 + self.circ_roi_size / 2.0
+        yc = y0 + self.circ_roi_size / 2.0
+        return (xc, yc)
+
+    def set_indicator_position(self, positions, plot_position: Tuple[float]) -> None:
         """Set the infinite line position."""
-        if self.infinite_line:
-            self.infinite_line.setValue(x_plot_position)
-            self._update_valid_position_ui(positions)
+        xc, yc = positions
+        x0 = xc - self.circ_roi_size / 2.0
+        y0 = yc - self.circ_roi_size / 2.0
+        self.pt_roi.setPos((x0, y0))
+        self._update_valid_position_ui(positions)
+
+
+class LocatorX(LocatorBase):
+
+    def __init__(self, sweep_measurement, axes, position_list):
+        super().__init__(sweep_measurement, axes, position_list)
+        self.real_position_on_x = False
+
+    def setup_indicator(
+        self,
+    ):
+
+        self.infinite_line_x = pg.InfiniteLine(
+            angle=90,
+            label="locator",
+            movable=True,
+            pen=pg.mkPen(color="#FF5722", width=2, style=QtCore.Qt.DashLine),
+            labelOpts={
+                "color": "#FFFFFF",
+                "movable": True,
+                "fill": "#FF5722",  # faint semi-transparent background
+            },
+        )
+        self.infinite_line_x.sigPositionChanged.connect(self.on_indicator_moved)
+        self.axes.addItem(self.infinite_line_x)
+
+    def set_indicator_position(self, positions, plot_position: Tuple[float]) -> None:
+        """Set the infinite line position."""
+        self.infinite_line_x.setValue(plot_position[0])
+        self._update_valid_position_ui(positions)
+
+    def resolve_actuators_positions(
+        self, plot_position=None
+    ) -> Union[Tuple[float, ...], None]:
+        """Get the current locator position."""
+        if not hasattr(self.sweep, "scan_data") or not self.sweep.scan_data.data:
+            return None
+
+        if plot_position is None:
+            x_plot_position = self.infinite_line_x.value()
+        else:
+            x_plot_position = plot_position[0]
+
+        if self.real_position_on_x:
+            if hasattr(self.sweep, "ndim") and self.sweep.ndim > 1:
+                positions = np.array(self.sweep.scan_data.positions)[:, 0]
+                index = np.argmin(np.abs(positions - x_plot_position))
+                return self.sweep.scan_data.positions[index]
+            else:
+                return (x_plot_position,)
+
+        settings = self.sweep.settings
+        if settings["average_over_repetitions"]:
+            size = self.sweep.scan_data.get_dset_size_per_position_and_repeats(
+                settings["data_set"]
+            )
+        else:
+            size = self.sweep.scan_data.get_dset_size_per_position(settings["data_set"])
+
+        index = int(x_plot_position // size)
+
+        if self.sweep.index * size >= self.sweep.max_npoints_shown:
+            smallest_index_shown = self.sweep.index - (
+                self.sweep.max_npoints_shown // size
+            )
+            index += smallest_index_shown
+
+        if index < 0 or index >= len(self.sweep.scan_data.positions):
+            return None
+
+        return self.sweep.scan_data.positions[index]
+
+    def update_indicator_label(self, actuator_names, positions):
+        ext_pretty_pos = "<br>".join(
+            [
+                f"<span style='font-weight: 600;'>{name}:</span> {p:.2f}"
+                for name, p in zip(actuator_names, positions)
+            ]
+        )
+        if self.infinite_line_x:
+            html = f"""<div style='padding: 3px;'>
+                <span style='font-weight: 700; font-size: 13px;'>Actuator Positions</span><br>
+                <span style='font-size: 10px;'>{ext_pretty_pos}</span></div>
+                <div style='padding: 3px; font-size: 10px; font-style: italic; color: #FFD700;'>Crtl-click to add to Position List <br>Alt-click to move to position</div>
+                """
+            self.infinite_line_x.label.setHtml(html)
+            self.infinite_line_x.label.setMovable(True)

@@ -21,7 +21,8 @@ from .collector import Collector
 from .collector_ui_list import InteractiveCollectorList
 from .nd_scan_data import NDScanData
 from .utils import filtered_lq_paths, mk_new_dir
-from .locator import Locator1D
+from .locator import LocatorX
+from .position_list import PositionList
 from functools import partial
 
 
@@ -412,7 +413,7 @@ class SweepNDBase(Measurement, ABC):
 
         if size == 1 and self.should_show_positions_on_x_axis():
             # special case where we can put position as x-axis
-            self.locator._positions_on_x_axis = True
+            self.locator.real_position_on_x = True
             self.axes.setLabel("bottom", self.settings["actuator_1"])
             x = np.squeeze(self.scan_data.positions[: self.index])
             if x.ndim > 1:
@@ -422,7 +423,7 @@ class SweepNDBase(Measurement, ABC):
             print(x, y)
             self.line.setData(x, y)
         else:
-            self.locator._positions_on_x_axis = False
+            self.locator.real_position_on_x = False
             self.axes.setLabel("bottom", "arbitrary")
             f = max(1, self.max_npoints_shown // size)
             curr = self.index * size
@@ -580,7 +581,12 @@ class SweepNDBase(Measurement, ABC):
         h_layout.setSpacing(4)
         h_layout.addWidget(plot_gb)
 
-        self.locator = Locator1D(self, layout=h_layout, axes=self.axes)
+        # Create PositionList and inject it into Locator1D
+        position_list = PositionList(self.ndim)
+        self.locator = LocatorX(self, axes=self.axes, position_list=position_list)
+
+        h_layout.addWidget(self.locator.mk_widget())
+        h_layout.addWidget(position_list.mk_widget())
 
         container.setMaximumHeight(150)
         container.setSizePolicy(
