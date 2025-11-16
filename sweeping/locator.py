@@ -332,10 +332,10 @@ class LocatorX(LocatorBase):
         settings = self.sweep.settings
         if settings["average_over_repetitions"]:
             size = self.sweep.scan_data.get_dset_size_per_position_and_repeats(
-                settings["data_set"]
+                settings["dataset"]
             )
         else:
-            size = self.sweep.scan_data.get_dset_size_per_position(settings["data_set"])
+            size = self.sweep.scan_data.get_dset_size_per_position(settings["dataset"])
 
         index = int(x_plot_position // size)
 

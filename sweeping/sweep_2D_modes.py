@@ -63,7 +63,7 @@ def mk_data_shape(ar_1, ar_2, mode="nested"):
 
 
 def mk_indices_gen(ar_1, ar_2, mode="nested"):
-    if mode == "nested" or mode == "Position List":
+    if mode == "nested":
         for k, v in enumerate(ar_1):
             for l, v in enumerate(ar_2):
                 yield k, l
@@ -73,7 +73,7 @@ def mk_indices_gen(ar_1, ar_2, mode="nested"):
             for k, kv in enumerate(ar_1):
                 yield k, l
 
-    elif mode == "co-move":
+    elif mode == "co-move" or mode == "Position List":
         for l, v in enumerate(ar_2):
             yield 0, l
 

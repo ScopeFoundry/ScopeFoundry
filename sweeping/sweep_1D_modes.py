@@ -1,6 +1,6 @@
 SCAN_MODES = ("co-move", "Position List")
 SCAN_MODES_DESCRIPTION = """
-<p><i>co-move:</i> single actuator sweep
+<p><i>co-move:</i> Single actuator sweep. Somewhat a trivial case - I know :-)
 <p><i>Position List:</i> positions are defined by this Measurement's Position List.</p>
 """
 
