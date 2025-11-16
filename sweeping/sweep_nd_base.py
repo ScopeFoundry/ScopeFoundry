@@ -1,3 +1,4 @@
+import itertools
 import time
 from abc import ABC
 from copy import copy
@@ -63,38 +64,68 @@ class SweepNDBase(Measurement, ABC):
             self.root = self.app.settings["save_dir"]
             self.app.settings["save_dir"] = mk_new_dir(self.root, self.name)
 
-        if s["scan_mode"] == "Position List":
-            arrays = tuple(np.array(self.locator.get_positions_list()).T)
+        if s["scan_mode"] == "RETAKE":
+            # Retake data at specified positions
+            target_positions = self.position_list.get_items()
+            indices = []  # index
+            base_indices_gen = []
+            positions_gen = []
+            for target_position in target_positions:
+                index = find_nearest_position_index(
+                    self.scan_data.positions, target_position
+                )
+                indices.append(index)
+                base_indices_gen.append(self.scan_data.indices[index])
+                positions_gen.append(self.scan_data.positions[index])
+
+            # Will reuse existing scan_data object in memory
+            scan_data = self.scan_data
+            scan_data.open_new_h5_file()
+            scan_data.recycle()
+
+            # add a dummy value - will be only used to show progress and data
+            indices.append(np.prod(scan_data.base_shape))
+            progress_index_gen = (i + 1 for i in indices)
+            N = len(indices)
+            self.set_status(f"Retaking data at index {self.progress_index}", "y")
+            self.display_ready = True
         else:
-            arrays = []
-            for name in self.actuator_names:
-                if self.settings[f"from_list_{name}"]:
-                    pos_list = self.list_uis[name].toPlainText().splitlines()
-                    pos_list = [s.split("#")[0] for s in pos_list]  # remove comments
-                    pos_list = [float(p) for p in pos_list if p.strip() != ""]
-                    arrays.append(np.array(pos_list))
-                else:
-                    arrays.append(
-                        np.array(self.settings.ranges[f"range_{name}"].sweep_array)
-                    )
-            arrays = tuple(arrays)
+            if s["scan_mode"] == "Position List":
+                arrays = tuple(np.array(self.position_list.get_items()).T)
+            else:
+                arrays = []
+                for name in self.actuator_names:
+                    if self.settings[f"from_list_{name}"]:
+                        pos_list = self.list_uis[name].toPlainText().splitlines()
+                        pos_list = [
+                            s.split("#")[0] for s in pos_list
+                        ]  # remove comments
+                        pos_list = [float(p) for p in pos_list if p.strip() != ""]
+                        arrays.append(np.array(pos_list))
+                    else:
+                        arrays.append(
+                            np.array(self.settings.ranges[f"range_{name}"].sweep_array)
+                        )
+                arrays = tuple(arrays)
 
-        self.scan_data = scan_data = NDScanData(
-            base_shape=self.mk_data_shape(*arrays, s["scan_mode"]),
-            measurement=self,
-        )
-        self.data = self.scan_data.data
+            self.scan_data = scan_data = NDScanData(
+                base_shape=self.mk_data_shape(*arrays, s["scan_mode"]),
+                measurement=self,
+            )
+            self.data = self.scan_data.data
 
-        for array, name in zip(arrays, self.actuator_names):
-            self.scan_data.create_dataset(f"range_{name}", data=array)
+            for array, name in zip(arrays, self.actuator_names):
+                self.scan_data.create_dataset(f"range_{name}", data=array)
 
-        N = np.prod(scan_data.base_shape)
-        self.index = 0
-
-        scan_iteration_indices = self.mk_indices_gen(*arrays, s["scan_mode"])
+            base_indices_gen = self.mk_indices_gen(*arrays, s["scan_mode"])
+            positions_gen = self.mk_positions_gen(*arrays, s["scan_mode"])
+            progress_index_gen = itertools.count(0, 1)  # just one by one
+            N = np.prod(scan_data.base_shape)
+            self.display_ready = False
 
         data_set_names = []
-        for positions in self.mk_positions_gen(*arrays, s["scan_mode"]):
+        self.progress_index = next(progress_index_gen)
+        for positions, base_indices in zip(positions_gen, base_indices_gen):
 
             # set positions and wait
             pretty_pos = ", ".join([f"{p:.1f}" for p in positions])
@@ -103,7 +134,7 @@ class SweepNDBase(Measurement, ABC):
             time.sleep(s["collection_delay"])
             read_positions = tuple([read() for read, _ in actuators])
 
-            base_indices = next(scan_iteration_indices)
+            # base_indices = next(scan_iteration_indices)
 
             self.prepare_at_position(positions, base_indices)
 
@@ -111,17 +142,17 @@ class SweepNDBase(Measurement, ABC):
                 self.set_status(f"collecting {collector.name} on {pretty_pos}", "g")
                 self.prepare_collector_at_position(collector, positions, base_indices)
                 for r in range(collector.reps):
-                    collector.run(self.index, self)
+                    collector.run(self.progress_index, self)
 
                     # collect data
-                    if self.index == 0 and r == 0:
+                    if not scan_data.dsets_initialized:
                         scan_data.init_dsets(collector)
                         data_set_names.extend([q[-1] for q in collector.repeats])
                         self.display_ready = True
-
                     scan_data.incorporate(collector, *base_indices, r)
+
                 self.release_collector(collector, positions, base_indices)
-            if self.index == 0:
+            if self.progress_index == 0:
                 self.settings.get_lq("dataset").change_choice_list(data_set_names)
 
             scan_data.add_position(positions)
@@ -129,8 +160,8 @@ class SweepNDBase(Measurement, ABC):
             scan_data.add_indices(base_indices)
             # manager.flush_h5()
 
-            self.index += 1
-            self.set_progress(100 * (self.index + 1) / N)
+            self.progress_index = next(progress_index_gen)
+            self.set_progress(100 * (self.progress_index + 1) / N)
 
             if self.interrupt_measurement_called:
                 break
@@ -232,8 +263,10 @@ class SweepNDBase(Measurement, ABC):
         s.New(
             name="scan_mode",
             dtype=str,
-            choices=self.get_scan_modes(),
-            description=self.get_scan_modes_description(),
+            initial="nested",
+            choices=list(self.get_scan_modes()) + ["RETAKE"],
+            description=self.get_scan_modes_description()
+            + "<p><i>RETAKE:</i>: Allows to retake (fix) inidiviual data points specified in Position List. Makes a new datafile with data in memory with retaken data points updated.</p>",
         )
         s.New(
             name="collection_delay",
@@ -414,18 +447,18 @@ class SweepNDBase(Measurement, ABC):
             # special case where we can put position as x-axis
             self.locator.real_position_on_x = True
             self.axes.setLabel("bottom", self.settings["actuator_1"])
-            x = np.squeeze(self.scan_data.positions[: self.index])
+            x = np.squeeze(self.scan_data.positions[: self.progress_index])
             if x.ndim > 1:
                 x = x[:, 0]
-            y = np.squeeze(dset[: self.index])
+            y = np.squeeze(dset[: self.progress_index])
             self.line.setData(x, y)
         else:
             self.locator.real_position_on_x = False
             self.axes.setLabel("bottom", "arbitrary")
             f = max(1, self.max_npoints_shown // size)
-            curr = self.index * size
+            curr = self.progress_index * size
 
-            if self.index > f:
+            if self.progress_index > f:
                 self.line.setData(
                     dset.ravel()[curr - f * size : curr],
                 )
@@ -520,15 +553,21 @@ class SweepNDBase(Measurement, ABC):
             layout.setSpacing(3)
             h_layout.addLayout(layout)
 
-        place_holder = QtWidgets.QLabel("placeholder")
+        place_holder = QtWidgets.QTextEdit("placeholder")
         place_holder.setVisible(False)
-        place_holder.setMaximumHeight(50)
 
         def toggle_mode_selector(mode):
-            enable = mode != "Position List"
-            h_widget.setVisible(enable)
-            place_holder.setVisible(not enable)
-            place_holder.setText(f"Will sweep over position list of this measurement")
+            show_place_holder = mode in ("RETAKE", "Position List")
+            h_widget.setHidden(show_place_holder)
+            place_holder.setHidden(not show_place_holder)
+            if mode == "Position List":
+                place_holder.setHtml(
+                    f"Will sweep over Position List of this measurement ({self.name})."
+                )
+            elif mode == "RETAKE":
+                place_holder.setHtml(
+                    "Retakes data at position defined in Position List. <br>Finally, saves a new file with data in memory and retaken data."
+                )
 
         self.settings.get_lq("scan_mode").updated_value[str].connect(
             toggle_mode_selector
@@ -644,7 +683,7 @@ class SweepNDBase(Measurement, ABC):
         self.data = self.scan_data.data
         self.settings.get_lq("dataset").change_choice_list(list(self.data.keys()))
         self.scan_data.positions = raw_data["positions"]
-        self.index = len(raw_data["positions"] - 1)
+        self.progress_index = len(raw_data["positions"] - 1)
         self.display_ready = True
 
     # Abstract methods that child classes should implement
@@ -677,3 +716,10 @@ class SweepNDBase(Measurement, ABC):
     def should_show_positions_on_x_axis(self):
         """Return whether positions should be shown on x-axis in update_display."""
         return self.settings["scan_mode"] == "co-move"
+
+
+def find_nearest_position_index(positions, target_positions):
+    positions_array = np.array(positions)
+    target_positions = np.array(target_positions)
+    distances = np.linalg.norm(positions_array - target_positions, ord=2, axis=1)
+    return int(np.argmin(distances))

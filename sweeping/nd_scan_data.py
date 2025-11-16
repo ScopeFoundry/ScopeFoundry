@@ -28,9 +28,13 @@ class NDScanData:
         self.read_positions = []
         self.indices = []
 
-        self.h5_meas_group = measurement.open_new_h5_file()
-        self.h5_file = measurement.h5_file
-        self.metadata = measurement.dataset_metadata
+        self.open_new_h5_file()
+
+    def open_new_h5_file(self):
+        self.h5_meas_group = self.measurement.open_new_h5_file()
+        self.h5_file = self.measurement.h5_file
+        self.metadata = self.measurement.dataset_metadata
+        self.dsets_initialized = False
 
     def add_position(self, positions: Tuple[float]):
         self.positions.append(positions)
@@ -69,6 +73,13 @@ class NDScanData:
 
         for lq_path in collector.settings_to_collect:
             self.h5_meas_group.create_dataset(to_dstname(lq_path), shape)
+
+        self.dsets_initialized = True
+
+    def recycle(self):
+        for global_name, d in self.data.items():
+            self.h5_meas_group.create_dataset(global_name, data=d)
+        self.dsets_initialized = True
 
     def incorporate(self, collector: Collector, *indices):
         """collects data from collectors and writes it to the h5 file"""

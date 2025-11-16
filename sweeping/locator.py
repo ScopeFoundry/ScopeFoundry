@@ -339,8 +339,8 @@ class LocatorX(LocatorBase):
 
         index = int(x_plot_position // size)
 
-        if self.sweep.index * size >= self.sweep.max_npoints_shown:
-            smallest_index_shown = self.sweep.index - (
+        if self.sweep.progress_index * size >= self.sweep.max_npoints_shown:
+            smallest_index_shown = self.sweep.progress_index - (
                 self.sweep.max_npoints_shown // size
             )
             index += smallest_index_shown
