@@ -150,7 +150,7 @@ class Map2D(Sweep2D):
         h_layout.addWidget(plot_gb)
 
         # Create PositionList and inject it into Locator1D
-        position_list = PositionList(self.ndim)
+        position_list = PositionList(self)
         self.locator = LocatorRoi(
             self,
             axes=self.axes,
