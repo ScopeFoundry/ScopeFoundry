@@ -578,12 +578,8 @@ class SweepNDBase(Measurement, ABC):
         h_layout.setSpacing(4)
         h_layout.addWidget(plot_gb)
 
-        # Create PositionList and inject it into Locator1D
-        position_list = PositionList(self)
-        self.locator = LocatorX(self, axes=self.axes, position_list=position_list)
-
+        self.locator = LocatorX(self, axes=self.axes, position_list=self.position_list)
         h_layout.addWidget(self.locator.mk_widget())
-        h_layout.addWidget(position_list.mk_widget())
 
         container.setMaximumHeight(150)
         container.setSizePolicy(
@@ -617,7 +613,20 @@ class SweepNDBase(Measurement, ABC):
             QtWidgets.QSizePolicy.Policy.MinimumExpanding,
         )
 
-        return graph_widget
+        graph_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
+        )
+
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(widget)
+        layout.setSpacing(0)
+
+        # Create PositionList and inject it into Locator1D
+        self.position_list = PositionList(self)
+        self.locator = LocatorX(self, axes=self.axes, position_list=self.position_list)
+        layout.addWidget(graph_widget)
+        layout.addWidget(self.position_list.mk_widget())
+        return widget
 
     def get_current_actuators_defs(self) -> List[ActuatorInfos]:
         """Returns a list of currently selected actuator definitions."""
