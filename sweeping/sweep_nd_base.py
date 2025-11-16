@@ -44,8 +44,8 @@ class SweepNDBase(Measurement, ABC):
 
         collectors = self.collector_list_widget.get_collectors()
         if not collectors:
-            self.set_status("set a collector repetitions to non-zero", "r")
-            print("set a collector repetitions to non-zero")
+            self.set_status("set collector repetitions to non-zero", "r")
+            print("set collector repetitions to non-zero")
             return
 
         actuators = self.get_current_actuator_funcs()
@@ -98,7 +98,7 @@ class SweepNDBase(Measurement, ABC):
 
             # set positions and wait
             pretty_pos = ", ".join([f"{p:.1f}" for p in positions])
-            self.set_status(f"setting {pretty_pos} and wait ", "g")
+            self.set_status(f"setting {pretty_pos} and waiting", "g")
             self.go_to_positions(positions, actuators)
             time.sleep(s["collection_delay"])
             read_positions = tuple([read() for read, _ in actuators])
@@ -122,7 +122,7 @@ class SweepNDBase(Measurement, ABC):
                     scan_data.incorporate(collector, *base_indices, r)
                 self.release_collector(collector, positions, base_indices)
             if self.index == 0:
-                self.settings.get_lq("data_set").change_choice_list(data_set_names)
+                self.settings.get_lq("dataset").change_choice_list(data_set_names)
 
             scan_data.add_position(positions)
             scan_data.add_read_positions(read_positions)
@@ -239,21 +239,21 @@ class SweepNDBase(Measurement, ABC):
             name="collection_delay",
             initial=0.01,
             unit="s",
-            description="after setting the wheel position, data collection is delayed allowing system to reach steady state",
+            description="after setting the wheel position, data collection is delayed, allowing the system to reach steady state",
         )
 
         s.New(
             name="res_in_new_dir",
             dtype=bool,
             initial=False,
-            description="dumps data in a new sub folder. Intended for <i>any_measurement</i> where a file is stored per acquisition",
+            description="dumps data in a new subfolder. Intended for <i>any_measurement</i> where a file is stored per acquisition",
         )
         s.New(
-            name="data_set",
+            name="dataset",
             dtype=str,
             initial="",
             choices=("",),
-            description="set data set to plot",
+            description="set dataset to plot",
         ).add_listener(self.update_display)
         s.New("average_over_repetitions", dtype=bool, initial=True).add_listener(
             self.update_display
@@ -285,7 +285,7 @@ class SweepNDBase(Measurement, ABC):
                 f"from_list_{name}",
                 dtype=bool,
                 initial=False,
-                description="use a manual list instead of a parametric range",
+                description="use a manual list instead of a parametric range. Put one number per line. Comments can be added after #",
             )
             if n == 1:
                 self.scan_ranges.append(
@@ -299,7 +299,7 @@ class SweepNDBase(Measurement, ABC):
         self.add_operation(
             "update widgets",
             self.update_widgets,
-            description="click after connecting to a hardware to extend actuator options",
+            description="click after connecting to hardware to extend actuator options",
             icon_path=self.app.qtapp.style().standardIcon(
                 QtWidgets.QStyle.SP_BrowserReload
             ),
@@ -343,7 +343,7 @@ class SweepNDBase(Measurement, ABC):
         top_layout.addWidget(self.mk_scan_settings_widget())
         top_layout.addWidget(self.mk_collect_widget())
 
-        # order creation matters here
+        # creation order matters here
         graph_widget = self.mk_graph_widget()
         plot_options_widget = self.mk_plot_options_widget()
 
@@ -373,8 +373,8 @@ class SweepNDBase(Measurement, ABC):
         layout.addWidget(graph_widget)
 
         self.display_ready = False
-        self.set_status("starting power scan", "y")
-        s.get_lq("data_set").add_listener(self.update_display)
+        self.set_status(f"starting {self.name}", "y")
+        s.get_lq("dataset").add_listener(self.update_display)
         for i in range(self.n_any_measurements):
             s.get_lq(f"any_measurement_{i}").change_choice_list(
                 self.app.measurements.keys()
@@ -392,10 +392,10 @@ class SweepNDBase(Measurement, ABC):
 
         self.update_status_display()
 
-        if not self.display_ready or not self.settings["data_set"]:
+        if not self.display_ready or not self.settings["dataset"]:
             return
 
-        option = self.settings["data_set"]
+        option = self.settings["dataset"]
 
         # Set left label if applicable (1D case)
         if hasattr(self, "set_left_label_in_update") and self.set_left_label_in_update:
@@ -520,7 +520,7 @@ class SweepNDBase(Measurement, ABC):
             layout.setSpacing(3)
             h_layout.addLayout(layout)
 
-        place_holder = QtWidgets.QLabel("place holder")
+        place_holder = QtWidgets.QLabel("placeholder")
         place_holder.setVisible(False)
         place_holder.setMaximumHeight(50)
 
@@ -528,7 +528,7 @@ class SweepNDBase(Measurement, ABC):
             enable = mode != "Position List"
             h_widget.setVisible(enable)
             place_holder.setVisible(not enable)
-            place_holder.setText(f"Will sweep over Position List of this Measurement")
+            place_holder.setText(f"Will sweep over position list of this measurement")
 
         self.settings.get_lq("scan_mode").updated_value[str].connect(
             toggle_mode_selector
@@ -554,7 +554,7 @@ class SweepNDBase(Measurement, ABC):
         for collector in self.collectors:
             self.collector_list_widget.add_item(collector)
 
-        widget = QtWidgets.QGroupBox("Data Collectors: set repetitions and order")
+        widget = QtWidgets.QGroupBox("Data Collectors: Set repetitions and order")
         layout = QtWidgets.QVBoxLayout(widget)
         layout.setSpacing(4)
         layout.setContentsMargins(8, 12, 8, 8)
@@ -568,7 +568,7 @@ class SweepNDBase(Measurement, ABC):
         plot_layout.setContentsMargins(6, 6, 6, 6)
         plot_layout.setSpacing(4)
         plot_layout.addWidget(
-            self.settings.New_UI(["data_set", "average_over_repetitions"])
+            self.settings.New_UI(["dataset", "average_over_repetitions"])
         )
 
         # Container with horizontal layout holding both group boxes
@@ -621,7 +621,7 @@ class SweepNDBase(Measurement, ABC):
         layout = QtWidgets.QHBoxLayout(widget)
         layout.setSpacing(0)
 
-        # Create PositionList and inject it into Locator1D
+        # Create PositionList and inject it into LocatorX
         self.position_list = PositionList(self)
         self.locator = LocatorX(self, axes=self.axes, position_list=self.position_list)
         layout.addWidget(graph_widget)
@@ -643,7 +643,7 @@ class SweepNDBase(Measurement, ABC):
     def load_data(self, raw_data):
         self.scan_data.data = {n: v for n, v in raw_data.items() if n.endswith("_raw")}
         self.data = self.scan_data.data
-        self.settings.get_lq("data_set").change_choice_list(list(self.data.keys()))
+        self.settings.get_lq("dataset").change_choice_list(list(self.data.keys()))
         self.scan_data.positions = raw_data["positions"]
         self.index = len(raw_data["positions"] - 1)
         self.display_ready = True

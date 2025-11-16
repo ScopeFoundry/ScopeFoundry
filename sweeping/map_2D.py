@@ -50,7 +50,7 @@ class Map2D(Sweep2D):
             ),
         )
         self.add_operation(
-            "load image from h5",
+            "load image from H5",
             self.load_img_from_h5,
             icon_path=self.app.qtapp.style().standardIcon(QtWidgets.QStyle.SP_FileIcon),
         )
@@ -63,7 +63,7 @@ class Map2D(Sweep2D):
         self.settings.get_lq("actuator_2").add_listener(self.connect_pos_widgets)
         self.axes.getViewBox().invertX(self.invert_h)
         self.axes.getViewBox().invertY(self.invert_v)
-        self.run_layout.addWidget(self.operations.new_button("load image from h5"))
+        self.run_layout.addWidget(self.operations.new_button("load image from H5"))
         self.run_layout.addWidget(self.operations.new_button("clear_previous_scans"))
 
     def new_img_item(self):
@@ -79,7 +79,7 @@ class Map2D(Sweep2D):
         if fname is None:
             fname, _ = QtWidgets.QFileDialog.getOpenFileName(
                 parent=None,
-                caption=f"Open File",
+                caption="Open File",
                 filter=";;".join(
                     [f"{self.name} (*{self.name}*.h5)", "All Files (*.h5)"]
                 ),
@@ -139,7 +139,7 @@ class Map2D(Sweep2D):
         plot_layout.setContentsMargins(6, 6, 6, 6)
         plot_layout.setSpacing(4)
         plot_layout.addWidget(
-            self.settings.New_UI(["data_set", "average_over_repetitions"])
+            self.settings.New_UI(["dataset", "average_over_repetitions"])
         )
 
         # Container with horizontal layout holding both group boxes
@@ -201,7 +201,7 @@ class Map2D(Sweep2D):
         layout = QtWidgets.QHBoxLayout(widget)
         layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
-        # Create PositionList and inject it into Locator1D
+        # Create PositionList and inject it into LocatorRoi
         self.position_list = PositionList(self)
         self.locator = LocatorRoi(
             self, axes=self.axes, position_list=self.position_list
@@ -213,10 +213,10 @@ class Map2D(Sweep2D):
     def update_display(self):
         self.update_status_display()
 
-        if not self.display_ready or not self.settings["data_set"]:
+        if not self.display_ready or not self.settings["dataset"]:
             return
 
-        dset = np.array(self.scan_data.data[self.settings["data_set"]])
+        dset = np.array(self.scan_data.data[self.settings["dataset"]])
         img = dset.reshape(*(*self.scan_data.base_shape, -1)).mean(axis=-1)
         self.img_item.setImage(img, rect=self.calc_rect())
 
@@ -344,14 +344,14 @@ class Map2D(Sweep2D):
 class ComboSelectDialog(QtWidgets.QDialog):
     def __init__(self, items, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Select Data set to display")
+        self.setWindowTitle("Select dataset to display")
         self.layout = QtWidgets.QVBoxLayout(self)
 
         self.combo = QtWidgets.QComboBox(self)
         self.combo.addItems(items)
         self.layout.addWidget(self.combo)
 
-        self.select_btn = QtWidgets.QPushButton("Select data set", self)
+        self.select_btn = QtWidgets.QPushButton("Select dataset", self)
         self.layout.addWidget(self.select_btn)
 
         self.select_btn.clicked.connect(self.accept)
