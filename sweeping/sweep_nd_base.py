@@ -578,7 +578,6 @@ class SweepNDBase(Measurement, ABC):
         h_layout.setSpacing(4)
         h_layout.addWidget(plot_gb)
 
-        self.locator = LocatorX(self, axes=self.axes, position_list=self.position_list)
         h_layout.addWidget(self.locator.mk_widget())
 
         container.setMaximumHeight(150)
