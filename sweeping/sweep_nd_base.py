@@ -70,6 +70,7 @@ class SweepNDBase(Measurement, ABC):
             for name in self.actuator_names:
                 if self.settings[f"from_list_{name}"]:
                     pos_list = self.list_uis[name].toPlainText().splitlines()
+                    pos_list = [s.split("#")[0] for s in pos_list]  # remove comments
                     pos_list = [float(p) for p in pos_list if p.strip() != ""]
                     arrays.append(np.array(pos_list))
                 else:
@@ -395,8 +396,6 @@ class SweepNDBase(Measurement, ABC):
             return
 
         option = self.settings["data_set"]
-        print(self.data)
-        print(option)
 
         # Set left label if applicable (1D case)
         if hasattr(self, "set_left_label_in_update") and self.set_left_label_in_update:
@@ -419,8 +418,6 @@ class SweepNDBase(Measurement, ABC):
             if x.ndim > 1:
                 x = x[:, 0]
             y = np.squeeze(dset[: self.index])
-            print("a;lskdjf")
-            print(x, y)
             self.line.setData(x, y)
         else:
             self.locator.real_position_on_x = False
@@ -499,7 +496,7 @@ class SweepNDBase(Measurement, ABC):
 
             range_ui.setMaximumWidth(self.range_n_intervals[ii] * 180)
             list_ui.setMaximumWidth(180)
-
+            list_ui.setText("# Enter one position per line.\n")
             self.list_uis[name] = list_ui
             list_ui.setVisible(False)
 
@@ -582,7 +579,7 @@ class SweepNDBase(Measurement, ABC):
         h_layout.addWidget(plot_gb)
 
         # Create PositionList and inject it into Locator1D
-        position_list = PositionList(self.ndim)
+        position_list = PositionList(self)
         self.locator = LocatorX(self, axes=self.axes, position_list=position_list)
 
         h_layout.addWidget(self.locator.mk_widget())
