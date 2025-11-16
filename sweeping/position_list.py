@@ -18,19 +18,46 @@ class PositionList:
         self.ndim = sweep.ndim
         self.items = []
         self.item_widgets = []
+        self.fully_initialized = False
 
     def mk_widget(self):
-        widget = QtWidgets.QGroupBox("Positions List")
+        widget = QtWidgets.QWidget()
 
-        # Main layout
-        self.layout = QtWidgets.QVBoxLayout(widget)
-        self.layout.setSpacing(2)
-        self.layout.setContentsMargins(4, 4, 4, 4)
+        widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
+        )
 
-        # Scroll area for the list
+        # Main layout - horizontal to accommodate vertical button
+        self.main_layout = QtWidgets.QHBoxLayout(widget)
+        self.main_layout.setSpacing(0)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Vertical toggle button (always visible)
+        self.toggle_button = QtWidgets.QPushButton("\u25b6")
+        self.toggle_button.setFixedSize(12, 180)
+        self.toggle_button.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed
+        )
+        self.toggle_button.clicked.connect(self.on_toggle_button_clicked)
+        self.toggle_button.setToolTip("📍 Position List (0 items) - Click to expand")
+
+        self.main_layout.addWidget(self.toggle_button)
+
+        # Content widget that can be hidden/shown
+        self.content_widget = QtWidgets.QWidget()
+        self.content_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
+        self.content_layout = QtWidgets.QVBoxLayout(self.content_widget)
+        self.content_layout.setSpacing(2)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.addWidget(self.content_widget)
+
+        # Track expanded state
+        self.is_expanded = False  # Scroll area for the list
         self.scroll_area = QtWidgets.QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setMaximumHeight(150)
+        # self.scroll_area.setMaximumHeight(150)
 
         # Container widget for items
         self.container_widget = QtWidgets.QWidget()
@@ -50,7 +77,7 @@ class PositionList:
         self.clear_button.setStyleSheet(
             """
             QPushButton {
-                background-color: #ff0000;
+                background-color: #F44336;
                 color: clear;
                 border: none;
                 padding: 4px 8px;
@@ -67,30 +94,24 @@ class PositionList:
 
         copy_buttons_layout = QtWidgets.QHBoxLayout()
         for i in range(self.ndim):
-            btn = QtWidgets.QPushButton(f"Copy Col {i+1}")
+            btn = QtWidgets.QPushButton(f"📋{i+1}")
+            btn.setStyleSheet(
+                """
+                QPushButton {
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #f57c00;
+                }
+            """
+            )
+            btn.setFixedSize(30, 24)
+            btn.setToolTip(f"Copy column {i+1} to clipboard")
             btn.clicked.connect(
                 lambda checked, col=i: self.copy_column_to_clipboard(col)
             )
             copy_buttons_layout.addWidget(btn)
 
-        use_for_sweep_btn = QtWidgets.QPushButton("▲")
-        use_for_sweep_btn.setFixedSize(24, 24)
-        use_for_sweep_btn.setToolTip("Use positions for sweep (co-move mode) ")
-        use_for_sweep_btn.clicked.connect(self.on_use_for_sweep)
-        use_for_sweep_btn.setStyleSheet(
-            """
-            QPushButton {
-                border: 1px solid #ccc;
-                border-radius: 12px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #d0d0d0;
-            }
-        """
-        )
-        copy_buttons_layout.addWidget(use_for_sweep_btn)
-
         # Add save button
         save_btn = QtWidgets.QPushButton("💾")
         save_btn.setFixedSize(24, 24)
@@ -98,53 +119,43 @@ class PositionList:
         save_btn.clicked.connect(self.on_save_to_file)
         save_btn.setStyleSheet(
             """
-            QPushButton {
-                border: 1px solid #ccc;
-                border-radius: 12px;
-                font-size: 10px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #d0d0d0;
-            }
-        """
-        )
-        copy_buttons_layout.addWidget(use_for_sweep_btn)
-
-        # Add save button
-        save_btn = QtWidgets.QPushButton("💾")
-        save_btn.setFixedSize(24, 24)
-        save_btn.setToolTip("Save positions to file")
-        save_btn.clicked.connect(self.on_save_to_file)
-        save_btn.setStyleSheet(
+                QPushButton {
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #f57c00;
+                }
             """
-            QPushButton {
-                border: 1px solid #ccc;
-                border-radius: 12px;
-                font-size: 10px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #d0d0d0;
-            }
-        """
         )
         copy_buttons_layout.addWidget(save_btn)
 
-        # Add buttons for higher dimensional measurements
-        self.create_higher_dim_buttons(copy_buttons_layout)
+        # need for higher dim buttons
+        self.copy_buttons_layout = copy_buttons_layout
 
-        self.layout.addLayout(copy_buttons_layout)
-        self.layout.addLayout(button_layout)
-        self.layout.addWidget(self.scroll_area)
+        self.content_layout.addLayout(copy_buttons_layout)
+        self.content_layout.addWidget(self.scroll_area)
+        self.content_layout.addLayout(button_layout)
 
         # Stretch to push everything to top
         self.container_layout.addStretch()
 
-        widget.setMaximumWidth(350)
+        widget.setMaximumWidth(250)
+        # Allow the widget to shrink horizontally when collapsed
+        widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
+
+        # Store reference to widget for visibility control
+        self.widget = widget
+        self.update_expanded_collapsed()
+
         return widget
 
     def append(self, item: Any, display_text: str = None) -> None:
+        if not self.fully_initialized:
+            self.create_use_in_sweeps_buttons()
+            self.fully_initialized = True
+
         """Add an item to the list with optional custom display text."""
         if display_text is None:
             if isinstance(item, (tuple, list)):
@@ -205,6 +216,10 @@ class PositionList:
         self.container_layout.insertWidget(len(self.item_widgets), item_widget)
         self.item_widgets.append(item_widget)
 
+        # Update expanded state
+        self.is_expanded = True
+        self.update_expanded_collapsed()
+
     def remove_item(self, index: int) -> None:
         """Remove item at the specified index."""
         if 0 <= index < len(self.items):
@@ -218,6 +233,9 @@ class PositionList:
 
             # Update button connections for remaining items
             self._update_button_connections()
+
+            # Update visibility when item is removed
+            self.update_expanded_collapsed()
 
     def _update_button_connections(self) -> None:
         """Update remove button connections after item removal."""
@@ -233,6 +251,66 @@ class PositionList:
         """Remove all items from the list."""
         while self.items:
             self.remove_item(0)
+
+        # Update visibility after clearing all items
+        self.is_expanded = False
+        self.update_expanded_collapsed()
+
+    def update_expanded_collapsed(self) -> None:
+        """Update widget visibility and button state based on content."""
+        if not hasattr(self, "toggle_button"):
+            return
+
+        item_count = len(self.items)
+
+        # Update tooltip with current item count
+        self.toggle_button.setToolTip(
+            f"📍 Position List ({item_count} items) - Click to {'collapse' if self.is_expanded else 'expand'}"
+        )
+
+        if self.is_expanded:
+            self.content_widget.setVisible(True)
+            self.toggle_button.setText("▶")
+            self.toggle_button.setStyleSheet(
+                """
+                QPushButton {
+                    background-color: #333333;
+                    color: #ffffff;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #f57c00;
+                }
+            """
+            )
+        else:
+            # color = "#0A0603"
+            self.content_widget.setVisible(False)
+            self.toggle_button.setText("◀")
+            self.toggle_button.setStyleSheet(
+                """
+                QPushButton {
+                    background-color: #f0f0f0;
+                    color: #000000;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #f57c00;
+                }
+
+            """
+            )
+
+    def on_toggle_button_clicked(self) -> None:
+        """Handle click on toggle button to expand/collapse content."""
+        self.is_expanded = not self.is_expanded
+        self.update_expanded_collapsed()
 
     def get_items(self) -> List[Any]:
         """Return a copy of all items in the list."""
@@ -250,63 +328,49 @@ class PositionList:
         clipboard = QtWidgets.QApplication.clipboard()
         clipboard.setText(clipboard_text)
 
-    def on_use_for_sweep(self) -> None:
-        if not self.items:
-            self.sweep.set_status(
-                "Position List is empty! Add by control click on your data plot",
-                "r",
-                True,
-            )
-            return
-        for name, column_values in zip(
-            self.sweep.actuator_names, np.array(self.items).T
-        ):
-            text = "\n".join(column_values.astype(str))
-            list_ui = self.sweep.list_uis[name].setText(text)
-            self.sweep.settings[f"from_list_{name}"] = True
-        self.sweep.settings["scan_mode"] = "co-move"
-
-    def get_higher_dim_measurements(self) -> List[Any]:
+    def get_copyable_measurements(self) -> List[Any]:
         """Return a list of higher-dimensional measurements if applicable."""
         measurements = []
         for m in self.sweep.app.measurements.values():
-            if m is self.sweep:
-                continue
             if hasattr(m, "list_uis") and len(m.list_uis) >= self.sweep.ndim:
                 measurements.append(m)
+                print(self.sweep.name, m.name)
+
         return measurements
 
-    def create_higher_dim_buttons(self, layout):
+    def create_use_in_sweeps_buttons(self):
         """Create small buttons for higher dimensional measurements."""
-        higher_dim_measurements = self.get_higher_dim_measurements()
+        for i, measurement in enumerate(self.get_copyable_measurements()):
 
-        for i, measurement in enumerate(higher_dim_measurements):
-            # Use different symbols for different measurements
-            symbols = ["⬆", "⬇", "➡", "⬅", "↗", "↘", "↙", "↖"]
-            symbol = symbols[i % len(symbols)]
+            if measurement.name == self.sweep.name:
+                symbol = f"⇧"
+                font_size = 20
+            else:
+                symbol = f"➡\n{measurement.name[-2:]}"
+                font_size = 10
 
             btn = QtWidgets.QPushButton(symbol)
             btn.setFixedSize(24, 24)
             btn.setToolTip(f"Use positions for {measurement.name}")
-            btn.clicked.connect(
-                lambda checked, m=measurement: self.on_use_for_measurement(m)
-            )
+            btn.clicked.connect(lambda checked, m=measurement: self.on_use_for_sweep(m))
+
+            # color = "#FFFFFF"
             btn.setStyleSheet(
-                """
-                QPushButton {
-                    border: 1px solid #ccc;
-                    border-radius: 12px;
-                    font-weight: bold;
-                    font-size: 12px;
-                }
-                QPushButton:hover {
-                    background-color: #e0e0ff;
-                }
+                f"""
+                QPushButton {{
+                    border-radius: 1px;
+                    font-weight: normal;
+                    font-size: {font_size}px;
+                }}
+                QPushButton:hover {{
+                    background-color: #f57c00;
+                }}
             """
             )
-            layout.addWidget(btn)
 
-    def on_use_for_measurement(self, measurement):
+            self.copy_buttons_layout.addWidget(btn)
+
+    def on_use_for_sweep(self, measurement):
         """Set position list for a specific higher dimensional measurement."""
         if not self.items:
             measurement.set_status(
@@ -329,9 +393,18 @@ class PositionList:
                     measurement.list_uis[name].setText(text)
                     measurement.settings[f"from_list_{name}"] = True
 
-        # Set to position list mode if available
-        if "Position List" in measurement.get_scan_modes():
-            measurement.settings["scan_mode"] = "Position List"
+        if "co-move" in measurement.get_scan_modes():
+            measurement.settings["scan_mode"] = "co-move"
+
+        self.sweep.app.bring_measure_ui_to_front(measurement)
+        measurement.update_widgets()
+        if measurement.name != self.sweep.name:
+            for theirs, ours in zip(
+                measurement.actuator_names, self.sweep.actuator_names
+            ):
+                measurement.settings[f"actuator_{theirs}"] = self.sweep.settings[
+                    f"actuator_{ours}"
+                ]
 
         measurement.set_status(
             f"Loaded {len(self.items)} positions for {measurement.name}", "g", True

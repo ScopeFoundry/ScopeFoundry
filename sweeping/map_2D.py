@@ -149,16 +149,7 @@ class Map2D(Sweep2D):
         h_layout.setSpacing(4)
         h_layout.addWidget(plot_gb)
 
-        # Create PositionList and inject it into Locator1D
-        position_list = PositionList(self)
-        self.locator = LocatorRoi(
-            self,
-            axes=self.axes,
-            position_list=position_list,  # pt_roi=self.pt_roi
-        )
-
         h_layout.addWidget(self.locator.mk_widget())
-        h_layout.addWidget(position_list.mk_widget())
 
         container.setMaximumHeight(150)
         container.setSizePolicy(
@@ -206,7 +197,18 @@ class Map2D(Sweep2D):
         self.current_pos_arrow.setZValue(100)
         self.axes.addItem(self.current_pos_arrow)
 
-        return graph_widget
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(widget)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        # Create PositionList and inject it into Locator1D
+        self.position_list = PositionList(self)
+        self.locator = LocatorRoi(
+            self, axes=self.axes, position_list=self.position_list
+        )
+        layout.addWidget(graph_widget)
+        layout.addWidget(self.position_list.mk_widget())
+        return widget
 
     def update_display(self):
         self.update_status_display()
