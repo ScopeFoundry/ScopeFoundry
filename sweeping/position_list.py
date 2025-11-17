@@ -388,13 +388,20 @@ class PositionList:
                 i < positions_array.shape[1]
             ):  # Make sure we have data for this dimension
                 column_values = positions_array[:, i]
-                text = "\n".join(column_values.astype(str))
+                text = f"# from {self.sweep.name}\n" + "\n".join(
+                    column_values.astype(str)
+                )
                 if hasattr(measurement, "list_uis") and name in measurement.list_uis:
                     measurement.list_uis[name].setText(text)
                     measurement.settings[f"from_list_{name}"] = True
 
-        if "co-move" in measurement.get_scan_modes():
-            measurement.settings["scan_mode"] = "co-move"
+        target_mode = (
+            f"{','.join((np.arange(positions_array.shape[1])+1).astype(str))}_co-move"
+        )
+        for mode in (target_mode, "co-move"):
+            if mode in measurement.get_scan_modes():
+                measurement.settings["scan_mode"] = mode
+                break
 
         self.sweep.app.bring_measure_ui_to_front(measurement)
         measurement.update_widgets()

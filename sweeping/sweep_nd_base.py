@@ -4,6 +4,7 @@ from abc import ABC
 from copy import copy
 from typing import Sequence, Tuple, Union, List
 
+from matplotlib import image
 import numpy as np
 import pyqtgraph as pg
 from qtpy import QtWidgets, QtCore
@@ -45,15 +46,15 @@ class SweepNDBase(Measurement, ABC):
 
         collectors = self.collector_list_widget.get_collectors()
         if not collectors:
-            self.set_status("set collector repetitions to non-zero", "r")
-            print("set collector repetitions to non-zero")
+            self.set_status("set collector repetitions to non-zero", "r", True)
+            # print("set collector repetitions to non-zero")
             return
 
         actuators = self.get_current_actuator_funcs()
 
         if not actuators:
             self.set_status("no actuators selected", "r")
-            print("no actuators selected")
+            # print("no actuators selected")
             return
 
         if "any_measurement" in (col.name for col in collectors):
@@ -293,11 +294,11 @@ class SweepNDBase(Measurement, ABC):
         )
 
         s.New(
-            "data representation",
+            name="position_representation",
             dtype=str,
-            initial="full",
-            choices=["full", "averaged_to_1D"],
-            description="data representation mode: <p>full: data is raveled to 1D for plotting<p>averaged_to_1D: data is averaged over all but the first dimension, ie. x-axis is first actuator, y-axis is data averaged over all other actuators",
+            initial="flat",
+            choices=["flat", "map_vertical"],
+            description="<p>flat: flattened data per sweep point flattend and aranged in order measured<p>map_vertical: data at positions is along vertical direction of a map",
         ).add_listener(self.update_display)
 
         for i in range(self.n_any_measurements):
@@ -344,6 +345,8 @@ class SweepNDBase(Measurement, ABC):
         )
         self.data = self.scan_data.data
 
+        self.position_list = PositionList(self)
+
     def update_widgets(self):
 
         s = self.settings
@@ -376,10 +379,6 @@ class SweepNDBase(Measurement, ABC):
         top_layout.addWidget(self.mk_scan_settings_widget())
         top_layout.addWidget(self.mk_collect_widget())
 
-        # creation order matters here
-        graph_widget = self.mk_graph_widget()
-        plot_options_widget = self.mk_plot_options_widget()
-
         self.ui = QtWidgets.QWidget()
         self.ui.setStyleSheet(
             """
@@ -402,8 +401,11 @@ class SweepNDBase(Measurement, ABC):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.addWidget(top_widget)
 
-        layout.addWidget(plot_options_widget)
-        layout.addWidget(graph_widget)
+        # order matters here
+        graph_widget = self.mk_graph_widget()
+
+        layout.addWidget(self.mk_plot_options_widget())
+        layout.addWidget(self.wrap_with_position_list_widget(graph_widget))
 
         self.display_ready = False
         self.set_status(f"starting {self.name}", "y")
@@ -430,40 +432,66 @@ class SweepNDBase(Measurement, ABC):
 
         option = self.settings["dataset"]
 
-        # Set left label if applicable (1D case)
-        if hasattr(self, "set_left_label_in_update") and self.set_left_label_in_update:
-            self.axes.setLabel("left", option)
-
         if self.settings["average_over_repetitions"]:
             dset = np.array(self.scan_data.data[option]).mean(axis=self.ndim)
             size = self.scan_data.get_dset_size_per_position_and_repeats(option)
-            ddim = self.scan_data.get_dset_dims_per_position_and_repeats(option)
         else:
             dset = self.scan_data.data[option]
             size = self.scan_data.get_dset_size_per_position(option)
-            ddim = self.scan_data.get_dset_dims_per_position(option)
 
-        if size == 1 and self.should_show_positions_on_x_axis():
-            # special case where we can put position as x-axis
-            self.locator.real_position_on_x = True
+        if size == 1:
+            self.settings["position_representation"] = "flat"
+
+        # inorder of collection and flattened to positions x size
+        img = dset[tuple(zip(*self.scan_data.indices))].reshape((-1, size))
+
+        i_span_max = self.max_npoints_shown // size
+        i_max = self.progress_index
+        i_min = max(i_max - i_span_max, 0)
+
+        img = img[i_min:i_max, :]
+
+        self.locator.size = size
+        self.locator.i_min = i_min
+        # self.locator.i_max = i_max
+
+        self.locator.real_position_on_x = (
+            (size == 1 and self.should_show_positions_on_x_axis())
+            or self.settings["position_representation"] == "map_vertical"
+            and self.should_show_positions_on_x_axis()
+        )
+
+        if self.locator.real_position_on_x:
             self.axes.setLabel("bottom", self.settings["actuator_1"])
-            x = np.squeeze(self.scan_data.positions[: self.progress_index])
+
+            x = np.squeeze(self.scan_data.positions[i_min:i_max])
             if x.ndim > 1:
                 x = x[:, 0]
-            y = np.squeeze(dset[: self.progress_index])
-            self.line.setData(x, y)
-        else:
-            self.locator.real_position_on_x = False
-            self.axes.setLabel("bottom", "arbitrary")
-            f = max(1, self.max_npoints_shown // size)
-            curr = self.progress_index * size
 
-            if self.progress_index > f:
-                self.line.setData(
-                    dset.ravel()[curr - f * size : curr],
-                )
-            else:
-                self.line.setData(dset.ravel()[:curr])
+            if self.settings["position_representation"] == "flat":
+                y = np.squeeze(img)[i_min:i_max]
+                self.line.setData(x, y)
+            elif self.settings["position_representation"] == "map_vertical":
+                dx = float(np.diff(x, prepend=-0.5)[-1])
+                xmin = min(x) - dx / 2
+                xmax = max(x) + dx / 2
+                rect = pg.QtCore.QRectF(xmin, 0, xmax - xmin, size)
+                self.img_item.setImage(img, rect=rect)
+
+        else:
+            self.axes.setLabel("bottom", "arbitrary")
+
+            if self.settings["position_representation"] == "flat":
+                y = np.squeeze(img).ravel()
+                # x = np.arange(len(y))
+                self.line.setData(y)
+            elif self.settings["position_representation"] == "map_vertical":
+                rect = pg.QtCore.QRectF(-0.5, 0, i_max + 0.5, size)
+                self.img_item.setImage(img, rect=rect)
+
+        show_image = self.settings["position_representation"] == "map_vertical"
+        self.img_item.setVisible(show_image)
+        self.line.setVisible(not show_image)
 
     def set_status(self, msg, color="w", force_report=False):
         self.status = {
@@ -529,7 +557,7 @@ class SweepNDBase(Measurement, ABC):
 
             range_ui.setMaximumWidth(self.range_n_intervals[ii] * 180)
             list_ui.setMaximumWidth(180)
-            list_ui.setText("# Enter one position per line.\n")
+            list_ui.setText("# Enter one number per line.\n")
             self.list_uis[name] = list_ui
             list_ui.setVisible(False)
 
@@ -553,20 +581,21 @@ class SweepNDBase(Measurement, ABC):
             layout.setSpacing(3)
             h_layout.addLayout(layout)
 
-        place_holder = QtWidgets.QTextEdit("placeholder")
-        place_holder.setVisible(False)
+        self.actuator_placeholder = QtWidgets.QTextEdit("placeholder")
+        self.actuator_placeholder.setReadOnly(True)
+        self.actuator_placeholder.setVisible(False)
 
         def toggle_mode_selector(mode):
             show_place_holder = mode in ("RETAKE", "Position List")
             h_widget.setHidden(show_place_holder)
-            place_holder.setHidden(not show_place_holder)
+            self.actuator_placeholder.setHidden(not show_place_holder)
             if mode == "Position List":
-                place_holder.setHtml(
-                    f"Will sweep over Position List of this measurement ({self.name})."
+                self.actuator_placeholder.setHtml(
+                    f"<p>Sweeps over positions defined in the Position List.</p><p>Each position should specify coordinates for all actuators in order.</p><p><b>Note:</b> Add positions using the Position List panel on the right.</p>"
                 )
             elif mode == "RETAKE":
-                place_holder.setHtml(
-                    "Retakes data at position defined in Position List. <br>Finally, saves a new file with data in memory and retaken data."
+                self.actuator_placeholder.setHtml(
+                    f"<p>Retakes data at positions defined in Position List.</p><p>Uses existing scan data in memory and creates a new file with updated measurements at specified positions.</p><p><b>Note:</b> Position List should contain positions from the current scan that need to be re-measured.</p>"
                 )
 
         self.settings.get_lq("scan_mode").updated_value[str].connect(
@@ -579,7 +608,7 @@ class SweepNDBase(Measurement, ABC):
         v_layout.setContentsMargins(3, 5, 3, 3)
         v_layout.addWidget(mode_selector_mode)
         v_layout.addWidget(h_widget)
-        v_layout.addWidget(place_holder)
+        v_layout.addWidget(self.actuator_placeholder)
         widget.setFlat(False)
 
         scroll_area = QtWidgets.QScrollArea()
@@ -607,7 +636,9 @@ class SweepNDBase(Measurement, ABC):
         plot_layout.setContentsMargins(6, 6, 6, 6)
         plot_layout.setSpacing(4)
         plot_layout.addWidget(
-            self.settings.New_UI(["dataset", "average_over_repetitions"])
+            self.settings.New_UI(
+                ["dataset", "position_representation", "average_over_repetitions"]
+            )
         )
 
         # Container with horizontal layout holding both group boxes
@@ -617,12 +648,26 @@ class SweepNDBase(Measurement, ABC):
         h_layout.setSpacing(4)
         h_layout.addWidget(plot_gb)
 
-        h_layout.addWidget(self.locator.mk_widget())
+        if hasattr(self, "locator"):
+            h_layout.addWidget(self.locator.mk_widget())
+        else:
+            self.log.warning(
+                f"Does not have a locator! Recommend to add one at self.mk_graph_widget method or self.setup_figure\n self.locator = LocatorX(self, self.position_list) or (self.locator = LocatorRoi for 2D data)\n self.locator.set_axes(self.axes) \n Trying to add LocatorX..."
+            )
+            try:
+                self.locator = LocatorX(self, self.position_list)
+                self.locator.set_axes(self.axes)
+                h_layout.addWidget(self.locator.mk_widget())
+                self.log.warning(
+                    f"added LocatorX successfully. Recommend to add it properly in the child class code."
+                )
+            except Exception as e:
+                self.log.warning(f"Could not make locator: {e}")
 
-        container.setMaximumHeight(150)
+        # container.setMaximumHeight(150)
         container.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Preferred,
-            QtWidgets.QSizePolicy.Policy.Minimum,
+            QtWidgets.QSizePolicy.Policy.Maximum,
         )
 
         return container
@@ -644,6 +689,9 @@ class SweepNDBase(Measurement, ABC):
 
         # Improved line with better color
         self.line = self.axes.plot()
+        self.img_item = pg.ImageItem()
+        self.axes.addItem(self.img_item)
+        self.img_item.setVisible(False)
 
         graph_widget.setMinimumHeight(400)
         graph_widget.setSizePolicy(
@@ -655,13 +703,16 @@ class SweepNDBase(Measurement, ABC):
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
         )
 
+        self.locator = LocatorX(self, self.position_list)
+        self.locator.set_axes(self.axes)
+        return graph_widget
+
+    def wrap_with_position_list_widget(self, graph_widget):
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QHBoxLayout(widget)
         layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        # Create PositionList and inject it into LocatorX
-        self.position_list = PositionList(self)
-        self.locator = LocatorX(self, axes=self.axes, position_list=self.position_list)
         layout.addWidget(graph_widget)
         layout.addWidget(self.position_list.mk_widget())
         return widget
