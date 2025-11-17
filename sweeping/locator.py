@@ -7,12 +7,16 @@ import numpy as np
 
 class LocatorBase:
 
-    def __init__(self, sweep_measurement, axes, position_list):
+    def __init__(self, sweep_measurement, position_list):
         self.sweep = sweep_measurement
         self.position_list = position_list
+        self.axes = None
+        self.size = 1
+        self.i_min = 0
+
+    def set_axes(self, axes):
         self.axes = axes
         self.setup_indicator()
-
         # Connect mouse events for Ctrl+Click functionality
         self.axes.scene().sigMouseClicked.connect(self.on_plot_mouse_clicked)
 
@@ -36,14 +40,22 @@ class LocatorBase:
 
     def mk_widget(self):
         self.widget = QtWidgets.QGroupBox("Locator")
-        self.widget.setMaximumWidth(450)
+        # self.widget.setMaximumWidth(400)
 
         self.go_to_btn = QtWidgets.QPushButton("Go To")
         self.as_center_btn = QtWidgets.QPushButton("Set as Center")
         self.add_btn = QtWidgets.QPushButton("Add to Position List")
 
+        self.go_to_btn.setMinimumHeight(70)
+        self.as_center_btn.setMinimumHeight(70)
+        self.add_btn.setMinimumHeight(70)
+
+        self.go_to_btn.setMaximumWidth(160)
+        self.as_center_btn.setMaximumWidth(160)
+        self.add_btn.setMaximumWidth(160)
+
         self.widget = QtWidgets.QGroupBox("Locator Controls")
-        layout = QtWidgets.QVBoxLayout(self.widget)
+        layout = QtWidgets.QHBoxLayout(self.widget)
         layout.addWidget(self.as_center_btn)
         layout.addWidget(self.go_to_btn)
         layout.addWidget(self.add_btn)
@@ -52,6 +64,11 @@ class LocatorBase:
         self.go_to_btn.clicked.connect(self.on_go_to_btn_clicked)
         self.as_center_btn.clicked.connect(self.on_as_center_clicked)
         self.add_btn.clicked.connect(self.on_add_current_position)
+
+        self.widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Maximum,
+            QtWidgets.QSizePolicy.Policy.Preferred,
+        )
 
         return self.widget
 
@@ -84,12 +101,15 @@ class LocatorBase:
         """Update UI for invalid locator position."""
         if self.go_to_btn:
             self.go_to_btn.setEnabled(False)
-            self.go_to_btn.setText("Invalid Position: Drag locator within data range")
+            self.go_to_btn.setText("Invalid Position:\nDrag locator within data range")
             self.go_to_btn.setStyleSheet(
                 """
                 QPushButton {
                     color: #f44336;
                     font-weight: 600;
+                }
+                QPushButton:hover {
+                    color: #d32f2f;
                 }
             """
             )
@@ -97,7 +117,7 @@ class LocatorBase:
         if self.as_center_btn:
             self.as_center_btn.setEnabled(False)
             self.as_center_btn.setText(
-                "Invalid Position: Drag locator within data range"
+                "Invalid Position:\nDrag locator within data range"
             )
             self.as_center_btn.setStyleSheet(
                 """
@@ -105,16 +125,22 @@ class LocatorBase:
                     color: #f44336;
                     font-weight: 600;
                 }
+                QPushButton:hover {
+                    color: #d32f2f;
+                }
             """
             )
         if self.add_btn:
             self.add_btn.setEnabled(False)
-            self.add_btn.setText("Invalid Position: Drag locator within data range")
+            self.add_btn.setText("Invalid Position:\nDrag locator within data range")
             self.add_btn.setStyleSheet(
                 """
                 QPushButton {
                     color: #f44336;
                     font-weight: 600;
+                }
+                QPushButton:hover {
+                    color: #d32f2f;
                 }
             """
             )
@@ -131,44 +157,35 @@ class LocatorBase:
 
         if self.go_to_btn:
             self.go_to_btn.setEnabled(True)
-            self.go_to_btn.setText(f"Set Actuator Position ({pretty_pos})")
+            self.go_to_btn.setText(f"Set Actuator Position\n({pretty_pos})")
             self.go_to_btn.setStyleSheet(
                 """
                 QPushButton {
                     color: #4caf50;
                     font-weight: 600;
                 }
-                QPushButton:hover {
-                    color: #388e3c;
-                }
             """
             )
 
         if self.as_center_btn:
             self.as_center_btn.setEnabled(True)
-            self.as_center_btn.setText(f"Set as Center ({pretty_pos})")
+            self.as_center_btn.setText(f"Set as Center\n({pretty_pos})")
             self.as_center_btn.setStyleSheet(
                 """
                 QPushButton {
                     font-weight: 600;
-                }
-                QPushButton:hover {
-                    color: #388e3c;
                 }
             """
             )
 
         if self.add_btn:
             self.add_btn.setEnabled(True)
-            self.add_btn.setText(f"Add to Position List ({pretty_pos})")
+            self.add_btn.setText(f"Add to Position List\n({pretty_pos})")
             self.add_btn.setStyleSheet(
                 """
                 QPushButton {
                     color: #2196f3;
                     font-weight: 600;
-                }
-                QPushButton:hover {
-                    color: #1976d2;
                 }
             """
             )
@@ -239,14 +256,6 @@ class LocatorBase:
 class LocatorRoi(LocatorBase):
     """Locator for ROI positioning. Assumes that the axes are image with the extents matching the actuators positions."""
 
-    def __init__(
-        self,
-        sweep_measurement,
-        axes,
-        position_list,
-    ):
-        super().__init__(sweep_measurement, axes, position_list)
-
     def setup_indicator(self):
         self.circ_roi_size = 0.1
 
@@ -282,8 +291,8 @@ class LocatorRoi(LocatorBase):
 
 class LocatorX(LocatorBase):
 
-    def __init__(self, sweep_measurement, axes, position_list):
-        super().__init__(sweep_measurement, axes, position_list)
+    def __init__(self, sweep_measurement, position_list):
+        super().__init__(sweep_measurement, position_list)
         self.real_position_on_x = False
 
     def setup_indicator(
@@ -323,32 +332,29 @@ class LocatorX(LocatorBase):
 
         if self.real_position_on_x:
             if hasattr(self.sweep, "ndim") and self.sweep.ndim > 1:
-                positions = np.array(self.sweep.scan_data.positions)[:, 0]
+                positions = np.array(self.sweep.scan_data.positions)[
+                    :, 0
+                ]  # assuming that we are showing first axes of co-move
                 index = np.argmin(np.abs(positions - x_plot_position))
                 return self.sweep.scan_data.positions[index]
             else:
                 return (x_plot_position,)
 
         settings = self.sweep.settings
-        if settings["average_over_repetitions"]:
-            size = self.sweep.scan_data.get_dset_size_per_position_and_repeats(
-                settings["dataset"]
-            )
+
+        if settings["position_representation"] == "flat":
+            index = round((x_plot_position) / self.size) + self.i_min
         else:
-            size = self.sweep.scan_data.get_dset_size_per_position(settings["dataset"])
+            index = int((x_plot_position)) + self.i_min
 
-        index = int(x_plot_position // size)
-
-        if self.sweep.progress_index * size >= self.sweep.max_npoints_shown:
-            smallest_index_shown = self.sweep.progress_index - (
-                self.sweep.max_npoints_shown // size
-            )
-            index += smallest_index_shown
-
-        if index < 0 or index >= len(self.sweep.scan_data.positions):
+        if index < 0:
             return None
-
-        return self.sweep.scan_data.positions[index]
+        elif index >= len(self.sweep.scan_data.positions):
+            index = -1
+        try:
+            return self.sweep.scan_data.positions[index]
+        except IndexError:
+            return None
 
     def update_indicator_label(self, actuator_names, positions):
         ext_pretty_pos = "<br>".join(

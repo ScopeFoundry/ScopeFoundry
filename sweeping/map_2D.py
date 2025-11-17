@@ -160,14 +160,14 @@ class Map2D(Sweep2D):
         return container
 
     def mk_graph_widget(self):
-        graph_layout = graph_widget = pg.GraphicsLayoutWidget()
+        graph_widget = pg.GraphicsLayoutWidget()
 
-        self.axes: pg.PlotItem = graph_layout.addPlot()
+        self.axes: pg.PlotItem = graph_widget.addPlot()
         self.axes.showGrid(x=True, y=True)
         self.axes.setAspectLocked(lock=True, ratio=1)
 
         self.hist_lut = pg.HistogramLUTItem()
-        graph_layout.addItem(self.hist_lut)
+        graph_widget.addItem(self.hist_lut)
         self.new_img_item()
 
         self.scan_roi = pg.ROI([0, 0], [1, 1], movable=True)
@@ -197,18 +197,10 @@ class Map2D(Sweep2D):
         self.current_pos_arrow.setZValue(100)
         self.axes.addItem(self.current_pos_arrow)
 
-        widget = QtWidgets.QWidget()
-        layout = QtWidgets.QHBoxLayout(widget)
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-        # Create PositionList and inject it into LocatorRoi
-        self.position_list = PositionList(self)
-        self.locator = LocatorRoi(
-            self, axes=self.axes, position_list=self.position_list
-        )
-        layout.addWidget(graph_widget)
-        layout.addWidget(self.position_list.mk_widget())
-        return widget
+        self.locator = LocatorRoi(self, position_list=self.position_list)
+        self.locator.set_axes(self.axes)
+
+        return graph_widget
 
     def update_display(self):
         self.update_status_display()
@@ -271,7 +263,6 @@ class Map2D(Sweep2D):
             self._current_arrow_lqs = ()
 
     def connect_pos_widgets(self):
-        print("connect_pos_widgets")
         self.disconnect_pos_widgets()
 
         defs = list(self.get_current_actuators_defs())
@@ -279,7 +270,7 @@ class Map2D(Sweep2D):
         read_def_1 = defs[0][1]
         read_def_2 = defs[1][1]
 
-        print(read_def_1, read_def_2)
+        # print(read_def_1, read_def_2)
 
         lq_1 = self.app.get_lq(read_def_1) if isinstance(read_def_1, str) else None
         lq_2 = self.app.get_lq(read_def_2) if isinstance(read_def_2, str) else None
