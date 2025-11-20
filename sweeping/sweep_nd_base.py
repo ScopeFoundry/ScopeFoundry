@@ -2,12 +2,14 @@ import itertools
 import time
 from abc import ABC
 from copy import copy
-from typing import Sequence, Tuple, Union, List
+from turtle import pos
+from typing import Dict, Sequence, Tuple, Union, List
 
 from matplotlib import image
 import numpy as np
 import pyqtgraph as pg
 from qtpy import QtWidgets, QtCore
+from scipy.__config__ import show
 
 from ScopeFoundry import BaseMicroscopeApp, Measurement
 from ScopeFoundry.scanning.actuators import (
@@ -85,11 +87,29 @@ class SweepNDBase(Measurement, ABC):
             scan_data.recycle()
 
             # add a dummy value - will be only used to show progress and data
-            indices.append(np.prod(scan_data.base_shape))
+            indices.append(-2)
             progress_index_gen = (i + 1 for i in indices)
             N = len(indices)
             self.set_status(f"Retaking data at index {self.progress_index}", "y")
             self.display_ready = True
+
+        elif s["scan_mode"] == "RETAKE_SLICE":
+            ii_min = self.settings["retake_slice_min"]
+            ii_max = self.settings["retake_slice_max"]
+
+            # Will reuse existing scan_data object in memory
+            scan_data = self.scan_data
+            scan_data.open_new_h5_file()
+            scan_data.recycle()
+
+            positions_gen = (pos for pos in scan_data.positions[ii_min : ii_max + 1])
+            base_indices_gen = (idx for idx in scan_data.indices[ii_min : ii_max + 1])
+            N = ii_max - ii_min + 1
+            progress_index_gen = itertools.count(ii_min, 1)
+
+            self.set_status(f"Retaking a slice of data", "y")
+            self.display_ready = True
+
         else:
             if s["scan_mode"] == "Position List":
                 arrays = tuple(np.array(self.position_list.get_items()).T)
@@ -265,7 +285,11 @@ class SweepNDBase(Measurement, ABC):
             name="scan_mode",
             dtype=str,
             initial="nested",
-            choices=list(self.get_scan_modes()) + ["RETAKE"],
+            choices=list(self.get_scan_modes())
+            + [
+                "RETAKE",
+                "RETAKE_SLICE",
+            ],
             description=self.get_scan_modes_description()
             + "<p><i>RETAKE:</i>: Allows to retake (fix) inidiviual data points specified in Position List. Makes a new datafile with data in memory with retaken data points updated.</p>",
         )
@@ -300,7 +324,18 @@ class SweepNDBase(Measurement, ABC):
             choices=["flat", "map_vertical"],
             description="<p>flat: flattened data per sweep point flattend and aranged in order measured<p>map_vertical: data at positions is along vertical direction of a map",
         ).add_listener(self.update_display)
-
+        s.New(
+            "retake_slice_min",
+            int,
+            initial=0,
+            description="minimum index of slice to retake",
+        )
+        s.New(
+            "retake_slice_max",
+            int,
+            initial=0,
+            description="maximum index of slice to retake",
+        )
         for i in range(self.n_any_measurements):
             self.collectors.append(
                 AnyMeasurementCollector(self, name=f"any_measurement_{i}")
@@ -448,7 +483,7 @@ class SweepNDBase(Measurement, ABC):
         i_span_max = self.max_npoints_shown // size
         i_max = self.progress_index
         i_min = max(i_max - i_span_max, 0)
-
+        
         img = img[i_min:i_max, :]
 
         self.locator.size = size
@@ -472,9 +507,16 @@ class SweepNDBase(Measurement, ABC):
                 y = np.squeeze(img)[i_min:i_max]
                 self.line.setData(x, y)
             elif self.settings["position_representation"] == "map_vertical":
-                dx = float(np.diff(x, prepend=-0.5)[-1])
-                xmin = min(x) - dx / 2
-                xmax = max(x) + dx / 2
+                if not len(x):
+                    return
+                if len(x)>1:
+                    dx = x[1] - x[0]
+                    xmin = min(x) - dx / 2
+                    xmax = max(x) + dx / 2
+                else:
+                    xmin = -.5
+                    xmax = 0.5
+
                 rect = pg.QtCore.QRectF(xmin, 0, xmax - xmin, size)
                 self.img_item.setImage(img, rect=rect)
 
@@ -545,8 +587,8 @@ class SweepNDBase(Measurement, ABC):
         """Create the scan settings widget. Override in child classes for custom layout."""
         mode_selector_mode = self.settings.New_UI(("scan_mode",))
 
-        h_widget = QtWidgets.QWidget()
-        h_layout = QtWidgets.QHBoxLayout(h_widget)
+        params_widget = QtWidgets.QWidget()
+        h_layout = QtWidgets.QHBoxLayout(params_widget)
         self.list_uis = {}
         for ii, name in enumerate(self.actuator_names):
 
@@ -581,22 +623,33 @@ class SweepNDBase(Measurement, ABC):
             layout.setSpacing(3)
             h_layout.addLayout(layout)
 
-        self.actuator_placeholder = QtWidgets.QTextEdit("placeholder")
-        self.actuator_placeholder.setReadOnly(True)
-        self.actuator_placeholder.setVisible(False)
+        self.retake_widget = QtWidgets.QTextEdit(
+            f"<p>Retakes data at positions defined in Position List.</p><p>Uses existing scan data in memory and creates a new file with updated measurements at specified positions.</p><p><b>Note:</b> Position List should contain positions from the current scan that need to be re-measured.</p>"
+        )
+        self.retake_widget.setReadOnly(True)
+        self.retake_widget.setVisible(False)
+
+        self.position_list_widget = QtWidgets.QTextEdit(
+            f"<p>Sweeps over positions defined in the Position List.</p><p>Each position should specify coordinates for all actuators in order.</p><p><b>Note:</b> Add positions using the Position List panel on the right.</p>"
+        )
+        self.position_list_widget.setReadOnly(True)
+        self.position_list_widget.setVisible(False)
+
+        self.retake_slice_widget = self.settings.New_UI(
+            ("retake_slice_min", "retake_slice_max")
+        )
+
+        lu: Dict[str, QtWidgets.QWidget] = {
+            "RETAKE": self.retake_widget,
+            "Position List": self.position_list_widget,
+            "RETAKE_SLICE": self.retake_slice_widget,
+        }
 
         def toggle_mode_selector(mode):
-            show_place_holder = mode in ("RETAKE", "Position List")
-            h_widget.setHidden(show_place_holder)
-            self.actuator_placeholder.setHidden(not show_place_holder)
-            if mode == "Position List":
-                self.actuator_placeholder.setHtml(
-                    f"<p>Sweeps over positions defined in the Position List.</p><p>Each position should specify coordinates for all actuators in order.</p><p><b>Note:</b> Add positions using the Position List panel on the right.</p>"
-                )
-            elif mode == "RETAKE":
-                self.actuator_placeholder.setHtml(
-                    f"<p>Retakes data at positions defined in Position List.</p><p>Uses existing scan data in memory and creates a new file with updated measurements at specified positions.</p><p><b>Note:</b> Position List should contain positions from the current scan that need to be re-measured.</p>"
-                )
+            params_widget.setHidden(mode in lu.keys())
+            for m, w in lu.items():
+                show = m == mode
+                w.setHidden(not show)
 
         self.settings.get_lq("scan_mode").updated_value[str].connect(
             toggle_mode_selector
@@ -607,8 +660,10 @@ class SweepNDBase(Measurement, ABC):
         v_layout.setSpacing(4)
         v_layout.setContentsMargins(3, 5, 3, 3)
         v_layout.addWidget(mode_selector_mode)
-        v_layout.addWidget(h_widget)
-        v_layout.addWidget(self.actuator_placeholder)
+        v_layout.addWidget(params_widget)
+        v_layout.addWidget(self.retake_widget)
+        v_layout.addWidget(self.position_list_widget)
+        v_layout.addWidget(self.retake_slice_widget)
         widget.setFlat(False)
 
         scroll_area = QtWidgets.QScrollArea()
@@ -652,7 +707,7 @@ class SweepNDBase(Measurement, ABC):
             h_layout.addWidget(self.locator.mk_widget())
         else:
             self.log.warning(
-                f"Does not have a locator! Recommend to add one at self.mk_graph_widget method or self.setup_figure\n self.locator = LocatorX(self, self.position_list) or (self.locator = LocatorRoi for 2D data)\n self.locator.set_axes(self.axes) \n Trying to add LocatorX..."
+                f"Does not have a locator! Recommend to add one at self.mk_graph_widget method or self.setup_figure\n self.locator = LocatorX(self, self.position_list) or (self.locator = LocatorRoi for 2D sweeps)\n self.locator.set_axes(self.axes) \n Trying to add LocatorX..."
             )
             try:
                 self.locator = LocatorX(self, self.position_list)
@@ -662,7 +717,7 @@ class SweepNDBase(Measurement, ABC):
                     f"added LocatorX successfully. Recommend to add it properly in the child class code."
                 )
             except Exception as e:
-                self.log.warning(f"Could not make locator: {e}")
+                self.log.warning(f"Failed to make locator: {e}")
 
         # container.setMaximumHeight(150)
         container.setSizePolicy(

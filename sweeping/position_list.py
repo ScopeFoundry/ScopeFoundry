@@ -1,7 +1,7 @@
 import datetime
 from pathlib import Path
 import numpy as np
-from qtpy import QtWidgets
+from qtpy import QtWidgets, QtCore
 
 
 from typing import Any, List
@@ -43,35 +43,72 @@ class PositionList:
 
         self.main_layout.addWidget(self.toggle_button)
 
-        # Content widget that can be hidden/shown
-        self.content_widget = QtWidgets.QWidget()
-        self.content_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        # Title label
+        self.title_label = QtWidgets.QLabel("Position List")
+        self.title_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.title_label.setStyleSheet(
+            """
+            QLabel {
+                font-weight: 600;
+                padding: 4px 6px;
+                font-size: 12px;
+            }
+            """
         )
-        self.content_layout = QtWidgets.QVBoxLayout(self.content_widget)
-        self.content_layout.setSpacing(2)
-        self.content_layout.setContentsMargins(0, 0, 0, 0)
-        self.main_layout.addWidget(self.content_widget)
+        self.title_label.setFixedHeight(24)
 
         # Track expanded state
         self.is_expanded = False  # Scroll area for the list
+
+        # Scroll area
+        self.scroll_widget = QtWidgets.QWidget()
+        self.scroll_layout = QtWidgets.QVBoxLayout(self.scroll_widget)
+        self.scroll_layout.setSpacing(1)
+        self.scroll_layout.setContentsMargins(2, 2, 2, 2)
         self.scroll_area = QtWidgets.QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        # self.scroll_area.setMaximumHeight(150)
+        self.scroll_area.setWidget(self.scroll_widget)
 
-        # Container widget for items
-        self.container_widget = QtWidgets.QWidget()
-        self.container_layout = QtWidgets.QVBoxLayout(self.container_widget)
-        self.container_layout.setSpacing(1)
-        self.container_layout.setContentsMargins(2, 2, 2, 2)
+        top_btn_layout = QtWidgets.QHBoxLayout()
+        for i in range(self.ndim):
+            btn = QtWidgets.QPushButton(f"📋{i+1}")
+            btn.setStyleSheet(
+                """
+                QPushButton {
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #f57c00;
+                }
+            """
+            )
+            btn.setFixedSize(30, 24)
+            btn.setToolTip(f"Copy column {i+1} to clipboard")
+            btn.clicked.connect(
+                lambda checked, col=i: self.copy_column_to_clipboard(col)
+            )
+            top_btn_layout.addWidget(btn)
 
-        self.scroll_area.setWidget(self.container_widget)
+        # Add save button
+        save_btn = QtWidgets.QPushButton("💾")
+        save_btn.setFixedSize(24, 24)
+        save_btn.setToolTip("Save positions to file")
+        save_btn.clicked.connect(self.on_save_to_file)
+        save_btn.setStyleSheet(
+            """
+                QPushButton {
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #f57c00;
+                }
+            """
+        )
+        top_btn_layout.addWidget(save_btn)
 
         # Button layout for add and clear buttons
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.setSpacing(4)
-
-        # Clear button
+        bottom_btn_layout = QtWidgets.QHBoxLayout()
+        bottom_btn_layout.setSpacing(4)
         self.clear_button = QtWidgets.QPushButton("Clear All")
         self.clear_button.clicked.connect(self.clear)
         self.clear_button.setStyleSheet(
@@ -90,54 +127,26 @@ class PositionList:
         """
         )
 
-        button_layout.addWidget(self.clear_button)
+        bottom_btn_layout.addWidget(self.clear_button)
 
-        copy_buttons_layout = QtWidgets.QHBoxLayout()
-        for i in range(self.ndim):
-            btn = QtWidgets.QPushButton(f"📋{i+1}")
-            btn.setStyleSheet(
-                """
-                QPushButton {
-                    font-size: 12px;
-                }
-                QPushButton:hover {
-                    background-color: #f57c00;
-                }
-            """
-            )
-            btn.setFixedSize(30, 24)
-            btn.setToolTip(f"Copy column {i+1} to clipboard")
-            btn.clicked.connect(
-                lambda checked, col=i: self.copy_column_to_clipboard(col)
-            )
-            copy_buttons_layout.addWidget(btn)
-
-        # Add save button
-        save_btn = QtWidgets.QPushButton("💾")
-        save_btn.setFixedSize(24, 24)
-        save_btn.setToolTip("Save positions to file")
-        save_btn.clicked.connect(self.on_save_to_file)
-        save_btn.setStyleSheet(
-            """
-                QPushButton {
-                    font-size: 12px;
-                }
-                QPushButton:hover {
-                    background-color: #f57c00;
-                }
-            """
+        # Content widget that can be hidden/shown
+        self.content_widget = QtWidgets.QWidget()
+        self.content_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
         )
-        copy_buttons_layout.addWidget(save_btn)
+        self.content_layout = QtWidgets.QVBoxLayout(self.content_widget)
+        self.content_layout.setSpacing(2)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
 
-        # need for higher dim buttons
-        self.copy_buttons_layout = copy_buttons_layout
-
-        self.content_layout.addLayout(copy_buttons_layout)
+        self.content_layout.addWidget(self.title_label)
+        self.content_layout.addLayout(top_btn_layout)
         self.content_layout.addWidget(self.scroll_area)
-        self.content_layout.addLayout(button_layout)
+        self.content_layout.addLayout(bottom_btn_layout)
 
         # Stretch to push everything to top
-        self.container_layout.addStretch()
+        self.scroll_layout.addStretch()
+
+        self.main_layout.addWidget(self.content_widget)
 
         widget.setMaximumWidth(250)
         # Allow the widget to shrink horizontally when collapsed
@@ -213,7 +222,7 @@ class PositionList:
         item_layout.addWidget(remove_btn)
 
         # Insert before the stretch
-        self.container_layout.insertWidget(len(self.item_widgets), item_widget)
+        self.scroll_layout.insertWidget(len(self.item_widgets), item_widget)
         self.item_widgets.append(item_widget)
 
         # Update expanded state
@@ -228,7 +237,7 @@ class PositionList:
 
             # Remove widget
             widget = self.item_widgets.pop(index)
-            self.container_layout.removeWidget(widget)
+            self.scroll_layout.removeWidget(widget)
             widget.deleteLater()
 
             # Update button connections for remaining items
