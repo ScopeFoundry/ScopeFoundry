@@ -1,15 +1,14 @@
 import itertools
+from pathlib import Path
 import time
 from abc import ABC
 from copy import copy
-from turtle import pos
 from typing import Dict, Sequence, Tuple, Union, List
 
-from matplotlib import image
+import matplotlib.pyplot as plt
 import numpy as np
 import pyqtgraph as pg
-from qtpy import QtWidgets, QtCore
-from scipy.__config__ import show
+from qtpy import QtWidgets
 
 from ScopeFoundry import BaseMicroscopeApp, Measurement
 from ScopeFoundry.scanning.actuators import (
@@ -169,12 +168,16 @@ class SweepNDBase(Measurement, ABC):
                     if not scan_data.dsets_initialized:
                         scan_data.init_dsets(collector)
                         data_set_names.extend([q[-1] for q in collector.repeats])
+                        extent_control_names = list(self.scan_data.data.keys())
                         self.display_ready = True
                     scan_data.incorporate(collector, *base_indices, r)
 
                 self.release_collector(collector, positions, base_indices)
             if self.progress_index == 0:
                 self.settings.get_lq("dataset").change_choice_list(data_set_names)
+                self.settings.get_lq("extent_control").change_choice_list(
+                    extent_control_names + ["None"]
+                )
 
             scan_data.add_position(positions)
             scan_data.add_read_positions(read_positions)
@@ -201,6 +204,8 @@ class SweepNDBase(Measurement, ABC):
         print("finished - data collected:")
         for k, v in scan_data.data.items():
             print(k, np.array(v).shape)
+
+        self.save_png()
 
     def go_to_positions(self, positions, actuators=None):
         if actuators is None:
@@ -312,6 +317,13 @@ class SweepNDBase(Measurement, ABC):
             initial="",
             choices=("",),
             description="set dataset to plot",
+        ).add_listener(self.update_display)
+        self.extent_control = s.New(
+            name="extent_control",
+            dtype=str,
+            initial="",
+            choices=("",),
+            description="dataset to use for extent control",
         ).add_listener(self.update_display)
         s.New("average_over_repetitions", dtype=bool, initial=True).add_listener(
             self.update_display
@@ -459,87 +471,50 @@ class SweepNDBase(Measurement, ABC):
         self.update_widgets()
 
     def update_display(self):
-
         self.update_status_display()
 
-        if not self.display_ready or not self.settings["dataset"]:
+        img, size, i_min, i_max = self._get_plot_data()
+        if img is None:
             return
-
-        option = self.settings["dataset"]
-
-        if self.settings["average_over_repetitions"]:
-            dset = np.array(self.scan_data.data[option]).mean(axis=self.ndim)
-            size = self.scan_data.get_dset_size_per_position_and_repeats(option)
-        else:
-            dset = self.scan_data.data[option]
-            size = self.scan_data.get_dset_size_per_position(option)
 
         if size == 1:
             self.settings["position_representation"] = "flat"
 
-        # inorder of collection and flattened to positions x size
-        img = dset[tuple(zip(*self.scan_data.indices))].reshape((-1, size))
-
-        i_span_max = self.max_npoints_shown // size
-        i_max = self.progress_index
-        i_min = max(i_max - i_span_max, 0)
-        
-        img = img[i_min:i_max, :]
-
+        # Update locator properties
         self.locator.size = size
         self.locator.i_min = i_min
-        # self.locator.i_max = i_max
+        self.locator.real_position_on_x = self._should_use_real_positions(size)
 
-        self.locator.real_position_on_x = (
-            (size == 1 and self.should_show_positions_on_x_axis())
-            or self.settings["position_representation"] == "map_vertical"
-            and self.should_show_positions_on_x_axis()
-        )
+        dataset_name = self.settings["dataset"]
+        x = self._get_x_data(i_min, i_max, size)
 
-        if self.locator.real_position_on_x:
-            self.axes.setLabel("bottom", self.settings["actuator_1"])
-
-            x = np.squeeze(self.scan_data.positions[i_min:i_max])
-            if x.ndim > 1:
-                x = x[:, 0]
-
-            if self.settings["position_representation"] == "flat":
-                y = np.squeeze(img)[i_min:i_max]
+        # Plot based on representation mode
+        if self.settings["position_representation"] == "flat":
+            x_label, y_label = self.flat_configs()
+            if x is not None:
+                y = np.squeeze(img)
                 self.line.setData(x, y)
-            elif self.settings["position_representation"] == "map_vertical":
-                if not len(x):
-                    return
-                if len(x)>1:
-                    dx = x[1] - x[0]
-                    xmin = min(x) - dx / 2
-                    xmax = max(x) + dx / 2
-                else:
-                    xmin = -.5
-                    xmax = 0.5
-
-                rect = pg.QtCore.QRectF(xmin, 0, xmax - xmin, size)
-                self.img_item.setImage(img, rect=rect)
-
-        else:
-            self.axes.setLabel("bottom", "arbitrary")
-
-            if self.settings["position_representation"] == "flat":
+            else:
                 y = np.squeeze(img).ravel()
-                # x = np.arange(len(y))
                 self.line.setData(y)
-            elif self.settings["position_representation"] == "map_vertical":
-                rect = pg.QtCore.QRectF(-0.5, 0, i_max + 0.5, size)
-                self.img_item.setImage(img, rect=rect)
 
+        elif self.settings["position_representation"] == "map_vertical":
+            (x0, x1, y0, y1), x_label, y_label = self.imshow_configs(
+                i_min, i_max, x, size
+            )
+            rect = pg.QtCore.QRectF(x0, y0, x1 - x0, y1 - y0)
+            self.img_item.setImage(img, rect=rect)
+
+        self.axes.setLabel("bottom", x_label)
+        self.axes.setLabel("left", y_label)
+
+        # Show appropriate plot type
         show_image = self.settings["position_representation"] == "map_vertical"
         self.img_item.setVisible(show_image)
         self.line.setVisible(not show_image)
 
     def set_status(self, msg, color="w", force_report=False):
-        self.status = {
-            "title": msg,
-            "color": color,
-        }
+        self.status = {"title": msg, "color": color}
         if force_report:
             self.update_status_display()
 
@@ -692,7 +667,12 @@ class SweepNDBase(Measurement, ABC):
         plot_layout.setSpacing(4)
         plot_layout.addWidget(
             self.settings.New_UI(
-                ["dataset", "position_representation", "average_over_repetitions"]
+                [
+                    "dataset",
+                    "position_representation",
+                    "average_over_repetitions",
+                    "extent_control",
+                ]
             )
         )
 
@@ -822,6 +802,183 @@ class SweepNDBase(Measurement, ABC):
     def should_show_positions_on_x_axis(self):
         """Return whether positions should be shown on x-axis in update_display."""
         return self.settings["scan_mode"] == "co-move"
+
+    def _get_plot_data(self):
+        """Get processed data for plotting.
+
+        Returns:
+            tuple: (img, size, i_min, i_max) where:
+                - img: processed image data
+                - size: size per position
+                - i_min, i_max: data range indices
+        """
+        if not self.display_ready or not self.settings["dataset"]:
+            return None, None, None, None
+
+        dataset_name = self.settings["dataset"]
+
+        if self.settings["average_over_repetitions"]:
+            dset = np.array(self.scan_data.data[dataset_name]).mean(axis=self.ndim)
+            size = self.scan_data.get_dset_size_per_position_and_repeats(dataset_name)
+        else:
+            dset = self.scan_data.data[dataset_name]
+            size = self.scan_data.get_dset_size_per_position(dataset_name)
+
+        # Flatten data to positions x size
+        img = dset[tuple(zip(*self.scan_data.indices))].reshape((-1, size))
+
+        # Apply data range limits
+        i_span_max = self.max_npoints_shown // size
+        i_max = self.progress_index
+        i_min = max(i_max - i_span_max, 0)
+        img = img[i_min:i_max, :]
+
+        return img, size, i_min, i_max
+
+    def _should_use_real_positions(self, size):
+        """Determine if real positions should be used on x-axis.
+
+        Args:
+            size: size per position
+
+        Returns:
+            bool: True if real positions should be used
+        """
+        return (size == 1 and self.should_show_positions_on_x_axis()) or (
+            self.settings["position_representation"] == "map_vertical"
+            and self.should_show_positions_on_x_axis()
+        )
+
+    def flat_configs(self):
+        if self.locator.real_position_on_x:
+            x_label = self.settings[f"actuator_{self.actuator_names[0]}"].split("/")[0]
+        else:
+            x_label = "sweep position"
+        y_label = self.settings["dataset"]
+        return x_label, y_label
+
+    def imshow_configs(self, i_min, i_max, x, size):
+
+        if self.locator.real_position_on_x:
+            x_label = self.settings[f"actuator_{self.actuator_names[0]}"].split("/")[0]
+        else:
+            x_label = "sweep position"
+
+        if (
+            self.settings["extent_control"] != "None"
+            and self.settings["average_over_repetitions"]
+        ):
+            y_label = self.settings["extent_control"]
+        else:
+            y_label = ""
+
+        if (
+            self.settings["extent_control"] != "None"
+            and self.settings["average_over_repetitions"]
+        ):
+            ys = self.scan_data.data[self.settings["extent_control"]].flatten()
+            dy = ys[1] - ys[0] if len(ys) > 1 else 0.5
+            y0 = ys.min() - dy / 2
+            y1 = ys.max() + dy / 2
+        else:
+            y0 = 0
+            y1 = size
+
+        if x is not None:
+            dx = x[1] - x[0]
+            x0 = min(x) - dx / 2
+            x1 = max(x) + dx / 2
+        else:
+            x0 = i_min - 0.5
+            x1 = i_max + 0.5
+
+        return (x0, x1, y0, y1), x_label, y_label
+
+    def _get_y_label(self):
+        if (
+            self.settings["extent_control"] != "None"
+            and self.settings["average_over_repetitions"]
+        ):
+            return self.settings["extent_control"]
+        else:
+            return ""
+
+    def _get_x_label(self):
+        if self.locator.real_position_on_x:
+            return self.settings[f"actuator_{self.actuator_names[0]}"].split("/")[0]
+        return "sweep position"
+
+    def _get_x_data(self, i_min, i_max, size):
+        """Get x-axis data for plotting.
+
+        Args:
+            i_min, i_max: data range indices
+            size: size per position
+
+        Returns:
+            tuple: x_data
+        """
+        real_position_on_x = self._should_use_real_positions(size)
+
+        if real_position_on_x:
+            x = np.squeeze(self.scan_data.positions[i_min:i_max])
+            if x.ndim > 1:
+                x = x[:, 0]
+        else:
+            x = None
+
+        return x
+
+    def save_png(self, filename=None):
+        """Save the current plot as a PNG file using matplotlib.
+
+        Args:
+            filename (str, dataset_nameal): Path to save the PNG file.
+        """
+
+        img, size, i_min, i_max = self._get_plot_data()
+        if img is None:
+            print("No data ready to plot")
+            return
+
+        dataset_name = self.settings["dataset"]
+        x = self._get_x_data(i_min, i_max, size)
+
+        # Create matplotlib figure
+        plt.figure(figsize=(10, 6))
+
+        if self.settings["position_representation"] == "flat":
+            x_label, y_label = self.flat_configs()
+            if x is not None:
+                y = np.squeeze(img)
+                plt.plot(x, y, "o-", markersize=2, linewidth=1)
+            else:
+                y = np.squeeze(img).ravel()
+                plt.plot(y, "o-", markersize=2, linewidth=1)
+            plt.xlabel(x_label)
+            plt.ylabel(y_label)
+            plt.grid(True, alpha=0.3)
+
+        elif self.settings["position_representation"] == "map_vertical":
+            # Image plot
+            extent, x_label, y_label = self.imshow_configs(i_min, i_max, x, size)
+            plt.imshow(img.T, aspect="auto", origin="lower", extent=extent)
+            plt.xlabel(x_label)
+            plt.ylabel(y_label)
+            plt.colorbar(label=dataset_name)
+
+        plt.title(f"{self.name} - {dataset_name}")
+        plt.tight_layout()
+
+        if filename is None:
+            path = self.dataset_metadata.get_file_path(".png")
+        else:
+            path = Path(self.app.settings["save_dir"]) / filename
+
+        plt.savefig(path, dpi=150, bbox_inches="tight")
+        plt.close()
+
+        print(f"Plot saved as: {path}")
 
 
 def find_nearest_position_index(positions, target_positions):

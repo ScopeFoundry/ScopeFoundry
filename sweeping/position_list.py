@@ -69,7 +69,7 @@ class PositionList:
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(self.scroll_widget)
 
-        top_btn_layout = QtWidgets.QHBoxLayout()
+        self.top_btn_layout = top_btn_layout = QtWidgets.QHBoxLayout()
         for i in range(self.ndim):
             btn = QtWidgets.QPushButton(f"📋{i+1}")
             btn.setStyleSheet(
@@ -377,7 +377,7 @@ class PositionList:
             """
             )
 
-            self.copy_buttons_layout.addWidget(btn)
+            self.top_btn_layout.addWidget(btn)
 
     def on_use_for_sweep(self, measurement):
         """Set position list for a specific higher dimensional measurement."""
