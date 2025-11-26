@@ -124,6 +124,7 @@ def get_measurement_name(fname: str) -> str:
             mm_name = list(file["measurement"].keys())[0]
     return mm_name
 
+
 def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
     lines = []
     for mm_name, key_set in dsets.items():
@@ -144,11 +145,16 @@ def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
             f"{' ':>12}path=Path(fname),",
             f"{' ':>12}settings=load_settings(fname),",
         ]
-        for name in key_set:
+        for name, is_array in key_set:
             data_class_lines.append(f"{' ':>4}{name}: np.ndarray")
-            load_func_lines.append(
-                f"{' ':>12}{name}=m['{name}'][:] if '{name}' in m else None,"
-            )
+            if is_array:
+                load_func_lines.append(
+                    f"{' ':>12}{name}=m['{name}'][:] if '{name}' in m else None,"
+                )
+            else:
+                load_func_lines.append(
+                    f"{' ':>12}{name}=m['{name}'] if '{name}' in m else None,"
+                )
 
         data_class_lines.append(__STR__INFO)
 
@@ -176,10 +182,10 @@ def get_dset_names(folder: str) -> Dict[str, Set[str]]:
             with h5py.File(fname, "r") as file:
                 new_keys = set(
                     [
-                        name
+                        (name, bool(val.shape))
                         for name, val in file[f"measurement/{mm_name}"].items()
                         if isinstance(val, h5py.Dataset)
-                    ]
+                    ]  # (name, is_array)
                 )
                 if mm_name in dset_names:
                     dset_names[mm_name] = dset_names[mm_name].union(new_keys)
