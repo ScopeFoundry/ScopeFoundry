@@ -86,8 +86,8 @@ class SweepNDBase(Measurement, ABC):
             scan_data.recycle()
 
             # add a dummy value - will be only used to show progress and data
-            indices.append(-2)
-            progress_index_gen = (i + 1 for i in indices)
+            indices.append(len(scan_data.positions)-1)
+            progress_index_gen = (i+1 for i in indices)
             N = len(indices)
             self.set_status(f"Retaking data at index {self.progress_index}", "y")
             self.display_ready = True
@@ -165,7 +165,7 @@ class SweepNDBase(Measurement, ABC):
                     collector.run(self.progress_index, self)
 
                     # collect data
-                    if not scan_data.dsets_initialized:
+                    if not scan_data.dsets_initialized and r == 0:
                         scan_data.init_dsets(collector)
                         data_set_names.extend([q[-1] for q in collector.repeats])
                         extent_control_names = list(self.scan_data.data.keys())
@@ -178,10 +178,12 @@ class SweepNDBase(Measurement, ABC):
                 self.settings.get_lq("extent_control").change_choice_list(
                     extent_control_names + ["None"]
                 )
+                self.scan_data.dsets_initialized = True
 
-            scan_data.add_position(positions)
-            scan_data.add_read_positions(read_positions)
-            scan_data.add_indices(base_indices)
+            if not s["scan_mode"].startswith("RETAKE"):
+                scan_data.add_position(positions)
+                scan_data.add_read_positions(read_positions)
+                scan_data.add_indices(base_indices)
             # manager.flush_h5()
 
             self.progress_index = next(progress_index_gen)
@@ -191,6 +193,8 @@ class SweepNDBase(Measurement, ABC):
                 break
 
         self.post_scan()
+
+        self.progress_index = len(self.scan_data.positions)
 
         for collector in collectors:
             scan_data.average_repeats(collector)
