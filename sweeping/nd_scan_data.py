@@ -74,8 +74,6 @@ class NDScanData:
         for lq_path in collector.settings_to_collect:
             self.h5_meas_group.create_dataset(to_dstname(lq_path), shape)
 
-        self.dsets_initialized = True
-
     def recycle(self):
         for global_name, d in self.data.items():
             self.h5_meas_group.create_dataset(global_name, data=d)

@@ -275,6 +275,7 @@ class LocatorRoi(LocatorBase):
             x0, y0 = roi_state["pos"]
         else:
             x0, y0 = plot_position
+
         return (x0, y0)
         xc = x0 + self.circ_roi_size / 2.0
         yc = y0 + self.circ_roi_size / 2.0
@@ -331,11 +332,12 @@ class LocatorX(LocatorBase):
             x_plot_position = plot_position[0]
 
         if self.real_position_on_x:
+            positions = np.array(self.sweep.scan_data.positions)[
+                :, 0
+            ]  # assuming that we are showing first axes of co-move
+            index = np.argmin(np.abs(positions - x_plot_position))
+            print("index for RETAKE_SLICE", index)
             if hasattr(self.sweep, "ndim") and self.sweep.ndim > 1:
-                positions = np.array(self.sweep.scan_data.positions)[
-                    :, 0
-                ]  # assuming that we are showing first axes of co-move
-                index = np.argmin(np.abs(positions - x_plot_position))
                 return self.sweep.scan_data.positions[index]
             else:
                 return (x_plot_position,)
@@ -346,7 +348,9 @@ class LocatorX(LocatorBase):
             index = round((x_plot_position) / self.size) + self.i_min
         else:
             index = int((x_plot_position)) + self.i_min
-
+        
+        print("index for RETAKE_SLICE", index)
+        
         if index < 0:
             return None
         elif index >= len(self.sweep.scan_data.positions):
