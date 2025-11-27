@@ -44,6 +44,15 @@ class CustomListItem(QWidget):
         if self.collector.int_lq:
             self.int_widget = self.collector.int_lq.new_default_widget()
             layout.addWidget(self.int_widget)
+        for lq_path in self.collector.displayed_lq_paths:
+            lq = self.collector.app.get_lq(lq_path)
+            if lq is not None:
+                widget = lq.new_default_widget()
+                layout.addWidget(widget)
+        for name, lq in self.collector.settings._logged_quantities.items():
+            widget = lq.new_default_widget()
+            layout.addWidget(QLabel(f"{name}:"))
+            layout.addWidget(widget)
 
         else:
             # widget is assumed to exist by remaining code
