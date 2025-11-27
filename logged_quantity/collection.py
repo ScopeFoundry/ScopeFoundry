@@ -500,7 +500,38 @@ class LQCollection:
         if lq.dtype not in [str, int, float, bool]:
             print("Warning", lq.name, "can not be serialized")
             return None
-        return [val for k,val in lq.choices] #FIXME for when name and value are not the same!
+        return [
+            val for k, val in lq.choices
+        ]  # FIXME for when name and value are not the same!
+
+    def claim_settings(self, other, name_prefix=""):
+        """claim logged quantities from another LQCollection into this one."""
+        for lqname, lq in other._logged_quantities.items():
+            if lqname in self._logged_quantities:
+                continue
+            self._claim_lq(lq, name_prefix)
+        other.q_object.lq_added.connect(self._claim_lq)
+        other.q_object.lq_removed.connect(self._unclaim_lq)
+
+    def _claim_lq(self, lq, name_prefix=""):
+        name = lq.name
+        if name_prefix:
+            name = f"{name_prefix}_{name}"
+            lq.name = name
+        lq.set_path(f"{self.path}/{name}")
+        assert not (name in self._logged_quantities)
+        assert not (name in self.__dict__)
+        self._logged_quantities[name] = lq
+        self.__dict__[name] = lq  # allow attribute access
+        self.q_object.lq_added[LoggedQuantity].emit(lq)
+        return lq
+
+    def _unclaim_lq(self, lq):
+        lq = self._logged_quantities.pop(lq.name, None)
+        if lq is None:
+            return
+        self.q_object.lq_removed.emit(lq)
+        self.__dict__.pop(lq.name, None)
 
 
 class LQCollectionWidgetsManager:
