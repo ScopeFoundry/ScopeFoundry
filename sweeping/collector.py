@@ -4,9 +4,10 @@ Created on Feb 18, 2025
 @author: Benedikt Ursprung
 """
 
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Dict
 
 from ScopeFoundry.base_app.base_microscope_app import BaseMicroscopeApp
+from ScopeFoundry.logged_quantity.collection import LQCollection
 from ScopeFoundry.logged_quantity.logged_quantity import LoggedQuantity
 from ScopeFoundry.measurement import Measurement
 
@@ -19,7 +20,9 @@ class Collector:
     # if user does not want to collect anything, set to None.
     repeated_dset_names: Tuple[str] = ()
     settings_to_collect: Tuple[str] = ()  # lq_paths collected at every scan point
-    acquisition_duration_path: str = ""  # lq will be displayed in the GUI
+    acquisition_duration_path: str = ""  # lq will be displayed in the GUI ()
+    displayed_lq_paths: Tuple[str] = ()  # additional lq_paths displayed in the GUI
+    new_settings: Dict[str, any] = {}  # settings to set in prepare
     reps_lq_path: str = ""  # lq will be displayed in the GUI
     target_measure_name: str = ""  # used for default prepare and run methods
     color: Tuple[int] = (255, 0, 0)  # currently not used
@@ -59,8 +62,20 @@ class Collector:
 
         self.data = {}
 
+        self.settings = LQCollection(self.name)
+
         # will be a lookup between global and local dsets names, do not change
         self.repeats = []  # will be overwritten
+
+    def __copy__(self):
+        cls = self.__class__
+        new_collector = cls.__new__(cls)
+        new_collector.__dict__.update(self.__dict__)
+        new_collector.settings = LQCollection(self.name)
+        return new_collector
+
+    def setup(self):
+        pass
 
     def reset(self) -> None:
         self.data = {}
