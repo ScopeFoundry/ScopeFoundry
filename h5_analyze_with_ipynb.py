@@ -118,6 +118,8 @@ def mk_cell_1_source(files_metadata) -> List[str]:
         "from matplotlib import pylab as plt",
         "",
         "",
+        r"%load_ext autoreload",
+        r"%autoreload 2",
         f"from h5_data_loaders import load, find_settings",
         "",
         # f'# data = load(r"{last_file_meta["rel_path"]}")',
