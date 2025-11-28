@@ -17,6 +17,7 @@ from ScopeFoundry.scanning.actuators import (
     add_all_possible_actuators_and_parse_definitions,
     get_actuator_funcs,
 )
+from ScopeFoundry.sweeping.monitor_ui_list import InteractiveMonitorList
 
 from .any_measurement_collector import AnyMeasurementCollector
 from .any_setting_collector import AnySettingCollector
@@ -93,17 +94,17 @@ class SweepNDBase(Measurement, ABC):
             self.display_ready = True
 
         elif s["scan_mode"] == "RETAKE_SLICE":
-            ii_min = self.settings["retake_slice_min"]
-            ii_max = self.settings["retake_slice_max"]
+            ii_min = self.settings["retake_slice_start"]
+            ii_max = self.settings["retake_slice_stop"]
 
             # Will reuse existing scan_data object in memory
             scan_data = self.scan_data
             scan_data.open_new_h5_file()
             scan_data.recycle()
 
-            positions_gen = (pos for pos in scan_data.positions[ii_min : ii_max + 1])
-            base_indices_gen = (idx for idx in scan_data.indices[ii_min : ii_max + 1])
-            N = ii_max - ii_min + 1
+            positions_gen = (pos for pos in scan_data.positions[ii_min:ii_max])
+            base_indices_gen = (idx for idx in scan_data.indices[ii_min:ii_max])
+            N = ii_max - ii_min
             progress_index_gen = itertools.count(ii_min, 1)
 
             self.set_status(f"Retaking a slice of data", "y")
@@ -143,6 +144,8 @@ class SweepNDBase(Measurement, ABC):
             N = np.prod(scan_data.base_shape)
             self.display_ready = False
 
+        self.monitor_list_widget.start_all_monitors()
+
         data_set_names = []
         self.progress_index = next(progress_index_gen)
         for positions, base_indices in zip(positions_gen, base_indices_gen):
@@ -161,6 +164,9 @@ class SweepNDBase(Measurement, ABC):
             for collector in collectors:
                 self.set_status(f"collecting {collector.name} on {pretty_pos}", "g")
                 self.prepare_collector_at_position(collector, positions, base_indices)
+                self.monitor_list_widget.inform_enabled_monitors(
+                    f"start_{collector.name}"
+                )
                 for r in range(collector.reps):
                     collector.run(self.progress_index, self)
 
@@ -172,7 +178,11 @@ class SweepNDBase(Measurement, ABC):
                         self.display_ready = True
                     scan_data.incorporate(collector, *base_indices, r)
 
+                self.monitor_list_widget.inform_enabled_monitors(
+                    f"stop_{collector.name}"
+                )
                 self.release_collector(collector, positions, base_indices)
+
             if self.progress_index == 0:
                 self.settings.get_lq("dataset").change_choice_list(data_set_names)
                 self.settings.get_lq("extent_control").change_choice_list(
@@ -194,7 +204,13 @@ class SweepNDBase(Measurement, ABC):
 
         self.post_scan()
 
+        self.monitor_list_widget.stop_all_monitors()
+
         self.progress_index = len(self.scan_data.positions)
+
+        for k, v in self.monitor_list_widget.get_all_data().items():
+            print(k, v)
+            self.scan_data.h5_meas_group.create_dataset(k, data=v)
 
         for collector in collectors:
             scan_data.average_repeats(collector)
@@ -341,16 +357,16 @@ class SweepNDBase(Measurement, ABC):
             description="<p>flat: flattened data per sweep point flattend and aranged in order measured<p>map_vertical: data at positions is along vertical direction of a map",
         ).add_listener(self.update_display)
         s.New(
-            "retake_slice_min",
+            "retake_slice_start",
             int,
             initial=0,
-            description="minimum index of slice to retake",
+            description="start index of slice to retake (inclusive)",
         )
         s.New(
-            "retake_slice_max",
+            "retake_slice_stop",
             int,
             initial=0,
-            description="maximum index of slice to retake",
+            description="stop index of slice to retake (EXCLUSIVE!)",
         )
         for i in range(self.n_any_measurements):
             self.collectors.append(
@@ -404,8 +420,12 @@ class SweepNDBase(Measurement, ABC):
 
         s = self.settings
 
+        paths = filtered_lq_paths(self.app, True)
         for i in range(self.n_read_any_settings):
-            s.get_lq(f"any_setting_{i}").change_choice_list(filtered_lq_paths(self.app))
+            s.get_lq(f"any_setting_{i}").change_choice_list(paths)
+
+        for monitor in self.monitor_list_widget.get_monitors():
+            monitor.settings.get_lq("setting").change_choice_list(paths)
 
         self.actuator_defs = add_all_possible_actuators_and_parse_definitions(
             actuator_definitions=self.user_defined_actuators, app=self.app
@@ -617,8 +637,9 @@ class SweepNDBase(Measurement, ABC):
         self.position_list_widget.setVisible(False)
 
         self.retake_slice_widget = self.settings.New_UI(
-            ("retake_slice_min", "retake_slice_max")
+            ("retake_slice_start", "retake_slice_stop")
         )
+        self.retake_slice_widget.setVisible(False)
 
         lu: Dict[str, QtWidgets.QWidget] = {
             "RETAKE": self.retake_widget,
@@ -658,11 +679,14 @@ class SweepNDBase(Measurement, ABC):
         for collector in self.collectors:
             self.collector_list_widget.add_item(collector)
 
+        self.monitor_list_widget = InteractiveMonitorList(self)
+
         widget = QtWidgets.QGroupBox("Data Collectors: Set repetitions and order")
         layout = QtWidgets.QVBoxLayout(widget)
         layout.setSpacing(4)
         layout.setContentsMargins(8, 12, 8, 8)
         layout.addWidget(self.collector_list_widget)
+        layout.addWidget(self.monitor_list_widget)
         return widget
 
     def mk_plot_options_widget(self):
