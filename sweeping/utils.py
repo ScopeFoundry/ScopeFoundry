@@ -12,10 +12,10 @@ def mk_new_dir(root, name):
     return new_path
 
 
-def filtered_lq_paths(app: BaseMicroscopeApp) -> List[str]:
+def filtered_lq_paths(app: BaseMicroscopeApp, filter_has_hardware_write=False, filter_has_hardware_read=False) -> List[str]:
     return [
         p
-        for p in app.get_setting_paths()
+        for p in app.get_setting_paths(filter_has_hardware_read=filter_has_hardware_read, filter_has_hardware_write=filter_has_hardware_write)
         if app.get_lq(p).dtype != str
         and p.split("/")[-1]
         not in (

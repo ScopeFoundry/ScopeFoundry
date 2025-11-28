@@ -10,7 +10,6 @@ from qtpy.QtWidgets import (
 )
 from qtpy import QtCore
 
-
 from .collector import Collector
 from qtpy.QtWidgets import QSizePolicy
 
@@ -35,9 +34,8 @@ class CustomListItem(QWidget):
             self.reps_widget = QDoubleSpinBox()
 
         self.name_widget = QLabel(self.collector.name)
-        self.name_widget.setMinimumWidth(180)
         self.name_widget.setSizePolicy(
-            QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred
+            QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred
         )
         layout.addWidget(self.name_widget)
 
@@ -51,7 +49,12 @@ class CustomListItem(QWidget):
                 layout.addWidget(widget)
         for name, lq in self.collector.settings._logged_quantities.items():
             widget = lq.new_default_widget()
-            layout.addWidget(QLabel(f"{name}:"))
+            label = QLabel(f"{name}:")
+            label.setSizePolicy(
+                    QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred
+            )
+            label.setStyleSheet("QLabel { font-size: 8pt; }")
+            layout.addWidget(label)
             layout.addWidget(widget)
 
         else:
