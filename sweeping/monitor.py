@@ -47,6 +47,7 @@ class MonitorBase:
         self._running = True
         self._stop_event = threading.Event()
         self._current_index = 0
+        self.clear_events()
         self.values = []
 
         def _monitor_loop():

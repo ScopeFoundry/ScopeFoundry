@@ -40,19 +40,24 @@ class MonitorListItem(QWidget):
         for name in reversed(self.monitor.settings.keys()):
             lq = self.monitor.settings.get_lq(name)
             widget = lq.new_default_widget()
+            if name == "update_period":
+                widget.setMaximumWidth(80)
+                widget.setSizePolicy(
+                    QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred
+                )
 
             # Make bool widgets (checkboxes) as small as possible
             if lq.dtype == bool:
                 widget.setMaximumWidth(20)
                 widget.setMaximumHeight(20)
 
-            if name != "enabled":  # Skip label for enabled setting
-                label = QLabel(f"{name}:")
-                label.setSizePolicy(
-                    QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred
-                )
-                label.setStyleSheet("QLabel { font-size: 8pt; }")
-                layout.addWidget(label)
+            # if name != "enabled":  # Skip label for enabled setting
+            #     label = QLabel(f"{name}:")
+            #     label.setSizePolicy(
+            #         QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred
+            #     )
+            #     label.setStyleSheet("QLabel { font-size: 8pt; }")
+            #     layout.addWidget(label)
             layout.addWidget(widget)
 
         # Start/Stop button
@@ -109,7 +114,7 @@ class MonitorListItem(QWidget):
 
     def show_plot(self):
         """Show a plot of the monitor data with event pairs indicated."""
-        if not hasattr(self.monitor, "_data") or not self.monitor.values:
+        if not self.monitor.values:
             print(f"No data available for monitor '{self.monitor.name}'")
             return
 
@@ -133,7 +138,7 @@ class MonitorListItem(QWidget):
                     ax.axvspan(
                         start_idx,
                         stop_idx,
-                        alpha=0.3,
+                        alpha=0.5,
                         color=color,
                         label=(
                             f"{event_name}"
@@ -141,6 +146,8 @@ class MonitorListItem(QWidget):
                             else ""
                         ),
                     )
+                    l = stop_idx - start_idx
+                    ax.text(start_idx, max(data_array), l)
             color_idx += 1
 
         # Add pending starts as vertical lines
@@ -156,9 +163,9 @@ class MonitorListItem(QWidget):
                 )
 
         # Customize plot
-        ax.set_xlabel("Index")
+        ax.set_xlabel("")
         ax.set_ylabel("Value")
-        ax.set_title(f"Monitor Data: {self.monitor.name}")
+        ax.set_title(f"Monitor Data: {self.monitor.settings['setting']}")
         ax.grid(True, alpha=0.3)
 
         # Add legend if there are events
