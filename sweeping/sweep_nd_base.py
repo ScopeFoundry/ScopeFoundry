@@ -4,6 +4,7 @@ import time
 from abc import ABC
 from copy import copy
 from typing import Dict, Sequence, Tuple, Union, List
+from functools import partial
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,8 +18,7 @@ from ScopeFoundry.scanning.actuators import (
     add_all_possible_actuators_and_parse_definitions,
     get_actuator_funcs,
 )
-from ScopeFoundry.sweeping.monitor_ui_list import InteractiveMonitorList
-
+from .monitor_ui_list import InteractiveMonitorList
 from .any_measurement_collector import AnyMeasurementCollector
 from .any_setting_collector import AnySettingCollector
 from .collector import Collector
@@ -27,7 +27,6 @@ from .nd_scan_data import NDScanData
 from .utils import filtered_lq_paths, mk_new_dir
 from .locator import LocatorX
 from .position_list import PositionList
-from functools import partial
 
 
 class SweepNDBase(Measurement, ABC):
@@ -441,8 +440,9 @@ class SweepNDBase(Measurement, ABC):
         # Top horizontal section
         top_widget = QtWidgets.QWidget()
         top_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.Fixed
         )
+        top_widget.setMaximumHeight(340)
         top_layout = QtWidgets.QHBoxLayout(top_widget)
         top_layout.setSpacing(4)
         top_layout.setContentsMargins(2, 0, 2, 0)
@@ -598,8 +598,12 @@ class SweepNDBase(Measurement, ABC):
             range_ui = r.New_UI()
             list_ui = QtWidgets.QTextEdit()
 
-            range_ui.setMaximumWidth(self.range_n_intervals[ii] * 180)
-            list_ui.setMaximumWidth(180)
+            if self.range_n_intervals[ii]>1:
+                width = 540
+            else:
+                width = 190
+            range_ui.setMaximumWidth(width)
+            list_ui.setMaximumWidth(width)
             list_ui.setText("# Enter one number per line.\n")
             self.list_uis[name] = list_ui
             list_ui.setVisible(False)
@@ -615,31 +619,44 @@ class SweepNDBase(Measurement, ABC):
             )
 
             layout = QtWidgets.QVBoxLayout()
-            layout.addWidget(
-                self.settings.get_lq(f"actuator_{name}").new_default_widget()
-            )
-            layout.addWidget(self.settings.New_UI((f"from_list_{name}",)))
+            w1 = self.settings.get_lq(f"actuator_{name}").new_default_widget()
+            w2 = self.settings.New_UI((f"from_list_{name}",))
+            w1.setMaximumWidth(width)
+            w2.setMaximumWidth(width)
+
+            layout.addWidget(w1)
+            layout.addWidget(w2)
             layout.addWidget(list_ui)
             layout.addWidget(range_ui)
             layout.setSpacing(3)
             h_layout.addLayout(layout)
 
         self.retake_widget = QtWidgets.QTextEdit(
-            f"<p>Retakes data at positions defined in Position List.</p><p>Uses existing scan data in memory and creates a new file with updated measurements at specified positions.</p><p><b>Note:</b> Position List should contain positions from the current scan that need to be re-measured.</p>"
+            f"<p>Retakes data at positions defined in Position List. To add positions ctrl click on data.</p><p>Uses existing data in memory and creates a new file with updated data at specified points.</p><p><b>Note:</b> Position List should contain positions from the current scan that need to be re-measured.</p>"
         )
         self.retake_widget.setReadOnly(True)
         self.retake_widget.setVisible(False)
+        # self.retake_widget.setMaximumWidth(350)
 
         self.position_list_widget = QtWidgets.QTextEdit(
-            f"<p>Sweeps over positions defined in the Position List.</p><p>Each position should specify coordinates for all actuators in order.</p><p><b>Note:</b> Add positions using the Position List panel on the right.</p>"
+            f"<p>Sweeps over positions defined in the Position List. To add positions ctrl click on data.</p><p>Each position should specify coordinates for all actuators in order.</p>"
         )
         self.position_list_widget.setReadOnly(True)
         self.position_list_widget.setVisible(False)
+        # self.position_list_widget.setMaximumWidth(350)
 
-        self.retake_slice_widget = self.settings.New_UI(
-            ("retake_slice_start", "retake_slice_stop")
+        self.retake_slice_widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(self.retake_slice_widget)
+        w = QtWidgets.QTextEdit(
+            f"<p>Retakes data at positions defined by indices of the sweep. Index i corresponds to i-th data point taken. Designed for re-measurement of adjacent points.</p><p>Uses existing scan data in memory and creates a new file with updated measurements at specified positions.</p>"
+        )
+        w.setReadOnly(True)
+        layout.addWidget(w)
+        layout.addWidget(
+            self.settings.New_UI(("retake_slice_start", "retake_slice_stop"))
         )
         self.retake_slice_widget.setVisible(False)
+        # self.retake_slice_widget.setMaximumWidth(350)
 
         lu: Dict[str, QtWidgets.QWidget] = {
             "RETAKE": self.retake_widget,
@@ -659,19 +676,34 @@ class SweepNDBase(Measurement, ABC):
 
         widget = QtWidgets.QGroupBox("Actuators: Define scan positions")
         v_layout = QtWidgets.QVBoxLayout(widget)
-        v_layout.setSpacing(4)
-        v_layout.setContentsMargins(3, 5, 3, 3)
+        v_layout.setSpacing(0)
+        v_layout.setContentsMargins(2, 2, 2, 2)
         v_layout.addWidget(mode_selector_mode)
         v_layout.addWidget(params_widget)
         v_layout.addWidget(self.retake_widget)
         v_layout.addWidget(self.position_list_widget)
         v_layout.addWidget(self.retake_slice_widget)
         widget.setFlat(False)
-
+        return widget
+        
         scroll_area = QtWidgets.QScrollArea()
-        scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(widget)
-        scroll_area.setMaximumWidth(sum(self.range_n_intervals) * 182 + 20)
+        width = 0
+        for n in self.range_n_intervals:
+            if n == 1:
+                width += 180
+            else:
+                width += 540
+        widget.setMinimumWidth(width)
+        widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Maximum,
+        )
+        scroll_area.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Maximum,
+        )
+
         return scroll_area
 
     def mk_collect_widget(self):
@@ -730,8 +762,9 @@ class SweepNDBase(Measurement, ABC):
                 self.log.warning(f"Failed to make locator: {e}")
 
         # container.setMaximumHeight(150)
+        # container.setMaximumWidth(400)
         container.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Maximum,
         )
 
