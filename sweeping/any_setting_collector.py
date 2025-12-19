@@ -1,7 +1,6 @@
 from typing import Tuple, Callable
+import time
 
-from ScopeFoundry.base_app.base_microscope_app import BaseMicroscopeApp
-from ScopeFoundry.logged_quantity import LoggedQuantity
 from ScopeFoundry.measurement import Measurement
 
 from .collector import Collector
@@ -40,5 +39,15 @@ class AnySettingCollector(Collector):
         **kwargs,
     ):
         self.repeated_dset_names = (self.setting_lq.val,)
-        new_val = self.app.get_lq(self.setting_lq.val).read_from_hardware()
-        self.data = {self.setting_lq.val: new_val}
+        for _ in range(100):
+            try:
+                new_val = self.app.get_lq(self.setting_lq.val).read_from_hardware()
+                self.data = {self.setting_lq.val: new_val}
+                success = True
+                
+            except Exception as e:
+                success =  False
+                
+            time.sleep(0.05)
+            if success:
+                break
