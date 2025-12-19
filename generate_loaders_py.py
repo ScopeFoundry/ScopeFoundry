@@ -15,12 +15,65 @@ LOADERS_PY_HEADER = """# generated with ScopeFoundry.tools
 
 import functools
 import fnmatch
+import os
+import shutil
+import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict
 
 import h5py
 import numpy as np
+
+
+def find_all_fnames_in_sources_of_ipynb(ignore_cells=[]):
+    fname_pattern = re.compile(r"\d{6}_\d{6}_[a-z0-9_]+\.h5")
+
+    with open("overview.ipynb", "r", encoding="utf-8") as f:
+        notebook = json.load(f)
+
+    fnames = set()
+    for ii, cell in enumerate(notebook["cells"]):
+        if ii in ignore_cells:
+            continue
+        if cell["cell_type"] == "code":
+            source = "".join(cell["source"])
+            matches = fname_pattern.findall(source)
+            fnames.update(matches)
+
+    print(f"Found {len(fnames)} unique .h5 filenames in notebook sources.")
+
+    return set(fnames)
+
+
+def move_file_to_archive_folder(fname, target_folder=None):
+    if target_folder is None:
+        data_folder = os.path.join(os.getcwd(), "archived_data")
+    else:
+        data_folder = target_folder
+    if not os.path.exists(data_folder):
+        os.makedirs(data_folder)
+
+    src_path = os.path.join(os.getcwd(), fname)
+    dest_path = os.path.join(data_folder, fname)
+
+    if os.path.exists(src_path):
+        shutil.move(src_path, dest_path)
+        print(f"Moved {fname} to {data_folder}")
+    else:
+        print(f"File {fname} does not exist in the current directory.")
+
+
+def archive_unmentioned_h5_files(ignore_cells=(0, 1)):
+    fnames_to_keep = find_all_fnames_in_sources_of_ipynb(ignore_cells=ignore_cells)
+    counter = 0
+    for fname in Path.cwd().glob("*.h5"):
+        if fname.name not in fnames_to_keep:
+            move_file_to_archive_folder(fname.name)
+            move_file_to_archive_folder(fname.name.replace(".h5", ".png"))
+            counter += 1
+    print(f"Archived {counter} files.")
 
 load_funcs = {}
 
