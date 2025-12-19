@@ -419,7 +419,7 @@ class SweepNDBase(Measurement, ABC):
 
         s = self.settings
 
-        paths = filtered_lq_paths(self.app, True)
+        paths = filtered_lq_paths(self.app, False)
         for i in range(self.n_read_any_settings):
             s.get_lq(f"any_setting_{i}").change_choice_list(paths)
 
