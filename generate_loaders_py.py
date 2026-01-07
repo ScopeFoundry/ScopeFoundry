@@ -1,11 +1,11 @@
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, Union
 
 import h5py
 
 LOADERS_FNAME = "h5_data_loaders.py"
 
-LOADERS_PY_HEADER = """# generated with ScopeFoundry.tools
+LOADERS_PY_HEADER = r"""# generated with ScopeFoundry.tools
 #
 # pip install ScopeFoundry
 # python -m ScopeFoundry.tools
@@ -47,7 +47,7 @@ def find_all_fnames_in_sources_of_ipynb(ignore_cells=[]):
     return set(fnames)
 
 
-def move_file_to_archive_folder(fname, target_folder=None):
+def move_file(fname, target_folder=None):
     if target_folder is None:
         data_folder = os.path.join(os.getcwd(), "archived_data")
     else:
@@ -65,15 +65,20 @@ def move_file_to_archive_folder(fname, target_folder=None):
         print(f"File {fname} does not exist in the current directory.")
 
 
-def archive_unmentioned_h5_files(ignore_cells=(0, 1)):
+def archive_unmentioned_h5_files(ignore_cells=(0, 1), target_folder=None):
     fnames_to_keep = find_all_fnames_in_sources_of_ipynb(ignore_cells=ignore_cells)
     counter = 0
+    h5_file_counter = 0
+    print("--- archiving unmentioned .h5 files ---")
     for fname in Path.cwd().glob("*.h5"):
         if fname.name not in fnames_to_keep:
-            move_file_to_archive_folder(fname.name)
-            move_file_to_archive_folder(fname.name.replace(".h5", ".png"))
-            counter += 1
-    print(f"Archived {counter} files.")
+            move_file(fname.name, target_folder)
+            h5_file_counter += 1
+            for f in Path.cwd().glob(fname.name.replace(".h5", ".*")):
+                move_file(f.name, target_folder)
+                counter += 1
+    print(f"Archived {h5_file_counter} .h5 files and {counter} associated files.")
+    print("--- done ---")
 
 load_funcs = {}
 
@@ -169,13 +174,13 @@ __STR__INFO = r"""
 """
 
 
-def get_measurement_name(fname: str) -> str:
+def get_measurement_name(fname: Union[str, Path]) -> str:
     with h5py.File(fname, "r") as file:
         if "measurement" in file.attrs:
             mm_name = file.attrs["measurement"]
         else:
             mm_name = list(file["measurement"].keys())[0]
-    return mm_name
+    return str(mm_name)
 
 
 def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
