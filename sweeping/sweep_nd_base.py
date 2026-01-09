@@ -410,6 +410,7 @@ class SweepNDBase(Measurement, ABC):
         self.scan_data = NDScanData(
             base_shape=(2,),
             measurement=self,
+            open_new_h5=False,  # dummy initialization, avoid opening file here
         )
         self.data = self.scan_data.data
 
@@ -440,7 +441,8 @@ class SweepNDBase(Measurement, ABC):
         # Top horizontal section
         top_widget = QtWidgets.QWidget()
         top_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.Fixed
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Policy.Fixed,
         )
         top_widget.setMaximumHeight(340)
         top_layout = QtWidgets.QHBoxLayout(top_widget)
@@ -598,7 +600,7 @@ class SweepNDBase(Measurement, ABC):
             range_ui = r.New_UI()
             list_ui = QtWidgets.QTextEdit()
 
-            if self.range_n_intervals[ii]>1:
+            if self.range_n_intervals[ii] > 1:
                 width = 540
             else:
                 width = 190
@@ -685,7 +687,7 @@ class SweepNDBase(Measurement, ABC):
         v_layout.addWidget(self.retake_slice_widget)
         widget.setFlat(False)
         return widget
-        
+
         scroll_area = QtWidgets.QScrollArea()
         scroll_area.setWidget(widget)
         width = 0
