@@ -16,6 +16,7 @@ class NDScanData:
         self,
         base_shape: Tuple[int],
         measurement: Measurement,
+        open_new_h5: bool = True,
     ):
         self.data: Dict[str, np.ndarray] = {}
         self.base_shape = base_shape
@@ -27,8 +28,8 @@ class NDScanData:
         self.positions = []
         self.read_positions = []
         self.indices = []
-
-        self.open_new_h5_file()
+        if open_new_h5:
+            self.open_new_h5_file()
 
     def open_new_h5_file(self):
         self.h5_meas_group = self.measurement.open_new_h5_file()
