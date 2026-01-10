@@ -721,7 +721,7 @@ class BaseMicroscopeApp(BaseApp):
         self, fname: str, ignore_hw_connect: bool = False, show_report: bool = True
     ) -> None:
         """
-        Loads h5 settings given a filename.
+        Loads settings from an h5 file.
 
         ==============  =========  ====================================================================================
         **Arguments:**  **Type:**  **Description:**
@@ -729,6 +729,13 @@ class BaseMicroscopeApp(BaseApp):
         ==============  =========  ====================================================================================
         """
         settings = h5_io.load_settings(fname)
+
+        # ignoring some metadata that are not settings. Maybe should be excluded in h5_io.load_settings
+        for x in ("ScopeFoundry_version", "time_id", "unique_id", "uuid"):
+            if x in settings:
+                # print("ignoring", x)
+                settings.pop(x)
+
         if ignore_hw_connect:
             settings = {
                 k: v for k, v in settings.items() if not k.endswith("connected")
