@@ -55,6 +55,7 @@ class WRITE_RES(enum.Enum):
     SUCCESS = enum.auto()
     MISSING = enum.auto()
     PROTECTED = enum.auto()
+    ERROR = enum.auto()
 
 
 class EventFilter(QtCore.QObject):
@@ -262,14 +263,22 @@ class BaseApp(QtCore.QObject):
         lq.update_value(value)
         return WRITE_RES.SUCCESS
 
-    def write_setting_safe(self, path: str, value: Any) -> WRITE_RES:
+    def write_setting_safe(
+        self, path: str, value: Any, error_msgs: Dict[str, str] = None
+    ) -> WRITE_RES:
         lq = self.get_lq(path)
         if lq is None:
             return WRITE_RES.MISSING
         elif lq.protected:
             return WRITE_RES.PROTECTED
-        lq.update_value(value)
-        return WRITE_RES.SUCCESS
+        try:
+            lq.update_value(value)
+            return WRITE_RES.SUCCESS
+        except Exception as e:
+            self.log.error(f"Error writing setting {path} with value {value}: {e}")
+            if error_msgs is not None:
+                error_msgs[path] = str(e)
+            return WRITE_RES.ERROR
 
     def get_lq(self, path: str) -> LoggedQuantity:
         """
@@ -287,10 +296,10 @@ class BaseApp(QtCore.QObject):
         ==============  =========  ====================================================================================
         """
         report = {}
+        error_msgs = {}
         for path, value in settings.items():
-            success = self.write_setting_safe(path, value)
-            report[path] = success
-        return report
+            report[path] = self.write_setting_safe(path, value, error_msgs)
+        return report, error_msgs
 
     def settings_save_ini(self, fname: str, save_ro: bool = True) -> None:
         """
