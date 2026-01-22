@@ -6,11 +6,16 @@ from .base_app import WRITE_RES
 from ..helper_funcs import open_file
 
 
-def show_io_report_dialog(fname: str, report, retry_func):
+def show_io_report_dialog(fname: str, report, retry_func, error_msgs={}):
 
     failures = [f" - `{p}`" for p, v in report.items() if v == WRITE_RES.MISSING]
     protecteds = [f" - `{p}`" for p, v in report.items() if v == WRITE_RES.PROTECTED]
     successes = [f" - `{p}`" for p, v in report.items() if v is WRITE_RES.SUCCESS]
+    errors = [
+        f" - `{p}`\n  {error_msgs.get(p, '')}"
+        for p, v in report.items()
+        if v == WRITE_RES.ERROR
+    ]
 
     name = Path(fname).name
 
@@ -36,6 +41,16 @@ def show_io_report_dialog(fname: str, report, retry_func):
     if successes:
         lines += ["  ", "  ", f"### sucesses ({len(successes)})"]
         lines += successes
+
+    if errors:
+        lines += [
+            "  ",
+            "  ",
+            f"### errors ({len(errors)})",
+            "*errors occurred while trying to write these settings*",
+            "  ",
+        ]
+        lines += errors
 
     text_edit = QtWidgets.QTextEdit()
     text_edit.setMarkdown("\n".join(lines))

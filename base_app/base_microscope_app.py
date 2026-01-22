@@ -708,12 +708,11 @@ class BaseMicroscopeApp(BaseApp):
                 k: v for k, v in settings.items() if not k.endswith("connected")
             }
 
-        report = self.write_settings_safe(settings)
+        report, error_msgs = self.write_settings_safe(settings)
         self._report = report  # _report for test purpose
 
         if show_report:
-            show_io_report_dialog(fname, report, self.settings_load_ini)
-
+            show_io_report_dialog(fname, report, self.settings_load_ini, error_msgs)
         self.propose_settings_values(Path(fname).name, settings)
         self.log.info(f"settings loaded from {fname}")
 
@@ -741,12 +740,11 @@ class BaseMicroscopeApp(BaseApp):
                 k: v for k, v in settings.items() if not k.endswith("connected")
             }
 
-        report = self.write_settings_safe(settings)
+        report, error_msgs = self.write_settings_safe(settings)
         self._report = report  # _report for test purpose
 
         if show_report:
-            show_io_report_dialog(fname, report, self.settings_load_h5)
-
+            show_io_report_dialog(fname, report, self.settings_load_h5, error_msgs)
         self.propose_settings_values(Path(fname).name, settings)
         self.log.info(f"settings loaded from {fname}")
 
