@@ -34,6 +34,7 @@ class Collector:
         app: BaseMicroscopeApp,
         name: str = None,
         acquisition_duration_path: str = None,
+        displayed_lq_paths: Tuple[str] = None,
         target_measure_name: str = None,
         color: Tuple[int] = None,
         to_sec_multiplier: float = None,
@@ -46,6 +47,8 @@ class Collector:
             self.name = name
         if acquisition_duration_path is not None:
             self.acquisition_duration_path = acquisition_duration_path
+        if displayed_lq_paths is not None:
+            self.displayed_lq_paths = displayed_lq_paths
         if target_measure_name is not None:
             self.target_measure_name = target_measure_name
         if color is not None:
