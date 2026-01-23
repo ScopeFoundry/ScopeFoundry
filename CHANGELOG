@@ -1,17 +1,24 @@
-ScopeFoundry 2.3.0 2025-09-26
+ScopeFoundry 2.3.0 2026-01-23
 
 	* Features added:
-	    - [sweeping/map_2D] can now load datasets from h5 files.
+		- [sweeping/map_2D] can now load datasets from h5 files.
+		- [sweeping] added settings monitoring, collectors can now show multiple widgets of settings, improved ui and data representation and added locator widget to map data to actuator positions, added RETAKE and RETAKE_SLICE option to remeasure/update data at specified actuator positions (by a list or range) of the previous sweep (leaving other data points unchanged).
 		- [git_funcs] now stores git captures in h5 files.
+		- [dynamic loading and reloading Measurements and HardwareComponents]
+		- [h5_analyze_with_ipynb] added options 'all', 'remaining' that controls how the files to be added as cells when feature is triggered. 'last' remains default. Now also has a function to archive files that are not mentioned in the ipynb. Can now handle scalar datasets.
+		- [LQCollection] can now "claim" another LQCollection. This allows a LQCollection to be created in another objected and then be added to an existing collection.
+	
 
 	* Fixes:
 		- [lq_intervaled_range] fixed for the case where intervals have different lengths.
-		- [base_microscoep_app] state of checkboxes are visiual even in light mode of win 11, see: issue #73
+		- [base_microscope_app] state of checkboxes are visual even in light mode of win 11, see: issue #73
+		- [favorites widget] now integrated to quickbar. Hides if empty or no quickbar was added.
+
 
 ScopeFoundry 2.2.1 2025-09-03
 
 	* Fixes:
-		- setup.py for packaing.
+		- setup.py for packaging.
 
 
 ScopeFoundry 2.2.0 2025-09-01
