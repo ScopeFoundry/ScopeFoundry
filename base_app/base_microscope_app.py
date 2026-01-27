@@ -342,15 +342,16 @@ class BaseMicroscopeApp(BaseApp):
 
     def _post_setup_ui_quickaccess(self) -> None:
         # check again if quickbar is defined.
-        if isinstance(self.quickbar, QtWidgets.QWidget):
-            self.ui.quickaccess_scrollArea.setVisible(True)
+        # if isinstance(self.quickbar, QtWidgets.QWidget):
+        if self.quickbar is not None:
             layout: QtWidgets.QVBoxLayout = self.ui.quickaccess_layout
             if layout.isEmpty():
                 layout.addWidget(self.quickbar)
-        else:
-            self.ui.quickaccess_scrollArea.setVisible(False)
         self.ui.quickaccess_layout.addWidget(self.favorites_widget.scroll_area)
-        self.ui.quickaccess_scrollArea.setVisible(self.favorites_widget.has_items())
+        self.favorites_widget.refresh_widgets()
+        self.ui.quickaccess_scrollArea.setVisible(
+            self.favorites_widget.has_items() or self.quickbar is not None
+        )
 
     def _setup_ui_logo(self) -> None:
         logo_icon = QtGui.QIcon(self.logo_path)

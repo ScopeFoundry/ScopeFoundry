@@ -42,7 +42,7 @@ class TestOperations(unittest.TestCase):
         self.operations.new("test_op", mock_func, "Test Operation", "path/to/icon")
         button = self.operations.new_button("test_op")
         self.assertEqual(button.objectName(), "test_op")
-        self.assertEqual(button.toolTip(), "Test Operation")
+        self.assertEqual(button.toolTip(), "<b>/test_op</b><p><p>Test Operation")
 
     def test_signal_add_operation(self):
         mock_func = Mock()

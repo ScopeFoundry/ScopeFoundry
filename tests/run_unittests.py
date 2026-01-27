@@ -9,10 +9,10 @@ from ScopeFoundry.tests.unittests.test_analyze_nb import AnalyzeNBTest
 from ScopeFoundry.tests.unittests.test_operations import TestOperations
 
 
-# following also require visual inspection - run individual files
-from ScopeFoundry.tests.hw_connect_failure_test import AppTest
-from ScopeFoundry.tests.nested_measurement_test import NestMeasureTestAppTest
-from ScopeFoundry.tests.quickbar_test import QuickbarTest
+# following require visual inspection - run individual files
+# from ScopeFoundry.tests.hw_connect_failure_test import AppTest
+# from ScopeFoundry.tests.nested_measurement_test import NestMeasureTestAppTest
+# from ScopeFoundry.tests.quickbar_test import QuickbarTest
 
 if __name__ == "__main__":
     unittest.main()
