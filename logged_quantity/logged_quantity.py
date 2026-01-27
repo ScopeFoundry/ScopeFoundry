@@ -1,3 +1,4 @@
+from pathlib import Path
 import subprocess
 from collections import deque
 from enum import Enum
@@ -10,6 +11,32 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry.helper_funcs import QLock, bool2str, get_logger_from_class, str2bool
 from ScopeFoundry.widgets import MinMaxQSlider
+
+
+tick_path = Path(__file__).parent / "tick.png"
+
+
+def mk_checkbox_style_sheet(colors: List[QtGui.QColor]) -> str:
+    s = f"""QCheckBox::indicator:unchecked {{
+            background-color: {colors[0].name()};
+            width: 14px;
+            height: 14px;
+            border-style: solid;
+            border-radius: 4px;
+            border-width: 1px;
+            border-color: black;}}
+        QCheckBox::indicator:checked  {{ 
+            background-color: {colors[-1].name()};
+            width: 14px;
+            height: 14px;
+            border-style: solid;
+            border-radius: 4px;
+            border-width: 1px;
+            border-color: black;
+            image: url('{tick_path}');
+            }}
+        """
+    return s
 
 
 class LoggedQuantity(QtCore.QObject):
@@ -560,10 +587,11 @@ class LoggedQuantity(QtCore.QObject):
                 # but then for widgets in tristate can send states 0, 1, 2.
                 # Do not know when state occurs
 
-            if self.colors is not None:
-                s = f"""QCheckBox:!checked {{ background: {self.colors[0]} }}
-                        QCheckBox:checked  {{ background: {self.colors[-1]} }}"""
-                widget.setStyleSheet(widget.styleSheet() + s)
+            if self.qcolors:
+                print(self.name, self.qcolors[0].name(), self.qcolors[1].name())
+                widget.setStyleSheet(
+                    widget.styleSheet() + mk_checkbox_style_sheet(self.qcolors)
+                )
 
         elif isinstance(widget, QtWidgets.QLineEdit):
             self.updated_text_value[str].connect(widget.setText)
@@ -639,12 +667,6 @@ class LoggedQuantity(QtCore.QObject):
                         qc = self.qcolors[idx]
                     else:
                         qc = QtGui.QColor("lightgrey")
-
-                    s = f"""QComboBox{{
-                                selection-background-color: {qc.name()};
-                                selection-color: black;
-                                background: {qc.name()};
-                            }}"""
                     widget.setStyleSheet(widget.styleSheet() + s)
 
                 widget.currentIndexChanged.connect(update_background_color)
@@ -747,7 +769,11 @@ class LoggedQuantity(QtCore.QObject):
         except RuntimeError:
             pass
 
-        for sig in [self.updated_value, self.updated_text_value, self.updated_choice_index_value]:
+        for sig in [
+            self.updated_value,
+            self.updated_text_value,
+            self.updated_choice_index_value,
+        ]:
             if sig is None:
                 continue
             try:
@@ -881,10 +907,10 @@ class LoggedQuantity(QtCore.QObject):
             if self.ro:
                 widget.setEnabled(False)
 
-            if self.colors is not None:
-                s = f"""QCheckBox:!checked {{ background: {self.colors[0]} }}
-                        QCheckBox:checked  {{ background: {self.colors[-1]} }}"""
-                widget.setStyleSheet(widget.styleSheet() + s)
+            if self.qcolors:
+                widget.setStyleSheet(
+                    widget.styleSheet() + mk_checkbox_style_sheet(self.qcolors)
+                )
 
         elif isinstance(widget, QtWidgets.QLineEdit):
             self.updated_text_value[str].connect(widget.setText)
