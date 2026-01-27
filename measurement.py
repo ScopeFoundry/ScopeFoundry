@@ -237,6 +237,9 @@ class Measurement:
     def post_run(self):
         """Override this method to enable main-thread finalization after to measurement thread completes"""
         pass
+    
+    def reset_measurement_start_time(self):
+        self._t0 = time.time()
 
     def _thread_run(self):
         """
@@ -244,7 +247,7 @@ class Measurement:
         """
         print(self.name, "_thread_run thread_id:", threading.get_ident())
         self.progress.update_value(50.0)  # default 50% w/o time remaining estimation
-        self._t0 = time.time()
+        self.reset_measurement_start_time()
         try:
             if self.settings["profile"]:
                 import cProfile
