@@ -717,6 +717,22 @@ class BaseMicroscopeApp(BaseApp):
         self.propose_settings_values(Path(fname).name, settings)
         self.log.info(f"settings loaded from {fname}")
 
+    def settings_load_file_threaded(self, fname: str) -> None:
+        """Loads settings from a file in a separate thread to avoid blocking the UI.
+
+        Currently only supports ini files.
+        """
+        from threading import Thread
+
+        def task():
+            self.settings_load_file(fname)
+
+        def on_finished():
+            self.log.info(f"Finished loading settings from {fname}")
+
+        threaded_task = Thread(target=task)
+        threaded_task.start()
+
     def settings_load_h5(
         self, fname: str, ignore_hw_connect: bool = False, show_report: bool = True
     ) -> None:
