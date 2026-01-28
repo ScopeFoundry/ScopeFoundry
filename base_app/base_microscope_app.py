@@ -804,7 +804,7 @@ class BaseMicroscopeApp(BaseApp):
             path = f"hw/{parts[1]}/{parts[2]}"
         elif section in ("measurement", "measure", "measurements"):
             path = f"mm/{parts[1]}/{parts[2]}"
-        if not path in self._setting_paths:
+        if path and (not path in self._setting_paths):
             print(f"WARNING: {'/'.join(parts)} does not exist")
         return self._setting_paths.get(path, None)
 
