@@ -3,7 +3,7 @@ from pathlib import Path
 import time
 from abc import ABC
 from copy import copy
-from typing import Dict, Sequence, Tuple, Union, List
+from typing import Dict, Sequence, Tuple, Union, List, TypedDict, Generator, Callable
 from functools import partial
 
 import matplotlib.pyplot as plt
@@ -29,6 +29,13 @@ from .locator import LocatorX
 from .position_list import PositionList
 
 
+class SweepConfig(TypedDict):
+    positions_gen_func: Callable[[], Generator[float]]
+    base_indices_gen_func: Callable[[], Generator[int]]
+    progress_index_gen_func: Callable[[], Generator[int]]
+    N: int
+
+
 class SweepNDBase(Measurement, ABC):
     """Base class for N-dimensional sweep measurements.
 
@@ -39,182 +46,352 @@ class SweepNDBase(Measurement, ABC):
     name = "sweep_nd_base"
 
     def run(self):
-        s = self.settings
+        """Main run method - orchestrates the entire scan process."""
+        if not self._validate_seep_setup():
+            return
 
+        self._setup_sweep_environment()
+        sweep_config = self._prepare_sweep_configuration()
+
+        self._execute_sweep(sweep_config)
+        self._finalize_sweep()
+
+    def _validate_seep_setup(self) -> bool:
+        """Validate that scan can proceed with current settings."""
         self.display_ready = False
+        s = self.settings
 
         self.mk_ranges_consistent(s, self.actuator_names)
 
         collectors = self.collector_list_widget.get_collectors()
         if not collectors:
             self.set_status("set collector repetitions to non-zero", "r", True)
-            # print("set collector repetitions to non-zero")
-            return
+            return False
 
         actuators = self.get_current_actuator_funcs()
-
         if not actuators:
             self.set_status("no actuators selected", "r")
-            # print("no actuators selected")
-            return
+            return False
 
+        return True
+
+    def _setup_sweep_environment(self):
+        """Setup environment for scan execution."""
+        s = self.settings
+        collectors = self.collector_list_widget.get_collectors()
+
+        # Handle any_measurement collector
         if "any_measurement" in (col.name for col in collectors):
             self.pre_res_in_new_dir = s["res_in_new_dir"]
             s["res_in_new_dir"] = True
 
+        # Setup new directory if needed
         if s["res_in_new_dir"]:
             self.root = self.app.settings["save_dir"]
             self.app.settings["save_dir"] = mk_new_dir(self.root, self.name)
 
-        if s["scan_mode"] == "RETAKE":
-            # Retake data at specified positions
-            target_positions = self.position_list.get_items()
-            indices = []  # index
-            base_indices_gen = []
-            positions_gen = []
-            for target_position in target_positions:
-                index = find_nearest_position_index(
-                    self.scan_data.positions, target_position
-                )
-                indices.append(index)
-                base_indices_gen.append(self.scan_data.indices[index])
-                positions_gen.append(self.scan_data.positions[index])
+    def _prepare_sweep_configuration(self) -> SweepConfig:
+        """Prepare scan configuration based on scan mode."""
+        s = self.settings
 
-            # Will reuse existing scan_data object in memory
-            scan_data = self.scan_data
-            scan_data.open_new_h5_file()
-            scan_data.recycle()
-
-            # add a dummy value - will be only used to show progress and data
-            indices.append(len(scan_data.positions) - 1)
-            progress_index_gen = (i + 1 for i in indices)
-            N = len(indices)
-            self.set_status(f"Retaking data at index {self.progress_index}", "y")
-            self.display_ready = True
-
+        if s["scan_mode"] == "RETAKE_POSITIONS":
+            return self._prepare_retake_config()
         elif s["scan_mode"] == "RETAKE_SLICE":
-            ii_min = self.settings["retake_slice_start"]
-            ii_max = self.settings["retake_slice_stop"]
-
-            # Will reuse existing scan_data object in memory
-            scan_data = self.scan_data
-            scan_data.open_new_h5_file()
-            scan_data.recycle()
-
-            positions_gen = (pos for pos in scan_data.positions[ii_min:ii_max])
-            base_indices_gen = (idx for idx in scan_data.indices[ii_min:ii_max])
-            N = ii_max - ii_min
-            progress_index_gen = itertools.count(ii_min, 1)
-
-            self.set_status(f"Retaking a slice of data", "y")
-            self.display_ready = True
-
+            return self._prepare_retake_slice_config()
+        elif s["scan_mode"] == "ADD_REPS":
+            return self._prepare_add_averages_config()
         else:
-            if s["scan_mode"] == "Position List":
-                arrays = tuple(np.array(self.position_list.get_items()).T)
-            else:
-                arrays = []
-                for name in self.actuator_names:
-                    if self.settings[f"from_list_{name}"]:
-                        pos_list = self.list_uis[name].toPlainText().splitlines()
-                        pos_list = [
-                            s.split("#")[0] for s in pos_list
-                        ]  # remove comments
-                        pos_list = [float(p) for p in pos_list if p.strip() != ""]
-                        arrays.append(np.array(pos_list))
-                    else:
-                        arrays.append(
-                            np.array(self.settings.ranges[f"range_{name}"].sweep_array)
-                        )
-                arrays = tuple(arrays)
+            return self._prepare_new_sweep_config()
 
-            self.scan_data = scan_data = NDScanData(
-                base_shape=self.mk_data_shape(*arrays, s["scan_mode"]),
-                measurement=self,
+    def _prepare_retake_config(self) -> SweepConfig:
+        """Prepare configuration for RETAKE_POSITIONS scan mode."""
+        target_positions = self.position_list.get_items()
+        indices = []
+        base_indices = []
+        positions = []
+
+        for target_position in target_positions:
+            index = find_nearest_position_index(
+                self.scan_data.positions, target_position
             )
-            self.data = self.scan_data.data
+            indices.append(index)
+            base_indices.append(self.scan_data.indices[index])
+            positions.append(self.scan_data.positions[index])
 
-            for array, name in zip(arrays, self.actuator_names):
-                self.scan_data.create_dataset(f"range_{name}", data=array)
+        # Setup scan data
+        scan_data = self.scan_data
+        scan_data.open_new_h5_file()
+        scan_data.init_dsets_from_memory()
 
-            base_indices_gen = self.mk_indices_gen(*arrays, s["scan_mode"])
-            positions_gen = self.mk_positions_gen(*arrays, s["scan_mode"])
-            progress_index_gen = itertools.count(0, 1)  # just one by one
-            N = np.prod(scan_data.base_shape)
-            self.display_ready = False
+        indices.append(len(scan_data.positions) - 1)
+
+        self.set_status(f"Retaking data at index {self.progress_index}", "y")
+        self.display_ready = True
+
+        return {
+            "positions_gen_func": lambda: (pos for pos in positions),
+            "base_indices_gen_func": lambda: (idx for idx in base_indices),
+            "progress_index_gen_func": lambda: (i + 1 for i in indices),
+            "N": len(indices),
+        }
+
+    def _prepare_retake_slice_config(self) -> SweepConfig:
+        """Prepare configuration for RETAKE_SLICE scan mode."""
+        ii_min = self.settings["retake_slice_start"]
+        ii_max = self.settings["retake_slice_stop"]
+
+        scan_data = self.scan_data
+        scan_data.open_new_h5_file()
+        scan_data.init_dsets_from_memory()
+
+        self.set_status(f"Retaking a slice of data", "y")
+        self.display_ready = True
+
+        return {
+            "positions_gen_func": lambda: (
+                pos for pos in scan_data.positions[ii_min:ii_max]
+            ),
+            "base_indices_gen_func": lambda: (
+                idx for idx in scan_data.indices[ii_min:ii_max]
+            ),
+            "progress_index_gen_func": lambda: itertools.count(ii_min, 1),
+            "N": ii_max - ii_min,
+        }
+
+    def _prepare_add_averages_config(self) -> SweepConfig:
+        """Prepare configuration for ADD_AVERAGES scan mode."""
+        # Reuse existing scan data and extend it with more repetitions
+        # Use existing positions and indices
+
+        scan_data = self.scan_data
+        scan_data.open_new_h5_file()
+        scan_data.init_dsets_from_memory()
+
+        self.set_status("Adding more averages to existing data", "y")
+        self.display_ready = True
+
+        return {
+            "positions_gen_func": lambda: (pos for pos in scan_data.positions),
+            "base_indices_gen_func": lambda: (idx for idx in scan_data.indices),
+            "progress_index_gen_func": lambda: itertools.count(0, 1),
+            "N": len(scan_data.positions),
+        }
+
+    def _prepare_new_sweep_config(self) -> SweepConfig:
+        """Prepare configuration for new scan."""
+        s = self.settings
+        arrays = self._mk_sweep_arrays()
+
+        self.scan_data = scan_data = NDScanData(
+            base_shape=self.mk_data_shape(*arrays, s["scan_mode"]),
+            measurement=self,
+        )
+        self.data = self.scan_data.data
+        self.dataset_names = []
+        self.extent_control_names = []
+
+        for array, name in zip(arrays, self.actuator_names):
+            self.scan_data.create_dataset(f"range_{name}", data=array)
+
+        self.display_ready = False
+
+        return {
+            "positions_gen_func": lambda: self.mk_positions_gen(
+                *arrays, s["scan_mode"]
+            ),
+            "base_indices_gen_func": lambda: self.mk_indices_gen(
+                *arrays, s["scan_mode"]
+            ),
+            "progress_index_gen_func": lambda: itertools.count(0, 1),
+            "N": np.prod(np.array(arrays).shape),
+        }
+
+    def _mk_sweep_arrays(self) -> tuple:
+        """Get arrays for sweep based on settings."""
+        s = self.settings
+
+        if s["scan_mode"] == "position_list":
+            return tuple(np.array(self.position_list.get_items()).T)
+
+        arrays = []
+        for name in self.actuator_names:
+            if self.settings[f"from_list_{name}"]:
+                pos_list = self.list_uis[name].toPlainText().splitlines()
+                pos_list = [s.split("#")[0] for s in pos_list]  # remove comments
+                pos_list = [float(p) for p in pos_list if p.strip() != ""]
+                arrays.append(np.array(pos_list))
+            else:
+                arrays.append(
+                    np.array(self.settings.ranges[f"range_{name}"].sweep_array)
+                )
+
+        return tuple(arrays)
+
+    def _execute_sweep(self, sweep_config: dict):
+        """Execute the main sweep loop."""
+        s = self.settings
+        collectors = self.collector_list_widget.get_collectors()
+        actuators = self.get_current_actuator_funcs()
+
+        scan_data = self.scan_data
+        positions_gen_func = sweep_config["positions_gen_func"]
+        base_indices_gen_func = sweep_config["base_indices_gen_func"]
+        progress_index_gen_func = sweep_config["progress_index_gen_func"]
+        N = sweep_config["N"]
 
         self.monitor_list_widget.start_all_monitors()
 
-        data_set_names = []
-        self.progress_index = next(progress_index_gen)
-        for positions, base_indices in zip(positions_gen, base_indices_gen):
+        self.first_loop = True
 
-            # set positions and wait
-            pretty_pos = ", ".join([f"{p:.1f}" for p in positions])
-            self.set_status(f"setting {pretty_pos} and waiting", "g")
-            self.go_to_positions(positions, actuators)
-            time.sleep(s["collection_delay"])
-            read_positions = tuple([read() for read, _ in actuators])
+        while True:
 
-            # base_indices = next(scan_iteration_indices)
+            # print("current sweep", self.scan_data.current_sweep)
 
-            self.prepare_at_position(positions, base_indices)
+            if not self._should_continue_sweep():
+                break
 
-            for collector in collectors:
-                self.set_status(f"collecting {collector.name} on {pretty_pos}", "g")
-                self.prepare_collector_at_position(collector, positions, base_indices)
-                self.monitor_list_widget.inform_enabled_monitors(
-                    f"start_{collector.name}"
-                )
-                for r in range(collector.reps):
-                    collector.run(self.progress_index, self)
+            if self.scan_data.current_sweep > 0:
+                scan_data.extend_for_reps(collectors)
 
-                    # collect data
-                    if not scan_data.dsets_initialized and r == 0:
-                        scan_data.init_dsets(collector)
-                        data_set_names.extend([q[-1] for q in collector.repeats])
-                        extent_control_names = list(self.scan_data.data.keys())
-                        self.display_ready = True
-                    scan_data.incorporate(collector, *base_indices, r)
+            # not sure why this can not be packed in the zip() directly.
+            pos_list = list(positions_gen_func())
+            base_list = list(base_indices_gen_func())
 
-                self.monitor_list_widget.inform_enabled_monitors(
-                    f"stop_{collector.name}"
-                )
-                self.release_collector(collector, positions, base_indices)
-
-            if self.progress_index == 0:
-                self.settings.get_lq("dataset").change_choice_list(data_set_names)
-                self.settings.get_lq("extent_control").change_choice_list(
-                    extent_control_names + ["None"]
-                )
-                self.scan_data.dsets_initialized = True
-
-            if not s["scan_mode"].startswith("RETAKE"):
-                scan_data.add_position(positions)
-                scan_data.add_read_positions(read_positions)
-                scan_data.add_indices(base_indices)
-            # manager.flush_h5()
-
+            progress_index_gen = progress_index_gen_func()
             self.progress_index = next(progress_index_gen)
-            self.set_progress(100 * (self.progress_index + 1) / N)
 
+            for positions, base_indices in zip(pos_list, base_list):
+                if self.interrupt_measurement_called:
+                    break
+                self._execute_position(
+                    positions,
+                    base_indices,
+                    actuators,
+                    collectors,
+                    s,
+                )
+
+                # Update UI choices on first position
+                if not self.scan_data.dsets_initialized:
+                    self.settings.get_lq("dataset").change_choice_list(
+                        self.dataset_names
+                    )
+                    self.settings.get_lq("extent_control").change_choice_list(
+                        self.extent_control_names + ["None"]
+                    )
+                    self.scan_data.dsets_initialized = True
+                    # self.post_dset_initialized()
+
+                self.progress_index = next(progress_index_gen)
+                self.set_progress(100 * (self.progress_index + 1) / N)
+
+            self.scan_data.current_sweep += 1
+
+    def _should_continue_sweep(self) -> bool:
+        """Check if sweep should continue."""
+
+        if self.interrupt_measurement_called:
+            return False
+
+        if self.first_loop:
+            self.first_loop = False
+            return True
+
+        if self.scan_data.current_sweep > 0 and self.settings["scan_mode"].startswith(
+            "RETAKE"
+        ):
+            self.set_status("RETAKE modes - only one sweep allowed", "r")
+            return False
+
+        return self.settings["re-sweep"]
+
+    def _execute_position(
+        self,
+        positions,
+        base_indices,
+        actuators,
+        collectors,
+        settings,
+    ) -> None:
+        """Execute a single sweep position. Returns True if sweep should be interrupted."""
+        # Set positions and wait
+        pretty_pos = ", ".join([f"{p:.1f}" for p in positions])
+        self.set_status(f"setting {pretty_pos} and waiting", "g")
+        self.go_to_positions(positions, actuators)
+        time.sleep(settings["collection_delay"])
+        read_positions = tuple([read() for read, _ in actuators])
+
+        self.prepare_at_position(positions, base_indices)
+
+        # Process each collector
+        for collector in collectors:
+            self._execute_collector_at_position(
+                collector,
+                positions,
+                base_indices,
+                pretty_pos,
+            )
+
+        if (
+            not settings["scan_mode"].startswith("RETAKE")
+            and self.scan_data.current_sweep == 0
+        ):
+            self.scan_data.add_position(positions)
+            self.scan_data.add_read_positions(read_positions)
+            self.scan_data.add_indices(base_indices)
+
+    def _execute_collector_at_position(
+        self,
+        collector,
+        positions,
+        base_indices,
+        pretty_pos,
+    ):
+        """Execute a single collector at current position."""
+        self.set_status(f"collecting {collector.name} on {pretty_pos}", "g")
+        self.prepare_collector_at_position(collector, positions, base_indices)
+
+        self.monitor_list_widget.inform_enabled_monitors(f"start_{collector.name}")
+
+        for r in range(collector.reps):
             if self.interrupt_measurement_called:
                 break
 
+            collector.run(self.progress_index, self)
+
+            # Initialize datasets after first run when shapes are known
+            if not self.scan_data.dsets_initialized and r == 0:
+                self.scan_data.init_dsets(collector)
+                self.dataset_names.extend([q[-1] for q in collector.repeats])
+                self.extent_control_names = list(self.scan_data.data.keys())
+                self.display_ready = True
+
+            self.scan_data.incorporate(collector, *base_indices)
+
+        self.monitor_list_widget.inform_enabled_monitors(f"stop_{collector.name}")
+        self.release_collector(collector, positions, base_indices)
+
+    def _finalize_sweep(self):
+        """Finalize sweep - cleanup and save data."""
+        s = self.settings
+        collectors = self.collector_list_widget.get_collectors()
+        scan_data = self.scan_data
+
         self.post_scan()
-
         self.monitor_list_widget.stop_all_monitors()
-
         self.progress_index = len(self.scan_data.positions)
 
+        # Save monitor data
         for k, v in self.monitor_list_widget.get_all_data().items():
             print(k, v)
             self.scan_data.h5_meas_group.create_dataset(k, data=v)
 
+        # Average repeats and close file
         for collector in collectors:
             scan_data.average_repeats(collector)
         scan_data.close_h5()
 
+        # Restore directory settings
         if s["res_in_new_dir"]:
             s["res_in_new_dir"] = self.pre_res_in_new_dir
             self.app.settings["save_dir"] = self.root
@@ -224,9 +401,10 @@ class SweepNDBase(Measurement, ABC):
         for k, v in scan_data.data.items():
             print(k, np.array(v).shape)
 
+    def post_run(self) -> None:
         self.save_png()
 
-    def go_to_positions(self, positions, actuators=None):
+    def go_to_positions(self, positions, actuators=None) -> None:
         if actuators is None:
             actuators = self.get_current_actuator_funcs()
         for (_, write), position in zip(actuators, positions):
@@ -273,9 +451,15 @@ class SweepNDBase(Measurement, ABC):
         """
         collector.release(self, positions)
 
-    def post_scan(self):
+    def post_scan(self) -> None:
         """Optional override.
         Gets called after data collection is finished - before file is closed.
+        """
+        pass
+
+    def post_dset_initialized(self) -> None:
+        """Optional override.
+        Gets called after datasets are initialized (usually after first position is executed and all datasets names are known).
         """
         pass
 
@@ -299,9 +483,11 @@ class SweepNDBase(Measurement, ABC):
         self.n_any_measurements = n_any_measurements
         self.max_npoints_shown = 1_000_000
         self.data = {}
+        self.dataset_names = []
+        self.extent_control_names = []
         super().__init__(app, name)
 
-    def setup(self):
+    def setup(self) -> None:
         self.display_ready = False
 
         s = self.settings
@@ -311,11 +497,21 @@ class SweepNDBase(Measurement, ABC):
             initial="nested",
             choices=list(self.get_scan_modes())
             + [
-                "RETAKE",
+                "position_list",
+                "RETAKE_POSITIONS",
                 "RETAKE_SLICE",
+                "ADD_REPS",
             ],
-            description=self.get_scan_modes_description()
-            + "<p><i>RETAKE:</i>: Allows to retake (fix) inidiviual data points specified in Position List. Makes a new datafile with data in memory with retaken data points updated.</p>",
+            description="<h3>Create new sweep:</h3>"
+            + "<i>specify the values each actuator takes during the sweep (either by ranges or a list of positions). Use one of the following modes to define how the values are combined. </i>"
+            + self.get_scan_modes_description()
+            + "<p><i>position_list:</i> positions are defined by this Measurement's Position List.</p>"
+            + "<br>"
+            + "<h3>MODIFY or EXTEND previous sweep:</h3>"
+            + "<i>never alters/deletes saved data files, always makes new files, reuses data in memory</i>"
+            + "<p><i>RETAKE_POSITIONS:</i> Allows to retake (fix) inidiviual data points specified in Position List. To add positions ctrl click on data. Makes a new datafile with data in memory with retaken data points updated.</p>"
+            + "<p><i>RETAKE_SLICE:</i> Retake a slice of data specified by start and stop indices. Makes a new datafile with data in memory with retaken data points updated.</p>"
+            + "<p><i>ADD_REPS:</i> Adds more repetitions to existing scan data to improve signal-to-noise ratio through additional averaging. You can change the number of repetitions for collectors that are already active (i.e. have non-zero repetitions) and activate <i>re-sweep</i>. Makes a new datafile with data with more repetitions.</p>",
         )
         s.New(
             name="collection_delay",
@@ -337,7 +533,7 @@ class SweepNDBase(Measurement, ABC):
             choices=("",),
             description="set dataset to plot",
         ).add_listener(self.update_display)
-        self.extent_control = s.New(
+        s.New(
             name="extent_control",
             dtype=str,
             initial="",
@@ -366,6 +562,12 @@ class SweepNDBase(Measurement, ABC):
             int,
             initial=0,
             description="stop index of slice to retake (EXCLUSIVE!)",
+        )
+        s.New(
+            "re-sweep",
+            bool,
+            initial=False,
+            description="after current sweep is completed the measurement restarts (indefinitely) to add more repetitions. Uncheck to stop the measurement after current sweep is completed.",
         )
         for i in range(self.n_any_measurements):
             self.collectors.append(
@@ -416,7 +618,7 @@ class SweepNDBase(Measurement, ABC):
 
         self.position_list = PositionList(self)
 
-    def update_widgets(self):
+    def update_widgets(self) -> None:
 
         s = self.settings
 
@@ -435,7 +637,7 @@ class SweepNDBase(Measurement, ABC):
         for i in self.actuator_names:
             s.get_lq(f"actuator_{i}").change_choice_list(self.actuators_funcs.keys())
 
-    def setup_figure(self):
+    def setup_figure(self) -> None:
         s = self.settings
 
         # Top horizontal section
@@ -498,8 +700,11 @@ class SweepNDBase(Measurement, ABC):
 
         self.update_widgets()
 
-    def update_display(self):
+    def update_display(self) -> None:
         self.update_status_display()
+
+        if not self.display_ready:
+            return
 
         img, size, i_min, i_max = self._get_plot_data()
         if img is None:
@@ -513,7 +718,6 @@ class SweepNDBase(Measurement, ABC):
         self.locator.i_min = i_min
         self.locator.real_position_on_x = self._should_use_real_positions(size)
 
-        dataset_name = self.settings["dataset"]
         x = self._get_x_data(i_min, i_max, size)
 
         # Plot based on representation mode
@@ -531,7 +735,7 @@ class SweepNDBase(Measurement, ABC):
                 i_min, i_max, x, size
             )
             rect = pg.QtCore.QRectF(x0, y0, x1 - x0, y1 - y0)
-            self.img_item.setImage(img, rect=rect)
+            self.img_item.setImage(img, rect=rect, autoLevels=True)
 
         self.axes.setLabel("bottom", x_label)
         self.axes.setLabel("left", y_label)
@@ -541,17 +745,22 @@ class SweepNDBase(Measurement, ABC):
         self.img_item.setVisible(show_image)
         self.line.setVisible(not show_image)
 
-    def set_status(self, msg, color="w", force_report=False):
+    def set_status(
+        self,
+        msg: str,
+        color: Union[str, Tuple[int, int, int]] = "w",
+        force_report: bool = False,
+    ) -> None:
         self.status = {"title": msg, "color": color}
         if force_report:
             self.update_status_display()
 
-    def update_status_display(self):
+    def update_status_display(self) -> None:
         if not self.display_ready:
             return
         self.axes.setTitle(**self.status)
 
-    def mk_run_widget(self):
+    def mk_run_widget(self) -> QtWidgets.QWidget:
         run_widget = QtWidgets.QGroupBox("Run Control")
         run_widget.setStyleSheet(
             """
@@ -568,7 +777,7 @@ class SweepNDBase(Measurement, ABC):
 
         vlayout.addWidget(self.new_start_stop_button())
 
-        include = ("collection_delay", "res_in_new_dir")
+        include = ("collection_delay", "res_in_new_dir", "re-sweep")
         vlayout.addWidget(self.settings.New_UI(include))
 
         update_btn = self.operations.new_button("update widgets")
@@ -586,11 +795,16 @@ class SweepNDBase(Measurement, ABC):
         run_widget.setMaximumWidth(220)
         return run_widget
 
-    def mk_scan_settings_widget(self):
+    def mk_scan_settings_widget(self) -> QtWidgets.QWidget:
         """Create the scan settings widget. Override in child classes for custom layout."""
         mode_selector_mode = self.settings.New_UI(("scan_mode",))
 
         params_widget = QtWidgets.QWidget()
+        params_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Maximum,
+            QtWidgets.QSizePolicy.Policy.Preferred,
+        )
+
         h_layout = QtWidgets.QHBoxLayout(params_widget)
         self.list_uis = {}
         for ii, name in enumerate(self.actuator_names):
@@ -660,10 +874,20 @@ class SweepNDBase(Measurement, ABC):
         self.retake_slice_widget.setVisible(False)
         # self.retake_slice_widget.setMaximumWidth(350)
 
+        self.add_reps_widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(self.add_reps_widget)
+        w = QtWidgets.QTextEdit(
+            f"<p>Extends data by re running the last sweep. <p> You can change the number of repetitions for collectors that are already active (i.e. have non-zero repetitions) and activate re-sweep.</p>"
+        )
+        w.setReadOnly(True)
+        layout.addWidget(w)
+        self.add_reps_widget.setVisible(False)
+
         lu: Dict[str, QtWidgets.QWidget] = {
-            "RETAKE": self.retake_widget,
-            "Position List": self.position_list_widget,
+            "position_list": self.position_list_widget,
+            "RETAKE_POSITIONS": self.retake_widget,
             "RETAKE_SLICE": self.retake_slice_widget,
+            "ADD_REPS": self.add_reps_widget,
         }
 
         def toggle_mode_selector(mode):
@@ -685,30 +909,11 @@ class SweepNDBase(Measurement, ABC):
         v_layout.addWidget(self.retake_widget)
         v_layout.addWidget(self.position_list_widget)
         v_layout.addWidget(self.retake_slice_widget)
+        v_layout.addWidget(self.add_reps_widget)
         widget.setFlat(False)
         return widget
 
-        scroll_area = QtWidgets.QScrollArea()
-        scroll_area.setWidget(widget)
-        width = 0
-        for n in self.range_n_intervals:
-            if n == 1:
-                width += 180
-            else:
-                width += 540
-        widget.setMinimumWidth(width)
-        widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Maximum,
-        )
-        scroll_area.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Maximum,
-        )
-
-        return scroll_area
-
-    def mk_collect_widget(self):
+    def mk_collect_widget(self) -> QtWidgets.QWidget:
         self.collector_list_widget = InteractiveCollectorList()
         for collector in self.collectors:
             self.collector_list_widget.add_item(collector)
@@ -723,22 +928,41 @@ class SweepNDBase(Measurement, ABC):
         layout.addWidget(self.monitor_list_widget)
         return widget
 
-    def mk_plot_options_widget(self):
+    def mk_plot_options_widget(self) -> QtWidgets.QWidget:
         # Plot options group
         plot_gb = QtWidgets.QGroupBox("Plot Options")
         plot_layout = QtWidgets.QHBoxLayout(plot_gb)
         plot_layout.setContentsMargins(6, 6, 6, 6)
         plot_layout.setSpacing(4)
-        plot_layout.addWidget(
-            self.settings.New_UI(
-                [
-                    "dataset",
-                    "position_representation",
-                    "average_over_repetitions",
-                    "extent_control",
-                ]
-            )
+
+        glayout = QtWidgets.QGridLayout()
+
+        w1 = self.settings.get_lq("dataset").new_default_widget()
+        glayout.addWidget(QtWidgets.QLabel("Dataset:"), 0, 0)
+        glayout.addWidget(w1, 1, 0)
+        w2 = self.settings.get_lq("position_representation").new_default_widget()
+        glayout.addWidget(QtWidgets.QLabel("Position Representation:"), 0, 1)
+        glayout.addWidget(w2, 1, 1)
+
+        w3 = self.settings.get_lq("average_over_repetitions").new_default_widget()
+        glayout.addWidget(QtWidgets.QLabel("Average over repetitions:"), 0, 2)
+        glayout.addWidget(w3, 1, 2)
+
+        w4 = self.settings.get_lq("extent_control").new_default_widget()
+        w40 = QtWidgets.QLabel("y-extent")
+        glayout.addWidget(w40, 0, 3)
+        glayout.addWidget(w4, 1, 3)
+
+        w40.setVisible(False)
+        w4.setVisible(False)
+
+        self.settings.get_lq("position_representation").updated_value[str].connect(
+            lambda mode: w40.setVisible(mode == "map_vertical")
         )
+        self.settings.get_lq("position_representation").updated_value[str].connect(
+            lambda mode: w4.setVisible(mode == "map_vertical")
+        )
+        plot_layout.addLayout(glayout)
 
         # Container with horizontal layout holding both group boxes
         container = QtWidgets.QWidget()
@@ -772,7 +996,7 @@ class SweepNDBase(Measurement, ABC):
 
         return container
 
-    def mk_graph_widget(self):
+    def mk_graph_widget(self) -> QtWidgets.QWidget:
         graph_widget = pg.GraphicsLayoutWidget()
         graph_widget.setStyleSheet(
             """
@@ -807,7 +1031,9 @@ class SweepNDBase(Measurement, ABC):
         self.locator.set_axes(self.axes)
         return graph_widget
 
-    def wrap_with_position_list_widget(self, graph_widget):
+    def wrap_with_position_list_widget(
+        self, graph_widget: QtWidgets.QWidget
+    ) -> QtWidgets.QWidget:
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QHBoxLayout(widget)
         layout.setSpacing(0)
@@ -822,14 +1048,14 @@ class SweepNDBase(Measurement, ABC):
         s = self.settings
         return [self.actuator_defs[s[f"actuator_{i}"]] for i in self.actuator_names]
 
-    def get_current_actuator_funcs(self):
+    def get_current_actuator_funcs(self) -> List:
         s = self.settings
         return [self.actuators_funcs[s[f"actuator_{i}"]] for i in self.actuator_names]
 
-    def get_current_target_position_funcs(self):
+    def get_current_target_position_funcs(self) -> List:
         return (a[-1] for a in self.get_current_actuator_funcs())
 
-    def load_data(self, raw_data):
+    def load_data(self, raw_data) -> None:
         self.scan_data.data = {n: v for n, v in raw_data.items() if n.endswith("_raw")}
         self.data = self.scan_data.data
         self.settings.get_lq("dataset").change_choice_list(list(self.data.keys()))
@@ -838,21 +1064,21 @@ class SweepNDBase(Measurement, ABC):
         self.display_ready = True
 
     # Abstract methods that child classes should implement
-    def get_scan_modes(self):
+    def get_scan_modes(self) -> Tuple:
         """Return the SCAN_MODES tuple for this sweep type."""
         raise NotImplementedError("Child class must implement get_scan_modes()")
 
-    def get_scan_modes_description(self):
+    def get_scan_modes_description(self) -> Tuple[str, ...]:
         """Return the SCAN_MODES_DESCRIPTION for this sweep type."""
         raise NotImplementedError(
             "Child class must implement get_scan_modes_description()"
         )
 
-    def mk_data_shape(self, *args):
+    def mk_data_shape(self, *args) -> Tuple[int, ...]:
         """Return the data shape for this sweep type."""
         raise NotImplementedError("Child class must implement mk_data_shape()")
 
-    def mk_indices_gen(self, *args):
+    def mk_indices_gen(self, *args) -> Generator[Tuple[int, ...]]:
         """Return the indices generator for this sweep type."""
         raise NotImplementedError("Child class must implement mk_indices_gen()")
 
@@ -883,7 +1109,7 @@ class SweepNDBase(Measurement, ABC):
         dataset_name = self.settings["dataset"]
 
         if self.settings["average_over_repetitions"]:
-            dset = np.array(self.scan_data.data[dataset_name]).mean(axis=self.ndim)
+            dset = np.nanmean(self.scan_data.data[dataset_name], axis=self.ndim)
             size = self.scan_data.get_dset_size_per_position_and_repeats(dataset_name)
         else:
             dset = self.scan_data.data[dataset_name]
@@ -894,7 +1120,7 @@ class SweepNDBase(Measurement, ABC):
 
         # Apply data range limits
         i_span_max = self.max_npoints_shown // size
-        i_max = self.progress_index
+        i_max = len(self.scan_data.positions)
         i_min = max(i_max - i_span_max, 0)
         img = img[i_min:i_max, :]
 
@@ -1003,10 +1229,13 @@ class SweepNDBase(Measurement, ABC):
 
         img, size, i_min, i_max = self._get_plot_data()
         if img is None:
-            print("No data ready to plot")
+            print(self.name, "save_png: No data ready to plot")
             return
 
         dataset_name = self.settings["dataset"]
+
+        if self.settings["average_over_repetitions"]:
+            dataset_name = dataset_name.rstrip("_raw")
         x = self._get_x_data(i_min, i_max, size)
 
         # Create matplotlib figure
@@ -1046,7 +1275,7 @@ class SweepNDBase(Measurement, ABC):
         print(f"Plot saved as: {path}")
 
 
-def find_nearest_position_index(positions, target_positions):
+def find_nearest_position_index(positions, target_positions) -> int:
     positions_array = np.array(positions)
     target_positions = np.array(target_positions)
     distances = np.linalg.norm(positions_array - target_positions, ord=2, axis=1)

@@ -4,14 +4,12 @@ SCAN_MODES = (
     "nested_swap_order",
     "serpentine",
     "serpentine_swap_order",
-    "Position List",
 )
 SCAN_MODES_DESCRIPTION = """
 <p><i>co-move:</i> all actuators co-move
 <p><i>nested:</i> actuators move all combinations where 1st is slowest ...
 <p><i>serpentine:</i> actuators move all combinations where 1st is slowest, 2nd is fastest and 2nd reverses direction every row.
-<p><i>*_swap_order</i> modes are the same as above, but the order of the actuators is swapped.</p>
-<p><i>Position List:</i> positions are defined by this Measurement's Position List.</p>
+<p><i>*_swap_order</i> modes are the same as above, but the fastest and slowest of the actuators is swapped.</p>
 """
 
 
@@ -26,7 +24,7 @@ def mk_positions_gen(ar_1, ar_2, mode="nested"):
             for k, kv in enumerate(ar_1):
                 yield (kv, lv)
 
-    elif mode == "co-move" or mode == "Position List":
+    elif mode == "co-move" or mode == "position_list":
         for l, lv in enumerate(ar_2):
             yield (ar_1[l], ar_2[l])
 
@@ -54,7 +52,7 @@ def mk_data_shape(ar_1, ar_2, mode="nested"):
         return len(ar_1), len(ar_2)
     elif mode == "nested_swap_order":
         return len(ar_2), len(ar_1)
-    elif mode == "co-move" or mode == "Position List":
+    elif mode == "co-move" or mode == "position_list":
         return 1, len(ar_2)
     elif mode == "serpentine":
         return len(ar_1), len(ar_2)
@@ -73,7 +71,7 @@ def mk_indices_gen(ar_1, ar_2, mode="nested"):
             for k, kv in enumerate(ar_1):
                 yield k, l
 
-    elif mode == "co-move" or mode == "Position List":
+    elif mode == "co-move" or mode == "position_list":
         for l, v in enumerate(ar_2):
             yield 0, l
 

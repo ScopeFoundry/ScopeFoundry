@@ -44,11 +44,11 @@ class LocatorBase:
 
         self.go_to_btn = QtWidgets.QPushButton("Go To")
         self.as_center_btn = QtWidgets.QPushButton("Set as Center")
-        self.add_btn = QtWidgets.QPushButton("Add to Position List")
+        self.add_btn = QtWidgets.QPushButton("Add\nto Position List")
 
-        self.go_to_btn.setMinimumHeight(70)
-        self.as_center_btn.setMinimumHeight(70)
-        self.add_btn.setMinimumHeight(70)
+        self.go_to_btn.setMinimumHeight(50)
+        self.as_center_btn.setMinimumHeight(50)
+        self.add_btn.setMinimumHeight(50)
 
         self.go_to_btn.setMaximumWidth(160)
         self.as_center_btn.setMaximumWidth(160)
