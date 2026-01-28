@@ -65,12 +65,12 @@ class HardwareComponent:
         self.connected = self.settings.New(
             "connected",
             dtype=bool,
-            colors=["none", "rgba( 0, 255, 0, 80)"],
+            colors=["lightgrey", "green"],
             description=f"to <i>{self.name}</i> hardware if checked.",
         )
 
         self.debug_mode = self.settings.New(
-            "debug_mode", dtype=bool, initial=debug, colors=["none", "yellow"]
+            "debug_mode", dtype=bool, initial=debug, colors=["lightgrey", "orange"]
         )
 
         # self.connect_success = False # ever used?
