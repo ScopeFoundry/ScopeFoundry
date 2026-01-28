@@ -23,12 +23,10 @@ class CustomListItem(QWidget):
 
     def init_ui(self):
         layout = QHBoxLayout()
-        layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(6)
         if self.collector.reps_lq:
             self.reps_widget = self.collector.reps_lq.new_default_widget()
-            self.reps_widget.setMaximumWidth(60)
-            self.reps_widget.setMinimumWidth(45)
+            self.reps_widget.setMaximumWidth(85)
+            self.reps_widget.setMinimumWidth(72)
 
             layout.addWidget(self.reps_widget)
         else:
@@ -48,9 +46,11 @@ class CustomListItem(QWidget):
             lq = self.collector.app.get_lq(lq_path)
             if lq is not None:
                 widget = lq.new_default_widget()
+                widget.setParent(self)
                 layout.addWidget(widget)
         for name, lq in self.collector.settings._logged_quantities.items():
             widget = lq.new_default_widget()
+            widget.setParent(self)
 
             # Keep compact checkboxes
             if lq.dtype == bool:
@@ -59,9 +59,9 @@ class CustomListItem(QWidget):
 
             label = QLabel(f"{name}:")
             label.setSizePolicy(
-                    QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred
+                QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred
             )
-            label.setStyleSheet("QLabel { font-size: 8pt; }")
+            label.setStyleSheet("QLabel { font-size: 10pt; }")
             layout.addWidget(label)
             layout.addWidget(widget)
 
@@ -80,22 +80,21 @@ class CustomListItem(QWidget):
             btn.setMaximumHeight(24)
             layout.addWidget(btn)
 
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         self.setLayout(layout)
 
-        self.reps_widget.valueChanged.connect(self.on_reps_changed)
+        self.collector.reps_lq.add_listener(self.on_reps_changed)
 
-        self.name_widget.setEnabled(False)
-        self.int_widget.setEnabled(False)
+        self.on_reps_changed()
 
-    def on_reps_changed(self, value):
-        if value == 0:
-            self.name_widget.setEnabled(False)
-            self.int_widget.setEnabled(False)
-            # self.setStyleSheet("background-color: None;")
+    def on_reps_changed(self, value=None):
+        if self.collector.reps_lq.val:
+            self.name_widget.setStyleSheet("background-color: rgba(0, 255, 0, 0.08);")
+            self.setStyleSheet("font-size:10pt;")
         else:
-            self.name_widget.setEnabled(True)
-            self.int_widget.setEnabled(True)
-            # self.setStyleSheet("background-color: rgba(255, 0, 0, 0.3);")
+            self.name_widget.setStyleSheet("background-color: None; ")
+            self.setStyleSheet("font-size:10pt;")
 
 
 class InteractiveCollectorList(QListWidget):

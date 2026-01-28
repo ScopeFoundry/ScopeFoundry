@@ -15,6 +15,7 @@ class MyFancyApp(BaseMicroscopeApp):
         self.add_measurement(Sweep2D(self, range_n_intervals=(5, 1)))
         self.add_measurement(Sweep3D(self))
         self.add_measurement(Sweep4D(self))
+        self.add_measurement(Map2D(self))
 
 
 if __name__ == "__main__":
