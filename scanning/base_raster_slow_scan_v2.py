@@ -104,8 +104,10 @@ class BaseRaster2DSlowScanV2(BaseRaster2DSlowScan):
         sh.disconnect_from_widget(self.ui.x_doubleSpinBox)
         sv.disconnect_from_widget(self.ui.y_doubleSpinBox)
 
-        sh.listeners.remove(self.update_arrow_pos)
-        sv.listeners.remove(self.update_arrow_pos)
+        if self.update_arrow_pos in sh.listeners:
+            sh.listeners.remove(self.update_arrow_pos)
+        if self.update_arrow_pos in sv.listeners:
+            sv.listeners.remove(self.update_arrow_pos)
 
     def update_arrow_pos(self):
         rh, wh = self.actuator_defs[self.settings["h_actuator"]]

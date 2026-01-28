@@ -477,7 +477,6 @@ class BaseRaster2DScan(Measurement):
         self.hist_lut.imageChanged(autoLevel=False)
 
     def show_hide_previous_scans(self, show):
-        print("show_hide_previous_scans", show)
         if len(self.img_items) < 2:
             return
         for img_item in self.img_items[:-1]:

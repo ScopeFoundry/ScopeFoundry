@@ -588,7 +588,6 @@ class LoggedQuantity(QtCore.QObject):
                 # Do not know when state occurs
 
             if self.qcolors:
-                print(self.name, self.qcolors[0].name(), self.qcolors[1].name())
                 widget.setStyleSheet(
                     widget.styleSheet() + mk_checkbox_style_sheet(self.qcolors)
                 )
