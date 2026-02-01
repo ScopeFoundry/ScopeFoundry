@@ -27,10 +27,12 @@ import h5py
 import numpy as np
 
 
-def find_all_fnames_in_sources_of_ipynb(ignore_cells=[]):
+def find_all_fnames_in_sources_of_ipynb(
+    ignore_cells=[], ipynb_filename="overview.ipynb"
+):
     fname_pattern = re.compile(r"\d{6}_\d{6}_[a-z0-9_]+\.h5")
 
-    with open("overview.ipynb", "r", encoding="utf-8") as f:
+    with open(ipynb_filename, "r", encoding="utf-8") as f:
         notebook = json.load(f)
 
     fnames = set()
@@ -65,8 +67,12 @@ def move_file(fname, target_folder=None):
         print(f"File {fname} does not exist in the current directory.")
 
 
-def archive_unmentioned_h5_files(ignore_cells=(0, 1), target_folder=None):
-    fnames_to_keep = find_all_fnames_in_sources_of_ipynb(ignore_cells=ignore_cells)
+def archive_unmentioned_h5_files(
+    ignore_cells=(0, 1), target_folder=None, ipynb_filename="overview.ipynb"
+):
+    fnames_to_keep = find_all_fnames_in_sources_of_ipynb(
+        ignore_cells=ignore_cells, ipynb_filename=ipynb_filename
+    )
     counter = 0
     h5_file_counter = 0
     print("--- archiving unmentioned .h5 files ---")
