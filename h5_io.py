@@ -306,7 +306,11 @@ def create_extendable_h5_dataset(
     h5_group.create_dataset
     """
     maxshape = list(shape)
-    maxshape[axis] = None
+    try:
+        maxshape[axis] = None
+    except TypeError:
+        for a in axis:
+            maxshape[a] = None
 
     default_kwargs = dict(
         name=name,
