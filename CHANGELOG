@@ -2,7 +2,7 @@ ScopeFoundry 2.3.0 2026-01-28
 
 	* Features added:
 		- [sweeping/map_2D] can now load datasets from h5 files.
-		- [sweeping] added settings monitoring, collectors can now show multiple widgets of settings, improved UI and data representation and added locator widget to map data to actuator positions, added RETAKE and RETAKE_SLICE options to remeasure/update data at specified actuator positions (by a list or range) of the previous sweep (leaving other data points unchanged).
+		- [sweeping] added settings monitoring, collectors can now show multiple widgets of settings, improved UI and data representation and added locator widget to map data to actuator positions, added RETAKE and RETAKE_SLICE options to remeasure/update data at specified actuator positions (by a list or range) of the previous sweep (leaving other data points unchanged). Dsets can now be extended over multiple axis, added capability to add sweeps to existing dsets using ADD_REPS mode and "re-sweep" setting, initialized with nan to simplify showing data, improved list_ui and descriptions.
 		- [git_funcs] to store git captures in h5 files.
 		- [dynamic loading and reloading of Measurements and HardwareComponents]
 		- [h5_analyze_with_ipynb] added options 'all', 'remaining' that control the files to be added as cells when feature is triggered. 'last' remains default. Now also has a function to archive files that are not mentioned in the ipynb. Can now handle scalar datasets.
