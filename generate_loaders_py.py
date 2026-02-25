@@ -210,14 +210,16 @@ def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
             f"{' ':>12}settings=load_settings(fname),",
         ]
         for name, is_array in key_set:
-            data_class_lines.append(f"{' ':>4}{name}: np.ndarray")
+            # strip spaces for valid class attributes but keep the original name in the load function
+            attr_name = name.strip().replace(" ", "_")
+            data_class_lines.append(f"{' ':>4}{attr_name}: np.ndarray")
             if is_array:
                 load_func_lines.append(
-                    f"{' ':>12}{name}=m['{name}'][:] if '{name}' in m else None,"
+                    f"{' ':>12}{attr_name}=m['{name}'][:] if '{name}' in m else None,"
                 )
             else:
                 load_func_lines.append(
-                    f"{' ':>12}{name}=m['{name}'] if '{name}' in m else None,"
+                    f"{' ':>12}{attr_name}=m['{name}'] if '{name}' in m else None,"
                 )
 
         data_class_lines.append(__STR__INFO)
