@@ -260,7 +260,7 @@ class SweepNDBase(Measurement, ABC):
             progress_index_gen = progress_index_gen_func()
             self.progress_index = next(progress_index_gen)
 
-            for positions, base_indices in zip(pos_list, base_list):
+            for ii, (positions, base_indices) in enumerate(zip(pos_list, base_list)):
                 if self.interrupt_measurement_called:
                     break
                 self._execute_position(
@@ -269,6 +269,7 @@ class SweepNDBase(Measurement, ABC):
                     actuators,
                     collectors,
                     s,
+                    ii,
                 )
 
                 # Update UI choices on first position
@@ -312,13 +313,17 @@ class SweepNDBase(Measurement, ABC):
         actuators,
         collectors,
         settings,
+        ii,
     ) -> None:
         """Execute a single sweep position. Returns True if sweep should be interrupted."""
         # Set positions and wait
         pretty_pos = ", ".join([f"{p:.1f}" for p in positions])
         self.set_status(f"setting {pretty_pos} and waiting", "g")
         self.go_to_positions(positions, actuators)
-        time.sleep(settings["collection_delay"])
+        delay = settings["collection_delay"]
+        if ii == 0:
+            delay += settings["initial_delay"]
+        time.sleep(delay)
         read_positions = tuple([read() for read, _ in actuators])
 
         self.prepare_at_position(positions, base_indices)
@@ -517,9 +522,14 @@ class SweepNDBase(Measurement, ABC):
             name="collection_delay",
             initial=0.01,
             unit="s",
-            description="after setting the wheel position, data collection is delayed, allowing the system to reach steady state",
+            description="after setting first actuator(s) position(s), data collection is delayed, allowing the system to reach steady state",
         )
-
+        s.New(
+            name="initial_delay",
+            initial=0.0,
+            unit="s",
+            description="additional delay added to collection_delay for the first point sweep. Useful when reaching first sweep point takes somwhat longer than the rest of the points.",
+        )
         s.New(
             name="res_in_new_dir",
             dtype=bool,
@@ -777,7 +787,7 @@ class SweepNDBase(Measurement, ABC):
 
         vlayout.addWidget(self.new_start_stop_button())
 
-        include = ("collection_delay", "res_in_new_dir", "re-sweep")
+        include = ("collection_delay", "initial_delay", "res_in_new_dir", "re-sweep")
         vlayout.addWidget(self.settings.New_UI(include))
 
         update_btn = self.operations.new_button("update widgets")
