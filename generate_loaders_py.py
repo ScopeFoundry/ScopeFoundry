@@ -179,6 +179,24 @@ __STR__INFO = r"""
         return "\n".join(lines)
 """
 
+DICT_STYLE_METHODS = r"""
+    def __getitem__(self, key):
+        if key in self.settings:
+            return self.settings[key]
+        return self.__dict__[key]
+
+    def __setitem__(self, key, item):
+        self.__dict__[key] = item
+
+    def keys(self):
+        return set(self.__dict__.keys()).union(set(self.settings.keys()))
+
+    def items(self):
+        d = self.__dict__.copy()
+        d.update(self.settings)
+        return d.items()
+"""
+
 
 def get_measurement_name(fname: Union[str, Path]) -> str:
     with h5py.File(fname, "r") as file:
@@ -223,6 +241,7 @@ def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
                 )
 
         data_class_lines.append(__STR__INFO)
+        data_class_lines.append(DICT_STYLE_METHODS)
 
         load_func_lines.append(f"{' ':>8})")
 
