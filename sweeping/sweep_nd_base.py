@@ -181,6 +181,8 @@ class SweepNDBase(Measurement, ABC):
         """Prepare configuration for new scan."""
         s = self.settings
         arrays = self._mk_sweep_arrays()
+        
+        
 
         self.scan_data = scan_data = NDScanData(
             base_shape=self.mk_data_shape(*arrays, s["scan_mode"]),
@@ -195,6 +197,10 @@ class SweepNDBase(Measurement, ABC):
 
         self.display_ready = False
 
+        N = 1
+        for arr in arrays:
+            N *= arr.size
+
         return {
             "positions_gen_func": lambda: self.mk_positions_gen(
                 *arrays, s["scan_mode"]
@@ -203,7 +209,7 @@ class SweepNDBase(Measurement, ABC):
                 *arrays, s["scan_mode"]
             ),
             "progress_index_gen_func": lambda: itertools.count(0, 1),
-            "N": np.prod(np.array(arrays).shape),
+            "N": N,
         }
 
     def _mk_sweep_arrays(self) -> tuple:
@@ -370,7 +376,8 @@ class SweepNDBase(Measurement, ABC):
                 self.dataset_names.extend([q[-1] for q in collector.repeats])
                 self.extent_control_names = list(self.scan_data.data.keys())
                 self.display_ready = True
-
+                
+            time.sleep(0.1)
             self.scan_data.incorporate(collector, *base_indices)
 
         self.monitor_list_widget.inform_enabled_monitors(f"stop_{collector.name}")

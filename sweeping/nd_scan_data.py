@@ -199,6 +199,7 @@ class NDScanData:
     def create_extendable_h5_dset(
         self, name, shape=None, dtype=None, data=None, axis=None, **kwds
     ):
+        print(name, shape, axis, dtype)
         h5_io.create_extendable_h5_dataset(self.h5_meas_group, name, shape, axis, dtype)
 
     def close_h5(self):
