@@ -139,9 +139,8 @@ class NDScanData:
             )
             should_extend = global_name.endswith("_raw")
             if can_extend and should_extend:
-                self.create_extendable_h5_dset(
-                    global_name, data=d, shape=d.shape, axis=axis
-                )
+                self.create_extendable_h5_dset(global_name, shape=d.shape, axis=axis)
+                self.h5_meas_group[global_name][:] = d
             else:
                 self.create_dataset(global_name, data=d)
 

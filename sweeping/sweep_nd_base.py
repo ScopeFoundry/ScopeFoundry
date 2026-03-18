@@ -128,6 +128,11 @@ class SweepNDBase(Measurement, ABC):
         self.set_status(f"Retaking data at index {self.progress_index}", "y")
         self.display_ready = True
 
+        for k, v in scan_data.rep_idx.items():
+            for idx in base_indices:
+                scan_data.rep_idx[k][idx] *= 0
+        scan_data.current_sweep = 0
+
         return {
             "positions_gen_func": lambda: (pos for pos in positions),
             "base_indices_gen_func": lambda: (idx for idx in base_indices),
@@ -146,6 +151,11 @@ class SweepNDBase(Measurement, ABC):
 
         self.set_status(f"Retaking a slice of data", "y")
         self.display_ready = True
+
+        for k, v in scan_data.rep_idx.items():
+            for idx in scan_data.indices[ii_min:ii_max]:
+                scan_data.rep_idx[k][idx] *= 0
+        scan_data.current_sweep = 0
 
         return {
             "positions_gen_func": lambda: (
@@ -181,8 +191,6 @@ class SweepNDBase(Measurement, ABC):
         """Prepare configuration for new scan."""
         s = self.settings
         arrays = self._mk_sweep_arrays()
-        
-        
 
         self.scan_data = scan_data = NDScanData(
             base_shape=self.mk_data_shape(*arrays, s["scan_mode"]),
@@ -194,6 +202,7 @@ class SweepNDBase(Measurement, ABC):
 
         for array, name in zip(arrays, self.actuator_names):
             self.scan_data.create_dataset(f"range_{name}", data=array)
+            self.scan_data.data[f"range_{name}"] = array
 
         self.display_ready = False
 
@@ -376,7 +385,7 @@ class SweepNDBase(Measurement, ABC):
                 self.dataset_names.extend([q[-1] for q in collector.repeats])
                 self.extent_control_names = list(self.scan_data.data.keys())
                 self.display_ready = True
-                
+
             time.sleep(0.1)
             self.scan_data.incorporate(collector, *base_indices)
 
@@ -1126,6 +1135,9 @@ class SweepNDBase(Measurement, ABC):
         dataset_name = self.settings["dataset"]
 
         if self.settings["average_over_repetitions"]:
+            import warnings
+
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
             dset = np.nanmean(self.scan_data.data[dataset_name], axis=self.ndim)
             size = self.scan_data.get_dset_size_per_position_and_repeats(dataset_name)
         else:
