@@ -179,13 +179,41 @@ class LQRange(LQCircularNetwork):
         self.max.add_listener(func, argtype, **kwargs)
         self.num.add_listener(func, argtype, **kwargs)
 
-    def New_UI(self):
+    def New_UI(self, include_clipboard_btns=False):
         ui_widget = QtWidgets.QWidget()
         formLayout = QtWidgets.QFormLayout()
         ui_widget.setLayout(formLayout)
         for lqname, lq in self.lq_dict.items():
             formLayout.addRow(lqname, lq.new_default_widget())
+
+        if include_clipboard_btns:
+            formLayout.addRow("clipboard", self._mk_clipboard_btns())
         return ui_widget
+
+    def _mk_clipboard_btns(self):
+        header_layout = QtWidgets.QHBoxLayout()
+        cliboard_button = QtWidgets.QPushButton(">> ↓")
+        cliboard_button.setMaximumWidth(60)
+        cliboard_button.clicked.connect(
+            lambda: QtWidgets.QApplication.clipboard().setText(
+                "\n".join(map(str, self.sweep_array))
+            )
+        )
+        cliboard_button.setToolTip("Copy array to clipboard, one value per line")
+        cliboard_button.setStyleSheet("background-color: rgba(0,0,200,10);")
+        header_layout.addWidget(cliboard_button)
+
+        cliboard_button2 = QtWidgets.QPushButton(">> []")
+        cliboard_button2.setMaximumWidth(60)
+        cliboard_button2.clicked.connect(
+            lambda: QtWidgets.QApplication.clipboard().setText(
+                str(self.sweep_array.tolist())
+            )
+        )
+        cliboard_button2.setToolTip("Copy array to clipboard, as a python list")
+        # cliboard_button2.setStyleSheet("color: rgba(255,255,0,10);")
+        header_layout.addWidget(cliboard_button2)
+        return header_layout
 
     def set_center(self, center):
         if self.span is not None:
