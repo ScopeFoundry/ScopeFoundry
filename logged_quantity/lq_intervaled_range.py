@@ -89,13 +89,15 @@ class IntervaledLQRange:
                 ]
             )
 
-    def New_UI(self):
+    def New_UI(self, include_clipboard_btns=True):
         header_layout = QtWidgets.QHBoxLayout()
         if self.sweep_type is not None:
             header_layout.addWidget(QtWidgets.QLabel("Sweep type:"))
             header_layout.addWidget(self.sweep_type.new_default_widget())
         header_layout.addWidget(QtWidgets.QLabel("remove adjacent duplicates:"))
         header_layout.addWidget(self.no_duplicates.new_default_widget())
+        if include_clipboard_btns:
+            self._add_clipboard_btns(header_layout)
 
         grid_layout = QtWidgets.QGridLayout()
         # grid_layout.addWidget(QtWidgets.QLabel("active"), 0, 0)
@@ -141,6 +143,27 @@ class IntervaledLQRange:
         layout.addLayout(header_layout)
         layout.addLayout(grid_layout)
         return widget
+
+    def _add_clipboard_btns(self, header_layout):
+        cliboard_button = QtWidgets.QPushButton(">> ↓")
+        cliboard_button.setMaximumWidth(60)
+        cliboard_button.clicked.connect(
+            lambda: QtWidgets.QApplication.clipboard().setText(
+                "\n".join(map(str, self.array))
+            )
+        )
+        cliboard_button.setToolTip("Copy array to clipboard, one value per line")
+        cliboard_button.setStyleSheet("background-color: rgba(0,0,200,10);")
+        header_layout.addWidget(cliboard_button)
+
+        cliboard_button2 = QtWidgets.QPushButton(">> []")
+        cliboard_button2.setMaximumWidth(60)
+        cliboard_button2.clicked.connect(
+            lambda: QtWidgets.QApplication.clipboard().setText(str(self.array.tolist()))
+        )
+        cliboard_button2.setToolTip("Copy array to clipboard, as a python list")
+        # cliboard_button2.setStyleSheet("color: rgba(255,255,0,10);")
+        header_layout.addWidget(cliboard_button2)
 
     def add_listener(self, func, argtype=(), **kwargs):
         """
