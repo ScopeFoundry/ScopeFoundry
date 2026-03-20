@@ -1,7 +1,6 @@
 import itertools
 from pathlib import Path
 import time
-from abc import ABC
 from copy import copy
 from typing import Dict, Sequence, Tuple, Union, List, TypedDict, Generator, Callable
 from functools import partial
@@ -36,7 +35,7 @@ class SweepConfig(TypedDict):
     N: int
 
 
-class SweepNDBase(Measurement, ABC):
+class SweepNDBase(Measurement):
     """Base class for N-dimensional sweep measurements.
 
     This class provides common functionality for Sweep1D, Sweep2D, Sweep3D, and Sweep4D.
@@ -837,7 +836,7 @@ class SweepNDBase(Measurement, ABC):
 
             r = self.settings.ranges[f"range_{name}"]
 
-            range_ui = r.New_UI()
+            range_ui = r.New_UI(include_clipboard_btns=True)
             list_ui = QtWidgets.QTextEdit()
 
             if self.range_n_intervals[ii] > 1:
@@ -1309,3 +1308,4 @@ def find_nearest_position_index(positions, target_positions) -> int:
     target_positions = np.array(target_positions)
     distances = np.linalg.norm(positions_array - target_positions, ord=2, axis=1)
     return int(np.argmin(distances))
+
