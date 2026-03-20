@@ -337,6 +337,8 @@ class LocatorX(LocatorBase):
             ]  # assuming that we are showing first axes of co-move
             index = np.argmin(np.abs(positions - x_plot_position))
             print("index for RETAKE_SLICE", index)
+            self.sweep.set_status(f"index {index}", force_report=True)
+
             if hasattr(self.sweep, "ndim") and self.sweep.ndim > 1:
                 return self.sweep.scan_data.positions[index]
             else:
@@ -349,7 +351,7 @@ class LocatorX(LocatorBase):
         else:
             index = int((x_plot_position)) + self.i_min
         
-        print("index for RETAKE_SLICE", index)
+        self.sweep.set_status(f"index {index}", force_report=True)
         
         if index < 0:
             return None

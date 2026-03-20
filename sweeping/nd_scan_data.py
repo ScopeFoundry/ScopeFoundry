@@ -1,3 +1,4 @@
+import warnings
 from typing import Iterable, Tuple, Dict
 
 import numpy as np
@@ -64,7 +65,7 @@ class NDScanData:
                     raise Exception(
                         f"{collector.name} has invalid dataset: {name}. Make sure all datasets can be cast with numpy.array"
                     )
-                    print(err)
+                    warnings.warn(str(err))
             if name in collector.repeated_dset_names:
                 global_name = to_dstname(f"{collector.name}_{name}_raw")
                 shape = self.base_shape + (collector.reps,) + d.shape
@@ -150,6 +151,10 @@ class NDScanData:
         """collects data from collectors and writes it to the h5 file"""
 
         for name, global_name in collector.repeats:
+            if not name in collector.data:
+                raise KeyError(
+                    f"dataset {name} of collector {collector.name} missing - check corresponding hardware are connected and properly configured"
+                )
             indices = base_indices + (self.rep_idx[global_name][base_indices],)
             self.data[global_name][indices] = collector.data[name]
             self.h5_meas_group[global_name][indices] = collector.data[name]
