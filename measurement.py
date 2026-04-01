@@ -53,7 +53,7 @@ class Measurement:
     stop_first -> run_starting -> run_pre_run --> run_thread_starting --> run_thread_run -->
 
     run_thread_end --> run_post_run --> stop_success | stop_interrupted | stop_failure
-    
+
     """
 
     def __init__(self, app: BaseMicroscopeApp, name: Union[str, None] = None):
@@ -113,7 +113,7 @@ class Measurement:
 
         self.add_operation("start", self.start)
         self.add_operation("interrupt", self.interrupt)
-        # self.add_operation('terminate', self.terminate)
+        self.add_operation("terminate", self.terminate)
         # self.add_operation("setup", self.setup)
         # self.add_operation("setup_figure", self.setup_figure)
         self.add_operation("update_display", self.update_display)
@@ -237,7 +237,7 @@ class Measurement:
     def post_run(self):
         """Override this method to enable main-thread finalization after to measurement thread completes"""
         pass
-    
+
     def reset_measurement_start_time(self):
         self._t0 = time.time()
 
@@ -329,6 +329,10 @@ class Measurement:
 
     def interrupt(self):
         self.activation.update_value(False)
+        if self.is_thread_alive():
+            self.acq_thread.terminate()
+            print(self.is_thread_alive())
+        self.settings["run_state"] = "stop_first"
 
     def terminate(self):
         """
@@ -337,6 +341,8 @@ class Measurement:
         requires a reboot of the App
         """
         self.acq_thread.terminate()
+        self.settings["run_state"] = "stop_first"
+        self.set_progress(0)
 
     def start_stop(self, start):
         """
@@ -656,6 +662,8 @@ class Measurement:
                     _ = iter(value)
                 except TypeError:
                     # not iterable
+                    if value is None:
+                        value = 0
                     self.h5_meas_group.attrs[name] = value
                 else:
                     # iterable
@@ -675,6 +683,12 @@ class Measurement:
             "   see https://scopefoundry.org/docs/30_tips-and-tricks/load_data/ for details",
             sep="\n",
         )
+
+    def get_py_snippet(self) -> str:
+        """return a string that gets added underneath the load line in ipynb cells
+            "plt.plot(data['x'], data['y'])\nplt.xlabel('x')\nplt.ylabel('y')\nplt.title('data from measurement')\nplt.show()\n"
+        that can be used to show how to load and plot the data from this measurement in a jupyter notebook"""
+        return f"# Override {self.__class__.__name__}.get_py_snippet() to see a code snippet here"
 
 
 class MeasurementQObject(QtCore.QObject):

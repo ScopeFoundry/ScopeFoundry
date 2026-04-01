@@ -504,8 +504,8 @@ class BaseMicroscopeApp(BaseApp):
 
         ipynb_path = update_ipynb(
             folder,
-            # snippets=self.snippets,
-            # descriptive_snippets=self.descriptive_snippets,
+            snippets=self.get_snippets(),
+            descriptive_snippets=(),
         )
 
         print("")
@@ -516,6 +516,12 @@ class BaseMicroscopeApp(BaseApp):
         if ipynb_path.exists():
             open_file(ipynb_path)
         return ipynb_path
+
+    def get_snippets(self) -> Dict:
+        return {
+            name: measure.get_py_snippet()
+            for name, measure in self.measurements.items()
+        }
 
     def read_from_hardwares(self):
         for hw in self.hardware.values():
