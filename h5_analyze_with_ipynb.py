@@ -268,6 +268,8 @@ def analyze_with_ipynb(
     option="last",
 ) -> None:
     loaders_fname, dset_names = generate_loaders_py(folder)
+    if not snippets and not descriptive_snippets:
+        snippets, descriptive_snippets = load_snippets(folder)
     ipynb_path = update_ipynb(
         folder,
         snippets=snippets,
