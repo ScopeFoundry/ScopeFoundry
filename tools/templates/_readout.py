@@ -51,16 +51,23 @@ class $READOUT_CLASS_NAME(Measurement):
         # self.img_widget = self.graphics_widget.addPlot()
         # self.img_item = pg.ImageItem()
         # self.img_widget.addItem(self.img_item)
+        # self.img_widget.setAspectLocked(1)
+        # self.hist_lut = pg.HistogramLUTItem()
+        # self.hist_lut.autoHistogramRange()
+        # self.hist_lut.setImageItem(self.img_item)
+        # self.hist_lut.gradient.loadPreset("thermal")
+        # self.graphics_widget.addItem(self.hist_lut)
 
         # hw controls (also in the tree)
         # hw = self.app.hardware["$HW_NAME"]
         # hw_ctr = hw.new_control_widgets()
 
         # ScopeFoundry assumes .ui is the main widget:
-        self.ui = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
-        self.ui.addWidget(header_widget)
-        self.ui.addWidget(self.graphics_widget)
-        # self.ui.addWidget(hw_ctr)
+        self.ui = QtWidgets.QWidget()
+        self.layout = QtWidgets.QVBoxLayout(self.ui)
+        self.layout.addWidget(header_widget)
+        self.layout.addWidget(self.graphics_widget)
+        # self.layout.addWidget(hw_ctr)
 
     def update_display(self):
         self.plot_lines["y"].setData(self.data["y"])
