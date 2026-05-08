@@ -90,7 +90,8 @@ def h5_base_file(
             git_group.attrs[key] = value
     except Exception as e:
         # If git info collection fails, create git group with error info
-        git_group = root.create_group("git")
+        if not "git" in root.keys():
+            git_group = root.create_group("git")
         git_group.attrs["error"] = str(e)
 
     h5_save_app_lq(app, root)
