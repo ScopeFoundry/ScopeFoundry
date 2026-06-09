@@ -164,6 +164,7 @@ class BaseMicroscopeApp(BaseApp):
         self.ui = load_qt_ui_file(self.ui_filename)
         self.ui: Ui_MainWindow = self.ui  # useful for developing - may cause problems
         self.ui.mdiArea.setVisible(self.mdi)
+        self.ui.mdiArea.setMinimumSize(QtCore.QSize(0, 0))
         self.ui.quickaccess_scrollArea.setVisible(self.mdi)
 
         if self.mdi:
@@ -461,12 +462,19 @@ class BaseMicroscopeApp(BaseApp):
         self, widget: QtWidgets.QWidget, name: str
     ) -> QtWidgets.QMdiSubWindow:
         mdiArea: QtWidgets.QMdiArea = self.ui.mdiArea
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(widget)
+        scroll.setMinimumSize(0, 0)
+
         subwin = mdiArea.addSubWindow(
-            widget,
+            scroll,
             QtCore.Qt.WindowType.CustomizeWindowHint
             | QtCore.Qt.WindowType.WindowTitleHint
             | QtCore.Qt.WindowType.WindowMinMaxButtonsHint,
         )
+        subwin.setMinimumSize(0, 0)
         ignore_on_close(subwin)
         subwin.setWindowTitle(name)
         subwin.setWindowIcon(widget.windowIcon())
