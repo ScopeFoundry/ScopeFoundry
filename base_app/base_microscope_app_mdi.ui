@@ -88,38 +88,19 @@
        </property>
        <layout class="QVBoxLayout" name="tree_layout"/>
       </widget>
-      <widget class="QScrollArea" name="scrollArea">
-       <property name="widgetResizable">
+      <widget class="QMdiArea" name="mdiArea">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="viewMode">
+        <enum>QMdiArea::ViewMode::TabbedView</enum>
+       </property>
+       <property name="tabsMovable">
         <bool>true</bool>
        </property>
-       <widget class="QWidget" name="scrollAreaWidgetContents_2">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>1298</width>
-          <height>738</height>
-         </rect>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout">
-         <item>
-          <widget class="QMdiArea" name="mdiArea">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="viewMode">
-            <enum>QMdiArea::ViewMode::TabbedView</enum>
-           </property>
-           <property name="tabsMovable">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
       </widget>
      </widget>
     </item>
