@@ -6,6 +6,8 @@ import subprocess
 import sys
 import time
 import warnings
+from shutil import copyfile
+
 from collections import OrderedDict
 from functools import partial
 from pathlib import Path
@@ -97,6 +99,7 @@ class BaseMicroscopeApp(BaseApp):
         self._post_setup_ui_quickaccess()
         self._setup_ui_logo()
         self._add_docs_to_help_menu()
+        self._init_py_analysis_directory()
 
         # self.snippets = {}
         # self.descriptive_snippets = ()
@@ -522,6 +525,7 @@ class BaseMicroscopeApp(BaseApp):
     def on_analyze_with_ipynb(self, folder: str = None) -> Path:
         if folder is None:
             folder = self.settings["save_dir"]
+
         loaders_fname, dset_names = generate_loaders_py(folder)
 
         ipynb_path = update_ipynb(
@@ -537,13 +541,31 @@ class BaseMicroscopeApp(BaseApp):
         print("")
         if ipynb_path.exists():
             open_file(ipynb_path)
+
+        folder = Path(folder)
+        # t0 = time.perf_counter()
+        for m in list(self.measurements.values()) + [self]:
+            print(m.name)
+            for source in m.get_py_analysis_scripts():
+                target_path = folder / source.name
+                if not target_path.exists():
+                    copyfile(source, target_path)
+        # t1 = time.perf_counter()
+        # print(f"copied analysis scripts in {t1-t0:.2f} seconds")
         return ipynb_path
 
-    def get_snippets(self) -> Dict:
-        return {
-            name: measure.get_py_snippet()
-            for name, measure in self.measurements.items()
-        }
+    def get_snippets(self) -> Dict[str, str]:
+        snippets = {}
+        for name, measure in self.measurements.items():
+            try:
+                s = measure.get_py_snippet()
+                if isinstance(s, str):
+                    snippets[name] = s
+                else:
+                    snippets[name] = f"{name}.get_py_snippet returned: {repr(s)}"
+            except Exception as err:
+                self.log.error(f"Error getting snippet for {name}: {err}")
+        return snippets
 
     def read_from_hardwares(self):
         for hw in self.hardware.values():
@@ -1222,3 +1244,18 @@ class BaseMicroscopeApp(BaseApp):
             cmenu.addSeparator()
             for name, func in pairs:
                 cmenu.addAction(name, func)
+
+    def _init_py_analysis_directory(self) -> Path:
+        self.py_analysis_scripts_path = self.docs_path.parent / "py_analysis_scripts"
+        if not self.py_analysis_scripts_path.exists():
+            self.py_analysis_scripts_path.mkdir()
+            with open(
+                self.py_analysis_scripts_path / "__place_py_files_here.md", "w"
+            ) as f:
+                f.write(
+                    "Place .py files here that get copied to your data folder (never overrides, delete at data folder to update).\nIn particular useful to reference with snippets that gets returned with .get_py_snippets() method of the Measurement properly implemented."
+                )
+        return self.py_analysis_scripts_path
+
+    def get_py_analysis_scripts(self):
+        return self.py_analysis_scripts_path.glob("*.py")

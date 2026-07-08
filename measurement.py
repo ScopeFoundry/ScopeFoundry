@@ -3,6 +3,7 @@ Created on Tue Apr  1 09:25:48 2014
 @author: esbarnard
 """
 
+import pathlib
 import sys
 import threading
 import time
@@ -128,6 +129,9 @@ class Measurement:
             self.load_ui()
         self.setup()
         self.subwin = None  # will be set when the measurement is added to the app
+        self.end_state = "not defined"
+
+        self._init_py_analysis_directory()
 
     def setup(self):
         """Override this to set up logged quantities and gui connections
@@ -684,10 +688,28 @@ class Measurement:
             sep="\n",
         )
 
+    def _init_py_analysis_directory(self) -> pathlib.Path:
+        self.py_analysis_scripts_path = self.docs_path.parent / "py_analysis_scripts"
+        if not self.py_analysis_scripts_path.exists():
+            self.py_analysis_scripts_path.mkdir()
+            with open(
+                self.py_analysis_scripts_path / "__place_py_files_here.md", "w"
+            ) as f:
+                f.write(
+                    "Place .py files here that get copied to your data folder (never overrides, delete at data folder to update).\nIn particular useful to reference with snippets that gets returned with .get_py_snippets() method of the Measurement properly implemented."
+                )
+        return self.py_analysis_scripts_path
+
+    def get_py_analysis_scripts(self):
+        return self.py_analysis_scripts_path.glob("*.py")
+
     def get_py_snippet(self) -> str:
-        """return a string that gets added underneath the load line in ipynb cells
-            "plt.plot(data['x'], data['y'])\nplt.xlabel('x')\nplt.ylabel('y')\nplt.title('data from measurement')\nplt.show()\n"
-        that can be used to show how to load and plot the data from this measurement in a jupyter notebook"""
+        """return a string that gets added underneath the load line in ipynb cells for example:
+            return "plt.plot(data['x'], data['y'])\nplt.xlabel('x')\nplt.ylabel('y')\nplt.title('data from measurement')\nplt.show()\n"
+
+        You can add .py files to the py_analysis_scripts folder (located next to your measurement) that get copied to save_dir to be referenced in the snippet - for example:
+            return "from my_script import run_my_analysis\n\nrun_my_analysis(data['x'], data['y'])\n"
+        """
         return f"# Override {self.__class__.__name__}.get_py_snippet() to see a code snippet here"
 
 
