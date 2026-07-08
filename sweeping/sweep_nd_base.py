@@ -258,7 +258,6 @@ class SweepNDBase(Measurement):
         self.first_loop = True
 
         while True:
-
             # print("current sweep", self.scan_data.current_sweep)
 
             if not self._should_continue_sweep():
@@ -577,6 +576,14 @@ class SweepNDBase(Measurement):
             description="<p>flat: flattened data per sweep point flattend and aranged in order measured<p>map_vertical: data at positions is along vertical direction of a map",
         ).add_listener(self.update_display)
         s.New(
+            name="dset_reducer",
+            dtype=str,
+            initial="None",
+            choices=["None", "max", "min", "center_index"],
+            description="<p>Reduce the data to a number at each sweep point:<p>None: no reduction<p>max: maximum<p>min: minimum<p>center_index: middle data point when data per point is flattened",
+        ).add_listener(self.update_display)
+
+        s.New(
             "retake_slice_start",
             int,
             initial=0,
@@ -682,8 +689,7 @@ class SweepNDBase(Measurement):
         top_layout.addWidget(self.mk_collect_widget())
 
         self.ui = QtWidgets.QWidget()
-        self.ui.setStyleSheet(
-            """
+        self.ui.setStyleSheet("""
             QGroupBox {
                 font-weight: 600;
                 border: 1px solid #888888;
@@ -696,8 +702,7 @@ class SweepNDBase(Measurement):
                 left: 8px;
                 padding: 0 4px 0 4px;
             }
-        """
-        )
+        """)
         layout = QtWidgets.QVBoxLayout(self.ui)
         layout.setSpacing(4)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -787,14 +792,12 @@ class SweepNDBase(Measurement):
 
     def mk_run_widget(self) -> QtWidgets.QWidget:
         run_widget = QtWidgets.QGroupBox("Run Control")
-        run_widget.setStyleSheet(
-            """
+        run_widget.setStyleSheet("""
             QPushButton {
                 padding: 4px 8px;
                 font-weight: 500;
             }
-        """
-        )
+        """)
 
         vlayout = QtWidgets.QVBoxLayout(run_widget)
         vlayout.setSpacing(4)
@@ -806,14 +809,12 @@ class SweepNDBase(Measurement):
         vlayout.addWidget(self.settings.New_UI(include))
 
         update_btn = self.operations.new_button("update widgets")
-        update_btn.setStyleSheet(
-            """
+        update_btn.setStyleSheet("""
             QPushButton {
                 color: #1976d2;
                 font-weight: 500;
             }
-        """
-        )
+        """)
         vlayout.addWidget(update_btn)
 
         run_widget.setFlat(False)
@@ -833,7 +834,6 @@ class SweepNDBase(Measurement):
         h_layout = QtWidgets.QHBoxLayout(params_widget)
         self.list_uis = {}
         for ii, name in enumerate(self.actuator_names):
-
             r = self.settings.ranges[f"range_{name}"]
 
             range_ui = r.New_UI(include_clipboard_btns=True)
@@ -963,20 +963,36 @@ class SweepNDBase(Measurement):
         glayout = QtWidgets.QGridLayout()
 
         w1 = self.settings.get_lq("dataset").new_default_widget()
-        glayout.addWidget(QtWidgets.QLabel("Dataset:"), 0, 0)
+        w10 = QtWidgets.QLabel("Dataset:")
+        # w1.setMaximumWidth(400)
+        # w10.setMaximumWidth(400)
+        glayout.addWidget(w10, 0, 0)
         glayout.addWidget(w1, 1, 0)
-        w2 = self.settings.get_lq("position_representation").new_default_widget()
-        glayout.addWidget(QtWidgets.QLabel("Position Representation:"), 0, 1)
-        glayout.addWidget(w2, 1, 1)
 
         w3 = self.settings.get_lq("average_over_repetitions").new_default_widget()
-        glayout.addWidget(QtWidgets.QLabel("Average over repetitions:"), 0, 2)
-        glayout.addWidget(w3, 1, 2)
+        w3.setMaximumWidth(120)
+        l3 = QtWidgets.QLabel("Average reps:")
+        l3.setMaximumWidth(90)
+
+        glayout.addWidget(l3, 0, 1)
+        glayout.addWidget(w3, 0, 2)
+        w5 = self.settings.get_lq("dset_reducer").new_default_widget()
+        l5 = QtWidgets.QLabel("reduce")
+        glayout.addWidget(l5, 1, 1)
+        glayout.addWidget(w5, 1, 2)
+
+        w2 = self.settings.get_lq("position_representation").new_default_widget()
+        w2.setMaximumWidth(150)
+        l2 = QtWidgets.QLabel("Position Representation:")
+        glayout.addWidget(l2, 0, 3)
+        glayout.addWidget(w2, 1, 3)
 
         w4 = self.settings.get_lq("extent_control").new_default_widget()
         w40 = QtWidgets.QLabel("y-extent")
-        glayout.addWidget(w40, 0, 3)
-        glayout.addWidget(w4, 1, 3)
+        # w4.setMaximumWidth(120)
+        # w40.setMaximumWidth(120)
+        glayout.addWidget(w40, 0, 4)
+        glayout.addWidget(w4, 1, 4)
 
         w40.setVisible(False)
         w4.setVisible(False)
@@ -1013,9 +1029,9 @@ class SweepNDBase(Measurement):
                 self.log.warning(f"Failed to make locator: {e}")
 
         # container.setMaximumHeight(150)
-        # container.setMaximumWidth(400)
+        # container.setMaximumWidth(800)
         container.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
             QtWidgets.QSizePolicy.Policy.Maximum,
         )
 
@@ -1023,14 +1039,12 @@ class SweepNDBase(Measurement):
 
     def mk_graph_widget(self) -> QtWidgets.QWidget:
         graph_widget = pg.GraphicsLayoutWidget()
-        graph_widget.setStyleSheet(
-            """
+        graph_widget.setStyleSheet("""
             QGraphicsView {
                 border: 1px solid #888888;
                 border-radius: 3px;
             }
-        """
-        )
+        """)
 
         self.axes = graph_widget.addPlot(title=self.name)
         self.axes.setLogMode(False, False)
@@ -1145,6 +1159,18 @@ class SweepNDBase(Measurement):
 
         # Flatten data to positions x size
         img = dset[tuple(zip(*self.scan_data.indices))].reshape((-1, size))
+
+        if self.settings["dset_reducer"] == "None":
+            pass
+        elif self.settings["dset_reducer"] == "max":
+            img = np.nanmax(img, axis=1).reshape((-1, 1))
+            size = 1
+        elif self.settings["dset_reducer"] == "min":
+            img = np.nanmin(img, axis=1).reshape((-1, 1))
+            size = 1
+        elif self.settings["dset_reducer"] == "center_index":
+            img = img[:, img.size // 2].reshape((-1, 1))
+            size = 1
 
         # Apply data range limits
         i_span_max = self.max_npoints_shown // size
@@ -1308,4 +1334,3 @@ def find_nearest_position_index(positions, target_positions) -> int:
     target_positions = np.array(target_positions)
     distances = np.linalg.norm(positions_array - target_positions, ord=2, axis=1)
     return int(np.argmin(distances))
-
