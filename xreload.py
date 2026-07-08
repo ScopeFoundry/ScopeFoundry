@@ -30,9 +30,7 @@ Some of the many limitiations include:
 - Classes involving __slots__ are not handled correctly
 """
 
-import importlib
 from importlib import reload
-import importlib.util
 import inspect
 import sys
 
@@ -63,8 +61,11 @@ def xreload(mod, new_annotations=None):
     modns = mod.__dict__
     tmpns = {
         "__name__": modns["__name__"],
-        "__file__": modns["__file__"],
-        "__doc__": modns["__doc__"],
+        "__file__": modns.get("__file__", ""),
+        "__doc__": modns.get("__doc__", ""),
+        "__package__": modns.get("__package__"),
+        "__spec__": modns.get("__spec__"),
+        "__loader__": modns.get("__loader__"),
     }
     if new_annotations:
         tmpns["__annotations__"] = new_annotations
@@ -81,41 +82,28 @@ def xreload(mod, new_annotations=None):
 def _extract_code(mod):
     modname = mod.__name__
     if modname == "__main__":
-        # print(mod.__dict__)
-        # filename = mod._dh[0]
-        # stream = open(mod._dh[0])
         raise ImportError(
             "reloading module __main__ currently not supported. Move Measrument/Hardware class to a separate file"
         )
-    else:
-        pkgname = None
-        i = modname.rfind(".")
-        if i >= 0:
-            pkgname, modname = modname[:i], modname[i + 1 :]
-        # Compute the search path
-        if pkgname:
-            # We're not reloading the package, only the module in it
-            path = sys.modules[pkgname].__path__  # Search inside the package
-        else:
-            # Search the top-level module path
-            path = None  # Make find_module() uses the default search path
-        # Find the module; may raise ImportError
-        spec = importlib.util.find_spec(modname, path)
-    # kind = importlib.util.PY
-    filename = spec.name
-    stream = open(spec.origin)
 
-    # Turn it into a code object
+    # Use the already-loaded spec to find the source file
+    spec = getattr(mod, "__spec__", None)
+    if spec is not None and getattr(spec, "origin", None) is not None:
+        filename = spec.origin
+    elif getattr(mod, "__file__", None) is not None:
+        filename = mod.__file__
+    else:
+        return None
+
+    if not filename.endswith(".py"):
+        return None
+
     try:
-        # Is it Python source code or byte code read from a file?
-        # if kind not in (importlib.PY_COMPILED, importlib.PY_SOURCE):
-        #     return None
-        source = stream.read().strip() + "\n"
-        code = compile(source, filename, "exec")
-        return code
-    finally:
-        if stream:
-            stream.close()
+        with open(filename) as stream:
+            source = stream.read().strip() + "\n"
+            return compile(source, filename, "exec")
+    except (OSError, SyntaxError):
+        return None
 
 
 def _update_scope(oldscope, newscope):
