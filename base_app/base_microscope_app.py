@@ -342,16 +342,53 @@ class BaseMicroscopeApp(BaseApp):
 
     def _post_setup_ui_quickaccess(self) -> None:
         # check again if quickbar is defined.
-        # if isinstance(self.quickbar, QtWidgets.QWidget):
-        if self.quickbar is not None:
+        if isinstance(self.quickbar, QtWidgets.QWidget):
+            self.ui.quickaccess_scrollArea.setVisible(True)
             layout: QtWidgets.QVBoxLayout = self.ui.quickaccess_layout
             if layout.isEmpty():
                 layout.addWidget(self.quickbar)
-        self.ui.quickaccess_layout.addWidget(self.favorites_widget.scroll_area)
-        self.favorites_widget.refresh_widgets()
-        self.ui.quickaccess_scrollArea.setVisible(
-            self.favorites_widget.has_items() or self.quickbar is not None
-        )
+        else:
+            self.ui.quickaccess_scrollArea.setVisible(False)
+        if self.favorites_widget.has_items():
+            self.ui.quickaccess_layout.addWidget(self.favorites_widget.scroll_area)
+            self.ui.quickaccess_scrollArea.setVisible(self.favorites_widget.has_items())
+
+        # Fix horizontal scrolling: ensure content widget width matches viewport width
+        scroll_area = self.ui.quickaccess_scrollArea
+
+        # Override problematic UI file settings
+        scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored)
+        scroll_area.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Preferred)
+
+        # Fix content widget size policy
+        if scroll_area.widget() is not None:
+            scroll_area.widget().setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Preferred,
+                QtWidgets.QSizePolicy.Policy.Preferred
+            )
+
+        def update_quickaccess_width():
+            """Update the width of quickaccess content to match viewport"""
+            if scroll_area.widget() is not None:
+                # Get the actual viewport width
+                viewport_width = scroll_area.viewport().width()
+
+                # Set the content widget size to match viewport exactly
+                scroll_area.widget().setFixedWidth(viewport_width)
+
+        # Override resize event
+        original_resize = scroll_area.resizeEvent
+        def quickaccess_resize_event(event):
+            original_resize(event)
+            update_quickaccess_width()
+        scroll_area.resizeEvent = quickaccess_resize_event
+
+        # Also connect to splitter moved signal
+        self.ui.col_splitter.splitterMoved.connect(update_quickaccess_width)
+
+        # Apply initial width fix
+        update_quickaccess_width()
 
     def _setup_ui_logo(self) -> None:
         logo_icon = QtGui.QIcon(self.logo_path)
@@ -444,6 +481,7 @@ class BaseMicroscopeApp(BaseApp):
 
     def add_quickbar(self, widget: QtWidgets.QWidget) -> QtWidgets.QWidget:
         self.ui.quickaccess_scrollArea.setVisible(True)
+        self.ui.quickaccess_scrollArea.show()
         self.ui.quickaccess_layout.addWidget(widget)
         self.quickbar = widget
         return self.quickbar
