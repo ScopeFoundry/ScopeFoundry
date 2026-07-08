@@ -71,3 +71,11 @@ class Sweep1D(SweepNDBase):
     def should_show_positions_on_x_axis(self):
         """For 1D, don't check scan_mode, just return True if size == 1."""
         return True
+
+    def get_py_snippet(self) -> str:
+        dset = self.settings['dataset'].rstrip('_raw')
+        if dset:
+            return f"for pos, {dset.split("_")[-1]} in zip(data.range_1, data.{dset}):\n    continue"
+        return ""
+        
+
