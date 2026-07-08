@@ -393,14 +393,14 @@ class BaseMicroscopeApp(BaseApp):
             QtWidgets.QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored
         )
         scroll_area.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Maximum,
             QtWidgets.QSizePolicy.Policy.Preferred,
         )
 
         # Fix content widget size policy
         if scroll_area.widget() is not None:
             scroll_area.widget().setSizePolicy(
-                QtWidgets.QSizePolicy.Policy.Preferred,
+                QtWidgets.QSizePolicy.Policy.Maximum,
                 QtWidgets.QSizePolicy.Policy.Preferred,
             )
 
