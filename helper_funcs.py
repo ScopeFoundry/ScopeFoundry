@@ -491,7 +491,7 @@ def init_docs_path(docs_path, settings):
             json.dump({}, f)
 
     with open(docs_path / f"__place_documentation_here_readme_first.md", "w") as f:
-        f.write(f"**this file will be overwriten! **\n\n")
+        f.write(f"**this file will be overwritten! **\n\n")
         f.write(
             " - Write documentation describing your app, files starting __ are ignored.\n\n"
         )
