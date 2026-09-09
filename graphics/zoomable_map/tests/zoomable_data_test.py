@@ -1,4 +1,4 @@
-from pyqtgraph.Qt import QtGui, QtCore
+from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
 import numpy as np
 import pyqtgraph as pg
 from ScopeFoundry.graphics.zoomable_map.zoomable_map import ZoomableMapImageItem
@@ -12,7 +12,7 @@ rect = M['strip_rects'][0]
 
 im = np.hstack([im,]*100)
 
-app = QtGui.QApplication([])
+app = QtWidgets.QApplication([])
 
 plot = pg.PlotWidget()
 plot.setAspectLocked(1)
@@ -30,4 +30,4 @@ plot.show()
 if __name__ == '__main__':
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-        QtGui.QApplication.instance().exec_()
+        QtWidgets.QApplication.instance().exec_()
