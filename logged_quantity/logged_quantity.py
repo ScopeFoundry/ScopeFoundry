@@ -33,7 +33,7 @@ def mk_checkbox_style_sheet(colors: List[QtGui.QColor]) -> str:
             border-radius: 4px;
             border-width: 1px;
             border-color: black;
-            image: url('{tick_path}');
+            image: url('{tick_path.as_posix()}');
             }}
         """
     return s
