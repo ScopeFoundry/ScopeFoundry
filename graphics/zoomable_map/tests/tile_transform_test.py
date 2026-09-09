@@ -1,4 +1,4 @@
-from pyqtgraph.Qt import QtGui, QtCore
+from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
 import numpy as np
 import pyqtgraph as pg
 import skimage.data
@@ -14,7 +14,7 @@ def printTransform(t):
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
 
-app = QtGui.QApplication([])
+app = QtWidgets.QApplication([])
 plot = pg.PlotWidget()
 plot.setAspectLocked(1)
 vb  = plot.getViewBox()
@@ -201,4 +201,4 @@ sigprox = pg.SignalProxy(
 if __name__ == '__main__':
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-        QtGui.QApplication.instance().exec_()
+        QtWidgets.QApplication.instance().exec_()
