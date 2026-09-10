@@ -1,18 +1,29 @@
-ScopeFoundry 2.3.0 2026-01-28
+ScopeFoundry 2.3.0 2026-09-10
 
 	* Features added:
 		- [sweeping/map_2D] can now load datasets from h5 files.
 		- [sweeping] added settings monitoring, collectors can now show multiple widgets of settings, improved UI and data representation and added locator widget to map data to actuator positions, added RETAKE and RETAKE_SLICE options to remeasure/update data at specified actuator positions (by a list or range) of the previous sweep (leaving other data points unchanged). Dsets can now be extended over multiple axis, added capability to add sweeps to existing dsets using ADD_REPS mode and "re-sweep" setting, initialized with nan to simplify showing data, improved list_ui and descriptions.
+		- [sweeping] added dset_reducer.
 		- [git_funcs] to store git captures in h5 files.
 		- [dynamic loading and reloading of Measurements and HardwareComponents]
 		- [h5_analyze_with_ipynb] added options 'all', 'remaining' that control the files to be added as cells when feature is triggered. 'last' remains default. Now also has a function to archive files that are not mentioned in the ipynb. Can now handle scalar datasets.
+		- [measurement snippets] measurements can now provide code snippets that are auto-inserted into the analysis notebook; py analysis scripts declared by measurements are auto-copied into the save directory when analyze_with_ipynb runs (py_analysis_dir).
 		- [LQCollection] can now "claim" another LQCollection. This allows an LQCollection to be created in another object and then be added to an existing collection.
 		- [favorites widget] now integrated to quickbar. Hides if empty.
-	
+		- [ranges] added clipboard copy/paste buttons.
+		- [generate_loaders] generated data classes now support dict-style access.
+		- [tools/_readout template] improved setup_figure().
+
 
 	* Fixes:
 		- [lq_intervaled_range] fixed for the case where intervals have different lengths.
-		- [base_microscope_app] state of checkboxes are visible even in light mode of Win 11, see: issue #73
+		- [base_microscope_app] state of checkboxes are visible even in light mode of Win 11, see: issue #73.
+		- [logged_quantity] checkbox stylesheet now uses POSIX-form path so Qt can parse it on Windows (silently dropped otherwise). PR #85.
+		- [graphics/zoomable_map/tests] fixed AttributeError from QApplication being imported via QtGui instead of QtWidgets. PR #85.
+		- [base_microscope_app] quickaccess bar no longer expands beyond its maximum width when the window is maximized; favorites_widget correctly shown in quickbar; fixed measurement UI overflow in TabbedView (issue #72).
+		- [h5_io] fixed case where git group was created but the git-info save otherwise failed.
+		- [sweeping] fixed bug when retaking data / adding slices (indices were not reset); fixed bug when position arrays are of different lengths.
+		- [xreload] compatibility fixes for newer Python versions.
 
 
 ScopeFoundry 2.2.1 2025-09-03
