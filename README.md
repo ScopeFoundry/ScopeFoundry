@@ -8,7 +8,7 @@ A Python platform for controlling custom laboratory experiments.
 Requirements
 ------------
 
-* Python 3.8+ (Currently tested with 3.10, 3.14, 3.14)
+* Python 3.8+ (Currently tested with 3.10, 3.13, 3.14)
 * qtpy with any Qt-binding: PyQt6, PySide6
 * NumPy 1.24+
 * PyQtGraph
