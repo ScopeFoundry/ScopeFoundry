@@ -1133,7 +1133,9 @@ class BaseMicroscopeApp(BaseApp):
         self._report = report  # _report for test purpose
 
         if show_report:
-            show_io_report_dialog(fname, report, self.settings_load_ini, error_msgs)
+            show_io_report_dialog(
+                fname, report, self.settings_load_ini, error_msgs, self
+            )
         self.propose_settings_values(Path(fname).name, settings)
         self.log.info(f"settings loaded from {fname}")
 
@@ -1159,7 +1161,9 @@ class BaseMicroscopeApp(BaseApp):
         self._report = report  # _report for test purpose
 
         if show_report:
-            show_io_report_dialog(fname, report, self.settings_load_h5, error_msgs)
+            show_io_report_dialog(
+                fname, report, self.settings_load_h5, error_msgs, self
+            )
         self.propose_settings_values(Path(fname).name, settings)
         self.log.info(f"settings loaded from {fname}")
 

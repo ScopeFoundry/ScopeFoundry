@@ -99,6 +99,51 @@ class SettingsIOTest(unittest.TestCase):
             self.app._report["hardware/hardware1/protected_int"], "PROTECTED"
         )
 
+    def test_resolve_and_remove_missing(self):
+        src = self.root / "settings_io_test_measure1_false_2.ini"
+        wrong = "meeeeeeasurement/measure1/straaaaang"
+        target = "measurement/measure1/string"
+        fname = Path(self._app_implementation_dir.name) / "copy.ini"
+        fname.write_text(src.read_text())
+        self.app.microscope_config_path = Path(self._app_implementation_dir.name) / "t.scopefoundry"
+
+        from ScopeFoundry import ini_io
+        from ScopeFoundry.base_app.show_io_report_dialog import (
+            get_setting_path_mappings,
+            remove_missing_from_ini,
+            resolve_missing_settings,
+        )
+
+        resolve_missing_settings(self.app, str(fname), {wrong: ("replace", target)})
+        self.assertEqual(get_setting_path_mappings(self.app), {wrong: target})
+
+        loaded = ini_io.load_settings(fname)
+        self.assertIn(target, loaded)
+        self.assertNotIn(wrong, loaded)
+
+        fname.write_text(src.read_text())
+        remove_missing_from_ini(self.app, str(fname), [wrong])
+        self.assertNotIn(wrong, ini_io.load_settings(fname))
+
+        fname.write_text(src.read_text())
+        resolve_missing_settings(self.app, str(fname), {wrong: ("remove", None)})
+        self.assertNotIn(wrong, ini_io.load_settings(fname))
+
+        from ScopeFoundry.base_app.show_io_report_dialog import (
+            apply_known_mappings,
+            get_ignored_missing_settings,
+        )
+
+        self.assertFalse(apply_known_mappings(self.app, str(fname), ["unmapped/a/b"]))
+        fname.write_text(src.read_text())
+        self.mms["string"] = "unchanged"
+        self.assertTrue(apply_known_mappings(self.app, str(fname), [wrong]))
+        self.assertNotEqual(self.mms["string"], "unchanged")
+
+        resolve_missing_settings(self.app, str(fname), {wrong: ("ignore_always", None)})
+        self.assertEqual(get_ignored_missing_settings(self.app), [wrong])
+        self.assertEqual(get_setting_path_mappings(self.app), {wrong: target})
+
     def test_first_section_wrong_and_continue(self):
         fname = self.root / "settings_io_test_measure1_false_2.ini"
         self.app.settings_load_ini(fname, show_report=False)
