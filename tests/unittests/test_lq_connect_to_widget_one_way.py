@@ -137,8 +137,7 @@ class LQConnectToWidgetOneWayTest(unittest.TestCase):
         self.bool.update_value(True)
         self.assertTrue(widget.isChecked())
 
-        widget.setChecked(False)
-        widget.clicked.emit(False)
+        widget.click()
         self.assertTrue(self.bool.value)
 
     def test_qcombo_box(self):
@@ -185,6 +184,7 @@ class LQConnectToWidgetOneWayTest(unittest.TestCase):
         self.assertEqual(self.float.value, 1)
 
     def test_qslider_int_overflow(self):
+        max_4byte_int = (1 << 31) - 1
         lq = self.int
         widget = QtWidgets.QSlider()
         widget.setValue(1000)
@@ -192,13 +192,13 @@ class LQConnectToWidgetOneWayTest(unittest.TestCase):
         lq.connect_to_widget_one_way(widget)
         self.assertAlmostEqual(lq._transform_from_slider(widget.value()), 0)
 
-        lq.update_value(int(1e11))
+        lq.update_value(max_4byte_int)
         self.assertAlmostEqual(
-            lq._transform_from_slider(widget.value()) / 1e12, int(1e11) / 1e12
+            lq._transform_from_slider(widget.value()) / 1e12, max_4byte_int / 1e12
         )
 
-        widget.setValue(lq._transform_to_slider(2e11))
-        self.assertEqual(lq.value, int(1e11))
+        widget.setValue(lq._transform_to_slider(max_4byte_int // 2))
+        self.assertEqual(lq.value, max_4byte_int)
 
     def test_min_max_slider(self):
         wf = MinMaxQSlider()

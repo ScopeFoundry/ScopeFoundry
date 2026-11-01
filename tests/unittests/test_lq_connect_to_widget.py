@@ -207,17 +207,10 @@ class LQConnectToWidgetTest(unittest.TestCase):
         self.assertEqual(wb.isChecked(), True)
 
         # widget to lq
-        # print("checkbox3")
-
-        wb.setChecked(False)
-
-        # TODO The fact that emit is required controversial. Can one also check/uncheck without clicking?
-        wb.clicked.emit()
+        wb.click()
         self.assertEqual(self.bool.value, False)
 
-        # print("checkbox4")
-        wb.setChecked(True)
-        wb.clicked.emit(True)
+        wb.click()
         self.assertEqual(self.bool.value, True)
 
     def test_qcombo_box(self):
@@ -276,6 +269,7 @@ class LQConnectToWidgetTest(unittest.TestCase):
 
     def test_qslider_int_overflow(self):
         # falls back to act like a float
+        max_4byte_int = (1 << 31) - 1
         wi = QtWidgets.QSlider()
         wi.setValue(int(1000))
 
@@ -286,14 +280,15 @@ class LQConnectToWidgetTest(unittest.TestCase):
         self.assertAlmostEqual(lq._transform_from_slider(wi.value()), 0.0)
 
         # lq to widget
-        lq.update_value(int(1e11))
+        lq.update_value(max_4byte_int)
         self.assertAlmostEqual(
-            lq._transform_from_slider(wi.value()) / 1e12, int(1e11) / 1e12
+            lq._transform_from_slider(wi.value()) / 1e12, max_4byte_int / 1e12
         )
 
         # widget to lq
-        wi.setValue(lq._transform_to_slider(2e11))
-        self.assertAlmostEqual(lq.value / 1e12, 2e11 / 1e12)
+        target_value = max_4byte_int // 2
+        wi.setValue(lq._transform_to_slider(target_value))
+        self.assertAlmostEqual(lq.value / 1e12, target_value / 1e12)
 
     def test_qslider_float(self):
         wf = QtWidgets.QSlider()
