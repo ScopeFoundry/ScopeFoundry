@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 from functools import partial
+from typing import Optional
 
 from qtpy import QtGui, QtWidgets
 
@@ -85,7 +86,7 @@ class StateHistory:
         for _, entry_dir in entries[: -self.max_entries]:
             shutil.rmtree(entry_dir, ignore_errors=True)
 
-    def save_snapshot(self, reason: str) -> Path | None:
+    def save_snapshot(self, reason: str) -> Optional[Path]:
         if self._restoring:
             return None
         try:

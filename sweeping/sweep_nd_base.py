@@ -32,9 +32,9 @@ from .position_list import PositionList
 
 
 class SweepConfig(TypedDict):
-    positions_gen_func: Callable[[], Generator[float]]
-    base_indices_gen_func: Callable[[], Generator[int]]
-    progress_index_gen_func: Callable[[], Generator[int]]
+    positions_gen_func: Callable[[], Generator[float, None, None]]
+    base_indices_gen_func: Callable[[], Generator[int, None, None]]
+    progress_index_gen_func: Callable[[], Generator[int, None, None]]
     N: int
 
 
@@ -1408,7 +1408,7 @@ class SweepNDBase(Measurement):
         """Return the data shape for this sweep type."""
         raise NotImplementedError("Child class must implement mk_data_shape()")
 
-    def mk_indices_gen(self, *args) -> Generator[Tuple[int, ...]]:
+    def mk_indices_gen(self, *args) -> Generator[Tuple[int, ...], None, None]:
         """Return the indices generator for this sweep type."""
         raise NotImplementedError("Child class must implement mk_indices_gen()")
 

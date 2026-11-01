@@ -589,5 +589,5 @@ class Sweep1D(SweepNDBase):
     def get_py_snippet(self) -> str:
         dset = self.settings["dataset"].rstrip("_raw")
         if dset:
-            return f"for pos, {dset.split("_")[-1]} in zip(data.range_1, data.{dset}):\n    continue"
+            return f"for pos, {dset.split('_')[-1]} in zip(data.range_1, data.{dset}):\n    continue"
         return ""
