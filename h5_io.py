@@ -407,9 +407,7 @@ def measurement_names_with_datasets(fname: str) -> set:
 
     measurement_names = set()
     with h5py.File(fname, "r") as file:
-        if "measurement" not in file or not isinstance(
-            file["measurement"], h5py.Group
-        ):
+        if "measurement" not in file or not isinstance(file["measurement"], h5py.Group):
             return measurement_names
 
         for measurement_name, measurement_group in file["measurement"].items():
@@ -435,7 +433,10 @@ def _settings_visitfunc(name: str, node: h5py.Group, settings: Dict[str, Any]) -
 
     # other measurements are exposed as measurement/<measure_name>/<setting_name>
     if len(parts) == 3 and parts[0] == OTHER_MEASUREMENTS_GROUP:
-        parts[0] = "measurement"
+        parts[0] = "mm"
+
+    parts[0] = parts[0].replace("measurement", "mm") 
+    parts[0] = parts[0].replace("hardware", "hw")
 
     for key, val in node.attrs.items():
         settings["/".join(parts[:-1] + [key])] = val
