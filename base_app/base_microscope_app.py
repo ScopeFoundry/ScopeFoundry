@@ -218,6 +218,25 @@ class BaseMicroscopeApp(BaseApp):
                     f"{path} {old_value} -> {new_value}"
                 )
 
+    @QtCore.Slot(str, object, object)
+    def _confirm_file_loading_write_protected(
+        self, path: str, old_value: Any, new_value: Any
+    ) -> None:
+        if not new_value:
+            return
+
+        answer = QtWidgets.QMessageBox.question(
+            self.ui,
+            "Enable protected setting writes?",
+            "Loading a settings file can overwrite protected settings. "
+            "This is discouraged. Enable this option?",
+            QtWidgets.QMessageBox.StandardButton.Yes
+            | QtWidgets.QMessageBox.StandardButton.No,
+            QtWidgets.QMessageBox.StandardButton.No,
+        )
+        if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+            self.settings["file_loading_write_protected"] = False
+
     def _setup_settings_operations(self, **kwargs: Any) -> None:
         initial_save_path = self.implementation_path / "data"
         if not initial_save_path.is_dir():
@@ -251,6 +270,28 @@ class BaseMicroscopeApp(BaseApp):
         )
         self.settings.New(
             "ipynb_option", str, initial="last", choices=["all", "last", "remaining"]
+        )
+        self.settings.New(
+            "file_loading_write_protected",
+            bool,
+            initial=False,
+            description="When enabled, loading a settings file also updates "
+            "<b>protected</b> settings.",
+        ).add_listener_ui(
+            self._confirm_file_loading_write_protected,
+            argtype=(str, object, object),
+        )
+        self.settings.New(
+            "settings_loading_reporting",
+            str,
+            initial="moderate",
+            choices=["never", "moderate", "strict"],
+            description="Controls the report shown when loading settings files with "
+            "missing settings.<br><b>never</b>: never show the report.<br>"
+            "<b>moderate</b> (recommended): skip settings of missing components, "
+            "use stored mappings and ignores.<br>"
+            "<b>strict</b>: show the dialog for any missing setting, even if a "
+            "mapping or ignore exists.",
         )
         self.add_operation(
             "Read from Hardwares",
