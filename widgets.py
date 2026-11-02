@@ -8,6 +8,8 @@ from qtpy import QtCore, QtWidgets, QtGui
 import pyqtgraph as pg
 import numpy as np
 
+from ScopeFoundry.helper_funcs import matches_search_terms
+
 
 class MinMaxQSlider(QtWidgets.QWidget):
     """
@@ -356,3 +358,82 @@ class RegionSlicer(QtWidgets.QWidget):
                 return None
         else:
             return (self.x_array[self.s_], ar[self.s_])
+
+
+class SearchField(QtWidgets.QLineEdit):
+    """Line edit with clear button used to filter lists of LoggedQuantity paths.
+    Connect textChanged and use helper_funcs.matches_search_terms to filter."""
+
+    def __init__(self, placeholder="search path, e.g. hw/power…", parent=None):
+        super().__init__(parent)
+        self.setPlaceholderText(placeholder)
+        self.setClearButtonEnabled(True)
+
+
+class _SearchFilterProxyModel(QtCore.QSortFilterProxyModel):
+    """Keeps rows whose display text matches the query with the same rules as
+    the ScopeFoundry tree search field (see helper_funcs.matches_search_terms)."""
+
+    query = ""
+
+    def set_query(self, query: str) -> None:
+        self.query = query
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        index = self.sourceModel().index(source_row, 0, source_parent)
+        return matches_search_terms(
+            str(index.data(QtCore.Qt.DisplayRole) or ""), self.query
+        )
+
+
+class QSearchableCompleter(QtWidgets.QCompleter):
+    """Completer that shows all rows of its (filtered) model."""
+
+    def splitPath(self, path):
+        return [path.strip()]
+
+    def pathFromIndex(self, index):
+        return str(index.data(QtCore.Qt.DisplayRole) or "")
+
+
+class _SelectAllLineEdit(QtWidgets.QLineEdit):
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        QtCore.QTimer.singleShot(0, self.selectAll)
+
+
+class QSearchableComboBox(QtWidgets.QComboBox):
+    """Editable combo box; the popup lists only the items matching the typed text.
+    Items are typically LoggedQuantity paths and are matched like in the tree search."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setEditable(True)
+        self.setLineEdit(_SelectAllLineEdit(self))
+        self.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
+        self._filter_model = _SearchFilterProxyModel(self)
+        self._filter_model.setSourceModel(self.model())
+        completer = QSearchableCompleter(self._filter_model, self)
+        self.setCompleter(completer)
+        completer.setCompletionMode(QtWidgets.QCompleter.UnfilteredPopupCompletion)
+        self.lineEdit().textEdited.connect(self._on_text_edited)
+
+    def _on_text_edited(self, text: str) -> None:
+        self._filter_model.set_query(text)
+        if self._filter_model.rowCount() > 0:
+            self.completer().complete()
+        else:
+            self.completer().popup().hide()
+
+
+if __name__ == "__main__":
+    import sys
+
+    app = QtWidgets.QApplication(sys.argv)
+    combo = QSearchableComboBox()
+    combo.addItems(
+        ["Option 1", "Option 2", "Option 3", "Test", "house/Cat", "house/Dog"]
+    )
+    combo.show()
+    sys.exit(app.exec_())

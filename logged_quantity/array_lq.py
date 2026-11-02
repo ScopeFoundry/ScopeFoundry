@@ -31,6 +31,7 @@ class ArrayLQ(LoggedQuantity):
         spinbox_step=0.1,
         is_clipboardable=False,
         colors=None,
+        set_before_connection=False,
         **kwargs,
     ):
         QtCore.QObject.__init__(self)
@@ -83,6 +84,7 @@ class ArrayLQ(LoggedQuantity):
 
         self.widget_list = []
         self.listeners = []
+        self.ui_listeners = []
 
         # threading lock
         self.lock = QLock(mode=0)  # mode 0 is non-reentrant lock
@@ -91,6 +93,7 @@ class ArrayLQ(LoggedQuantity):
         self.protected = protected
 
         self.is_clipboardable = is_clipboardable
+        self.set_before_connection = set_before_connection
         self.is_cmd = False
 
         self._tableView = None

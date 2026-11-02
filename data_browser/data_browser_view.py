@@ -65,9 +65,14 @@ class DataBrowserView:
             )
 
     def add_operation(
-        self, name: str, op_func: Callable[[], None], description="", icon_path=""
+        self,
+        name: str,
+        op_func: Callable[[], None],
+        description="",
+        icon_path="",
+        keyboard_shortcut: str = None,
     ):
-        self.operations.new(name, op_func, description, icon_path)
+        self.operations.new(name, op_func, description, icon_path, keyboard_shortcut)
 
     def remove_operation(self, name: str):
         self.operations.remove(name)

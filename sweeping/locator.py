@@ -8,15 +8,24 @@ import numpy as np
 class LocatorBase:
 
     def __init__(self, sweep_measurement, position_list):
+        self.real_position_on_x = False
         self.sweep = sweep_measurement
         self.position_list = position_list
         self.axes = None
         self.size = 1
         self.i_min = 0
+        self.indicator_item = None
+        self.widget = None
+        self.locator_visible = False
+        self.position_valid = False
+        self.go_to_btn = None
+        self.as_center_btn = None
+        self.add_btn = None
 
     def set_axes(self, axes):
         self.axes = axes
         self.setup_indicator()
+        self.set_locator_visible(self.locator_visible)
         # Connect mouse events for Ctrl+Click functionality
         self.axes.scene().sigMouseClicked.connect(self.on_plot_mouse_clicked)
 
@@ -46,20 +55,26 @@ class LocatorBase:
         self.as_center_btn = QtWidgets.QPushButton("Set as Center")
         self.add_btn = QtWidgets.QPushButton("Add\nto Position List")
 
-        self.go_to_btn.setMinimumHeight(50)
-        self.as_center_btn.setMinimumHeight(50)
-        self.add_btn.setMinimumHeight(50)
+        self.go_to_btn.setFixedHeight(45)
+        self.as_center_btn.setFixedHeight(45)
+        self.add_btn.setFixedHeight(45)
 
         self.go_to_btn.setMaximumWidth(160)
         self.as_center_btn.setMaximumWidth(160)
         self.add_btn.setMaximumWidth(160)
 
         self.widget = QtWidgets.QGroupBox("Locator Controls")
+        self.widget.setStyleSheet("QGroupBox::title { color: #FF5722; }")
+        self.widget.setCheckable(True)
+        self.widget.setChecked(self.locator_visible)
+        self.widget.toggled.connect(self.set_locator_visible)
         layout = QtWidgets.QHBoxLayout(self.widget)
         layout.addWidget(self.as_center_btn)
         layout.addWidget(self.go_to_btn)
         layout.addWidget(self.add_btn)
         layout.addStretch()
+
+        self._update_locator_button_enabled_state()
 
         self.go_to_btn.clicked.connect(self.on_go_to_btn_clicked)
         self.as_center_btn.clicked.connect(self.on_as_center_clicked)
@@ -78,32 +93,49 @@ class LocatorBase:
 
     def set_actuator_positions(self, positions: Tuple[float, ...]) -> None:
         """Set actuator positions based on locator position."""
-        funcs = self.sweep.get_current_target_position_funcs()
-        for p, f in zip(positions, funcs):
-            f(p)
+        self.sweep.go_to_positions(positions, block=False)
 
     def set_as_center(self, positions: Tuple[float, ...]) -> None:
         """Set positions as center of scan ranges."""
         for p, r in zip(positions, self.sweep.scan_ranges):
             r.set_center(p)
 
+    def set_locator_visible(self, visible: bool) -> None:
+        self.locator_visible = visible
+        if self.indicator_item is not None:
+            self.indicator_item.setVisible(visible)
+        self._update_locator_button_enabled_state()
+
+    def _update_locator_button_enabled_state(self) -> None:
+        enabled = self.locator_visible and self.position_valid
+        if self.widget is not None:
+            buttons = self.widget.findChildren(QtWidgets.QAbstractButton)
+        else:
+            buttons = (self.go_to_btn, self.as_center_btn, self.add_btn)
+        for button in buttons:
+            if button is not None:
+                button.setEnabled(enabled)
+
     def update_display(self) -> None:
         """Update locator display and button states."""
         positions = self.resolve_actuators_positions()
 
         if positions is None:
+            self.position_valid = False
             self._update_invalid_position_ui()
             return
 
+        self.position_valid = True
         self._update_valid_position_ui(positions)
 
     def _update_invalid_position_ui(self):
         """Update UI for invalid locator position."""
+        self.position_valid = False
+        self._update_locator_button_enabled_state()
         if self.go_to_btn:
             self.go_to_btn.setEnabled(False)
-            self.go_to_btn.setText("Invalid Position:\nDrag locator within data range")
-            self.go_to_btn.setStyleSheet(
-                """
+            self.go_to_btn.setText("Drag locator\nwithin data range")
+            self.go_to_btn.setStyleSheet("""
                 QPushButton {
                     color: #f44336;
                     font-weight: 600;
@@ -111,16 +143,12 @@ class LocatorBase:
                 QPushButton:hover {
                     color: #d32f2f;
                 }
-            """
-            )
+            """)
 
         if self.as_center_btn:
             self.as_center_btn.setEnabled(False)
-            self.as_center_btn.setText(
-                "Invalid Position:\nDrag locator within data range"
-            )
-            self.as_center_btn.setStyleSheet(
-                """
+            self.as_center_btn.setText("Drag locator\nwithin data range")
+            self.as_center_btn.setStyleSheet("""
                 QPushButton {
                     color: #f44336;
                     font-weight: 600;
@@ -128,13 +156,11 @@ class LocatorBase:
                 QPushButton:hover {
                     color: #d32f2f;
                 }
-            """
-            )
+            """)
         if self.add_btn:
             self.add_btn.setEnabled(False)
-            self.add_btn.setText("Invalid Position:\nDrag locator within data range")
-            self.add_btn.setStyleSheet(
-                """
+            self.add_btn.setText("Drag locator\nwithin data range")
+            self.add_btn.setStyleSheet("""
                 QPushButton {
                     color: #f44336;
                     font-weight: 600;
@@ -142,13 +168,14 @@ class LocatorBase:
                 QPushButton:hover {
                     color: #d32f2f;
                 }
-            """
-            )
+            """)
 
     def _update_valid_position_ui(
         self, positions: Tuple[float, ...], info_text=None
     ) -> None:
         """Update UI for valid locator position."""
+        self.position_valid = True
+        self._update_locator_button_enabled_state()
         actuator_names = [i[0] for i in self.sweep.get_current_actuators_defs()]
 
         self.update_indicator_label(actuator_names, positions)
@@ -156,39 +183,33 @@ class LocatorBase:
         pretty_pos = ", ".join([f"{p:.2f}" for p in positions])
 
         if self.go_to_btn:
-            self.go_to_btn.setEnabled(True)
+            self.go_to_btn.setEnabled(self.locator_visible)
             self.go_to_btn.setText(f"Set Actuator Position\n({pretty_pos})")
-            self.go_to_btn.setStyleSheet(
-                """
+            self.go_to_btn.setStyleSheet("""
                 QPushButton {
                     color: #4caf50;
                     font-weight: 600;
                 }
-            """
-            )
+            """)
 
         if self.as_center_btn:
-            self.as_center_btn.setEnabled(True)
+            self.as_center_btn.setEnabled(self.locator_visible)
             self.as_center_btn.setText(f"Set as Center\n({pretty_pos})")
-            self.as_center_btn.setStyleSheet(
-                """
+            self.as_center_btn.setStyleSheet("""
                 QPushButton {
                     font-weight: 600;
                 }
-            """
-            )
+            """)
 
         if self.add_btn:
-            self.add_btn.setEnabled(True)
+            self.add_btn.setEnabled(self.locator_visible)
             self.add_btn.setText(f"Add to Position List\n({pretty_pos})")
-            self.add_btn.setStyleSheet(
-                """
+            self.add_btn.setStyleSheet("""
                 QPushButton {
                     color: #2196f3;
                     font-weight: 600;
                 }
-            """
-            )
+            """)
 
     def on_indicator_moved(self):
         """Handle infinite line movement."""
@@ -264,6 +285,7 @@ class LocatorRoi(LocatorBase):
         self.pt_roi = pg.CircleROI(
             (0, 0), (self.circ_roi_size, self.circ_roi_size), movable=True, pen=pen
         )
+        self.indicator_item = self.pt_roi
 
         self.pt_roi.removeHandle(0)
         self.pt_roi.sigRegionChangeFinished.connect(self.on_indicator_moved)
@@ -294,7 +316,6 @@ class LocatorX(LocatorBase):
 
     def __init__(self, sweep_measurement, position_list):
         super().__init__(sweep_measurement, position_list)
-        self.real_position_on_x = False
 
     def setup_indicator(
         self,
@@ -311,6 +332,7 @@ class LocatorX(LocatorBase):
                 "fill": "#FF5722",  # faint semi-transparent background
             },
         )
+        self.indicator_item = self.infinite_line_x
         self.infinite_line_x.sigPositionChanged.connect(self.on_indicator_moved)
         self.axes.addItem(self.infinite_line_x)
 
@@ -350,9 +372,9 @@ class LocatorX(LocatorBase):
             index = round((x_plot_position) / self.size) + self.i_min
         else:
             index = int((x_plot_position)) + self.i_min
-        
+
         self.sweep.set_status(f"index {index}", force_report=True)
-        
+
         if index < 0:
             return None
         elif index >= len(self.sweep.scan_data.positions):

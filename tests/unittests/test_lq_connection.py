@@ -1,6 +1,7 @@
 import unittest
 from ScopeFoundry import BaseApp
 from ScopeFoundry.logged_quantity.array_lq import ArrayLQ
+from ScopeFoundry.tests.unittests.unittest_helpers import close_app_widgets
 
 
 class LQConnectionTestApp(BaseApp):
@@ -87,6 +88,7 @@ class LQConnectionTest(unittest.TestCase):
 
     def setUp(self):
         self.app = LQConnectionTestApp([])
+        self.addCleanup(close_app_widgets, self.app)
 
     def test_connect_to_lq(self):
         self.app.settings["lq1"] = 99

@@ -73,6 +73,8 @@ class Measurement:
         if name is not None:
             self.name = name
 
+        self.color = None  # set to "AUTO" or best results with QtGui.QColor.fromHsv(hue, 58, 122, 95)
+
         self.app = app
 
         self.display_update_period = 0.1  # seconds
@@ -103,6 +105,7 @@ class Measurement:
         self.progress = self.settings.New(
             "progress", dtype=float, unit="%", si=False, ro=True, protected=True
         )
+        self.progress.add_listener(self.on_change_progress, float)
         self.settings.New(
             "profile",
             dtype=bool,
@@ -123,12 +126,19 @@ class Measurement:
             op_func=self.show_ui,
             icon_path=self.app.icons_path / "show_ui_logo.png",
         )
-        self.add_operation("Reload_Code", self.reload_code)
+        self.add_operation(
+            "Reload_Code",
+            self.reload_code,
+            description=f"Reloads {self.__class__.__name__}",
+            icon_path=QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserReload
+            ),
+        )
 
         if hasattr(self, "ui_filename"):
             self.load_ui()
-        self.setup()
         self.subwin = None  # will be set when the measurement is added to the app
+        self.setup()
         self.end_state = "not defined"
 
         self._init_py_analysis_directory()
@@ -303,6 +313,7 @@ class Measurement:
         """
         self.progress.update_value(pct)
 
+    def on_change_progress(self, pct):
         if pct:
             text = f"{self.name} (in {to_etr_str((100 - pct)/pct * (time.time() - self._t0))})"
         else:
@@ -405,6 +416,7 @@ class Measurement:
         nested_interrupt: bool = True,
         polling_func: Callable = None,
         polling_time: float = 0.1,
+        never_interrupt_measure=False,
     ):
         """
         Start another nested measurement *measure* and wait until completion.
@@ -440,10 +452,20 @@ class Measurement:
         last_polling = time.time()
 
         # Now that it is running, wait until done
+        t_interrupt = None
+        hard_interrupted = False
         while measure.is_measuring():
-            if self.interrupt_measurement_called:
-                # print('nest outer interrupted', self.interrupt_measurement_called)
-                measure.interrupt()
+            if self.interrupt_measurement_called and never_interrupt_measure == False:
+                measure._interrupt()
+                if t_interrupt is None:
+                    t_interrupt = time.time()
+                # last resort: terminating a QThread can crash mid hardware call
+                elif not hard_interrupted and time.time() - t_interrupt > 5.0:
+                    self.log.warning(
+                        f"{measure.name} did not stop within 5 s, terminating"
+                    )
+                    hard_interrupted = True
+                    measure.interrupt()
 
             if measure.interrupt_measurement_called and nested_interrupt:
                 # THIS IS MAYBE UNSAFE???: measure.interrupt_measurement_called might be also TRUE if measure finished successfully?
@@ -453,7 +475,7 @@ class Measurement:
                     measure.interrupt_measurement_called,
                     self.interrupt_measurement_called,
                 )
-                self.interrupt()
+                self._interrupt()
 
             time.sleep(0.010)
 
@@ -517,7 +539,12 @@ class Measurement:
         return btn
 
     def add_operation(
-        self, name: str, op_func: Callable[[], None], description="", icon_path=""
+        self,
+        name: str,
+        op_func: Callable[[], None],
+        description="",
+        icon_path="",
+        keyboard_shortcut: str = None,
     ):
         """
         Create an operation for the Measurement.
@@ -530,7 +557,7 @@ class Measurement:
         :type op_func: QtCore.Slot or Callable without Argument
         :type description: str
         """
-        self.operations.new(name, op_func, description, icon_path)
+        self.operations.new(name, op_func, description, icon_path, keyboard_shortcut)
 
     def remove_operation(self, name: str):
         self.operations.remove(name)
@@ -701,7 +728,11 @@ class Measurement:
         return self.py_analysis_scripts_path
 
     def get_py_analysis_scripts(self):
-        return self.py_analysis_scripts_path.glob("*.py")
+        return [
+            f
+            for f in self.py_analysis_scripts_path.glob("*")
+            if f.is_file() and not f.name.startswith("__")
+        ]
 
     def get_py_snippet(self) -> str:
         """return a string that gets added underneath the load line in ipynb cells for example:

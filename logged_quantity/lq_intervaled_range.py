@@ -62,15 +62,16 @@ class IntervaledLQRange:
 
     @property
     def sweep_array(self):
-        if self.sweep_type.val == "up":
+        sweep_type = "up" if self.sweep_type is None else self.sweep_type.val
+        if sweep_type == "up":
             return self.array
-        elif self.sweep_type.val == "down":
+        elif sweep_type == "down":
             return self.array[::-1]
-        elif self.sweep_type.val == "up_down":
+        elif sweep_type == "up_down":
             return np.append((self.array, self.array[::-1]))
-        elif self.sweep_type.val == "down_up":
+        elif sweep_type == "down_up":
             return np.append((self.array[::-1], self.array))
-        elif self.sweep_type.val == "zig_zag":
+        elif sweep_type == "zig_zag":
             mid = len(self.array) // 2
             return np.append(
                 [
@@ -79,7 +80,7 @@ class IntervaledLQRange:
                     self.array[0:mid:],
                 ]
             )
-        elif self.sweep_type.val == "zag_zip":
+        elif sweep_type == "zag_zip":
             mid = len(self.array) // 2
             return np.append(
                 [

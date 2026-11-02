@@ -3,9 +3,10 @@ from typing import Protocol, List, Union
 
 from qtpy import QtCore, QtGui, QtWidgets
 
-from ScopeFoundry.helper_funcs import filter_with_patterns
+from ScopeFoundry.helper_funcs import filter_with_patterns, matches_search_terms
 from ScopeFoundry.logged_quantity import ArrayLQ, FileLQ, LoggedQuantity, LQCollection
 from ScopeFoundry.operations import Operations
+from ScopeFoundry.widgets import SearchField as _BaseSearchField
 
 
 class SubtreeAbleObj(Protocol):
@@ -20,11 +21,104 @@ class SubtreeAbleObj(Protocol):
     def on_right_click(self): ...  # optional
 
 
+class SFQTreeWidget(QtWidgets.QTreeWidget):
+    """QTreeWidget with top-level branch background matched to header color."""
+
+    def drawBranches(self, painter, rect, index):
+        item = self.itemFromIndex(index)
+        if item is not None and item.parent() is None:
+            bg = item.background(0)
+            if bg.style() != QtCore.Qt.NoBrush:
+                painter.fillRect(rect, bg)
+        super().drawBranches(painter, rect, index)
+
+    _filter_text = ""
+    _expanded_before_filter = None
+
+    def apply_filter(self, text: str) -> None:
+        """Show only items whose paths match *text* (all whitespace separated
+        terms must match; terms with * ? [ are fnmatch patterns, others are
+        case-insensitive substrings). A matching header shows all its children."""
+        text = text.strip()
+        was_filtering = bool(self._filter_text)
+        self._filter_text = text
+        terms = text.lower().split()
+
+        if terms and not was_filtering:
+            self._expanded_before_filter = {
+                id(self.topLevelItem(i)): self.topLevelItem(i).isExpanded()
+                for i in range(self.topLevelItemCount())
+            }
+
+        for i in range(self.topLevelItemCount()):
+            header = self.topLevelItem(i)
+            if not terms:
+                header.setHidden(False)
+                for j in range(header.childCount()):
+                    header.child(j).setHidden(False)
+                if was_filtering and self._expanded_before_filter:
+                    header.setExpanded(
+                        self._expanded_before_filter.get(id(header), header.isExpanded())
+                    )
+                continue
+
+            header_match = matches_search_terms(_item_path(header), terms)
+            any_child = False
+            for j in range(header.childCount()):
+                child = header.child(j)
+                visible = header_match or matches_search_terms(_item_path(child), terms)
+                child.setHidden(not visible)
+                any_child = any_child or visible
+            header.setHidden(not (header_match or any_child))
+            if header_match or any_child:
+                header.setExpanded(True)
+
+        if not terms:
+            self._expanded_before_filter = None
+
+
+def _item_path(item) -> str:
+    """LoggedQuantity path (e.g. hw/name/lq) of a tree item, falling back to its text."""
+    path = item.data(0, QtCore.Qt.UserRole)
+    if path:
+        return path
+    obj = getattr(item, "obj", None)
+    path = getattr(obj, "path", None)
+    if path is None and obj is not None:
+        path = getattr(getattr(obj, "settings", None), "path", None)
+    return path or item.text(0)
+
+
+class SearchField(_BaseSearchField):
+    """SearchField that filters one or more trees."""
+
+    def __init__(self, *trees: SFQTreeWidget, placeholder="search…", parent=None):
+        super().__init__(placeholder, parent)
+        self.trees = []
+        for tree in trees:
+            self.attach(tree)
+
+    def attach(self, tree: SFQTreeWidget) -> None:
+        self.trees.append(tree)
+        self.textChanged.connect(tree.apply_filter)
+        if self.text():
+            tree.apply_filter(self.text())
+
+
+def attach_search(search_field: QtWidgets.QLineEdit, *trees: SFQTreeWidget) -> None:
+    """Let one search field filter several trees."""
+    for tree in trees:
+        search_field.textChanged.connect(tree.apply_filter)
+
+
 def new_tree_widget(
-    objs: List[SubtreeAbleObj], header=["col0", ""], include=None, exclude=None
+    objs: List[SubtreeAbleObj],
+    header=["col0", ""],
+    include=None,
+    exclude=None,
 ) -> QtWidgets.QTreeWidget:
     """returns a tree widget that represents objects with their settings and operations"""
-    tree_widget = QtWidgets.QTreeWidget()
+    tree_widget = SFQTreeWidget()
     tree_widget.setColumnCount(len(header))
     tree_widget.setHeaderLabels(header)
     tree_widget.setColumnWidth(0, 180)
@@ -79,6 +173,15 @@ class SubtreeManager:
         self.operation_items = {}
 
         self.header_item = SFQTreeWidgetItem(tree_widget, [obj.name, ""])
+        header_bg = getattr(obj, "color", None)
+        if header_bg is not None:
+            header_fg = QtGui.QColor("white")
+            header_font = self.header_item.font(0)
+            header_font.setBold(False)
+            for col in range(tree_widget.columnCount()):
+                self.header_item.setBackground(col, header_bg)
+                self.header_item.setForeground(col, header_fg)
+                self.header_item.setFont(col, header_font)
         self.tree_widget = tree_widget  # the widget where instance lives
 
         if hasattr(obj, "on_new_subtree"):
@@ -102,6 +205,11 @@ class SubtreeManager:
         )
         self.header_item.obj = obj
 
+    def _reapply_filter(self):
+        tree = self.tree_widget
+        if hasattr(tree, "apply_filter") and tree._filter_text:
+            tree.apply_filter(tree._filter_text)
+
     def add_lq_child_item(self, lq: LoggedQuantity):
         update_settings(
             self.settings,
@@ -110,6 +218,7 @@ class SubtreeManager:
             self.include,
             self.exclude,
         )
+        self._reapply_filter()
 
     def remove_lq_child_item(self, lq: LoggedQuantity):
         remove_from_tree(lq.name, self.header_item, self.settings_items)
@@ -122,6 +231,7 @@ class SubtreeManager:
             self.include,
             self.exclude,
         )
+        self._reapply_filter()
 
     def remove_operation_child_item(self, name: str):
         remove_from_tree(name, self.header_item, self.operation_items)
@@ -136,27 +246,27 @@ class SubtreeManager:
         self.settings.q_object.lq_removed.disconnect(self.remove_lq_child_item)
         self.operations.q_object.added.disconnect(self.add_operation_child_item)
         self.operations.q_object.removed.disconnect(self.remove_operation_child_item)
-        
+
         for child_item in list(self.settings_items.values()):
             widget = self.tree_widget.itemWidget(child_item, 1)
             if widget:
                 widget.deleteLater()
             self.header_item.removeChild(child_item)
-        
+
         for child_item in list(self.operation_items.values()):
             widget = self.tree_widget.itemWidget(child_item, 1)
             if widget:
                 widget.deleteLater()
             self.header_item.removeChild(child_item)
-        
+
         header_widget = self.tree_widget.itemWidget(self.header_item, 1)
         if header_widget:
             header_widget.deleteLater()
-        
+
         index = self.tree_widget.indexOfTopLevelItem(self.header_item)
         if index >= 0:
             self.tree_widget.takeTopLevelItem(index)
-        
+
         self.settings_items.clear()
         self.operation_items.clear()
 
@@ -184,6 +294,7 @@ def update_operations(
             continue
         op_button = operations.new_button(op_name)
         new_item = QtWidgets.QTreeWidgetItem(root_item, [op_name, ""])
+        new_item.setData(0, QtCore.Qt.UserRole, f"{operations.path}/{op_name}")
         children[op_name] = new_item
         root_item.addChild(new_item)
         root_item.treeWidget().setItemWidget(new_item, 1, op_button)

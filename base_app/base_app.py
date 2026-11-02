@@ -12,7 +12,7 @@ import logging
 import sys
 import traceback
 from pathlib import Path
-from typing import Callable, Dict, List, Any
+from typing import Callable, Dict, List, Any, Optional
 from warnings import warn
 
 from qtpy import QtCore, QtWidgets, QtGui
@@ -44,7 +44,7 @@ sys.excepthook = log_unhandled_exception
 
 # To fix a bug with jupyter qtconsole for python 3.8
 # https://github.com/jupyter/notebook/issues/4613#issuecomment-548992047
-if sys.platform == "win32":
+if sys.platform == "win32" and sys.version_info <= (3, 12):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
@@ -54,8 +54,25 @@ SETTINGS_PATH_TYPE = Dict[str, LoggedQuantity]
 class WRITE_RES(enum.Enum):
     SUCCESS = enum.auto()
     MISSING = enum.auto()
+    MISSING_COMPONENT = enum.auto()
     PROTECTED = enum.auto()
     ERROR = enum.auto()
+
+
+def get_missing_component(app, path: str) -> Optional[str]:
+    """Returns "hw/<name>" or "mm/<name>" if the path belongs to a hardware or
+    measurement that is not present in the app, else None."""
+    parts = path.split("/")
+    if len(parts) < 3:
+        return None
+    section = parts[0].lower()
+    if section in ("hw", "hardware"):
+        prefix, components = "hw", getattr(app, "hardware", {})
+    elif section in ("mm", "measure", "measurement", "measurements"):
+        prefix, components = "mm", getattr(app, "measurements", {})
+    else:
+        return None
+    return None if parts[1] in components else f"{prefix}/{parts[1]}"
 
 
 class EventFilter(QtCore.QObject):
@@ -263,13 +280,19 @@ class BaseApp(QtCore.QObject):
         lq.update_value(value)
         return WRITE_RES.SUCCESS
 
+    def _file_loading_writes_protected(self) -> bool:
+        lq = self.settings.as_dict().get("file_loading_write_protected")
+        return bool(lq.value) if lq is not None else False
+
     def write_setting_safe(
         self, path: str, value: Any, error_msgs: Dict[str, str] = None
     ) -> WRITE_RES:
         lq = self.get_lq(path)
         if lq is None:
+            if get_missing_component(self, path) is not None:
+                return WRITE_RES.MISSING_COMPONENT
             return WRITE_RES.MISSING
-        elif lq.protected:
+        elif lq.protected and not self._file_loading_writes_protected():
             return WRITE_RES.PROTECTED
         try:
             lq.update_value(value)
@@ -290,6 +313,11 @@ class BaseApp(QtCore.QObject):
         """
         updates settings based on a dictionary.
 
+        writes happen in three phases:
+        1) settings flagged with set_before_connection
+        2) "connected" settings
+        3) all other settings
+
         ==============  =========  ====================================================================================
         **Arguments:**  **Type:**  **Description:**
         settings        dict       (path, value) map
@@ -297,7 +325,20 @@ class BaseApp(QtCore.QObject):
         """
         report = {}
         error_msgs = {}
+        connected_lqs = {}
+        deferred = {}
+
         for path, value in settings.items():
+            lq = self.get_lq(path)
+            if path.endswith("/connected"):
+                connected_lqs[path] = value
+            elif lq is not None and lq.set_before_connection:
+                report[path] = self.write_setting_safe(path, value, error_msgs)
+            else:
+                deferred[path] = value
+        for path, value in connected_lqs.items():
+            report[path] = self.write_setting_safe(path, value, error_msgs)
+        for path, value in deferred.items():
             report[path] = self.write_setting_safe(path, value, error_msgs)
         return report, error_msgs
 
@@ -373,6 +414,7 @@ class BaseApp(QtCore.QObject):
         op_func: Callable[[], None],
         description: str = "",
         icon_path: str = "",
+        keyboard_shortcut: str = None,
     ) -> None:
         """
         Create an operation for the App.
@@ -385,7 +427,7 @@ class BaseApp(QtCore.QObject):
         :type op_func: QtCore.Slot or Callable without Argument
         :type description: str
         """
-        self.operations.new(name, op_func, description, icon_path)
+        self.operations.new(name, op_func, description, icon_path, keyboard_shortcut)
 
     def remove_operation(self, name: str) -> None:
         self.operations.remove(name)

@@ -1,8 +1,13 @@
 import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from ScopeFoundry.measurement import Measurement
 from ScopeFoundry import BaseMicroscopeApp, h5_io
+from ScopeFoundry.base_app.profile_manager import ProfileManager
+from ScopeFoundry.tests.unittests.unittest_helpers import close_app_widgets
 
 
 class DummyMeasure(Measurement):
@@ -23,7 +28,17 @@ class DummyMeasure(Measurement):
 class AnalyzeNBTest(unittest.TestCase):
 
     def setUp(self):
+        self._app_implementation_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._app_implementation_dir.cleanup)
+        implementation_dir_patch = patch.object(
+            ProfileManager,
+            "_app_implementation_dir",
+            return_value=Path(self._app_implementation_dir.name),
+        )
+        implementation_dir_patch.start()
+        self.addCleanup(implementation_dir_patch.stop)
         self.app = BaseMicroscopeApp([])
+        self.addCleanup(close_app_widgets, self.app)
         self.m = self.app.add_measurement(DummyMeasure(self.app))
 
     def test_non_empty_file(self):

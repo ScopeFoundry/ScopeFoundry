@@ -1,6 +1,11 @@
 import unittest
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 
 from ScopeFoundry import BaseMicroscopeApp, HardwareComponent, Measurement
+from ScopeFoundry.base_app.profile_manager import ProfileManager
+from ScopeFoundry.tests.unittests.unittest_helpers import close_app_widgets
 
 
 class Measure1(Measurement):
@@ -39,12 +44,21 @@ class App(BaseMicroscopeApp):
 class GetSettingsTest(unittest.TestCase):
 
     def setUp(self):
+        self._app_implementation_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._app_implementation_dir.cleanup)
+        implementation_dir_patch = patch.object(
+            ProfileManager,
+            "_app_implementation_dir",
+            return_value=Path(self._app_implementation_dir.name),
+        )
+        implementation_dir_patch.start()
+        self.addCleanup(implementation_dir_patch.stop)
         self.app = App([])
+        self.addCleanup(close_app_widgets, self.app)
         self.hw = self.app.hw
 
     def tearDown(self):
         # self.app.on_close()
-        self.app.qtapp.exit()
         del self.app
 
     def test_settings_persistance(self):

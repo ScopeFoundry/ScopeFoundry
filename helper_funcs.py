@@ -432,6 +432,23 @@ def filter_with_patterns(
     return keys
 
 
+def matches_search_terms(text: str, query) -> bool:
+    """Shared search semantics (tree search field, QSearchableComboBox).
+
+    *query* is a string or a list of lowercase terms. All whitespace separated
+    terms must match *text* case-insensitively. Terms containing * ? [ are fnmatch
+    patterns against the whole text, other terms are substrings."""
+    terms = query.lower().split() if isinstance(query, str) else query
+    text = text.lower()
+    for term in terms:
+        if any(c in term for c in "*?["):
+            if not fnmatch.fnmatchcase(text, term):
+                return False
+        elif term not in text:
+            return False
+    return True
+
+
 def get_scopefoundry_version():
     try:
         # only works if installed with pip (hence you are not a developer)

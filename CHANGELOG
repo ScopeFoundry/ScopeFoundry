@@ -1,3 +1,28 @@
+ScopeFoundry 2.4.0 2026-10-20
+
+	* Features added:
+		- [profile_manager] added editable partial profiles based on window_positions.json and settings.ini, replacing defaults.ini; profile history records UI setting changes and app shutdown. Added favorite profiles and a detached editor window; Added history, a snapshot profile is created when user changes a logged quantity, Ctrl+U/Ctrl+Y undo and redo profile changes.
+		- [show_io_report] missing settings in loaded .ini/.h5 files can now be resolved in the report dialog (ignore, ignore permanently, map to another setting; for .ini also replace or remove in file). Choices are remembered in the .scopefoundry file and applied quietly on later loads.
+		- [base_microscope_app] new app settings: `settings_loading_reporting` (never: don't show the report; moderate (default): skip settings of missing hardware/measurements and use remembered mappings/ignores; strict: always show the dialog) and `file_loading_write_protected` (default False: also write protected settings when loading a file).
+		- [base_microscope_app] added subwindow snap buttons (top/bottom/left/right half) and window positions now saved and loaded more reliably.
+		- [logged_quantity] added set_before_connection for file loading, listeners can be restricted to user changes, and connecting a widget now sets its value directly without emitting a change signal.
+		- [operations] operations can now be bound to keyboard shortcuts.
+		- [hardware] added an option to connect in a separate thread. Not default behavior.
+		- [h5_io/dataset_metadata] updated the file format to version 240, save measurement metadata and settings from measurements without datasets, and identify the measurement that produced datasets.
+		- [sweeping] added 1D sweep slicing, sweep types, alternating sweep direction, optional locators, and data reducers for sweeps and Map2D; improved the compact UI, locator positioning, parallel position execution, sweep numbering, and stability.
+		- [tree_widget/widgets] added tree colors and search for logged-quantity paths, including a searchable choice widget. Usage: self.settings.New(... choices=..., default_widget_factory=QSearchComboBox)
+		- [analyze_with_ipynb] analysis scripts can now include non-Python files such as .txt, .mat, and Markdown files.
+		- [base_microscope_app] added an operation to reload code for all components.
+		
+	* Fixes:
+		- [base_microscope_app] profile loading now selects the correct tab on first load, handles windows for measurements that are no longer present, and saves window positions more accurately.
+		- [logged_quantity] fixed widget disconnection, including widgets with context menus; added the requires_connection setting.
+		- [measurement] fixed a startup error and improved nested-measurement stability. Moved display updates to the GUI thread.
+		- [sweeping] fixed intervaled-range sweep areas and ensured position-change signals are sent when the target matches the first position.
+		- [h5_io/generate_loaders] fixed duplicate dataset-loader implementation.
+		- Improved test coverage and test cleanup, including settings, 1D sweeps, and nested measurements.
+
+
 ScopeFoundry 2.3.0 2026-09-10
 
 	* Features added:

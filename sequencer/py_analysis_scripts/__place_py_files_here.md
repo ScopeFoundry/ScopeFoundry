@@ -1,0 +1,2 @@
+Place .py files here that get copied to your data folder (never overrides, delete at data folder to update).
+In particular useful to reference with snippets that gets returned with .get_py_snippets() method of the Measurement properly implemented.

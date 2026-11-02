@@ -5,12 +5,14 @@ from qtpy import QtWidgets
 
 from ScopeFoundry.base_app.base_app import BaseApp
 from ScopeFoundry.widgets import MinMaxQSlider
+from ScopeFoundry.tests.unittests.unittest_helpers import close_app_widgets
 
 
 class LQDisconnectFromWidgetTest(unittest.TestCase):
 
     def setUp(self):
         self.app = app = BaseApp([])
+        self.addCleanup(close_app_widgets, self.app)
         self.settings = app.settings
         self.str = self.settings.New("str", str, initial="0")
         self.float = self.settings.New("float", float, vmin=-100, vmax=100)
@@ -20,11 +22,6 @@ class LQDisconnectFromWidgetTest(unittest.TestCase):
             "choices", int, choices=(("one", 1), ("two", 2), ("three", 3))
         )
         self._dir = self.settings.New("dir", "file", initial="test_dir", is_dir=True)
-
-    def tearDown(self):
-        # self.app.on_close()
-        self.app.qtapp.exit()
-        del self.app
 
     def test_qdouble_spinbox(self):
         wf = QtWidgets.QDoubleSpinBox()
@@ -52,6 +49,30 @@ class LQDisconnectFromWidgetTest(unittest.TestCase):
 
         self.assertEqual(wf.value(), 2.0)
         self.assertEqual(wi.value(), 2)
+
+    def test_checkbox(self):
+        widget = QtWidgets.QCheckBox()
+        self.bool.connect_to_widget(widget)
+        self.bool.update_value(True)
+        self.bool.disconnect_from_widget(widget)
+
+        self.bool.update_value(False)
+        self.assertTrue(widget.isChecked())
+        self.bool.update_value(True)
+        widget.click()
+
+        self.assertFalse(widget.isChecked())
+        self.assertTrue(self.bool.val)
+
+    def test_label_disconnect(self):
+        widget = QtWidgets.QLabel()
+        self.float.connect_to_widget(widget)
+        self.assertEqual(widget.text(), "0")
+
+        self.float.disconnect_from_widget(widget)
+        self.float.update_value(1.0)
+
+        self.assertEqual(widget.text(), "0")
 
 
 #     def test_pyqtgraph_spinbox(self):

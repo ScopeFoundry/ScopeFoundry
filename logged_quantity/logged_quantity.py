@@ -12,7 +12,6 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ScopeFoundry.helper_funcs import QLock, bool2str, get_logger_from_class, str2bool
 from ScopeFoundry.widgets import MinMaxQSlider
 
-
 tick_path = Path(__file__).parent / "tick.png"
 
 
@@ -62,6 +61,10 @@ class LoggedQuantity(QtCore.QObject):
 
     # signal sent when value has been updated
     updated_value = QtCore.Signal((float,), (int,), (bool,), (), (str,))
+    # signal sent when a widget changes the value
+    updated_value_ui = QtCore.Signal(
+        (float,), (int,), (bool,), (), (str,), (str, object, object)
+    )
     # signal sent when value has been updated, sends text representation
     updated_text_value = QtCore.Signal(str)
     # emits the index of the value in self.choices
@@ -93,6 +96,7 @@ class LoggedQuantity(QtCore.QObject):
         is_cmd: bool = False,
         is_clipboardable: bool = False,
         default_widget_factory=None,
+        set_before_connection: bool = False,  # when loading a profile, this setting is applied before the hardware connection is established.
     ):
         QtCore.QObject.__init__(self)
 
@@ -141,6 +145,7 @@ class LoggedQuantity(QtCore.QObject):
         else:
             self.spinbox_decimals = spinbox_decimals
         self.reread_from_hardware_after_write = reread_from_hardware_after_write
+        self.set_before_connection = set_before_connection
 
         if self.dtype == int:
             self.spinbox_step = 1
@@ -155,6 +160,7 @@ class LoggedQuantity(QtCore.QObject):
 
         self.widget_list = []
         self.listeners = []
+        self.ui_listeners = []
 
         # threading lock
         self.lock = QLock(mode=1)  # mode 0 is non-reentrant lock
@@ -247,7 +253,12 @@ class LoggedQuantity(QtCore.QObject):
     @QtCore.Slot(bool)
     @QtCore.Slot()
     def update_value(
-        self, new_val=None, update_hardware=True, send_signal=True, reread_hardware=None
+        self,
+        new_val=None,
+        update_hardware=True,
+        send_signal=True,
+        reread_hardware=None,
+        _from_ui=False,
     ):
         """
         Update stored value with new_val
@@ -270,6 +281,8 @@ class LoggedQuantity(QtCore.QObject):
         # use a thread lock during update_value to avoid another thread
         # calling update_value during the update_value
 
+        source_is_ui = _from_ui or isinstance(self.sender(), QtWidgets.QWidget)
+
         if reread_hardware is None:
             # if undefined, default to stored reread_from_hardware_after_write bool
             reread_hardware = self.reread_from_hardware_after_write
@@ -283,22 +296,25 @@ class LoggedQuantity(QtCore.QObject):
                     new_val = self.sender().text()
 
             self.oldval = self.coerce_to_type(self.val)
+            ui_old_value = self.oldval
             new_val = self.coerce_to_type(new_val)
 
             self.log.debug(
                 f"{self.path}: update_value {repr(self.oldval)} --> {repr(new_val)}  from sender:{repr(self.sender())}"
             )
 
-            # check for equality of new vs old, do not proceed if they are same
-            if self.same_values(self.oldval, new_val):
+            # check for equality of new vs old, do not proceed if they are same unless the source is the UI
+            if self.same_values(self.oldval, new_val):  # and not source_is_ui:
                 self.log.debug(f"{self.path}: same_value so returning")
                 return
             # else:
             #     self.log.debug(f"{self.path}: different values {self.oldval} {new_val}")
 
             # actually change internal state value and store prev. values
-            self.prev_vals.appendleft(self.val)
+            if source_is_ui:
+                self.prev_vals.appendleft(self.val)
             self.val = new_val
+            ui_new_value = self.val
 
         # Read from Hardware
         if update_hardware and self.hardware_set_func:
@@ -307,7 +323,23 @@ class LoggedQuantity(QtCore.QObject):
                 self.read_from_hardware(send_signal=False)
         # Send Qt Signals
         if send_signal:
+            if source_is_ui:
+                self.send_ui_display_updates(ui_old_value, ui_new_value)
             self.send_display_updates()
+
+    def send_ui_display_updates(self, old_value=None, new_value=None):
+        """Emit signals only for changes that originated in a UI widget."""
+        self.updated_value_ui[(str, object, object)].emit(
+            self.path, old_value, new_value
+        )
+        self.updated_value_ui[()].emit()
+        self.updated_value_ui[str].emit(self.string_value())
+        if getattr(self, "is_array", False):
+            return
+        if self.dtype in [float, int]:
+            self.updated_value_ui[float].emit(self.val)
+            self.updated_value_ui[int].emit(int(self.val))
+        self.updated_value_ui[bool].emit(bool(self.val))
 
     def send_display_updates(self, force=False):
         """
@@ -371,7 +403,10 @@ class LoggedQuantity(QtCore.QObject):
         return str(self.val)
 
     def update_choice_index_value(self, new_choice_index, **kwargs):
-        self.update_value(self.choices[new_choice_index][1], **kwargs)
+        source_is_ui = isinstance(self.sender(), QtWidgets.QWidget)
+        self.update_value(
+            self.choices[new_choice_index][1], _from_ui=source_is_ui, **kwargs
+        )
 
     def add_listener(self, func, argtype=(), **kwargs):
         """
@@ -398,6 +433,19 @@ class LoggedQuantity(QtCore.QObject):
         self.updated_value[argtype].connect(func, **kwargs)
         self.listeners.append(func)
 
+    def add_listener_ui(self, func, argtype=(), **kwargs):
+        """Listen only for value changes received from a Qt widget.
+
+        Use ``argtype=(str, object, object)`` to receive the old and new values.
+        """
+        self.updated_value_ui[argtype].connect(func, **kwargs)
+        self.ui_listeners.append(func)
+
+    def remove_listener_ui(self, func, argtype=()):
+        """Disconnect a UI-only listener previously added with add_listener_ui."""
+        self.updated_value_ui[argtype].disconnect(func)
+        self.ui_listeners.remove(func)
+
     def change_readonly_on(self, other_lq, func=bool):
         """
         When the other_lq updates, this LQ will be change its readonly status to func(other_lq.val).
@@ -419,7 +467,8 @@ class LoggedQuantity(QtCore.QObject):
                 tips.append(str(s))
         if self.protected:
             tips.append("\n<b>🔒 protected</b>")
-
+        if self.set_before_connection:
+            tips.append("\n🥇 set before connection on file loading</b>")
         tips_str = "\n".join(tips)
         widget.setToolTip(f"<div style='white-space: pre-line;'>{tips_str}</div>")
         return tips
@@ -488,15 +537,18 @@ class LoggedQuantity(QtCore.QObject):
                 update_widget_value
             )
             # if not self.ro:
-            widget.valueChanged[float].connect(self.update_value)
+            widget.from_connection = widget.valueChanged[float].connect(
+                self.update_value
+            )
 
         elif isinstance(widget, MinMaxQSlider):
-            self.updated_value[float].connect(widget.update_value)
-            widget.updated_value.connect(self.update_value)
             if self.unit is not None:
                 widget.unit = self.unit
             widget.set_range(self.vmin, self.vmax)
             widget.set_name(self.name)
+            widget.update_value(self.val)
+            self.updated_value[float].connect(widget.update_value)
+            widget.updated_value.connect(self.update_value)
 
         elif isinstance(widget, QtWidgets.QSlider):
             SLIDER_MIN = -2147483648
@@ -512,9 +564,9 @@ class LoggedQuantity(QtCore.QObject):
 
             if self.dtype == int and not int_overflow:
                 widget.setRange(int(vmin), int(vmax))
+                widget.setValue(self.val)
                 self.updated_value[int].connect(widget.setValue)
                 widget.valueChanged[int].connect(self.update_value)
-                widget.setValue(self.value)
 
             elif self.dtype == float or (self.dtype == int and int_overflow):
                 # the sliders values are scaled version of the actual value
@@ -538,6 +590,9 @@ class LoggedQuantity(QtCore.QObject):
                 self._transform_to_slider = transform_to_slider
                 self._transform_from_slider = transform_from_slider
 
+                widget.setSingleStep(1)
+                widget.setValue(transform_to_slider(self.val))
+
                 @QtCore.Slot(float)
                 def update_widget_value(x):
                     """
@@ -552,12 +607,10 @@ class LoggedQuantity(QtCore.QObject):
 
                 @QtCore.Slot(int)
                 def update_lq(x):
-                    self.update_value(transform_from_slider(x))
+                    self.update_value(transform_from_slider(x), _from_ui=True)
 
-                widget.setSingleStep(1)
                 self.updated_value[float].connect(update_widget_value)
                 widget.valueChanged[int].connect(update_lq)
-                widget.setValue(transform_to_slider(self.val))
 
             else:
                 self.log.warning(
@@ -565,6 +618,7 @@ class LoggedQuantity(QtCore.QObject):
                 )
 
         elif isinstance(widget, QtWidgets.QCheckBox):
+            widget.setChecked(self.val)
 
             @QtCore.Slot(bool)
             def update_widget_value(x=None):
@@ -579,7 +633,7 @@ class LoggedQuantity(QtCore.QObject):
             if self.ro:
                 widget.setEnabled(False)
             else:
-                widget.clicked[bool].connect(self.update_value)
+                widget.from_connection = widget.clicked[bool].connect(self.update_value)
                 # only works if widget was clicked or
                 # widget value changed and widget.clicked.emit() was called
                 # Maybe more rigourous would be
@@ -593,6 +647,7 @@ class LoggedQuantity(QtCore.QObject):
                 )
 
         elif isinstance(widget, QtWidgets.QLineEdit):
+            widget.setText(self.string_value())
             self.updated_text_value[str].connect(widget.setText)
             self.updated_value[str].connect(widget.setText)
 
@@ -603,7 +658,7 @@ class LoggedQuantity(QtCore.QObject):
                 self.log.debug(f"{self.path} qLineEdit on_edit_finished")
                 try:
                     widget.blockSignals(True)
-                    self.update_value(widget.text())
+                    self.update_value(widget.text(), _from_ui=True)
                 finally:
                     widget.blockSignals(False)
 
@@ -611,6 +666,7 @@ class LoggedQuantity(QtCore.QObject):
 
         elif isinstance(widget, QtWidgets.QPlainTextEdit):
             # TODO Read only
+            widget.setPlainText(self.string_value())
 
             def on_lq_changed(new_text):
                 current_cursor = widget.textCursor()
@@ -624,7 +680,7 @@ class LoggedQuantity(QtCore.QObject):
             def on_widget_textChanged():
                 try:
                     widget.blockSignals(True)
-                    self.update_value(widget.toPlainText())
+                    self.update_value(widget.toPlainText(), _from_ui=True)
                 finally:
                     widget.blockSignals(False)
 
@@ -633,6 +689,7 @@ class LoggedQuantity(QtCore.QObject):
             widget.textChanged.connect(on_widget_textChanged)
 
         elif isinstance(widget, QtWidgets.QTextEdit):
+            widget.setText(self.string_value())
 
             def on_updated(x=None):
                 widget.setText(self.val)
@@ -642,7 +699,7 @@ class LoggedQuantity(QtCore.QObject):
             def on_text_changed(x=None):
                 try:
                     widget.blockSignals(True)
-                    self.update_value(widget.toPlainText())
+                    self.update_value(widget.toPlainText(), _from_ui=True)
                 finally:
                     widget.blockSignals(False)
 
@@ -654,6 +711,10 @@ class LoggedQuantity(QtCore.QObject):
 
             for choice_name, choice_value in self.choices:
                 widget.addItem(choice_name, choice_value)
+            choice_values = [choice[1] for choice in self.choices]
+            widget.setCurrentIndex(
+                choice_values.index(self.val) if self.val in choice_values else 0
+            )
             self.updated_choice_index_value[int].connect(widget.setCurrentIndex)
             widget.currentIndexChanged.connect(self.update_choice_index_value)
 
@@ -666,7 +727,7 @@ class LoggedQuantity(QtCore.QObject):
                         qc = self.qcolors[idx]
                     else:
                         qc = QtGui.QColor("lightgrey")
-                    widget.setStyleSheet(widget.styleSheet() + s)
+                    # widget.setStyleSheet(widget.styleSheet())
 
                 widget.currentIndexChanged.connect(update_background_color)
 
@@ -706,6 +767,8 @@ class LoggedQuantity(QtCore.QObject):
             if not self.si:
                 widget.setSingleStep(self.spinbox_step)
 
+            widget.setValue(self.val)
+
             # self.updated_value[float].connect(widget.setValue)
             # if not self.ro:
             # widget.valueChanged[float].connect(self.update_value)
@@ -725,25 +788,29 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_value[float].connect(update_widget_value)
 
             def on_widget_update(_widget):
-                self.update_value(_widget.value())
+                self.update_value(_widget.value(), _from_ui=True)
 
             widget.sigValueChanged.connect(on_widget_update)
 
         elif isinstance(widget, QtWidgets.QLabel):
+            widget.setText(self.string_value())
             self.updated_text_value.connect(widget.setText)
+
         elif isinstance(widget, QtWidgets.QProgressBar):
 
             def set_progressbar(x, widget=widget):
                 self.log.debug(f"set_progressbar {x}")
                 widget.setValue(int(x))
 
+            widget.setValue(int(self.val))
             self.updated_value.connect(set_progressbar)
         elif isinstance(widget, QtWidgets.QLCDNumber):
+            widget.display(self.dtype(self.val))
             self.updated_value[(self.dtype)].connect(widget.display)
         else:
             raise ValueError("Unknown widget type")
 
-        self.send_display_updates(force=True)
+        # self.send_display_updates(force=True)
         # self.widget = widget
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
@@ -764,9 +831,15 @@ class LoggedQuantity(QtCore.QObject):
         self.widget_list.remove(widget)
 
         try:
-            widget.disconnect()
-        except RuntimeError:
+            widget.customContextMenuRequested.disconnect(self.on_right_click)
+        except (RuntimeError, TypeError):
             pass
+
+        for connection_name in ("to_connection", "from_connection"):
+            connection = getattr(widget, connection_name, None)
+            if connection is not None:
+                QtCore.QObject.disconnect(connection)
+                delattr(widget, connection_name)
 
         for sig in [
             self.updated_value,
@@ -782,7 +855,14 @@ class LoggedQuantity(QtCore.QObject):
             for dtype in [float, int, bool, str]:
                 try:
                     sig[dtype].disconnect(widget)
-                except (RuntimeError, TypeError, KeyError, AttributeError):
+                except (RuntimeError, TypeError, KeyError, AttributeError, IndexError):
+                    pass
+
+        if isinstance(widget, QtWidgets.QLabel):
+            for sig in (self.updated_text_value, self.updated_value[str]):
+                try:
+                    sig.disconnect(widget.setText)
+                except (RuntimeError, TypeError):
                     pass
 
     def connect_to_widget_one_way(self, widget):
@@ -824,11 +904,12 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_value[float].connect(update_widget_value)
 
         elif isinstance(widget, MinMaxQSlider):
-            self.updated_value[float].connect(widget.update_value)
             if self.unit is not None:
                 widget.unit = self.unit
             widget.set_range(self.vmin, self.vmax)
             widget.set_name(self.name)
+            widget.update_value(self.val)
+            self.updated_value[float].connect(widget.update_value)
 
         elif isinstance(widget, QtWidgets.QSlider):
 
@@ -845,8 +926,8 @@ class LoggedQuantity(QtCore.QObject):
 
             if self.dtype == int and not int_overflow:
                 widget.setRange(int(vmin), int(vmax))
-                self.updated_value[int].connect(widget.setValue)
                 widget.setValue(self.value)
+                self.updated_value[int].connect(widget.setValue)
 
             elif self.dtype == float or (self.dtype == int and int_overflow):
                 # the sliders values are scaled version of the actual value
@@ -883,8 +964,8 @@ class LoggedQuantity(QtCore.QObject):
                         widget.blockSignals(False)
 
                 widget.setSingleStep(1)
-                self.updated_value[float].connect(update_widget_value)
                 widget.setValue(transform_to_slider(self.val))
+                self.updated_value[float].connect(update_widget_value)
 
             else:
                 self.log.warning(
@@ -892,6 +973,7 @@ class LoggedQuantity(QtCore.QObject):
                 )
 
         elif isinstance(widget, QtWidgets.QCheckBox):
+            widget.setChecked(self.val)
 
             @QtCore.Slot(bool)
             def update_widget_value(x=None):
@@ -912,6 +994,7 @@ class LoggedQuantity(QtCore.QObject):
                 )
 
         elif isinstance(widget, QtWidgets.QLineEdit):
+            widget.setText(self.string_value())
             self.updated_text_value[str].connect(widget.setText)
             self.updated_value[str].connect(widget.setText)
             if self.ro:
@@ -919,6 +1002,7 @@ class LoggedQuantity(QtCore.QObject):
 
         elif isinstance(widget, QtWidgets.QPlainTextEdit):
             # TODO Read only
+            widget.setPlainText(self.string_value())
 
             def on_lq_changed(new_text):
                 current_cursor = widget.textCursor()
@@ -932,12 +1016,20 @@ class LoggedQuantity(QtCore.QObject):
             # self.updated_text_value[str].connect(widget.document().setPlainText)
             self.updated_text_value[str].connect(on_lq_changed)
 
+        elif isinstance(widget, QtWidgets.QTextEdit):
+            widget.setText(self.string_value())
+            self.updated_text_value[str].connect(widget.setText)
+
         elif isinstance(widget, QtWidgets.QComboBox):
             # need to have a choice list to connect to a QComboBox
             assert self.choices is not None
             widget.clear()  # removes all old choices
             for choice_name, choice_value in self.choices:
                 widget.addItem(choice_name, choice_value)
+            choice_values = [choice[1] for choice in self.choices]
+            widget.setCurrentIndex(
+                choice_values.index(self.val) if self.val in choice_values else 0
+            )
             self.updated_choice_index_value[int].connect(widget.setCurrentIndex)
 
             if self.colors is not None:
@@ -995,6 +1087,8 @@ class LoggedQuantity(QtCore.QObject):
             if not self.si:
                 widget.setSingleStep(self.spinbox_step)
 
+            widget.setValue(self.val)
+
             # self.updated_value[float].connect(widget.setValue)
             # if not self.ro:
             # widget.valueChanged[float].connect(self.update_value)
@@ -1014,9 +1108,11 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_value[float].connect(update_widget_value)
 
         elif isinstance(widget, QtWidgets.QLabel):
+            widget.setText(self.string_value())
             self.updated_text_value.connect(widget.setText)
 
         elif isinstance(widget, QtWidgets.QProgressBar):
+            widget.setValue(int(self.val))
 
             @QtCore.Slot(int)
             @QtCore.Slot(float)
@@ -1027,11 +1123,11 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_value.connect(set_progressbar)
 
         elif isinstance(widget, QtWidgets.QLCDNumber):
+            widget.display(self.dtype(self.val))
             self.updated_value[(self.dtype)].connect(widget.display)
         else:
             raise ValueError("Unknown widget type")
 
-        self.send_display_updates(force=True)
         # self.widget = widget
         self.widget_list.append(widget)
         self.change_readonly(self.ro)
@@ -1375,7 +1471,7 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_value[self.dtype].connect(
                 update_param
             )  # (lambda v, p=p: p.setValue(v))
-            p.sigValueChanged.connect(lambda p, v: self.update_value(v))
+            p.sigValueChanged.connect(lambda p, v: self.update_value(v, _from_ui=True))
 
             return p
         if self.is_array:
@@ -1395,7 +1491,7 @@ class LoggedQuantity(QtCore.QObject):
             self.updated_value[self.dtype].connect(
                 update_param
             )  # (lambda v, p=p: p.setValue(v))
-            p.sigValueChanged.connect(lambda p, v: self.update_value(v))
+            p.sigValueChanged.connect(lambda p, v: self.update_value(v, _from_ui=True))
 
             return p
 
@@ -1466,9 +1562,9 @@ def to_q_color(color, default="lightgrey"):
     except TypeError:
         qcolor = QtGui.QColor(default)
     finally:
-        if qcolor.isValid():
-            return qcolor
-        return QtGui.QColor(default)
+        if not qcolor.isValid():
+            qcolor = QtGui.QColor(default)
+    return qcolor
 
 
 def _expand_choice(c, dtype):

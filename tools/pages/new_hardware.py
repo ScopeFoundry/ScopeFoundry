@@ -11,7 +11,7 @@ class NewHardware(Page):
         m = self.settings.New(
             "series or model", dtype=str, initial="XX312_Piezo_Controller"
         )
-        self.settings.New("authors", dtype=str, initial="Benedikt Ursprung")
+        self.settings.New("authors", dtype=str, initial="")
         p = self.settings.New("pretty name", dtype=str, initial="")
 
         p.connect_lq_math((m,), make_pretty_name)

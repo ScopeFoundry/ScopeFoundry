@@ -93,7 +93,7 @@ def get_measurement_name(fname: str) -> str:
     with h5py.File(fname, "r") as file:
         if len(file["measurement"].keys()) == 1:
             return list(file["measurement"].keys())[0]
-        return file.attrs["measurement"]
+        return file.attrs.get("measurement", "root_measurement_name_unknown")
 
 
 def load(fname: str) -> Any:
@@ -128,14 +128,17 @@ def find_settings(settings: Dict, pattern: str = "measurement/*") -> Dict:
         return {}
     return {k: settings[k] for k in matching}
 
-
+OTHER_MEASUREMENTS_GROUP = "other_measurements_settings"
 def _settings_visitfunc(name: str, node: h5py.Group, settings: Dict[str, Any]) -> None:
-    if not name.endswith("settings"):
+    parts = name.split("/")
+    if parts[-1] != "settings":
         return
 
+    if len(parts) == 3 and parts[0] == OTHER_MEASUREMENTS_GROUP:
+        parts[0] = "measurement"
+
     for key, val in node.attrs.items():
-        lq_path = f"{name.replace('settings', key)}"
-        settings[lq_path] = val
+        settings["/".join(parts[:-1] + [key])] = val
 
 def load_non_settings_attrs(fname: str) -> Dict[str, Any]:
     path = Path(fname)
@@ -161,12 +164,6 @@ def _non_settings_attrs_visitfunc(
     for key, val in node.attrs.items():
         lq_path = f"{name}/{key}"
         attrs[lq_path] = val
-
-def get_mm_name(fname: str) -> str:
-    with h5py.File(fname, "r") as file:
-        if len(file["measurement"].keys()) == 1:
-            return list(file["measurement"].keys())[0]
-        return file.attrs["measurement"]
 """
 __STR__INFO = r"""
 
@@ -198,18 +195,16 @@ DICT_STYLE_METHODS = r"""
 """
 
 
-def get_measurement_name(fname: Union[str, Path]) -> str:
+def get_measurement_name(fname: str) -> str:
     with h5py.File(fname, "r") as file:
-        if "measurement" in file.attrs:
-            mm_name = file.attrs["measurement"]
-        else:
-            mm_name = list(file["measurement"].keys())[0]
-    return str(mm_name)
+        if len(file["measurement"].keys()) == 1:
+            return list(file["measurement"].keys())[0]
+        return file.attrs.get("measurement", "root_measurement_name_unknown")
 
 
-def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
+def generate_loaders(dsets: Dict[str, Dict[str, bool]]) -> List[str]:
     lines = []
-    for mm_name, key_set in dsets.items():
+    for mm_name, name_to_is_array in dsets.items():
 
         class_name = "".join(x.title() for x in mm_name.split("_"))
 
@@ -227,9 +222,13 @@ def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
             f"{' ':>12}path=Path(fname),",
             f"{' ':>12}settings=load_settings(fname),",
         ]
-        for name, is_array in key_set:
+        seen_attr_names = set()
+        for name, is_array in name_to_is_array.items():
             # strip spaces for valid class attributes but keep the original name in the load function
             attr_name = name.strip().replace(" ", "_")
+            if attr_name in seen_attr_names:
+                continue
+            seen_attr_names.add(attr_name)
             data_class_lines.append(f"{' ':>4}{attr_name}: np.ndarray")
             if is_array:
                 load_func_lines.append(
@@ -258,30 +257,28 @@ def generate_loaders(dsets: Dict[str, Set[str]]) -> List[str]:
     return lines
 
 
-def get_dset_names(folder: str) -> Dict[str, Set[str]]:
+def get_dset_names(folder: str) -> Dict[str, Dict[str, bool]]:
     path = Path(folder)
-    dset_names = {}
+    dset_names: Dict[str, Dict[str, bool]] = {}
     for fname in path.rglob("*.h5"):
         try:
             mm_name = get_measurement_name(fname)
             with h5py.File(fname, "r") as file:
-                new_keys = set(
-                    [
-                        (name, bool(val.shape))
-                        for name, val in file[f"measurement/{mm_name}"].items()
-                        if isinstance(val, h5py.Dataset)
-                    ]  # (name, is_array)
-                )
-                if mm_name in dset_names:
-                    dset_names[mm_name] = dset_names[mm_name].union(new_keys)
-                else:
-                    dset_names[mm_name] = new_keys
+                new_keys = {
+                    name: bool(val.shape)
+                    for name, val in file[f"measurement/{mm_name}"].items()
+                    if isinstance(val, h5py.Dataset)
+                }  # name -> is_array
+                existing = dset_names.setdefault(mm_name, {})
+                for name, is_array in new_keys.items():
+                    # if the dataset is an array in any file, treat it as an array everywhere
+                    existing[name] = existing.get(name, False) or is_array
         except OSError as err:
             print("Skipping", fname, err)
     return dset_names
 
 
-def generate_loaders_py(folder: str = ".") -> Tuple[Path, Dict[str, Set[str]]]:
+def generate_loaders_py(folder: str = ".") -> Tuple[Path, Dict[str, Dict[str, bool]]]:
     path = Path(folder)
     fnames = tuple(path.rglob("*.h5"))
     lines = [LOADERS_PY_HEADER]

@@ -15,9 +15,9 @@ from ScopeFoundry.tools.pages.welcome import WelcomePage
 ROOT = Path(__file__).parent.parent
 ICONS_PATH = ROOT / "base_app/icons"
 DEFAULT_INI_FILE_CONTENT = {
-    "new hardware/authors": "Benedikt Ursprung",
-    "publish HW on GitHub/gh_username": "UBene",
-    "publish HW on GitHub/ScopeFoundryHW_dir": "/Users/benediktursprung/Library/CloudStorage/OneDrive-Personal/scope_foundries/scopefoundry_trovatello_lab/ScopeFoundry/tools",
+    "new hardware/authors": "",
+    "publish HW on GitHub/gh_username": "",
+    "publish HW on GitHub/ScopeFoundryHW_dir": str(Path.cwd()),
     "publish HW on GitHub/private_or_public": "--public",
 }
 
