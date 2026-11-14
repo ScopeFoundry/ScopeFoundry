@@ -179,7 +179,7 @@ def discover_components(root):
     errors = []
     modules = {}
     classes = {}
-    ignored = {"__pycache__", "build", "dist", "venv", "env", "node_modules"}
+    ignored = {"__pycache__", "build", "dist", "venv", "env", "node_modules", "manufacturer_examples"}
     for directory, dirs, files in os.walk(
         root, onerror=lambda error: errors.append(str(error))
     ):
