@@ -18,6 +18,7 @@ class FavoritesWidget:
         self._lq_paths = []
         self._operations = []
         self._lq_paths_list = []
+        self._lq_path_groups = {}
 
         self.main_widget = QtWidgets.QWidget()
 
@@ -72,6 +73,7 @@ class FavoritesWidget:
                 continue
             self._widgets[label_text] = self.new_lq_paths_list(paths)
             self._lq_paths_list.append(label_text)
+            self._lq_path_groups[label_text] = list(paths)
         self.refresh_widgets()
 
     def add_lq_path(self, lq_path: str, refresh: bool = True):
@@ -97,7 +99,40 @@ class FavoritesWidget:
         widget = self._widgets.pop(label_text, None)
         widget.setVisible(False)
         self._lq_paths_list.remove(label_text)
+        self._lq_path_groups.pop(label_text, None)
         self.refresh_widgets()
+
+    def refresh_component(self, component_path):
+        """Rebind favorites referring to a replaced component."""
+        prefix = component_path.rstrip("/") + "/"
+        targets = [
+            (path, self.new_lq_widget, path)
+            for path in self._lq_paths if path.startswith(prefix)
+        ]
+        targets.extend(
+            (path, self.new_operation_widget, path)
+            for path in self._operations if path.startswith(prefix)
+        )
+        targets.extend(
+            (label, self.new_lq_paths_list, paths)
+            for label, paths in self._lq_path_groups.items()
+            if any(path.startswith(prefix) for path in paths[1:])
+        )
+        problems = []
+        for key, factory, argument in targets:
+            old = self._widgets[key]
+            try:
+                new = factory(argument)
+            except Exception as error:
+                old.setEnabled(False)
+                problems.append(f"favorite {key}: {error}")
+                continue
+            old.setParent(None)
+            old.deleteLater()
+            self._widgets[key] = new
+        if targets:
+            self.refresh_widgets()
+        return problems
 
     def remove_operation(self, operation_path: str):
         if not operation_path in self._operations:
