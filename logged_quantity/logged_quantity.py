@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import subprocess
 from collections import deque
 from enum import Enum
@@ -7,7 +8,7 @@ from inspect import signature
 from typing import Any, Iterable, List, Tuple, Union
 
 import pyqtgraph as pg
-from qtpy import QtCore, QtGui, QtWidgets, sip
+from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry.helper_funcs import QLock, bool2str, get_logger_from_class, str2bool
 from ScopeFoundry.widgets import MinMaxQSlider
@@ -1135,7 +1136,14 @@ class LoggedQuantity(QtCore.QObject):
     @property
     def widget_list(self):
         # Remove deleted widgets from the list before returning it
-        self._widget_list = [w for w in self._widget_list if not sip.isdeleted(w)]
+        new_widget_list = []
+        for w in self._widget_list:
+            try:
+                w.isVisible()
+                new_widget_list.append(w)
+            except RuntimeError as e:
+                self.log.debug(f"Error checking if widget is deleted: {e}")
+        self._widget_list = new_widget_list
         return self._widget_list
 
     def connect_to_pushButton(
