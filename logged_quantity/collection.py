@@ -220,6 +220,9 @@ class LQCollection:
     def remove(self, name):
         lq = self._logged_quantities.pop(name)
         self.q_object.lq_removed.emit(lq)
+        for widget in lq.widget_list:
+            lq.disconnect_from_widget(widget)
+            widget.deleteLater()
         del self.__dict__[name]
         del lq
 

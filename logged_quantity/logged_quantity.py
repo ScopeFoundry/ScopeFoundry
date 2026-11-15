@@ -7,7 +7,7 @@ from inspect import signature
 from typing import Any, Iterable, List, Tuple, Union
 
 import pyqtgraph as pg
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets, sip
 
 from ScopeFoundry.helper_funcs import QLock, bool2str, get_logger_from_class, str2bool
 from ScopeFoundry.widgets import MinMaxQSlider
@@ -158,7 +158,7 @@ class LoggedQuantity(QtCore.QObject):
 
         self._in_reread_loop = False  # flag to prevent reread from hardware loops
 
-        self.widget_list = []
+        self._widget_list = []
         self.listeners = []
         self.ui_listeners = []
 
@@ -812,7 +812,7 @@ class LoggedQuantity(QtCore.QObject):
 
         # self.send_display_updates(force=True)
         # self.widget = widget
-        self.widget_list.append(widget)
+        self._widget_list.append(widget)
         self.change_readonly(self.ro)
         if self.event_filter:
             widget.installEventFilter(self.event_filter)
@@ -824,11 +824,9 @@ class LoggedQuantity(QtCore.QObject):
         :returns: None
 
         """
-        if widget not in self.widget_list:
+        if widget not in self._widget_list:
             # print(f"Widget {widget} not connected to {self.name}")
             return
-
-        self.widget_list.remove(widget)
 
         try:
             widget.customContextMenuRequested.disconnect(self.on_right_click)
@@ -1129,10 +1127,16 @@ class LoggedQuantity(QtCore.QObject):
             raise ValueError("Unknown widget type")
 
         # self.widget = widget
-        self.widget_list.append(widget)
+        self._widget_list.append(widget)
         self.change_readonly(self.ro)
         if self.event_filter:
             widget.installEventFilter(self.event_filter)
+
+    @property
+    def widget_list(self):
+        # Remove deleted widgets from the list before returning it
+        self._widget_list = [w for w in self._widget_list if not sip.isdeleted(w)]
+        return self._widget_list
 
     def connect_to_pushButton(
         self,
@@ -1173,7 +1177,7 @@ class LoggedQuantity(QtCore.QObject):
 
         self.set_widget_toolTip(pushButton)
         self.send_display_updates(force=True)
-        self.widget_list.append(pushButton)
+        self._widget_list.append(pushButton)
 
     def connect_to_lq(self, lq):
         # FIXME, does not seem to work for dtype=int

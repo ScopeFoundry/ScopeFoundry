@@ -82,7 +82,7 @@ class ArrayLQ(LoggedQuantity):
 
         self._in_reread_loop = False  # flag to prevent reread from hardware loops
 
-        self.widget_list = []
+        self._widget_list = []
         self.listeners = []
         self.ui_listeners = []
 
