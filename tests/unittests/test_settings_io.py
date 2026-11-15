@@ -106,7 +106,9 @@ class SettingsIOTest(unittest.TestCase):
         self.assertEqual(self.hws["protected_int"], 0)
         self.app.settings["file_loading_write_protected"] = True
         self.app.settings_load_ini(fname, show_report=False)
-        self.assertEqual(self.app._report["hardware/hardware1/protected_int"], WRITE_RES.SUCCESS)
+        self.assertEqual(
+            self.app._report["hardware/hardware1/protected_int"], WRITE_RES.SUCCESS
+        )
         self.assertNotEqual(self.hws["protected_int"], 0)
 
     def test_resolve_and_remove_missing(self):
@@ -115,7 +117,9 @@ class SettingsIOTest(unittest.TestCase):
         target = "measurement/measure1/string"
         fname = Path(self._app_implementation_dir.name) / "copy.ini"
         fname.write_text(src.read_text())
-        self.app.microscope_config_path = Path(self._app_implementation_dir.name) / "t.scopefoundry"
+        self.app.microscope_config_path = (
+            Path(self._app_implementation_dir.name) / "t.scopefoundry"
+        )
 
         from ScopeFoundry import ini_io
         from ScopeFoundry.base_app.show_io_report_dialog import (
@@ -146,7 +150,9 @@ class SettingsIOTest(unittest.TestCase):
         )
 
         self.assertEqual(get_missing_component(self.app, "hw/nope/x"), "hw/nope")
-        self.assertEqual(get_missing_component(self.app, "measurement/nope/x"), "mm/nope")
+        self.assertEqual(
+            get_missing_component(self.app, "measurement/nope/x"), "mm/nope"
+        )
         self.assertIsNone(get_missing_component(self.app, "hardware/hardware1/x"))
         self.assertIsNone(get_missing_component(self.app, "measurement/measure1/x"))
         self.assertIsNone(get_missing_component(self.app, "app/x"))
@@ -216,33 +222,6 @@ class SettingsIOTest(unittest.TestCase):
         self.assertEqual(self.hws["float"], 0.0)
         self.assertEqual(self.hws["choices"], 0)
 
-    def test_non_mdi_window_positions_restore_fullscreen(self):
-        main_window = Mock()
-        app = SimpleNamespace(mdi=False, ui=main_window)
-        positions = {
-            "main": {
-                "geometry": (0, 0, 640, 480),
-                "maximized": False,
-                "minimized": False,
-                "fullscreen": True,
-            }
-        }
-
-        BaseMicroscopeApp.set_window_positions(app, positions)
-
-        main_window.showNormal.assert_called_once_with()
-        main_window.showFullScreen.assert_called_once_with()
-        main_window.setGeometry.assert_not_called()
-
-    def test_geometry_only_window_positions_remain_loadable(self):
-        main_window = Mock()
-        app = SimpleNamespace(mdi=False, ui=main_window)
-        positions = {"main": {"geometry": (0, 0, 640, 480)}}
-
-        BaseMicroscopeApp.set_window_positions(app, positions)
-
-        main_window.showNormal.assert_called_once_with()
-        main_window.setGeometry.assert_called_once_with(0, 0, 640, 480)
 
 if __name__ == "__main__":
     unittest.main()

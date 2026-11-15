@@ -98,7 +98,9 @@ class DynamicComponentsTest(unittest.TestCase):
         implementation.start()
         self.addCleanup(implementation.stop)
         startup = patch.object(
-            ProfileManager, "initialize_startup_profile", profile_callback or (lambda _self: None)
+            ProfileManager,
+            "initialize_startup_profile",
+            profile_callback or (lambda _self: None),
         )
         startup.start()
         self.addCleanup(startup.stop)
@@ -127,7 +129,9 @@ class DynamicComponentsTest(unittest.TestCase):
         cls = load_component_class(sources["Device"])
         self.assertEqual(cls.__name__, "Device")
         self.assertTrue((self.directory / "imported").exists())
-        self.assertEqual(load_component_class(sources["NeedsArgument"]).__name__, "NeedsArgument")
+        self.assertEqual(
+            load_component_class(sources["NeedsArgument"]).__name__, "NeedsArgument"
+        )
 
     def test_default_component_folder_uses_nearest_hardware_directory(self):
         implementation = self.directory / "parent" / "app"
@@ -168,7 +172,9 @@ class DynamicComponentsTest(unittest.TestCase):
         candidates, errors = discover_components(self.project)
         self.assertTrue(any("broken.py" in error for error in errors))
         source = next(item for item in candidates if item.class_name == "Device")
-        invalid = ComponentSource(source.root, source.module, source.path, "Path", source.kind)
+        invalid = ComponentSource(
+            source.root, source.module, source.path, "Path", source.kind
+        )
         with self.assertRaises(TypeError):
             load_component_class(invalid)
 
@@ -193,11 +199,20 @@ class DynamicComponentsTest(unittest.TestCase):
             dialog.accept()
             return dialog.result()
 
-        with patch.object(ComponentArgumentsDialog, "exec_", autospec=True, side_effect=provide_arguments):
+        with patch.object(
+            ComponentArgumentsDialog,
+            "exec_",
+            autospec=True,
+            side_effect=provide_arguments,
+        ):
             picker.add_selected()
         self.assertEqual(app.measurements["NeedsArgument"].required, "chosen")
-        entry = json.loads(app.microscope_config_path.read_text())["dynamic_components"][0]
-        self.assertEqual(entry["arguments"], {"args": [], "kwargs": {"required": "chosen"}})
+        entry = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ][0]
+        self.assertEqual(
+            entry["arguments"], {"args": [], "kwargs": {"required": "chosen"}}
+        )
         restored = self.make_app()
         self.assertEqual(restored.measurements["NeedsArgument"].required, "chosen")
 
@@ -210,7 +225,8 @@ class DynamicComponentsTest(unittest.TestCase):
         picker.root.setText(str(self.project))
         picker.refresh()
         item = next(
-            picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())
+            picker.list.topLevelItem(i)
+            for i in range(picker.list.topLevelItemCount())
             if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole)
             == sources["Acquisition"]
         )
@@ -233,9 +249,13 @@ class DynamicComponentsTest(unittest.TestCase):
         device.connected.updated_value[bool].emit(False)
         self.assertFalse(measurement.settings["hidden"])
         saved = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
-        self.assertEqual(saved[1]["measurement_options"], {
-            "initially_hidden": True, "unhide_on_connection": device.name,
-        })
+        self.assertEqual(
+            saved[1]["measurement_options"],
+            {
+                "initially_hidden": True,
+                "unhide_on_connection": device.name,
+            },
+        )
         restored = self.make_app()
         restored_measurement = restored.measurements["dynamic_measurement"]
         restored_device = restored.hardware[device.name]
@@ -253,15 +273,19 @@ class DynamicComponentsTest(unittest.TestCase):
         picker.root.setText(str(self.project))
         picker.refresh()
         item = next(
-            picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())
-            if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole) == source
+            picker.list.topLevelItem(i)
+            for i in range(picker.list.topLevelItemCount())
+            if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole)
+            == source
         )
         picker.list.setCurrentItem(item)
         self.assertTrue(picker.initially_hidden_checkbox.isChecked())
         picker.add_selected()
         self.assertFalse(app.measurements["dynamic_measurement"].settings["hidden"])
         self.assertIn("dynamic_measurement", app._loaded_measure_uis)
-        entry = json.loads(app.microscope_config_path.read_text())["dynamic_components"][0]
+        entry = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ][0]
         self.assertTrue(entry["measurement_options"]["initially_hidden"])
         restored = self.make_app()
         self.assertTrue(restored.measurements["dynamic_measurement"].settings["hidden"])
@@ -277,8 +301,9 @@ class DynamicComponentsTest(unittest.TestCase):
             (picker.remove_page, picker.remove_page.list),
         ):
             picker.tabs.setCurrentWidget(page)
-            self.assertEqual(page.layout().indexOf(picker.search) + 1,
-                             page.layout().indexOf(table))
+            self.assertEqual(
+                page.layout().indexOf(picker.search) + 1, page.layout().indexOf(table)
+            )
             self.assertEqual(picker.search.text(), "device")
 
     def test_edit_tab_options_apply_on_restart(self):
@@ -287,7 +312,10 @@ class DynamicComponentsTest(unittest.TestCase):
         device = app.dynamic_components.add(sources["Device"])
         measurement = app.dynamic_components.add(
             sources["Acquisition"],
-            measurement_options={"initially_hidden": False, "unhide_on_connection": None},
+            measurement_options={
+                "initially_hidden": False,
+                "unhide_on_connection": None,
+            },
         )
         picker = ComponentPicker(app.dynamic_components)
         self.addCleanup(picker.deleteLater)
@@ -300,14 +328,20 @@ class DynamicComponentsTest(unittest.TestCase):
         item = picker.remove_page.list.topLevelItem(1)
         checkbox = picker.remove_page.list.itemWidget(item, 5)
         checkbox.setChecked(True)
-        entry = json.loads(app.microscope_config_path.read_text())["dynamic_components"][1]
+        entry = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ][1]
         self.assertTrue(entry["measurement_options"]["initially_hidden"])
         self.assertFalse(measurement.settings["hidden"])
         item = picker.remove_page.list.topLevelItem(1)
         combo = picker.remove_page.list.itemWidget(item, 6)
         combo.setCurrentIndex(combo.findData(device.name))
-        entry = json.loads(app.microscope_config_path.read_text())["dynamic_components"][1]
-        self.assertEqual(entry["measurement_options"]["unhide_on_connection"], device.name)
+        entry = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ][1]
+        self.assertEqual(
+            entry["measurement_options"]["unhide_on_connection"], device.name
+        )
         self.assertFalse(measurement.settings["hidden"])
         device.connected.updated_value[bool].emit(True)
         self.assertFalse(measurement.settings["hidden"])
@@ -333,25 +367,34 @@ class DynamicComponentsTest(unittest.TestCase):
         app = self.make_app()
         app.dynamic_components.add(
             self.sources()["Acquisition"],
-            measurement_options={"initially_hidden": False, "unhide_on_connection": None},
+            measurement_options={
+                "initially_hidden": False,
+                "unhide_on_connection": None,
+            },
         )
         picker = ComponentPicker(app.dynamic_components)
         self.addCleanup(picker.deleteLater)
         picker.tabs.setCurrentWidget(picker.remove_page)
         item = picker.remove_page.list.topLevelItem(0)
         checkbox = picker.remove_page.list.itemWidget(item, 5)
-        with patch.object(app.dynamic_components, "_save_config", side_effect=OSError("disk full")):
+        with patch.object(
+            app.dynamic_components, "_save_config", side_effect=OSError("disk full")
+        ):
             checkbox.setChecked(True)
         item = picker.remove_page.list.topLevelItem(0)
         self.assertFalse(picker.remove_page.list.itemWidget(item, 5).isChecked())
-        self.assertFalse(json.loads(app.microscope_config_path.read_text())[
-            "dynamic_components"][0]["measurement_options"]["initially_hidden"])
+        self.assertFalse(
+            json.loads(app.microscope_config_path.read_text())["dynamic_components"][0][
+                "measurement_options"
+            ]["initially_hidden"]
+        )
 
     def test_missing_linked_hardware_is_reported_on_restore(self):
         source = self.sources()["Acquisition"]
         entry = source.as_dict()
         entry["measurement_options"] = {
-            "initially_hidden": False, "unhide_on_connection": "missing_device",
+            "initially_hidden": False,
+            "unhide_on_connection": "missing_device",
         }
         config_path = self.directory / "dynamic-test.scopefoundry"
         config_path.write_text(json.dumps({"dynamic_components": [entry]}))
@@ -367,10 +410,13 @@ class DynamicComponentsTest(unittest.TestCase):
         app.dynamic_components.add(
             sources["Acquisition"],
             measurement_options={
-                "initially_hidden": False, "unhide_on_connection": "dynamic_device",
+                "initially_hidden": False,
+                "unhide_on_connection": "dynamic_device",
             },
         )
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
         with self.assertRaisesRegex(ValueError, "linked"):
             app.dynamic_components.remove_saved(entries, [entries[0]])
         with self.assertRaisesRegex(ValueError, "linked"):
@@ -379,7 +425,9 @@ class DynamicComponentsTest(unittest.TestCase):
         restored = self.make_app()
         self.assertTrue(restored.measurements["renamed_measurement"].settings["hidden"])
         restored.hardware["dynamic_device"].connected.updated_value[bool].emit(True)
-        self.assertFalse(restored.measurements["renamed_measurement"].settings["hidden"])
+        self.assertFalse(
+            restored.measurements["renamed_measurement"].settings["hidden"]
+        )
 
     def test_existing_saved_component_can_be_added_again_with_a_new_name(self):
         source = self.sources()["Device"]
@@ -390,8 +438,10 @@ class DynamicComponentsTest(unittest.TestCase):
         picker.root.setText(str(self.project))
         picker.refresh()
         item = next(
-            picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())
-            if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole) == source
+            picker.list.topLevelItem(i)
+            for i in range(picker.list.topLevelItemCount())
+            if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole)
+            == source
         )
         self.assertEqual(item.text(0), "dynamic_device_2")
         item.setText(0, "dynamic_device")
@@ -402,18 +452,25 @@ class DynamicComponentsTest(unittest.TestCase):
             dialog.accept()
             return dialog.result()
 
-        with patch.object(ComponentArgumentsDialog, "exec_", autospec=True,
-                          side_effect=provide_name) as dialog:
+        with patch.object(
+            ComponentArgumentsDialog, "exec_", autospec=True, side_effect=provide_name
+        ) as dialog:
             picker.add_selected()
             dialog.assert_called_once()
         self.assertIs(app.hardware["dynamic_device"], original)
         self.assertIn("second_device", app.hardware)
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
         self.assertEqual(len(entries), 2)
         self.assertEqual(entries[1]["arguments"]["kwargs"]["name"], "second_device")
         picker.tabs.setCurrentWidget(picker.remove_page)
-        self.assertEqual("dynamic_device", picker.remove_page.list.topLevelItem(0).text(0))
-        self.assertEqual("second_device", picker.remove_page.list.topLevelItem(1).text(0))
+        self.assertEqual(
+            "dynamic_device", picker.remove_page.list.topLevelItem(0).text(0)
+        )
+        self.assertEqual(
+            "second_device", picker.remove_page.list.topLevelItem(1).text(0)
+        )
         picker.search.setText("second_device")
         self.assertTrue(picker.remove_page.list.topLevelItem(0).isHidden())
         self.assertFalse(picker.remove_page.list.topLevelItem(1).isHidden())
@@ -423,7 +480,10 @@ class DynamicComponentsTest(unittest.TestCase):
         restored.dynamic_components.remove_saved(entries, [entries[1]])
         self.assertIn("dynamic_device", restored.hardware)
         self.assertNotIn("second_device", restored.hardware)
-        self.assertEqual(json.loads(app.microscope_config_path.read_text())["dynamic_components"], entries[:1])
+        self.assertEqual(
+            json.loads(app.microscope_config_path.read_text())["dynamic_components"],
+            entries[:1],
+        )
 
     def test_existing_setup_component_can_be_added_with_a_new_name(self):
         source = self.sources()["Acquisition"]
@@ -435,8 +495,10 @@ class DynamicComponentsTest(unittest.TestCase):
         picker.root.setText(str(self.project))
         picker.refresh()
         item = next(
-            picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())
-            if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole) == source
+            picker.list.topLevelItem(i)
+            for i in range(picker.list.topLevelItemCount())
+            if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole)
+            == source
         )
         self.assertEqual(item.text(0), "dynamic_measurement_2")
         item.setText(0, "dynamic_measurement")
@@ -447,14 +509,19 @@ class DynamicComponentsTest(unittest.TestCase):
             dialog.accept()
             return dialog.result()
 
-        with patch.object(ComponentArgumentsDialog, "exec_", autospec=True,
-                          side_effect=provide_name) as dialog:
+        with patch.object(
+            ComponentArgumentsDialog, "exec_", autospec=True, side_effect=provide_name
+        ) as dialog:
             picker.add_selected()
             dialog.assert_called_once()
         self.assertIs(app.measurements["dynamic_measurement"], original)
         self.assertIn("second_measurement", app.measurements)
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
-        self.assertEqual(entries[0]["arguments"]["kwargs"]["name"], "second_measurement")
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
+        self.assertEqual(
+            entries[0]["arguments"]["kwargs"]["name"], "second_measurement"
+        )
         restored = self.make_app()
         self.assertIn("second_measurement", restored.measurements)
 
@@ -464,9 +531,13 @@ class DynamicComponentsTest(unittest.TestCase):
         hardware = app.dynamic_components.add(sources["Device"])
         measurement = app.dynamic_components.add(sources["Acquisition"])
         self.assertTrue(issubclass(ComponentAlreadyExistsError, ValueError))
-        with self.assertRaisesRegex(ComponentAlreadyExistsError, "Hardware 'dynamic_device'"):
+        with self.assertRaisesRegex(
+            ComponentAlreadyExistsError, "Hardware 'dynamic_device'"
+        ):
             app.add_hardware(hardware)
-        with self.assertRaisesRegex(ComponentAlreadyExistsError, "Measurement 'dynamic_measurement'"):
+        with self.assertRaisesRegex(
+            ComponentAlreadyExistsError, "Measurement 'dynamic_measurement'"
+        ):
             app.add_measurement(measurement)
         with self.assertRaises(ComponentAlreadyExistsError):
             app.dynamic_components.add(sources["Device"])
@@ -494,8 +565,12 @@ class DynamicComponentsTest(unittest.TestCase):
         self.addCleanup(picker.deleteLater)
         picker.root.setText(str(self.project))
         picker.refresh()
-        item = next(picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())
-                    if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole) == source)
+        item = next(
+            picker.list.topLevelItem(i)
+            for i in range(picker.list.topLevelItemCount())
+            if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole)
+            == source
+        )
         self.assertEqual(item.text(0), "dynamic_device_2")
         picker.list.setCurrentItem(item)
         picker.add_selected()
@@ -505,22 +580,33 @@ class DynamicComponentsTest(unittest.TestCase):
         self.assertIn("dynamic_device_3", app.hardware)
         self.assertEqual(item.text(0), "dynamic_device_4")
         saved = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
-        self.assertEqual([entry.get("arguments", {}).get("kwargs", {}).get("name") for entry in saved],
-                         [None, "dynamic_device_2", "dynamic_device_3"])
+        self.assertEqual(
+            [
+                entry.get("arguments", {}).get("kwargs", {}).get("name")
+                for entry in saved
+            ],
+            [None, "dynamic_device_2", "dynamic_device_3"],
+        )
         restored = self.make_app()
         self.assertIn("dynamic_device_2", restored.hardware)
         self.assertIn("dynamic_device_3", restored.hardware)
 
     def test_builtin_suggestion_skips_existing_names_and_preserves_manual_names(self):
         source = BuiltinComponentSource(
-            "ScopeFoundry.controlling.ranged_optimization", "RangedOptimization", "measurement",
-            "ranged_optimization"
+            "ScopeFoundry.controlling.ranged_optimization",
+            "RangedOptimization",
+            "measurement",
+            "ranged_optimization",
         )
         app = self.make_app()
         app.dynamic_components.add(source)
-        app.dynamic_components.add(source, {"kwargs": {"name": "ranged_optimization_2"}})
-        with patch("ScopeFoundry.base_app.component_picker.load_builtin_catalog",
-                   return_value=([source], [])):
+        app.dynamic_components.add(
+            source, {"kwargs": {"name": "ranged_optimization_2"}}
+        )
+        with patch(
+            "ScopeFoundry.base_app.component_picker.load_builtin_catalog",
+            return_value=([source], []),
+        ):
             picker = ComponentPicker(app.dynamic_components)
         self.addCleanup(picker.deleteLater)
         item = picker.builtin_list.topLevelItem(0)
@@ -531,7 +617,9 @@ class DynamicComponentsTest(unittest.TestCase):
         self.assertIn("ranged_optimization_3", app.measurements)
         self.assertEqual(item.text(0), "ranged_optimization_4")
         saved = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
-        self.assertEqual(saved[-1]["arguments"]["kwargs"]["name"], "ranged_optimization_3")
+        self.assertEqual(
+            saved[-1]["arguments"]["kwargs"]["name"], "ranged_optimization_3"
+        )
         item.setText(0, "custom")
         self.assertEqual(item.text(0), "custom")
         picker.builtin_list.setCurrentItem(item)
@@ -550,8 +638,12 @@ class DynamicComponentsTest(unittest.TestCase):
             [picker.list.headerItem().text(i) for i in range(5)],
             ["Name", "Module", "Kind", "Class", "Path / details"],
         )
-        item = next(picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())
-                    if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole) == source)
+        item = next(
+            picker.list.topLevelItem(i)
+            for i in range(picker.list.topLevelItemCount())
+            if picker.list.topLevelItem(i).data(0, QtCore.Qt.ItemDataRole.UserRole)
+            == source
+        )
         self.assertTrue(item.flags() & QtCore.Qt.ItemFlag.ItemIsEditable)
         item.setText(0, "chosen_device")
         picker.list.setCurrentItem(item)
@@ -564,11 +656,15 @@ class DynamicComponentsTest(unittest.TestCase):
 
     def test_table_name_edit_adds_builtin_component(self):
         source = BuiltinComponentSource(
-            "ScopeFoundry.controlling.ranged_optimization", "RangedOptimization", "measurement"
+            "ScopeFoundry.controlling.ranged_optimization",
+            "RangedOptimization",
+            "measurement",
         )
         app = self.make_app()
-        with patch("ScopeFoundry.base_app.component_picker.load_builtin_catalog",
-                   return_value=([source], [])):
+        with patch(
+            "ScopeFoundry.base_app.component_picker.load_builtin_catalog",
+            return_value=([source], []),
+        ):
             picker = ComponentPicker(app.dynamic_components)
         self.addCleanup(picker.deleteLater)
         picker.tabs.setCurrentWidget(picker.builtin_page)
@@ -588,7 +684,10 @@ class DynamicComponentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "automatically"):
             app.dynamic_components.add(source, {"kwargs": {"app": 1}})
         dialog = ComponentArgumentsDialog(
-            app.ui, load_component_class(source), "missing required", {"args": [], "kwargs": {}}
+            app.ui,
+            load_component_class(source),
+            "missing required",
+            {"args": [], "kwargs": {}},
         )
         self.addCleanup(dialog.deleteLater)
         dialog.input.setPlainText('{"kwargs": {"required": NaN}}')
@@ -634,15 +733,33 @@ class DynamicComponentsTest(unittest.TestCase):
         app = self.make_app()
 
         class Example:
-            def __init__(self, app, count=3, flag=False, name=None, text="hello",
-                         items=(1, 2), *, data=None):
+            def __init__(
+                self,
+                app,
+                count=3,
+                flag=False,
+                name=None,
+                text="hello",
+                items=(1, 2),
+                *,
+                data=None,
+            ):
                 pass
 
         dialog = ComponentArgumentsDialog(app.ui, Example, "failed", {})
         self.addCleanup(dialog.deleteLater)
-        expected = {"count": "3", "flag": "false", "name": "null",
-                    "text": '"hello"', "data": "null", "items": ""}
-        self.assertEqual({name: field.text() for name, field in dialog.named_inputs.items()}, expected)
+        expected = {
+            "count": "3",
+            "flag": "false",
+            "name": "null",
+            "text": '"hello"',
+            "data": "null",
+            "items": "",
+        }
+        self.assertEqual(
+            {name: field.text() for name, field in dialog.named_inputs.items()},
+            expected,
+        )
         self.assertIn("(1, 2)", dialog.named_inputs["items"].placeholderText())
         dialog.input.setPlainText('{"args": [7], "kwargs": {}}')
         dialog.named_inputs["flag"].setText("true")
@@ -666,7 +783,9 @@ class DynamicComponentsTest(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(sources[0].module, f"{namespace.name}.device")
         sys.path.remove(import_root)
-        self.addCleanup(lambda: sys.path.remove(import_root) if import_root in sys.path else None)
+        self.addCleanup(
+            lambda: sys.path.remove(import_root) if import_root in sys.path else None
+        )
         self.assertEqual(load_component_class(sources[0]).__module__, sources[0].module)
         self.addCleanup(sys.modules.pop, sources[0].module, None)
         self.addCleanup(sys.modules.pop, namespace.name, None)
@@ -678,18 +797,24 @@ class DynamicComponentsTest(unittest.TestCase):
         self.assertEqual(entry["path"], source.path)
         legacy = {**entry, "root": source.root}
         config_path = self.directory / "dynamic-test.scopefoundry"
-        config_path.write_text(json.dumps({"dynamic_components": [legacy], "other": 12}))
+        config_path.write_text(
+            json.dumps({"dynamic_components": [legacy], "other": 12})
+        )
         app = self.make_app()
         self.assertIn("dynamic_device", app.hardware)
         editor = SavedComponentsEditor(app.dynamic_components, [legacy])
         self.addCleanup(editor.deleteLater)
         editor.list.setCurrentItem(editor.list.topLevelItem(0))
         editor.remove_selected()
-        self.assertEqual(json.loads(config_path.read_text()), {"dynamic_components": [], "other": 12})
+        self.assertEqual(
+            json.loads(config_path.read_text()), {"dynamic_components": [], "other": 12}
+        )
 
     def test_folder_module_path_mismatch_is_rejected(self):
         source = self.sources()["Device"]
-        bad = ComponentSource("", "different.components", source.path, source.class_name, source.kind)
+        bad = ComponentSource(
+            "", "different.components", source.path, source.class_name, source.kind
+        )
         with self.assertRaisesRegex(ValueError, "does not match"):
             load_component_class(bad)
 
@@ -709,14 +834,25 @@ class DynamicComponentsTest(unittest.TestCase):
                 break
         else:
             self.fail("Device missing from picker")
-        self.assertEqual([item.text(i) for i in range(5)], [
-            "dynamic_device", f"{self.package_name}.components", "Hardware", "Device",
-            str(self.project.resolve() / "components.py"),
-        ])
+        self.assertEqual(
+            [item.text(i) for i in range(5)],
+            [
+                "dynamic_device",
+                f"{self.package_name}.components",
+                "Hardware",
+                "Device",
+                str(self.project.resolve() / "components.py"),
+            ],
+        )
         picker.add_selected()
         hw = app.hardware["dynamic_device"]
         self.assertIn("key", hw.operations._shortcuts)
-        self.assertTrue(any(app.hw_tree.topLevelItem(i).text(0) == hw.name for i in range(app.hw_tree.topLevelItemCount())))
+        self.assertTrue(
+            any(
+                app.hw_tree.topLevelItem(i).text(0) == hw.name
+                for i in range(app.hw_tree.topLevelItemCount())
+            )
+        )
         with self.assertRaisesRegex(ValueError, "already"):
             app.dynamic_components.add(self.sources()["Device"])
         app.remove_hardware(hw.name)
@@ -726,7 +862,9 @@ class DynamicComponentsTest(unittest.TestCase):
     def test_picker_remove_tab_edits_saved_components(self):
         source = self.sources()["Device"]
         config_path = self.directory / "dynamic-test.scopefoundry"
-        config_path.write_text(json.dumps({"dynamic_components": [source.as_dict()], "other": 1}))
+        config_path.write_text(
+            json.dumps({"dynamic_components": [source.as_dict()], "other": 1})
+        )
         app = self.make_app()
         picker = ComponentPicker(app.dynamic_components)
         self.addCleanup(picker.deleteLater)
@@ -739,13 +877,17 @@ class DynamicComponentsTest(unittest.TestCase):
         picker.tabs.setCurrentWidget(picker.remove_page)
         self.assertFalse(picker.add_button.isEnabled())
         self.assertEqual(picker.remove_page.list.topLevelItemCount(), 1)
-        self.assertEqual("dynamic_device", picker.remove_page.list.topLevelItem(0).text(0))
+        self.assertEqual(
+            "dynamic_device", picker.remove_page.list.topLevelItem(0).text(0)
+        )
         picker.remove_page.list.setCurrentItem(picker.remove_page.list.topLevelItem(0))
         picker.remove_page.remove_selected()
         picker.tabs.setCurrentWidget(picker.folder_page)
         picker.tabs.setCurrentWidget(picker.remove_page)
         self.assertEqual(picker.remove_page.list.topLevelItemCount(), 0)
-        self.assertEqual(json.loads(config_path.read_text()), {"dynamic_components": [], "other": 1})
+        self.assertEqual(
+            json.loads(config_path.read_text()), {"dynamic_components": [], "other": 1}
+        )
         self.assertNotIn("dynamic_device", app.hardware)
 
     def test_filter_applies_to_all_tabs_and_preserves_hidden_entries(self):
@@ -757,16 +899,22 @@ class DynamicComponentsTest(unittest.TestCase):
         builtin = BuiltinComponentSource(
             "ScopeFoundry.sequencer.sequencer", "Sequencer", "measurement"
         )
-        with patch("ScopeFoundry.base_app.component_picker.load_builtin_catalog",
-                   return_value=([builtin], [])):
+        with patch(
+            "ScopeFoundry.base_app.component_picker.load_builtin_catalog",
+            return_value=([builtin], []),
+        ):
             picker = ComponentPicker(app.dynamic_components)
         self.addCleanup(picker.deleteLater)
         picker.root.setText(str(self.project))
         picker.refresh()
         picker.search.setText("device")
-        folder_items = [picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())]
+        folder_items = [
+            picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())
+        ]
         device = next(item for item in folder_items if "Device" in item.text(3))
-        acquisition = next(item for item in folder_items if "Acquisition" in item.text(3))
+        acquisition = next(
+            item for item in folder_items if "Acquisition" in item.text(3)
+        )
         self.assertFalse(device.isHidden())
         self.assertTrue(acquisition.isHidden())
         self.assertTrue(picker.builtin_list.topLevelItem(0).isHidden())
@@ -778,7 +926,9 @@ class DynamicComponentsTest(unittest.TestCase):
         saved.topLevelItem(0).setSelected(True)
         saved.topLevelItem(1).setSelected(True)
         picker.remove_page.remove_selected()
-        self.assertEqual(json.loads(config_path.read_text())["dynamic_components"], [entries[1]])
+        self.assertEqual(
+            json.loads(config_path.read_text())["dynamic_components"], [entries[1]]
+        )
         self.assertTrue(saved.topLevelItem(0).isHidden())
         picker.tabs.setCurrentWidget(picker.builtin_page)
         picker.search.setText("sequencer")
@@ -799,7 +949,8 @@ class DynamicComponentsTest(unittest.TestCase):
             picker.refresh()
             warning.assert_not_called()
         error = next(
-            picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())
+            picker.list.topLevelItem(i)
+            for i in range(picker.list.topLevelItemCount())
             if "broken.py" in picker.list.topLevelItem(i).text(4)
         )
         self.assertIn("broken.py", error.text(4))
@@ -808,8 +959,9 @@ class DynamicComponentsTest(unittest.TestCase):
         self.assertEqual(error.foreground(4).color(), QtGui.QColor("red"))
         picker.list.setCurrentItem(error)
         self.assertFalse(picker.add_button.isEnabled())
-        with patch.object(app.dynamic_components, "add") as add, \
-             patch.object(QtWidgets.QMessageBox, "information"):
+        with patch.object(app.dynamic_components, "add") as add, patch.object(
+            QtWidgets.QMessageBox, "information"
+        ):
             picker.add_selected()
             add.assert_not_called()
         picker.search.setText("broken.py")
@@ -818,23 +970,42 @@ class DynamicComponentsTest(unittest.TestCase):
         self.assertTrue(error.isHidden())
         broken.write_text("pass\n", encoding="utf-8")
         picker.refresh()
-        self.assertFalse(any("broken.py" in picker.list.topLevelItem(i).text(4)
-                             for i in range(picker.list.topLevelItemCount())))
+        self.assertFalse(
+            any(
+                "broken.py" in picker.list.topLevelItem(i).text(4)
+                for i in range(picker.list.topLevelItemCount())
+            )
+        )
 
     def test_builtin_tab_search_and_selection_without_import(self):
         app = self.make_app()
         source = BuiltinComponentSource(
-            "ScopeFoundry.sequencer.sequencer", "Sequencer", "measurement", "sequence_name"
+            "ScopeFoundry.sequencer.sequencer",
+            "Sequencer",
+            "measurement",
+            "sequence_name",
         )
-        with patch("ScopeFoundry.base_app.component_picker.load_builtin_catalog", return_value=([source], [])), \
-             patch("ScopeFoundry.base_app.component_picker.load_component_class") as loader:
+        with patch(
+            "ScopeFoundry.base_app.component_picker.load_builtin_catalog",
+            return_value=([source], []),
+        ), patch(
+            "ScopeFoundry.base_app.component_picker.load_component_class"
+        ) as loader:
             picker = ComponentPicker(app.dynamic_components)
             self.addCleanup(picker.deleteLater)
             loader.assert_not_called()
             picker.tabs.setCurrentWidget(picker.builtin_page)
             item = picker.builtin_list.topLevelItem(0)
-            self.assertEqual([item.text(i) for i in range(5)],
-                             ["sequence_name", "ScopeFoundry.sequencer.sequencer", "Measurement", "Sequencer", ""])
+            self.assertEqual(
+                [item.text(i) for i in range(5)],
+                [
+                    "sequence_name",
+                    "ScopeFoundry.sequencer.sequencer",
+                    "Measurement",
+                    "Sequencer",
+                    "",
+                ],
+            )
             picker.search.setText("sequence_name")
             self.assertFalse(item.isHidden())
             picker.search.setText("no match")
@@ -842,24 +1013,52 @@ class DynamicComponentsTest(unittest.TestCase):
             picker.search.clear()
             picker.builtin_list.setCurrentItem(item)
             self.assertTrue(picker.add_button.isEnabled())
-            with patch.object(app.dynamic_components, "add", return_value=type("Component", (), {"name": "sequence"})()) as add:
+            with patch.object(
+                app.dynamic_components,
+                "add",
+                return_value=type("Component", (), {"name": "sequence"})(),
+            ) as add:
                 picker.add_selected()
                 add.assert_called_once_with(
-                    source, arguments={"args": [], "kwargs": {}},
-                    measurement_options={"initially_hidden": True, "unhide_on_connection": None},
+                    source,
+                    arguments={"args": [], "kwargs": {}},
+                    measurement_options={
+                        "initially_hidden": True,
+                        "unhide_on_connection": None,
+                    },
                 )
 
     def test_builtin_catalog_validation_and_errors(self):
         path = self.directory / "catalog.json"
-        path.write_text(json.dumps([
-            {"module": "ScopeFoundry.sequencer.sequencer", "class_name": "Sequencer",
-             "kind": "measurement", "name": "sequence_name"},
-            {"module": "other.module", "class_name": "Invalid", "kind": "hardware"},
-            {"module": "ScopeFoundry.sequencer.sequencer", "class_name": "Sequencer",
-             "kind": "measurement", "name": "other_name"},
-            {"module": "ScopeFoundry.sweeping.map_2D", "class_name": "Map2D",
-             "kind": "measurement", "name": 42},
-        ]))
+        path.write_text(
+            json.dumps(
+                [
+                    {
+                        "module": "ScopeFoundry.sequencer.sequencer",
+                        "class_name": "Sequencer",
+                        "kind": "measurement",
+                        "name": "sequence_name",
+                    },
+                    {
+                        "module": "other.module",
+                        "class_name": "Invalid",
+                        "kind": "hardware",
+                    },
+                    {
+                        "module": "ScopeFoundry.sequencer.sequencer",
+                        "class_name": "Sequencer",
+                        "kind": "measurement",
+                        "name": "other_name",
+                    },
+                    {
+                        "module": "ScopeFoundry.sweeping.map_2D",
+                        "class_name": "Map2D",
+                        "kind": "measurement",
+                        "name": 42,
+                    },
+                ]
+            )
+        )
         sources, errors = load_builtin_catalog(path)
         self.assertEqual(len(sources), 1)
         self.assertEqual(sources[0].name, "sequence_name")
@@ -872,8 +1071,10 @@ class DynamicComponentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must be a list"):
             load_builtin_catalog(path)
         app = self.make_app()
-        with patch("ScopeFoundry.base_app.component_picker.load_builtin_catalog", side_effect=ValueError("broken catalog")), \
-             patch.object(QtWidgets.QMessageBox, "warning") as warning:
+        with patch(
+            "ScopeFoundry.base_app.component_picker.load_builtin_catalog",
+            side_effect=ValueError("broken catalog"),
+        ), patch.object(QtWidgets.QMessageBox, "warning") as warning:
             picker = ComponentPicker(app.dynamic_components)
             self.addCleanup(picker.deleteLater)
             warning.assert_called_once()
@@ -881,45 +1082,77 @@ class DynamicComponentsTest(unittest.TestCase):
 
     def test_builtin_portable_identity_restore_and_editor(self):
         source = BuiltinComponentSource(
-            "ScopeFoundry.controlling.ranged_optimization", "RangedOptimization", "measurement"
+            "ScopeFoundry.controlling.ranged_optimization",
+            "RangedOptimization",
+            "measurement",
         )
         self.assertNotIn("path", source.as_dict())
         self.assertEqual(load_component_class(source).__name__, "RangedOptimization")
         config_path = self.directory / "dynamic-test.scopefoundry"
-        config_path.write_text(json.dumps({"dynamic_components": [source.as_dict()], "other": 1}))
+        config_path.write_text(
+            json.dumps({"dynamic_components": [source.as_dict()], "other": 1})
+        )
         app = self.make_app()
-        self.assertTrue(any(type(measure).__name__ == source.class_name for measure in app.measurements.values()))
+        self.assertTrue(
+            any(
+                type(measure).__name__ == source.class_name
+                for measure in app.measurements.values()
+            )
+        )
         editor = SavedComponentsEditor(app.dynamic_components, [source.as_dict()])
         self.addCleanup(editor.deleteLater)
         self.assertEqual(editor.list.topLevelItem(0).text(4), "ScopeFoundry built-in")
         editor.list.topLevelItem(0).setSelected(True)
         editor.remove_selected()
-        self.assertEqual(json.loads(config_path.read_text()), {"dynamic_components": [], "other": 1})
+        self.assertEqual(
+            json.loads(config_path.read_text()), {"dynamic_components": [], "other": 1}
+        )
 
     def test_builtin_added_in_picker_is_saved_and_restored_without_catalog(self):
         source = BuiltinComponentSource(
-            "ScopeFoundry.controlling.ranged_optimization", "RangedOptimization", "measurement",
-            "ranged_optimization"
+            "ScopeFoundry.controlling.ranged_optimization",
+            "RangedOptimization",
+            "measurement",
+            "ranged_optimization",
         )
         app = self.make_app()
-        with patch("ScopeFoundry.base_app.component_picker.load_builtin_catalog", return_value=([source], [])):
+        with patch(
+            "ScopeFoundry.base_app.component_picker.load_builtin_catalog",
+            return_value=([source], []),
+        ):
             picker = ComponentPicker(app.dynamic_components)
         self.addCleanup(picker.deleteLater)
         picker.tabs.setCurrentWidget(picker.builtin_page)
-        self.assertEqual(picker.builtin_list.topLevelItem(0).text(0), "ranged_optimization")
+        self.assertEqual(
+            picker.builtin_list.topLevelItem(0).text(0), "ranged_optimization"
+        )
         picker.builtin_list.setCurrentItem(picker.builtin_list.topLevelItem(0))
         picker.add_selected()
-        entry = dict(source.as_dict(), measurement_options={
-            "initially_hidden": True, "unhide_on_connection": None,
-        })
+        entry = dict(
+            source.as_dict(),
+            measurement_options={
+                "initially_hidden": True,
+                "unhide_on_connection": None,
+            },
+        )
         self.assertEqual(app.dynamic_components.order, [entry])
         saved = json.loads(app.microscope_config_path.read_text())
         self.assertEqual(saved["dynamic_components"], [entry])
         picker.tabs.setCurrentWidget(picker.remove_page)
-        self.assertEqual(picker.remove_page.list.topLevelItem(0).text(4), "ScopeFoundry built-in")
-        with patch("ScopeFoundry.base_app.component_picker.load_builtin_catalog", side_effect=FileNotFoundError("catalog removed")):
+        self.assertEqual(
+            picker.remove_page.list.topLevelItem(0).text(4), "ScopeFoundry built-in"
+        )
+        with patch(
+            "ScopeFoundry.base_app.component_picker.load_builtin_catalog",
+            side_effect=FileNotFoundError("catalog removed"),
+        ):
             restored = self.make_app()
-        self.assertTrue(any(type(measure).__name__ == source.class_name for measure in restored.measurements.values()))
+        self.assertTrue(
+            any(
+                type(measure).__name__ == source.class_name
+                for measure in restored.measurements.values()
+            )
+        )
         self.assertEqual(restored.dynamic_components.order, [entry])
 
     def test_measurement_registration_mdi_and_non_mdi(self):
@@ -948,118 +1181,25 @@ class DynamicComponentsTest(unittest.TestCase):
         self.assertNotIn("mm/broken_figure/activation", app._setting_paths)
         self.assertEqual(app.dynamic_components.order, [])
 
-    def test_saved_list_updates_immediately(self):
-        source = self.sources()["Device"]
-        config_path = self.directory / "dynamic-test.scopefoundry"
-        config_path.write_text(json.dumps({"dynamic_components": [source.as_dict()]}))
-        app = self.make_app()
-        app.dynamic_components.remove_saved([source.as_dict()], [source.as_dict()])
-        self.assertNotIn("dynamic_device", app.hardware)
-        self.assertEqual(json.loads(config_path.read_text())["dynamic_components"], [])
-        app.dynamic_components.add(source)
-        self.assertEqual(len(json.loads(config_path.read_text())["dynamic_components"]), 1)
-        with patch.object(QtWidgets.QMessageBox, "question") as question, \
-             patch.object(app.profile_manager.history, "save_snapshot"):
-            app.on_close()
-            question.assert_not_called()
-        self.assertEqual(len(json.loads(config_path.read_text())["dynamic_components"]), 1)
-
-    def test_multiple_running_components_removed_immediately(self):
-        app = self.make_app()
-        sources = self.sources()
-        app.dynamic_components.add(sources["Device"])
-        app.dynamic_components.add(sources["Acquisition"])
-        config_path = app.microscope_config_path
-        entries = json.loads(config_path.read_text())["dynamic_components"]
-        app.dynamic_components.remove_saved(entries, list(entries))
-        self.assertNotIn("dynamic_device", app.hardware)
-        self.assertNotIn("dynamic_measurement", app.measurements)
-        self.assertEqual(json.loads(config_path.read_text())["dynamic_components"], [])
-
-    def test_partial_removal_failure_keeps_remaining_component_saved(self):
-        app = self.make_app()
-        sources = self.sources()
-        app.dynamic_components.add(sources["Device"])
-        app.dynamic_components.add(sources["Acquisition"])
-        config_path = app.microscope_config_path
-        entries = json.loads(config_path.read_text())["dynamic_components"]
-        with patch.object(app, "remove_measurement", side_effect=RuntimeError("remove failed")):
-            with self.assertRaisesRegex(RuntimeError, "remove failed"):
-                app.dynamic_components.remove_saved(entries, list(entries))
-        self.assertNotIn("dynamic_device", app.hardware)
-        self.assertIn("dynamic_measurement", app.measurements)
-        self.assertEqual(json.loads(config_path.read_text())["dynamic_components"], entries[1:])
-
-    def test_running_measurement_cannot_be_removed(self):
-        app = self.make_app()
-        measure = app.dynamic_components.add(self.sources()["Acquisition"])
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
-        with patch.object(measure, "is_measuring", return_value=True):
-            with self.assertRaisesRegex(ValueError, "Stop measurement"):
-                app.dynamic_components.remove_saved(entries, entries)
-        self.assertIn(measure.name, app.measurements)
-        self.assertEqual(json.loads(app.microscope_config_path.read_text())["dynamic_components"], entries)
-
-    def test_relative_path_and_absolute_fallback(self):
-        source = self.sources()["Device"]
-        app = self.make_app()
-        entry = app.dynamic_components._entry_for_source(source, {})
-        self.assertFalse(Path(entry["path"]).is_absolute())
-        self.assertEqual(
-            Path(app.dynamic_components._source_for_entry(entry).path),
-            Path(source.path),
-        )
-        outside = ComponentSource(
-            source.root, source.module, str(self.directory.parent.parent / "outside.py"),
-            source.class_name, source.kind,
-        )
-        self.assertTrue(Path(app.dynamic_components._entry_for_source(outside, {})["path"]).is_absolute())
-
-    def test_relative_path_restores_after_relocation_from_different_cwd(self):
-        source = self.sources()["Device"]
-        app = self.make_app()
-        app.dynamic_components.add(source)
-        entry = json.loads(app.microscope_config_path.read_text())["dynamic_components"][0]
-        relocated = self.directory / "relocated"
-        relocated.mkdir()
-        shutil.copytree(self.project, relocated / self.package_name)
-        self.cleanup_modules()
-        sys.path.insert(0, str(relocated.resolve()))
-        self.addCleanup(lambda: sys.path.remove(str(relocated.resolve()))
-                        if str(relocated.resolve()) in sys.path else None)
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(self.directory.parent)
-            app.implementation_path = relocated
-            restored_source = app.dynamic_components._source_for_entry(entry)
-            self.assertEqual(Path(restored_source.path), (relocated / self.package_name / "components.py").resolve())
-            self.assertEqual(load_component_class(restored_source).__name__, "Device")
-        finally:
-            os.chdir(old_cwd)
-
-    def test_save_failure_rolls_back_added_component(self):
-        app = self.make_app()
-        original = {"dynamic_components": [], "other": 12}
-        app.microscope_config_path.write_text(json.dumps(original))
-        with patch("ScopeFoundry.base_app.component_picker.os.replace", side_effect=OSError("disk full")):
-            with self.assertRaisesRegex(RuntimeError, "disk full"):
-                app.dynamic_components.add(self.sources()["Device"])
-        self.assertNotIn("dynamic_device", app.hardware)
-        self.assertEqual(app.dynamic_components.order, [])
-        self.assertEqual(json.loads(app.microscope_config_path.read_text()), original)
-
     def test_persistence_failure_does_not_open_constructor_dialog(self):
         app = self.make_app()
         picker = ComponentPicker(app.dynamic_components)
         self.addCleanup(picker.deleteLater)
         picker.root.setText(str(self.project))
         picker.refresh()
-        item = next(picker.list.topLevelItem(i) for i in range(picker.list.topLevelItemCount())
-                    if picker.list.topLevelItem(i).text(3) == "Device")
+        item = next(
+            picker.list.topLevelItem(i)
+            for i in range(picker.list.topLevelItemCount())
+            if picker.list.topLevelItem(i).text(3) == "Device"
+        )
         picker.list.setCurrentItem(item)
-        with patch.object(app.dynamic_components, "add", side_effect=ComponentPersistenceError("disk full")), \
-             patch.object(ComponentArgumentsDialog, "exec_") as dialog, \
-             patch.object(QtWidgets.QMessageBox, "warning") as warning:
+        with patch.object(
+            app.dynamic_components,
+            "add",
+            side_effect=ComponentPersistenceError("disk full"),
+        ), patch.object(ComponentArgumentsDialog, "exec_") as dialog, patch.object(
+            QtWidgets.QMessageBox, "warning"
+        ) as warning:
             picker.add_selected()
             dialog.assert_not_called()
             warning.assert_called_once()
@@ -1069,7 +1209,9 @@ class DynamicComponentsTest(unittest.TestCase):
         device, measure = sources["Device"].as_dict(), sources["Acquisition"].as_dict()
         missing = {"broken": "entry"}
         config_path = self.directory / "dynamic-test.scopefoundry"
-        config_path.write_text(json.dumps({"other": 12, "dynamic_components": [device, missing]}))
+        config_path.write_text(
+            json.dumps({"other": 12, "dynamic_components": [device, missing]})
+        )
         app = self.make_app()
         manager = app.dynamic_components
         editor = SavedComponentsEditor(manager, [device, missing])
@@ -1079,20 +1221,30 @@ class DynamicComponentsTest(unittest.TestCase):
         editor.list.topLevelItem(0).setSelected(True)
         editor.list.topLevelItem(1).setSelected(True)
         editor.remove_selected()
-        self.assertEqual(json.loads(config_path.read_text()), {"other": 12, "dynamic_components": []})
+        self.assertEqual(
+            json.loads(config_path.read_text()), {"other": 12, "dynamic_components": []}
+        )
         self.assertNotIn("dynamic_device", app.hardware)
         manager.add(sources["Acquisition"])
-        self.assertEqual(json.loads(config_path.read_text())["dynamic_components"], [manager._entry_for_source(sources["Acquisition"], {})])
+        self.assertEqual(
+            json.loads(config_path.read_text())["dynamic_components"],
+            [manager._entry_for_source(sources["Acquisition"], {})],
+        )
 
     def test_edit_tab_renames_running_component_and_restores_it(self):
         source = self.sources()["Device"]
         app = self.make_app()
         old = app.dynamic_components.add(source)
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
         editor = SavedComponentsEditor(app.dynamic_components, entries)
         self.addCleanup(editor.deleteLater)
-        with patch.object(QtWidgets.QMessageBox, "question",
-                          return_value=QtWidgets.QMessageBox.StandardButton.Yes):
+        with patch.object(
+            QtWidgets.QMessageBox,
+            "question",
+            return_value=QtWidgets.QMessageBox.StandardButton.Yes,
+        ):
             editor.list.topLevelItem(0).setText(0, "renamed_device")
         self.assertNotIn(old.name, app.hardware)
         self.assertIn("renamed_device", app.hardware)
@@ -1107,39 +1259,58 @@ class DynamicComponentsTest(unittest.TestCase):
     def test_edit_tab_rename_cancel_and_invalid_names(self):
         app = self.make_app()
         app.dynamic_components.add(self.sources()["Device"])
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
         editor = SavedComponentsEditor(app.dynamic_components, entries)
         self.addCleanup(editor.deleteLater)
-        with patch.object(QtWidgets.QMessageBox, "question",
-                          return_value=QtWidgets.QMessageBox.StandardButton.No):
+        with patch.object(
+            QtWidgets.QMessageBox,
+            "question",
+            return_value=QtWidgets.QMessageBox.StandardButton.No,
+        ):
             editor.list.topLevelItem(0).setText(0, "cancelled")
         self.assertEqual(editor.list.topLevelItem(0).text(0), "dynamic_device")
-        with patch.object(QtWidgets.QMessageBox, "question",
-                          return_value=QtWidgets.QMessageBox.StandardButton.Yes), \
-             patch.object(QtWidgets.QMessageBox, "warning") as warning:
+        with patch.object(
+            QtWidgets.QMessageBox,
+            "question",
+            return_value=QtWidgets.QMessageBox.StandardButton.Yes,
+        ), patch.object(QtWidgets.QMessageBox, "warning") as warning:
             editor.list.topLevelItem(0).setText(0, "")
             warning.assert_called_once()
         self.assertIn("dynamic_device", app.hardware)
-        self.assertEqual(json.loads(app.microscope_config_path.read_text())["dynamic_components"], entries)
+        self.assertEqual(
+            json.loads(app.microscope_config_path.read_text())["dynamic_components"],
+            entries,
+        )
 
     def test_rename_rejects_running_measurement_and_duplicate(self):
         app = self.make_app()
         sources = self.sources()
         measure = app.dynamic_components.add(sources["Acquisition"])
         app.dynamic_components.add(sources["Device"])
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
         with patch.object(measure, "is_measuring", return_value=True):
             with self.assertRaisesRegex(ValueError, "Stop measurement"):
                 app.dynamic_components.rename_saved(entries, entries[0], "renamed")
         with self.assertRaisesRegex(ComponentAlreadyExistsError, "already exists"):
             app.dynamic_components.rename_saved(entries, entries[1], "dynamic_device")
-        self.assertEqual(json.loads(app.microscope_config_path.read_text())["dynamic_components"], entries)
+        self.assertEqual(
+            json.loads(app.microscope_config_path.read_text())["dynamic_components"],
+            entries,
+        )
 
     def test_rename_rejects_connected_hardware_and_external_changes(self):
         app = self.make_app()
         hw = app.dynamic_components.add(self.sources()["Device"])
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
-        with patch.object(type(hw), "is_connected", new_callable=PropertyMock, return_value=True):
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
+        with patch.object(
+            type(hw), "is_connected", new_callable=PropertyMock, return_value=True
+        ):
             with self.assertRaisesRegex(ValueError, "Disconnect hardware"):
                 app.dynamic_components.rename_saved(entries, entries[0], "renamed")
         updated = {"dynamic_components": entries + [{"invalid": True}], "other": 2}
@@ -1152,18 +1323,27 @@ class DynamicComponentsTest(unittest.TestCase):
     def test_rename_save_failure_removes_replacement(self):
         app = self.make_app()
         app.dynamic_components.add(self.sources()["Device"])
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
-        with patch.object(app.dynamic_components, "_save_config", side_effect=OSError("disk full")):
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
+        with patch.object(
+            app.dynamic_components, "_save_config", side_effect=OSError("disk full")
+        ):
             with self.assertRaisesRegex(OSError, "disk full"):
                 app.dynamic_components.rename_saved(entries, entries[0], "renamed")
         self.assertIn("dynamic_device", app.hardware)
         self.assertNotIn("renamed", app.hardware)
-        self.assertEqual(json.loads(app.microscope_config_path.read_text())["dynamic_components"], entries)
+        self.assertEqual(
+            json.loads(app.microscope_config_path.read_text())["dynamic_components"],
+            entries,
+        )
 
     def test_rename_removal_failure_restores_old_entry_and_component(self):
         app = self.make_app()
         app.dynamic_components.add(self.sources()["Device"])
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
         original_remove = app.remove_hardware
 
         def remove(name):
@@ -1176,16 +1356,24 @@ class DynamicComponentsTest(unittest.TestCase):
                 app.dynamic_components.rename_saved(entries, entries[0], "renamed")
         self.assertIn("dynamic_device", app.hardware)
         self.assertNotIn("renamed", app.hardware)
-        self.assertEqual(json.loads(app.microscope_config_path.read_text())["dynamic_components"], entries)
+        self.assertEqual(
+            json.loads(app.microscope_config_path.read_text())["dynamic_components"],
+            entries,
+        )
 
     def test_rename_preserves_positional_arguments(self):
         app = self.make_app()
-        app.dynamic_components.add(self.sources()["Device"],
-                                   {"args": [False, "first"], "kwargs": {}})
-        entries = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
+        app.dynamic_components.add(
+            self.sources()["Device"], {"args": [False, "first"], "kwargs": {}}
+        )
+        entries = json.loads(app.microscope_config_path.read_text())[
+            "dynamic_components"
+        ]
         app.dynamic_components.rename_saved(entries, entries[0], "renamed")
         saved = json.loads(app.microscope_config_path.read_text())["dynamic_components"]
-        self.assertEqual(saved[0]["arguments"], {"args": [False, "renamed"], "kwargs": {}})
+        self.assertEqual(
+            saved[0]["arguments"], {"args": [False, "renamed"], "kwargs": {}}
+        )
         restored = self.make_app()
         self.assertIn("renamed", restored.hardware)
 
@@ -1197,7 +1385,9 @@ class DynamicComponentsTest(unittest.TestCase):
         editor = SavedComponentsEditor(app.dynamic_components, [entry])
         self.addCleanup(editor.deleteLater)
         editor.reject()
-        self.assertEqual(json.loads(config_path.read_text())["dynamic_components"], [entry])
+        self.assertEqual(
+            json.loads(config_path.read_text())["dynamic_components"], [entry]
+        )
         editor = SavedComponentsEditor(app.dynamic_components, [entry])
         self.addCleanup(editor.deleteLater)
         editor.list.topLevelItem(0).setSelected(True)
@@ -1235,17 +1425,27 @@ class DynamicComponentsTest(unittest.TestCase):
         app.dynamic_components.add(sources["Device"])
         saved = json.loads(config_path.read_text())
         self.assertEqual(saved["other"], original["other"])
-        self.assertEqual(saved["dynamic_components"], [app.dynamic_components._entry_for_source(sources["Device"], {})])
+        self.assertEqual(
+            saved["dynamic_components"],
+            [app.dynamic_components._entry_for_source(sources["Device"], {})],
+        )
         missing = sources["Acquisition"].as_dict()
         missing["path"] = str(self.project / "missing.py")
         saved["dynamic_components"].append(missing)
         config_path.write_text(json.dumps(saved), encoding="utf-8")
         observed = []
-        app2 = self.make_app(profile_callback=lambda manager: observed.append("dynamic_device" in manager.app.hardware))
+        app2 = self.make_app(
+            profile_callback=lambda manager: observed.append(
+                "dynamic_device" in manager.app.hardware
+            )
+        )
         self.assertEqual(observed, [True])
         self.assertIn("dynamic_device", app2.hardware)
         self.assertEqual(app2.dynamic_components.unresolved, [missing])
-        self.assertEqual(json.loads(config_path.read_text())["dynamic_components"], saved["dynamic_components"])
+        self.assertEqual(
+            json.loads(config_path.read_text())["dynamic_components"],
+            saved["dynamic_components"],
+        )
 
 
 if __name__ == "__main__":

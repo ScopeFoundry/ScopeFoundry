@@ -1,6 +1,6 @@
 import unittest
 
-from sequencer.item_types.exec_function import (
+from ScopeFoundry.sequencer.item_types.exec_function import (
     MAX_ARGUMENT_STRING_LENGTH,
     parse_arguments,
     resolve_function,
