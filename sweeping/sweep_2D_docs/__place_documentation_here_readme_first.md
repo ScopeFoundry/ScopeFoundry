@@ -14,12 +14,14 @@
 
  - *profile*: Run a profile on the run to find performance problems
 
+ - *hidden*: Hidden measurements do not load their UI and are only listed in the tree if 'show hidden' is checked.
+
  - *scan_mode*: <h3>Create new sweep:</h3><i>specify the values each actuator takes during the sweep (either by ranges or a list of positions). Use one of the following modes to define how the values are combined. </i>
 <p><i>co-move:</i> all actuators co-move
 <p><i>nested:</i> actuators move all combinations where 1st is slowest ...
 <p><i>serpentine:</i> actuators move all combinations where 1st is slowest, 2nd is fastest and 2nd reverses direction every row.
 <p><i>*_swap_order</i> modes are the same as above, but the fastest and slowest of the actuators is swapped.</p>
-<p><i>position_list:</i> positions are defined by this Measurement's Position List.</p><br><h3>MODIFY or EXTEND previous sweep:</h3><i>never alters/deletes saved data files, always makes new files, reuses data in memory</i><p><i>RETAKE_POSITIONS:</i> Allows to retake (fix) inidiviual data points specified in Position List. To add positions ctrl click on data. Makes a new datafile with data in memory with retaken data points updated.</p><p><i>RETAKE_SLICE:</i> Retake a slice of data specified by start and stop indices. Makes a new datafile with data in memory with retaken data points updated.</p><p><i>ADD_REPS:</i> Adds more repetitions to existing scan data to improve signal-to-noise ratio through additional averaging. You can change the number of repetitions for collectors that are already active (i.e. have non-zero repetitions) and activate <i>re-sweep</i>. Makes a new datafile with data with more repetitions.</p>
+<p><i>position_list:</i> positions are defined by this Measurement's Position List.</p><br><h3>MODIFY or EXTEND previous sweep:</h3><i>never alters/deletes saved data files, always makes new files, reuses data in memory</i><p><i>RETAKE_POSITIONS:</i> Allows to retake (fix) inidiviual data points specified in Position List. To add positions ctrl click on data. Makes a new datafile with data in memory with retaken data points updated.</p><p><i>RETAKE_SLICE:</i> Retake a slice of data specified by start and stop indices. Makes a new datafile with data in memory with retaken data points updated.</p><p><i>ADD_REPS:</i> Adds more repetitions to existing scan data to improve signal-to-noise ratio through additional averaging. You can change the number of repetitions for collectors that are already active (i.e. have non-zero repetitions) and change <i>remaining-sweep</i>. Makes a new datafile with data with more repetitions.</p>
 
  - *collection_delay*: after setting first actuator(s) position(s), data collection is delayed, allowing the system to reach steady state
 
@@ -35,13 +37,15 @@
 
  - *position_representation*: <p>flat: flattened data per sweep point flattend and aranged in order measured<p>map_vertical: data at positions is along vertical direction of a map
 
- - *dset_reducer*: <p>Reduce the data to a number at each sweep point:<p>None: no reduction<p>max: maximum<p>min: minimum<p>center_index: middle data point when data per point is flattened
+ - *dset_reducer*: <p>Reduce the data to a scalar at each sweep point:<p>None: no reduction<p>mean: average<p>median: median<p>max: maximum<p>min: minimum<p>first: first data point (when data per point is flattened) <p>middle: middle data point (when data per point is flattened)<p>last: last data point (when data per point is flattened)
 
  - *retake_slice_start*: start index of slice to retake (inclusive)
 
  - *retake_slice_stop*: stop index of slice to retake (EXCLUSIVE!)
 
- - *re-sweep*: after current sweep is completed the measurement restarts (indefinitely) to add more repetitions. Uncheck to stop the measurement after current sweep is completed.
+ - *remaining_sweeps*: number of additional sweeps remaining, decremented when sweep starts. <p><p> Set a negative value to resweep indefinitely. <p><p>Set to 0 to stop after the current sweep completes.
+
+ - *alternate*: alternate the sweep direction after each sweep - only applicable when multiple sweeps are performed
 
  - *any_measurement_0*: None
 
@@ -51,33 +55,25 @@
 
  - *any_setting_1*: None
 
- - *blaze_repetitions*: number of times data gets collected at each position
+ - *timestamp_repetitions*: number of times data gets collected at each position
 
- - *blaze_always_collect_image*: None
+ - *picam_pp_repetitions*: number of times data gets collected at each position
 
- - *pump_probe_repetitions*: number of times data gets collected at each position
+ - *picam_pp_refresh_background_repetitions*: number of times data gets collected at each position
+
+ - *picam_pp_refresh_background_slider*: None
 
  - *lightfield_repetitions*: number of times data gets collected at each position
-
- - *pump_probe_SeNsR_repetitions*: number of times data gets collected at each position
 
  - *powermeter_monitoring_repetitions*: number of times data gets collected at each position
 
  - *power_slider_repetitions*: number of times data gets collected at each position
-
- - *pylon_repetitions*: number of times data gets collected at each position
-
- - *pylon_always_collect_image*: None
 
  - *flame_repetitions*: number of times data gets collected at each position
 
  - *correlation_repetitions*: number of times data gets collected at each position
 
  - *lockin_repetitions*: number of times data gets collected at each position
-
- - *const_power_PID_repetitions*: number of times data gets collected at each position
-
- - *const_power_PID_always_collect_image*: None
 
  - *any_measurement_0_repetitions*: number of times data gets collected at each position
 
@@ -99,10 +95,6 @@
 
  - *range_1_num*: 
 
- - *range_1_center*: 
-
- - *range_1_span*: 
-
  - *actuator_2*: None
 
  - *from_list_2*: use a manual list instead of a parametric range. Put one number per line. Comments can be added after #
@@ -114,8 +106,4 @@
  - *range_2_step*: 
 
  - *range_2_num*: 
-
- - *range_2_center*: 
-
- - *range_2_span*: 
 

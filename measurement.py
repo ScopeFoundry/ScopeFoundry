@@ -17,6 +17,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 
 from .base_app import BaseMicroscopeApp
+from .component_construction import ComponentConstruction
 from .dynamical_widgets.generic_widget import add_to_layout, new_widget
 from .dynamical_widgets.tree_widget import SubtreeManager
 from .helper_funcs import (
@@ -40,7 +41,7 @@ class MeasurementQThread(QtCore.QThread):
         self.measurement._thread_run()
 
 
-class Measurement:
+class Measurement(ComponentConstruction):
     """
     Base class for ScopeFoundry Measurement objects
 
@@ -652,6 +653,10 @@ class Measurement:
 
         cmenu.addAction("Start", self.start)
         cmenu.addAction("Interrupt", self.interrupt)
+        cmenu.addAction(
+            "Reload Component",
+            partial(self.app._reload_component_from_ui, self, "measurement"),
+        )
         hidden_lq = self.settings.get_lq("hidden")
         if hidden_lq.value:
             cmenu.addAction("Unhide", partial(hidden_lq.update_value, False))

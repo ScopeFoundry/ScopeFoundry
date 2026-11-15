@@ -14,12 +14,14 @@
 
  - *profile*: Run a profile on the run to find performance problems
 
+ - *hidden*: Hidden measurements do not load their UI and are only listed in the tree if 'show hidden' is checked.
+
  - *scan_mode*: <h3>Create new sweep:</h3><i>specify the values each actuator takes during the sweep (either by ranges or a list of positions). Use one of the following modes to define how the values are combined. </i>
 <p><i>co-move:</i> all actuators co-move
 <p><i>nested:</i> actuators move all combinations where 1st is slowest ...
 <p><i>serpentine:</i> actuators move all combinations where 1st is slowest, 2nd is fastest and 2nd reverses direction every row.
 <p><i>*_swap_order</i> modes are the same as above, but the fastest and slowest of the actuators is swapped.</p>
-<p><i>position_list:</i> positions are defined by this Measurement's Position List.</p><br><h3>MODIFY or EXTEND previous sweep:</h3><i>never alters/deletes saved data files, always makes new files, reuses data in memory</i><p><i>RETAKE_POSITIONS:</i> Allows to retake (fix) inidiviual data points specified in Position List. To add positions ctrl click on data. Makes a new datafile with data in memory with retaken data points updated.</p><p><i>RETAKE_SLICE:</i> Retake a slice of data specified by start and stop indices. Makes a new datafile with data in memory with retaken data points updated.</p><p><i>ADD_REPS:</i> Adds more repetitions to existing scan data to improve signal-to-noise ratio through additional averaging. You can change the number of repetitions for collectors that are already active (i.e. have non-zero repetitions) and activate <i>re-sweep</i>. Makes a new datafile with data with more repetitions.</p>
+<p><i>position_list:</i> positions are defined by this Measurement's Position List.</p><br><h3>MODIFY or EXTEND previous sweep:</h3><i>never alters/deletes saved data files, always makes new files, reuses data in memory</i><p><i>RETAKE_POSITIONS:</i> Allows to retake (fix) inidiviual data points specified in Position List. To add positions ctrl click on data. Makes a new datafile with data in memory with retaken data points updated.</p><p><i>RETAKE_SLICE:</i> Retake a slice of data specified by start and stop indices. Makes a new datafile with data in memory with retaken data points updated.</p><p><i>ADD_REPS:</i> Adds more repetitions to existing scan data to improve signal-to-noise ratio through additional averaging. You can change the number of repetitions for collectors that are already active (i.e. have non-zero repetitions) and change <i>remaining-sweep</i>. Makes a new datafile with data with more repetitions.</p>
 
  - *collection_delay*: after setting first actuator(s) position(s), data collection is delayed, allowing the system to reach steady state
 
@@ -42,6 +44,8 @@
  - *retake_slice_stop*: stop index of slice to retake (EXCLUSIVE!)
 
  - *remaining_sweeps*: number of additional sweeps remaining, decremented when sweep starts. <p><p> Set a negative value to resweep indefinitely. <p><p>Set to 0 to stop after the current sweep completes.
+
+ - *alternate*: alternate the sweep direction after each sweep - only applicable when multiple sweeps are performed
 
  - *any_measurement_0*: None
 

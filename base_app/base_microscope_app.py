@@ -309,6 +309,47 @@ class BaseMicroscopeApp(BaseApp):
         for meas in self.measurements.values():
             meas.reload_code()
 
+    def reload_hardware(self, name: str) -> HardwareProtocol:
+        """Replace the named hardware using its original constructor arguments."""
+        return self._reload_component(self.hardware[name], "hardware")
+
+    def reload_measurement(self, name: str) -> MeasurementProtocol:
+        """Replace the named measurement using its original constructor arguments."""
+        return self._reload_component(self.measurements[name], "measurement")
+
+    def _reload_component(self, component, kind):
+        from .component_reload import reload_component
+
+        if getattr(self, "_component_reload_in_progress", False):
+            raise RuntimeError("Another component is already being reloaded")
+        self._component_reload_in_progress = True
+        try:
+            reload_component(self, component, kind)
+        finally:
+            self._component_reload_in_progress = False
+
+    def _reload_component_from_ui(self, component, kind):
+        try:
+            collection = self.hardware if kind == "hardware" else self.measurements
+            if (
+                component.name not in collection
+                or collection[component.name] is not component
+            ):
+                raise ValueError(
+                    f"{kind.title()} {component.name!r} is no longer registered"
+                )
+            if kind == "hardware":
+                replacement = self.reload_hardware(component.name)
+            elif kind == "measurement":
+                replacement = self.reload_measurement(component.name)
+        except Exception as error:
+            self.log.exception("Could not reload component %s", component.name)
+            QtWidgets.QMessageBox.warning(
+                self.ui, "Component reload failed", str(error)
+            )
+            return
+        self.show_status_bar_msg(f"Reloaded component {replacement.name}", 5000)
+
     def _setup_log_file_handler(self) -> None:
         log_path = self.implementation_path / "log"
         if not log_path.is_dir():
@@ -716,9 +757,9 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.mdiArea.cascadeSubWindows()
 
     def bring_measure_ui_to_front(self, measure: MeasurementProtocol) -> None:
+        self.load_measure_ui(measure)
         ui = self._loaded_measure_uis.get(measure.name, None)
         if ui is None:
-            # measure also has no subwin
             return
         if self.mdi:
             self.bring_mdi_subwin_to_front(measure.subwin)
@@ -952,7 +993,7 @@ class BaseMicroscopeApp(BaseApp):
         # DEPRECATED use add_hardware()
         return self.add_hardware(hw)
 
-    def remove_hardware(self, name: str) -> None:
+    def remove_hardware(self, name: str, del_entry: bool = False) -> None:
         if name not in self.hardware:
             self.log.warning(f"Hardware {name} not found")
             return
@@ -975,7 +1016,10 @@ class BaseMicroscopeApp(BaseApp):
         self.remove_lq_collection_from_settings_path(hw.settings)
         hw.operations.clear_shortcuts()
 
-        del self.hardware[name]
+        if del_entry:
+            del self.hardware[name]
+        else:
+            self.hardware[name] = None
 
         self.dynamic_components.removed("hardware", name)
 
@@ -1029,8 +1073,11 @@ class BaseMicroscopeApp(BaseApp):
 
         self.add_lq_collection_to_settings_path(measure.settings)
 
+        measure._hidden_change_callback = partial(
+            self._on_measure_hidden_changed, measure
+        )
         measure.settings.get_lq("hidden").updated_value[bool].connect(
-            partial(self._on_measure_hidden_changed, measure)
+            measure._hidden_change_callback
         )
 
         if hasattr(self, "mm_tree"):
@@ -1075,6 +1122,12 @@ class BaseMicroscopeApp(BaseApp):
         measure = self.measurements[name]
 
         self.set_measurement_connection_visibility(measure, None)
+        hidden_callback = getattr(measure, "_hidden_change_callback", None)
+        if hidden_callback is not None:
+            measure.settings.get_lq("hidden").updated_value[bool].disconnect(
+                hidden_callback
+            )
+            del measure._hidden_change_callback
 
         if measure.is_measuring():
             self.log.info(f"Interrupting {name} before removal")
@@ -1102,10 +1155,11 @@ class BaseMicroscopeApp(BaseApp):
 
         if name in self._loaded_measure_uis:
             ui = self._loaded_measure_uis[name]
-            if ui and hasattr(measure, "subwin") and measure.subwin:
-                if self.mdi:
+            if ui:
+                if self.mdi and getattr(measure, "subwin", None):
                     self.ui.mdiArea.removeSubWindow(measure.subwin)
                     measure.subwin.deleteLater()
+                    measure.subwin = None
                 else:
                     ui.close()
                     ui.deleteLater()

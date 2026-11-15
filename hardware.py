@@ -8,6 +8,7 @@ from typing import Callable
 from qtpy import QtCore, QtGui, QtWidgets
 
 from .base_app import BaseMicroscopeApp
+from .component_construction import ComponentConstruction
 from .dynamical_widgets import add_to_layout, new_widget
 from .dynamical_widgets.tree_widget import SubtreeManager
 from .helper_funcs import (
@@ -21,7 +22,7 @@ from .logged_quantity import LQCollection, LoggedQuantity
 from .operations import Operations
 
 
-class HardwareComponent:
+class HardwareComponent(ComponentConstruction):
     """
     :class:`HardwareComponent`
 
@@ -317,6 +318,10 @@ class HardwareComponent:
         cmenu.addAction("Connect", connect)
         cmenu.addAction("Disconnect", disconnect)
         cmenu.addAction("Read from Hardware", self.read_from_hardware)
+        cmenu.addAction(
+            "Reload Component",
+            partial(self.app._reload_component_from_ui, self, "hardware"),
+        )
         hidden_lq = self.settings.get_lq("hidden")
         if hidden_lq.value:
             cmenu.addAction("Unhide", partial(hidden_lq.update_value, False))
