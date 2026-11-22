@@ -41,11 +41,25 @@
          <widget class="QLineEdit" name="browse_dir_lineEdit"/>
         </item>
         <item>
-         <widget class="QPushButton" name="browse_dir_browse_pushButton">
-          <property name="text">
-           <string>Browse...</string>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="browse_dir_buttons_layout">
+          <item>
+           <widget class="QPushButton" name="browse_dir_browse_pushButton">
+            <property name="text">
+             <string>Browse...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="browse_dir_refresh_pushButton">
+            <property name="toolTip">
+             <string>Refresh file list (F5)</string>
+            </property>
+            <property name="text">
+             <string>Refresh</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
          <widget class="QTreeView" name="treeView"/>
