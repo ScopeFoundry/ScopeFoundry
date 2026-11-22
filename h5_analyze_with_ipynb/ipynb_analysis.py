@@ -173,9 +173,12 @@ def find_latest_file(files_metadata: Dict) -> Union[Dict, None]:
 def generate_ipynb(
     folder: str = ".", ipynb_fname: Union[Path, None] = None
 ) -> Tuple[Path, Dict]:
-    if ipynb_fname is None:
-        ipynb_fname = Path(folder) / IPYNB_DEMO_FNAME
+    folder = Path(folder)
+    if not folder.exists():
+        raise FileNotFoundError(f"{folder} does not exist - Select a valid folder")
 
+    if ipynb_fname is None:
+        ipynb_fname = folder / IPYNB_DEMO_FNAME
     if ipynb_fname.exists():
         with open(ipynb_fname, "r") as file:
             nb_content = json.load(file)
@@ -183,6 +186,9 @@ def generate_ipynb(
             nb_content = new_empty_nb_content(2)
     else:
         nb_content = new_empty_nb_content(2)
+        # with open(ipynb_fname, "w+") as file:
+        # pass
+        # json.dump(nb_content, file)
 
     return ipynb_fname, nb_content
 

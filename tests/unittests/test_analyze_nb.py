@@ -9,9 +9,10 @@ from qtpy import QtCore, QtTest, QtWidgets
 
 from ScopeFoundry import BaseMicroscopeApp
 from ScopeFoundry import h5_analyze_with_ipynb
-import ScopeFoundry.h5_analyze_with_ipynb.IpynbAnalysisMeasurement as ipynb_measurement
+import ScopeFoundry.h5_analyze_with_ipynb.ipynb_analysis_measure as ipynb_measurement
 from ScopeFoundry.h5_analyze_with_ipynb import ipynb_analysis
-from ScopeFoundry.h5_analyze_with_ipynb.IpynbAnalysisMeasurement import (
+from ScopeFoundry.h5_analyze_with_ipynb.generate_loaders_py import injects_code
+from ScopeFoundry.h5_analyze_with_ipynb.ipynb_analysis_measure import (
     IpynbAnalysisMeasurement,
 )
 from ScopeFoundry.base_app.profile_manager import ProfileManager
@@ -164,6 +165,26 @@ class AnalyzeNBTest(unittest.TestCase):
             h5_analyze_with_ipynb.analyze_with_ipynb(str(self.root), option="all")
         content = json.loads((self.root / "overview.ipynb").read_text())
         self.assertEqual(len(content["cells"]), 4)
+
+    def test_valid_dset_names(self):
+        valid_inputs = (
+            "hyperspectral__scan",
+            "hyperspectral/scan",
+            "hyperspectral hyperspectral",
+            "hyperspectral scan/dset",
+            "hyperspectral_scan/dset b",
+        )
+        for input in valid_inputs:
+            resp = injects_code(input)
+            print(resp)
+            self.assertFalse(resp, resp)
+
+    def test_invalid_dset_names(self):
+        invalid_inputs = ("x=22", "x-22", "str(33)", "__import__(")
+        for input in invalid_inputs:
+            resp = injects_code(input)
+            print(resp)
+            self.assertIsInstance(resp, str, resp)
 
 
 if __name__ == "__main__":

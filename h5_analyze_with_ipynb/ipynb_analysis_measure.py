@@ -39,14 +39,11 @@ class IpynbAnalysisMeasurement(Measurement):
                 "with .get_py_snippets() method of the Measurement properly implemented."
             )
 
-    def install_app_controls(self, button_layout):
+        self.button_layout = self.app._app_widget_buttons_layout
         operation = self.operations.get("analyze with ipynb")
-        button = operation.new_button()
-        button.setText(" analyze")
-        button_layout.insertWidget(1, button)
-        action = self.app.ui.menuAdvanced.addAction("analyze with ipynb")
-        action.setIcon(button.icon())
-        action.triggered.connect(lambda checked=False: operation.func())
+        self.button = operation.new_button()
+        self.button.setText(" analyze")
+        self.button_layout.insertWidget(1, self.button)
 
     def _init_py_analysis_directory(self):
         self.py_analysis_scripts_path = self.app_scripts_path
@@ -110,3 +107,7 @@ class IpynbAnalysisMeasurement(Measurement):
     def post_run(self):
         if self._run_ipynb_path is not None and self._run_ipynb_path.exists():
             open_file(self._run_ipynb_path)
+
+    def teardown(self):
+        self.button_layout.removeWidget(self.button)
+        self.button.deleteLater()

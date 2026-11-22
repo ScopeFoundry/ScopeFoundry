@@ -12,7 +12,7 @@
     "kind": "measurement"
   },
   {
-    "module": "ScopeFoundry.h5_analyze_with_ipynb.IpynbAnalysisMeasurement",
+    "module": "ScopeFoundry.h5_analyze_with_ipynb.ipynb_analysis_measure",
     "class_name": "IpynbAnalysisMeasurement",
     "name": "ipynb_analysis",
     "kind": "measurement"

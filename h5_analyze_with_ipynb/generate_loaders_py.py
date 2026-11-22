@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Union
+import keyword
 
 import h5py
 
@@ -117,7 +118,7 @@ def load_settings(fname: str) -> Dict[str, Any]:
     return settings
 
 
-def find_settings(settings: Dict, pattern: str = "measurement/*") -> Dict:
+def find_settings(settings: Dict, pattern: str = "mm/*") -> Dict:
     if type(settings) is str:
         settings = load_settings(settings)
     if hasattr(settings, "settings"):
@@ -135,7 +136,10 @@ def _settings_visitfunc(name: str, node: h5py.Group, settings: Dict[str, Any]) -
         return
 
     if len(parts) == 3 and parts[0] == OTHER_MEASUREMENTS_GROUP:
-        parts[0] = "measurement"
+        parts[0] = "mm"
+
+    parts[0] = parts[0].replace("measurement", "mm", count = 1) 
+    parts[0] = parts[0].replace("hardware", "hw", count = 1)
 
     for key, val in node.attrs.items():
         settings["/".join(parts[:-1] + [key])] = val
@@ -178,9 +182,31 @@ __STR__INFO = r"""
 
 DICT_STYLE_METHODS = r"""
     def __getitem__(self, key):
+        if key in self.__dict__:
+            return self.__dict__[key]
+
+        parts = key.split("/")
+        if len(parts) == 3 and parts[0] == "measurement":
+            print("measurement/... deprecated, use mm/... instead")
+            parts[0]="mm"
+            key = "/".join(parts)
+        elif len(parts) == 3 and parts[0] == "hardware":
+            print("hardware/... deprecated, use hw/... instead")
+            parts[0]="hw"
+            key = "/".join(parts)
         if key in self.settings:
             return self.settings[key]
-        return self.__dict__[key]
+
+            
+        augmented_key = "*"+key+"*"
+        candidates = find_settings(self.settings, augmented_key)
+        matching = [k for k in self.__dict__ if fnmatch.fnmatch(k, augmented_key)]
+        if candidates or matching:
+            print(f"Excate match for {key} not found - did you mean:")
+            for k in candidates:
+                print(f" - {k}: {candidates[k]}")
+            for k in matching:
+                print(f" - {k}: {self.__dict__[k]}")
 
     def __setitem__(self, key, item):
         self.__dict__[key] = item
@@ -195,6 +221,29 @@ DICT_STYLE_METHODS = r"""
 """
 
 
+def injects_code(input: str):
+    """return False"""
+    if "/" in input:
+        return any([injects_code(_s) for _s in input.split("/")])
+    if " " in input:
+        return any([injects_code(_s) for _s in input.split(" ")])
+    return _injects(input)
+
+
+def _injects(input: str) -> str:
+
+    if not str.isidentifier(input):
+        return f"{repr(input)} is not an identifier"
+
+    if keyword.iskeyword(input):
+        return f"{repr(input)} is a keyword"
+
+    if repr(input)[1:-1] != input:
+        return f"{repr(input)} is not a valid identifier"
+
+    return False
+
+
 def get_measurement_name(fname: str) -> str:
     with h5py.File(fname, "r") as file:
         if len(file["measurement"].keys()) == 1:
@@ -205,7 +254,13 @@ def get_measurement_name(fname: str) -> str:
 def generate_loaders(dsets: Dict[str, Dict[str, bool]]) -> List[str]:
     lines = []
     for mm_name, name_to_is_array in dsets.items():
-
+        msg = injects_code(mm_name)
+        if injects_code(mm_name):
+            print(
+                f"Skipping Measurement {repr(mm_name)} due suspicion of code injection"
+            )
+            print(msg)
+            continue
         class_name = "".join(x.title() for x in mm_name.split("_"))
 
         data_class_lines = [
@@ -229,6 +284,11 @@ def generate_loaders(dsets: Dict[str, Dict[str, bool]]) -> List[str]:
             if attr_name in seen_attr_names:
                 continue
             seen_attr_names.add(attr_name)
+            msg = injects_code(mm_name)
+            if msg:
+                print(f"Skipping {repr(name)} due suspicion of code injection")
+                print(msg)
+                continue
             data_class_lines.append(f"{' ':>4}{attr_name}: np.ndarray")
             if is_array:
                 load_func_lines.append(
