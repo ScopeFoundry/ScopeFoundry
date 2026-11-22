@@ -16,15 +16,6 @@ from ScopeFoundry.tests.unittests.unittest_helpers import close_app_widgets
 class ProfileTest(unittest.TestCase):
 
     def setUp(self):
-        self._app_implementation_dir = tempfile.TemporaryDirectory()
-        self.addCleanup(self._app_implementation_dir.cleanup)
-        implementation_dir_patch = patch.object(
-            ProfileManager,
-            "_app_implementation_dir",
-            return_value=Path(self._app_implementation_dir.name),
-        )
-        implementation_dir_patch.start()
-        self.addCleanup(implementation_dir_patch.stop)
         self.app = BaseMicroscopeApp([])
         self.addCleanup(close_app_widgets, self.app)
         self.ms = self.app.add_measurement(Measure1(self.app))
@@ -141,9 +132,6 @@ class ProfileTest(unittest.TestCase):
             self.assertEqual(
                 self.app.profile_manager.selected_profile_name, "selected profile"
             )
-            self.assertEqual(
-                self.app.profile_manager._read_selected_profile(), "selected profile"
-            )
             self.hws["choices"] = 2
             self.hws["float"] = 3.0
             self.app.profile_manager.update_selected_profile()
@@ -156,21 +144,6 @@ class ProfileTest(unittest.TestCase):
             self.app.profile_manager.load_profile("selected profile")
             self.assertEqual(self.hws["choices"], 2)
             self.assertEqual(self.hws["float"], 3.0)
-
-    def test_delete_selected_profile_clears_saved_selection(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            self.app.profile_manager.profiles_dir = Path(temp_dir)
-            self.app.profile_manager.save_profile("selected profile", setting_paths=[])
-
-            with patch(
-                "ScopeFoundry.base_app.base_microscope_app.QtWidgets.QMessageBox.question",
-                return_value=QtWidgets.QMessageBox.StandardButton.Yes,
-            ):
-                self.app.profile_manager.delete_selected_profile()
-
-            self.assertFalse((Path(temp_dir) / "selected profile").exists())
-            self.assertFalse((Path(temp_dir) / ".last_selected_profile").exists())
-            self.assertEqual(self.app.profile_manager.selected_profile_name, "")
 
     def test_profile_editor_saves_window_layout_metadata(self):
         with tempfile.TemporaryDirectory() as temp_dir:

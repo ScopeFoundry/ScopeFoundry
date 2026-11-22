@@ -44,15 +44,6 @@ class App(BaseMicroscopeApp):
 class GetSettingsTest(unittest.TestCase):
 
     def setUp(self):
-        self._app_implementation_dir = tempfile.TemporaryDirectory()
-        self.addCleanup(self._app_implementation_dir.cleanup)
-        implementation_dir_patch = patch.object(
-            ProfileManager,
-            "_app_implementation_dir",
-            return_value=Path(self._app_implementation_dir.name),
-        )
-        implementation_dir_patch.start()
-        self.addCleanup(implementation_dir_patch.stop)
         self.app = App([])
         self.addCleanup(close_app_widgets, self.app)
         self.hw = self.app.hw

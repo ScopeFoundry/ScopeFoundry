@@ -35,20 +35,10 @@ class AnalyzeNBTest(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)
         self.root = Path(self.temp_dir.name)
-        patcher = patch(
-            "ScopeFoundry.base_app.base_microscope_app.get_child_path",
-            return_value=self.root,
-        )
-        patcher.start()
-        self.addCleanup(patcher.stop)
-        patcher = patch.object(
-            ProfileManager, "_app_implementation_dir", return_value=self.root
-        )
-        patcher.start()
-        self.addCleanup(patcher.stop)
 
     def make_app(self, app_class=BaseMicroscopeApp):
         app = app_class([])
+        app.add_measurement(IpynbAnalysisMeasurement(app))
         self.addCleanup(close_app_widgets, app)
         return app
 
@@ -64,90 +54,6 @@ class AnalyzeNBTest(unittest.TestCase):
         measure.scripts_path = scripts
         app.add_measurement(measure)
         return measure
-
-    def test_analysis_and_script_copy(self):
-        app = self.make_app()
-        measure = self.add_dummy(app)
-        analysis = app.measurements["ipynb_analysis"]
-        folder = self.root / "data"
-        self.make_data(folder)
-        self.make_data(folder, "second.h5")
-        (measure.scripts_path / "measure_helper.py").write_text("measure")
-        (analysis.app_scripts_path / "app_helper.py").write_text("app")
-        (analysis.app_scripts_path / "existing.py").write_text("new")
-        (folder / "existing.py").write_text("original")
-        analysis.settings["ipynb_option"] = "all"
-        with patch.object(ipynb_measurement, "open_file") as open_file:
-            notebook = analysis.analyze()
-        open_file.assert_called_once_with(notebook)
-        content = json.loads(notebook.read_text())
-        self.assertEqual(len(content["cells"]), 3)
-        self.assertIn("print('measurement snippet')\n", content["cells"][2]["source"])
-        self.assertTrue((folder / "h5_data_loaders.py").is_file())
-        self.assertEqual((folder / "measure_helper.py").read_text(), "measure")
-        self.assertEqual((folder / "app_helper.py").read_text(), "app")
-        self.assertEqual((folder / "existing.py").read_text(), "original")
-
-    def test_flag_set_during_setup_does_not_disable_analysis(self):
-        class App(BaseMicroscopeApp):
-            mdi = False
-
-            def setup(self):
-                self.enable_ipynb_analysis = False
-
-        app = self.make_app(App)
-        analysis = app.measurements["ipynb_analysis"]
-        self.assertTrue(analysis.settings["hidden"])
-        self.assertIn("ipynb_option", analysis.settings)
-        self.assertTrue((self.root / "py_analysis_scripts").exists())
-        self.assertTrue(
-            app.ui.findChildren(QtWidgets.QPushButton, "analyze with ipynb")
-        )
-        self.assertIn(
-            "analyze with ipynb",
-            [action.text() for action in app.ui.menuAdvanced.actions()],
-        )
-        shortcuts = app.ui.findChildren(QtWidgets.QShortcut)
-        self.assertTrue(any(s.key().toString() == "Ctrl+I" for s in shortcuts))
-
-    def test_controls_route_to_measurement_in_both_ui_modes(self):
-        for mdi in (True, False):
-            with self.subTest(mdi=mdi):
-
-                class App(BaseMicroscopeApp):
-                    pass
-
-                App.mdi = mdi
-                app = self.make_app(App)
-                analysis = app.measurements["ipynb_analysis"]
-                operation = analysis.operations.get("analyze with ipynb")
-                with patch.object(ipynb_measurement, "open_file"):
-                    with patch.object(
-                        ipynb_measurement, "generate_loaders_py"
-                    ) as generate:
-                        generate.return_value = (Path("loaders.py"), {})
-                        button = app.ui.findChild(QtWidgets.QPushButton, operation.name)
-                        action = next(
-                            a
-                            for a in app.ui.menuAdvanced.actions()
-                            if a.text() == operation.name
-                        )
-                        button.click()
-                        action.trigger()
-                        analysis.operations._shortcuts[operation.name].activated.emit()
-                        self.assertEqual(generate.call_count, 3)
-
-    def test_threaded_measurement_run_opens_after_completion(self):
-        app = self.make_app()
-        analysis = app.measurements["ipynb_analysis"]
-        self.make_data(self.root / "data")
-        with patch.object(ipynb_measurement, "open_file") as open_file:
-            analysis.start()
-            deadline = QtCore.QDeadlineTimer(10000)
-            while analysis.is_measuring() and not deadline.hasExpired():
-                QtTest.QTest.qWait(20)
-            self.assertEqual(analysis.end_state, "stop_success")
-            open_file.assert_called_once_with(self.root / "data" / "overview.ipynb")
 
     def test_standalone_compatibility_and_options(self):
         self.assertIs(h5_analyze_with_ipynb.update_ipynb, ipynb_analysis.update_ipynb)

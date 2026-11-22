@@ -5,9 +5,7 @@ tools/tools_defaults.ini
 ScopeFoundry.egg-info
 **/__**.md
 **/__place**.md
-/profiles/
-**/profiles/history/
-**/profiles/.last_selected_profile
+**/*profiles/history/
 **/*.scopefoundry
 **/*_log_*.txt
 tests/unittests/settings_io_test_roundtrip.ini

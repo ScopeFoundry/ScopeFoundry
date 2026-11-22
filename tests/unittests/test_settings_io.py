@@ -40,13 +40,7 @@ class SettingsIOTest(unittest.TestCase):
     def setUp(self):
         self._app_implementation_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self._app_implementation_dir.cleanup)
-        implementation_dir_patch = patch.object(
-            ProfileManager,
-            "_app_implementation_dir",
-            return_value=Path(self._app_implementation_dir.name),
-        )
-        implementation_dir_patch.start()
-        self.addCleanup(implementation_dir_patch.stop)
+
         self.app = BaseMicroscopeApp([])
         self.addCleanup(close_app_widgets, self.app)
         self.ms = self.app.add_measurement(Measure1(self.app))
