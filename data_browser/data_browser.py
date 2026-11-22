@@ -1,6 +1,8 @@
 import argparse
 from collections import OrderedDict
+import os
 from pathlib import Path
+import threading
 
 from qtpy import QtCore, QtWidgets, QtGui
 
@@ -11,9 +13,22 @@ from ScopeFoundry.helper_funcs import load_qt_ui_file, load_qt_ui_from_pkg, sibl
 from ScopeFoundry.data_browser.viewers.file_info import FileInfoView
 
 
+def _take_dir_snapshot(path: str):
+    """Return a lightweight snapshot of directory entries, or None on error."""
+    try:
+        with os.scandir(path) as entries:
+            return frozenset(
+                (entry.name, entry.is_dir(follow_symlinks=False))
+                for entry in entries
+            )
+    except OSError:
+        return None
+
+
 class DataBrowser(BaseApp):
 
     name = "DataBrowser"
+    _dirs_changed = QtCore.Signal(list)
 
     def __init__(self, argv, dark_mode=None):
         BaseApp.__init__(self, argv)
@@ -30,6 +45,12 @@ class DataBrowser(BaseApp):
             QtCore.Qt.Key_R: self.on_rename,
         }
 
+        self._dir_snapshots = {}
+        self._dir_snapshots_lock = threading.Lock()
+        self._poll_in_progress = False
+        self._refresh_stopped = False
+        self._browse_gen = 0
+
         s = self.settings
         s.New("data_filename", dtype="file")
         s.New("browse_dir", dtype="file", is_dir=True, initial="/")
@@ -41,6 +62,15 @@ class DataBrowser(BaseApp):
             description="auto selects the view when file name is changed.",
         )
         s.New("view_name", dtype=str, initial="file_info", choices=("0",))
+        s.New(
+            "auto_refresh_interval",
+            dtype=float,
+            initial=2.0,
+            unit="s",
+            vmin=0.0,
+            vmax=60.0,
+            description="Polling interval (seconds) to detect added/removed files; 0 disables polling.",
+        )
 
         self.setup_ui()
 
@@ -56,6 +86,16 @@ class DataBrowser(BaseApp):
 
         s.file_filter.add_listener(self.on_change_file_filter)
         s.view_name.add_listener(self.on_change_view_name)
+        s.auto_refresh_interval.add_listener(self.on_change_auto_refresh_interval)
+
+        self._dirs_changed.connect(
+            self.refresh_file_list, QtCore.Qt.ConnectionType.QueuedConnection
+        )
+        self._refresh_timer = QtCore.QTimer(self)
+        self._refresh_timer.timeout.connect(self._poll_watched_dirs)
+        self.on_change_auto_refresh_interval()
+        if self.qtapp is not None:
+            self.qtapp.aboutToQuit.connect(self._stop_file_refresh)
 
         self.setup_dark_mode_option(dark_mode)
 
@@ -86,12 +126,13 @@ class DataBrowser(BaseApp):
 
         # file system tree
         self.tree_view = self.ui.treeView
-        self.fs_model = QtWidgets.QFileSystemModel()
+        self.fs_model = QtWidgets.QFileSystemModel(self.ui)
         self.fs_model.setRootPath(QtCore.QDir.currentPath())
         self.tree_view.setModel(self.fs_model)
         self.tree_view.setIconSize(QtCore.QSize(16, 16))
         self.tree_view.setSortingEnabled(True)
         self.tree_view.setColumnWidth(0, 500)  # make name column wider
+        self.tree_view.expanded.connect(self._on_tree_expanded)
         self.tree_selectionModel = self.tree_view.selectionModel()
         self.tree_selectionModel.selectionChanged.connect(
             self.on_treeview_selection_change
@@ -107,6 +148,13 @@ class DataBrowser(BaseApp):
         s.browse_dir.connect_to_browse_widgets(
             self.ui.browse_dir_lineEdit, self.ui.browse_dir_browse_pushButton
         )
+        if hasattr(self.ui, "browse_dir_refresh_pushButton"):
+            self.ui.browse_dir_refresh_pushButton.clicked.connect(
+                self.on_refresh_file_list
+            )
+            self.ui.browse_dir_refresh_pushButton.setShortcut(
+                QtGui.QKeySequence(QtCore.Qt.Key_F5)
+            )
         self.ui.data_filename_recycle_pushButton.clicked.connect(self.on_recycle)
         self.ui.data_filename_rename_pushButton.clicked.connect(self.on_rename)
         s.view_name.connect_to_widget(self.ui.view_name_comboBox)
@@ -192,8 +240,149 @@ class DataBrowser(BaseApp):
     @QtCore.Slot()
     def on_change_browse_dir(self):
         self.log.debug("on_change_browse_dir")
-        self.ui.treeView.setRootIndex(self.fs_model.index(self.settings["browse_dir"]))
-        self.fs_model.setRootPath(self.settings["browse_dir"])
+        browse_dir = self.settings["browse_dir"]
+        root_idx = self.fs_model.setRootPath(browse_dir)
+        self.ui.treeView.setRootIndex(root_idx)
+        with self._dir_snapshots_lock:
+            self._browse_gen += 1
+            self._dir_snapshots.clear()
+            gen = self._browse_gen
+        self._seed_dir_snapshot_async(str(browse_dir), gen)
+
+    def _on_tree_expanded(self, index):
+        path = self.fs_model.filePath(index)
+        if path and self.fs_model.isDir(index):
+            with self._dir_snapshots_lock:
+                gen = self._browse_gen
+            self._seed_dir_snapshot_async(path, gen)
+
+    def _seed_dir_snapshot_async(self, path: str, gen: int):
+        if not path or self._refresh_stopped:
+            return
+
+        def _seed():
+            snap = _take_dir_snapshot(path)
+            if snap is None:
+                return
+            with self._dir_snapshots_lock:
+                if gen == self._browse_gen and path not in self._dir_snapshots:
+                    self._dir_snapshots[path] = snap
+
+        threading.Thread(target=_seed, daemon=True).start()
+
+    def _get_watched_dirs(self):
+        browse_dir = str(self.settings["browse_dir"])
+        if not browse_dir or not Path(browse_dir).is_dir():
+            return []
+
+        dirs = [browse_dir]
+        root_idx = self.tree_view.rootIndex()
+        if not root_idx.isValid():
+            return dirs
+
+        stack = [root_idx]
+        while stack:
+            parent = stack.pop()
+            rows = self.fs_model.rowCount(parent)
+            for row in range(rows):
+                child = self.fs_model.index(row, 0, parent)
+                if not child.isValid():
+                    continue
+                if self.tree_view.isExpanded(child) and self.fs_model.isDir(child):
+                    path = self.fs_model.filePath(child)
+                    if path:
+                        dirs.append(path)
+                    stack.append(child)
+        return dirs
+
+    def on_change_auto_refresh_interval(self):
+        interval = float(self.settings["auto_refresh_interval"])
+        if interval <= 0.0:
+            self._refresh_timer.stop()
+        else:
+            self._refresh_timer.start(max(100, int(interval * 1000)))
+
+    def _stop_file_refresh(self):
+        self._refresh_stopped = True
+        if hasattr(self, "_refresh_timer"):
+            self._refresh_timer.stop()
+
+    def _poll_watched_dirs(self):
+        if self._refresh_stopped or self._poll_in_progress:
+            return
+        if self.ui is None or not self.ui.isVisible() or self.ui.isMinimized():
+            return
+
+        watched = self._get_watched_dirs()
+        if not watched:
+            return
+
+        with self._dir_snapshots_lock:
+            gen = self._browse_gen
+
+        self._poll_in_progress = True
+        threading.Thread(
+            target=self._scan_dirs_worker, args=(watched, gen), daemon=True
+        ).start()
+
+    def _scan_dirs_worker(self, watched, gen: int):
+        try:
+            snapshots = {}
+            for path in watched:
+                snap = _take_dir_snapshot(path)
+                if snap is not None:
+                    snapshots[path] = snap
+
+            changed = []
+            with self._dir_snapshots_lock:
+                if gen != self._browse_gen:
+                    return
+                watched_set = set(watched)
+                for stale in list(self._dir_snapshots.keys()):
+                    if stale not in watched_set:
+                        del self._dir_snapshots[stale]
+
+                for path, snap in snapshots.items():
+                    prev = self._dir_snapshots.get(path)
+                    self._dir_snapshots[path] = snap
+                    if prev is not None and prev != snap:
+                        changed.append(path)
+
+            if changed and not self._refresh_stopped:
+                self._dirs_changed.emit(changed)
+        finally:
+            self._poll_in_progress = False
+
+    @QtCore.Slot(list)
+    def refresh_file_list(self, changed_dirs=None):
+        """Force QFileSystemModel to re-scan browse_dir and any expanded subdirectories."""
+        browse_dir = str(self.settings["browse_dir"])
+        if not browse_dir or not Path(browse_dir).is_dir():
+            return
+
+        targets = (
+            list(changed_dirs)
+            if changed_dirs is not None
+            else self._get_watched_dirs()
+        )
+        for path in targets:
+            if path != browse_dir and Path(path).is_dir():
+                self.fs_model.setRootPath(path)
+
+        self.fs_model.setRootPath("")
+        root_idx = self.fs_model.setRootPath(browse_dir)
+        self.ui.treeView.setRootIndex(root_idx)
+
+    @QtCore.Slot()
+    def on_refresh_file_list(self):
+        """Manually refresh browse_dir and all expanded subdirectories."""
+        targets = self._get_watched_dirs()
+        with self._dir_snapshots_lock:
+            gen = self._browse_gen
+            self._dir_snapshots.clear()
+        self.refresh_file_list(targets)
+        for path in targets:
+            self._seed_dir_snapshot_async(path, gen)
 
     def on_change_file_filter(self):
         self.log.debug("on_change_file_filter")
