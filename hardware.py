@@ -358,6 +358,10 @@ class HardwareComponent(ComponentConstruction):
         """
         raise NotImplementedError()
 
+    def teardown(self):
+        """Typically not needed. Override this to undo non standart setup actions. E.g. To delete a button in the general ui of the APP."""
+        pass
+
     def connect(self) -> None:
         """
         Opens a connection to hardware

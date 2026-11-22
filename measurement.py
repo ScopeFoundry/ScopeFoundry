@@ -170,6 +170,9 @@ class Measurement(ComponentConstruction):
         self.log.info("Empty setup_figure called")
         pass
 
+    def teardown(self):
+        """Typically not needed. Override this to undo non standart setup actions. E.g. To delete a button in the general ui of the APP."""
+
     def start(self):
         """
         Starts the measurement
@@ -276,7 +279,6 @@ class Measurement(ComponentConstruction):
             QtWidgets.QApplication.clipboard().setText(metadata.h5_file_path.name)
         except Exception as err:
             self.log.warning(f"could not copy dataset name to clipboard: {err}")
-        
 
     def post_run(self):
         """Override this method to enable main-thread finalization after to measurement thread completes"""

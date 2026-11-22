@@ -497,6 +497,13 @@ def get_links(fname, launch_browser):
             for name, url in json.load(file).items()
         ]
 
+def get_child_file(parent_class) -> Path:
+    """file where a subclass is stored"""
+    module = sys.modules[parent_class.__class__.__module__]
+    if module.__name__ == "__main__":
+        return Path(sys.argv[0])
+    elif hasattr(module, "__file__"):
+        return Path(module.__file__)
 
 def get_child_path(parent_class) -> Path:
     """folder where a subclass is stored"""

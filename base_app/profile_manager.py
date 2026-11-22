@@ -188,19 +188,10 @@ class ProfileManager:
     def __init__(self, app):
         self.app = app
         self.profiles_dir = self._profiles_dir_for_app()
-        self.selected_profile_name = self._read_selected_profile()
         self.startup_profile_name = self._read_startup_profile()
+        self.selected_profile_name = self.startup_profile_name
         self.profile_menu = None
         self.history = StateHistory(app, self.profiles_dir / "history")
-
-    def _app_implementation_dir(self):
-        try:
-            implementation_file = Path(inspect.getfile(type(self.app))).resolve()
-        except (OSError, TypeError, ValueError):
-            implementation_file = None
-        if implementation_file is None or implementation_file.name.startswith("<"):
-            return Path.cwd()
-        return implementation_file.parent
 
     @staticmethod
     def _contains_profiles(profiles_dir: Path) -> bool:
@@ -210,26 +201,26 @@ class ProfileManager:
         )
 
     def _profiles_dir_for_app(self) -> Path:
-        implementation_profiles = self._app_implementation_dir() / "profiles"
-        if self._contains_profiles(implementation_profiles):
-            return implementation_profiles
-        return Path.cwd() / "profiles"
+        return self.app.implementation_path / (
+            self.app.implementation_file.stem + "_profiles"
+        )
 
-    def _app_implementation_ini_files(self):
-        implementation_dir = self._app_implementation_dir()
+    def _app_implementation_ini_files(self) -> list[Path]:
         return sorted(
             path
-            for path in implementation_dir.glob("*.ini")
+            for path in self.app.implementation_path.glob("*.ini")
             if path.is_file() and path.name != "tools_defaults.ini"
         )
 
     def initialize_startup_profile(self) -> None:
         """Load the startup profile or create it from a nearby INI file."""
-        if self.startup_profile_name:
+        startup_settings = (
+            self.profiles_dir / self.startup_profile_name / "settings.ini"
+        )
+        if self.startup_profile_name and startup_settings.is_file():
             self.load_profile(self.startup_profile_name)
             return
 
-        startup_settings = self.profiles_dir / "start_up" / "settings.ini"
         if startup_settings.is_file():
             self._set_startup_profile("start_up")
             self.load_profile("start_up")
@@ -374,50 +365,13 @@ class ProfileManager:
             if profile_dir.is_dir() and (profile_dir / "settings.ini").is_file()
         )
 
-    def _read_selected_profile(self) -> str:
-        marker = self.profiles_dir / ".last_selected_profile"
-        try:
-            name = marker.read_text(encoding="utf-8").strip()
-        except OSError:
-            return ""
-        if (
-            name
-            and Path(name).name == name
-            and name not in (".", "..")
-            and (self.profiles_dir / name / "settings.ini").is_file()
-        ):
-            return name
-        return ""
-
     def _set_selected_profile(self, name: str) -> None:
-        self.profiles_dir.mkdir(parents=True, exist_ok=True)
-        marker = self.profiles_dir / ".last_selected_profile"
-        if name:
-            marker.write_text(name, encoding="utf-8")
-        else:
-            marker.unlink(missing_ok=True)
         self.selected_profile_name = name
 
     def _read_startup_profile(self) -> str:
-        name = self.app.load_microscope_config().get("startup_profile", "")
-        if not isinstance(name, str):
-            return ""
-        if (
-            name
-            and Path(name).name == name
-            and name not in (".", "..")
-            and (self.profiles_dir / name / "settings.ini").is_file()
-        ):
-            return name
-        return ""
+        return self.app.load_microscope_config().get("startup_profile", "")
 
     def _set_startup_profile(self, name: str) -> None:
-        if name and (
-            Path(name).name != name
-            or name in (".", "..")
-            or not (self.profiles_dir / name / "settings.ini").is_file()
-        ):
-            raise ValueError(f"Unknown startup profile: {name}")
         config = self.app.load_microscope_config()
         config["startup_profile"] = name
         self.app.save_microscope_config(config)

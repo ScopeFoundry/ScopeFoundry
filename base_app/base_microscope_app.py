@@ -22,14 +22,15 @@ from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
     confirm_on_close,
     find_matches,
-    get_child_path,
     get_scopefoundry_version,
     ignore_on_close,
     itemize_launchers,
     load_qt_ui_file,
     sibling_path,
+    get_child_file,
+    init_docs_path,
 )
-from ScopeFoundry.helper_funcs import init_docs_path
+
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 from ScopeFoundry.operations import Operation, Operations
 
@@ -82,12 +83,12 @@ class BaseMicroscopeApp(BaseApp):
         super().__init__(argv, **kwargs)
 
         self.settings_icon_path = self.icons_path / "settings_logo.png"
-
-        self.implementation_path = get_child_path(self)
+        
+        self.implementation_file = get_child_file(self)
+        self.implementation_path = self.implementation_file.parent
         self.docs_path = self.implementation_path / "docs"
-        safe_name = "".join(c if c.isalnum() or c in "-_ ." else "_" for c in self.name)
         self.microscope_config_path = (
-            self.implementation_path / f"{safe_name}.scopefoundry"
+            self.implementation_path / f"{self.implementation_file.stem}.scopefoundry"
         )
 
         self._setup_log_file_handler()
@@ -102,14 +103,6 @@ class BaseMicroscopeApp(BaseApp):
 
         self.setup()
 
-        # making IpynbAnalysisMeasurement mandatory for now. Will need a more clever idea to opt out.
-        from ScopeFoundry.h5_analyze_with_ipynb.IpynbAnalysisMeasurement import (
-            IpynbAnalysisMeasurement,
-        )
-
-        ipynb_analysis = IpynbAnalysisMeasurement(self)
-        self.add_measurement(ipynb_analysis, initially_hidden=True)
-
         from .component_picker import DynamicComponents
 
         self.dynamic_components = DynamicComponents(self)
@@ -119,7 +112,6 @@ class BaseMicroscopeApp(BaseApp):
         if self.mdi:
             self._setup_ui_mdi_area()
         self._setup_ui_menu_bar()
-        ipynb_analysis.install_app_controls(self._app_widget_buttons_layout)
         self.setup_ui()  # child may overrite
         self._register_operation_shortcuts()
         self._post_setup_ui_quickaccess()
@@ -137,12 +129,31 @@ class BaseMicroscopeApp(BaseApp):
         for component in (*self.hardware.values(), *self.measurements.values()):
             component.operations.set_shortcut_parent(self.ui)
 
+    @staticmethod
+    def _default_configs() -> dict:
+        return {
+            "dynamic_components": [
+                {
+                    "source": "builtin",
+                    "module": "ScopeFoundry.h5_analyze_with_ipynb.ipynb_analysis_measure",
+                    "class_name": "IpynbAnalysisMeasurement",
+                    "kind": "measurement",
+                    "measurement_options": {
+                        "initially_hidden": True,
+                        "unhide_on_connection": None,
+                    },
+                }
+            ],
+        }
+
     def load_microscope_config(self) -> Dict[str, Any]:
         try:
             config = json.loads(self.microscope_config_path.read_text(encoding="utf-8"))
+            if isinstance(config, dict):
+                return config
+            return self._default_configs()
         except (OSError, json.JSONDecodeError):
-            return {}
-        return config if isinstance(config, dict) else {}
+            return self._default_configs()
 
     def save_microscope_config(self, config: Dict[str, Any]) -> None:
         path = self.microscope_config_path
@@ -1015,6 +1026,7 @@ class BaseMicroscopeApp(BaseApp):
 
         self.remove_lq_collection_from_settings_path(hw.settings)
         hw.operations.clear_shortcuts()
+        hw.teardown()
 
         if del_entry:
             del self.hardware[name]
@@ -1174,6 +1186,7 @@ class BaseMicroscopeApp(BaseApp):
 
         self.remove_lq_collection_from_settings_path(measure.settings)
         measure.operations.clear_shortcuts()
+        measure.teardown()
 
         del self.measurements[name]
         if hasattr(self, "dynamic_components"):
