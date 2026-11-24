@@ -281,8 +281,8 @@ class BaseApp(QtCore.QObject):
         return WRITE_RES.SUCCESS
 
     def _file_loading_writes_protected(self) -> bool:
-        lq = self.settings.as_dict().get("file_loading_write_protected")
-        return bool(lq.value) if lq is not None else False
+        """Override to indicate if file loading should not skip writing to protected settings."""
+        return False
 
     def write_setting_safe(
         self, path: str, value: Any, error_msgs: Dict[str, str] = None

@@ -35,7 +35,7 @@ class ComponentArgumentsDialog(QtWidgets.QDialog):
         message = QtWidgets.QLabel(
             f"Adding {component_class.__name__} failed: {error}\n\n"
             f"Constructor: {component_class.__name__}{inspect.signature(component_class)}\n\n"
-            "Enter each value as JSON (for example, \"text\", 42, true, or null). "
+            'Enter each value as JSON (for example, "text", 42, true, or null). '
             "JSON-compatible defaults are prefilled; leave optional fields blank to use their defaults. "
             "ScopeFoundry supplies app automatically. "
             "Arguments may be saved in the .scopefoundry file in plain text; "
@@ -68,7 +68,10 @@ class ComponentArgumentsDialog(QtWidgets.QDialog):
                     try:
                         default = json.dumps(parameter.default, allow_nan=False)
                         decoded = json.loads(default)
-                        if type(decoded) is type(parameter.default) and decoded == parameter.default:
+                        if (
+                            type(decoded) is type(parameter.default)
+                            and decoded == parameter.default
+                        ):
                             editor.setText(default)
                             self.prefilled_defaults[parameter.name] = default
                     except (TypeError, ValueError):
@@ -79,13 +82,18 @@ class ComponentArgumentsDialog(QtWidgets.QDialog):
             fields.addRow(QtWidgets.QLabel("No named parameters available."))
         scroll.setWidget(fields_widget)
         layout.addWidget(scroll)
-        layout.addWidget(QtWidgets.QLabel(
-            "Advanced JSON: positional args and extra kwargs (optional)"
-        ))
+        layout.addWidget(
+            QtWidgets.QLabel(
+                "Advanced JSON: positional args and extra kwargs (optional)"
+            )
+        )
         self.input = QtWidgets.QPlainTextEdit()
-        self.input.setPlainText(json.dumps({
-            "args": arguments.get("args", []), "kwargs": remaining_kwargs
-        }, indent=2))
+        self.input.setPlainText(
+            json.dumps(
+                {"args": arguments.get("args", []), "kwargs": remaining_kwargs},
+                indent=2,
+            )
+        )
         layout.addWidget(self.input)
         buttons = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok
@@ -105,7 +113,9 @@ class ComponentArgumentsDialog(QtWidgets.QDialog):
                 if not value or value == self.prefilled_defaults.get(name):
                     continue
                 if name in kwargs:
-                    raise ValueError(f"{name} is specified both as a named argument and in kwargs.")
+                    raise ValueError(
+                        f"{name} is specified both as a named argument and in kwargs."
+                    )
                 try:
                     kwargs[name] = json.loads(value)
                 except json.JSONDecodeError as error:
@@ -141,10 +151,18 @@ def bind_component_arguments(component_class, app, arguments):
     signature = inspect.signature(component_class)
     if args:
         parameters = list(signature.parameters.values())
-        if not parameters or parameters[0].name != "app" or parameters[0].kind not in (
-            inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD
+        if (
+            not parameters
+            or parameters[0].name != "app"
+            or parameters[0].kind
+            not in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
         ):
-            raise TypeError("Positional arguments require app as the first positional parameter.")
+            raise TypeError(
+                "Positional arguments require app as the first positional parameter."
+            )
         bound = signature.bind(app, *args, **kwargs)
     else:
         app_parameter = signature.parameters.get("app")
@@ -162,8 +180,12 @@ class ComponentTable(QtWidgets.QTreeWidget):
         self.setHeaderLabels(["Name", "Module", "Kind", "Class", "Path / details"])
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(True)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        self.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        self.header().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeMode.ResizeToContents
+        )
         self.header().setStretchLastSection(True)
         if editable_names:
             self.setItemDelegate(NameColumnDelegate(self))
@@ -234,11 +256,15 @@ class ComponentPicker(QtWidgets.QDialog):
         )
         layout.addWidget(self.tabs)
         layout.addWidget(self.add_hint)
-        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Close)
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Close
+        )
         self.add_button = buttons.addButton(
             "Add selected", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
         )
-        self.initially_hidden_checkbox = QtWidgets.QCheckBox("Hidden on startup (faster startup)")
+        self.initially_hidden_checkbox = QtWidgets.QCheckBox(
+            "Hidden on startup (faster startup)"
+        )
         self.initially_hidden_checkbox.setChecked(True)
         self.initially_hidden_checkbox.setToolTip(
             "On app startup, defer loading the measurement UI to save time. "
@@ -276,8 +302,13 @@ class ComponentPicker(QtWidgets.QDialog):
     def on_tab_changed(self, _index):
         page = self.tabs.currentWidget()
         adding = page is not self.remove_page
-        for widget in (self.add_hint, self.add_button, self.initially_hidden_checkbox,
-                       self.hardware_label, self.hardware_combo):
+        for widget in (
+            self.add_hint,
+            self.add_button,
+            self.initially_hidden_checkbox,
+            self.hardware_label,
+            self.hardware_combo,
+        ):
             widget.setVisible(adding)
         if page is self.remove_page:
             target = self.remove_page.list
@@ -309,7 +340,11 @@ class ComponentPicker(QtWidgets.QDialog):
         selected_list = self.list if widget is self.folder_page else self.builtin_list
         item = selected_list.currentItem() if widget is not self.remove_page else None
         source = item.data(0, QtCore.Qt.ItemDataRole.UserRole) if item else None
-        measurement = isinstance(source, (ComponentSource, BuiltinComponentSource)) and source.kind == "measurement" and not item.isHidden()
+        measurement = (
+            isinstance(source, (ComponentSource, BuiltinComponentSource))
+            and source.kind == "measurement"
+            and not item.isHidden()
+        )
         self.hardware_combo.setEnabled(measurement)
         self.initially_hidden_checkbox.setEnabled(
             measurement and self.hardware_combo.currentData() is None
@@ -322,8 +357,10 @@ class ComponentPicker(QtWidgets.QDialog):
         self.add_button.setEnabled(
             item is not None
             and not item.isHidden()
-            and isinstance(item.data(0, QtCore.Qt.ItemDataRole.UserRole),
-                           (ComponentSource, BuiltinComponentSource))
+            and isinstance(
+                item.data(0, QtCore.Qt.ItemDataRole.UserRole),
+                (ComponentSource, BuiltinComponentSource),
+            )
         )
         self.update_measurement_options()
 
@@ -333,21 +370,44 @@ class ComponentPicker(QtWidgets.QDialog):
             candidates, errors = load_builtin_catalog()
         except (OSError, ValueError) as error:
             self.manager.app.log.exception("Could not read built-in component catalog")
-            QtWidgets.QMessageBox.warning(self, "Could not read built-in catalog", str(error))
+            QtWidgets.QMessageBox.warning(
+                self, "Could not read built-in catalog", str(error)
+            )
             return
         for candidate in candidates:
             original_name = candidate.name if candidate.name is not None else ""
-            collection = self.manager.app.hardware if candidate.kind == "hardware" else self.manager.app.measurements
-            name = available_component_name(original_name, collection) if original_name else ""
-            item = self.builtin_list.add_row(
-                [name, candidate.module, candidate.kind.title(), candidate.class_name, ""],
-                candidate, editable=True,
+            collection = (
+                self.manager.app.hardware
+                if candidate.kind == "hardware"
+                else self.manager.app.measurements
             )
-            item.setToolTip(0, "Catalog name; edit to override the constructor default.")
+            name = (
+                available_component_name(original_name, collection)
+                if original_name
+                else ""
+            )
+            item = self.builtin_list.add_row(
+                [
+                    name,
+                    candidate.module,
+                    candidate.kind.title(),
+                    candidate.class_name,
+                    "",
+                ],
+                candidate,
+                editable=True,
+            )
+            item.setToolTip(
+                0, "Catalog name; edit to override the constructor default."
+            )
             item.setData(0, QtCore.Qt.ItemDataRole.UserRole + 1, original_name)
         if errors:
-            self.manager.app.log.warning("Invalid built-in catalog entries:\n%s", "\n".join(errors))
-            QtWidgets.QMessageBox.warning(self, "Invalid built-in catalog entries", "\n".join(errors))
+            self.manager.app.log.warning(
+                "Invalid built-in catalog entries:\n%s", "\n".join(errors)
+            )
+            QtWidgets.QMessageBox.warning(
+                self, "Invalid built-in catalog entries", "\n".join(errors)
+            )
         self.filter_items()
 
     def choose_folder(self):
@@ -367,15 +427,34 @@ class ComponentPicker(QtWidgets.QDialog):
         self.manager.root = Path(self.root.text()).expanduser().resolve()
         self.list.clear()
         for candidate in candidates:
-            original_name = candidate.inferred_name if candidate.inferred_name is not None else ""
-            collection = self.manager.app.hardware if candidate.kind == "hardware" else self.manager.app.measurements
-            name = available_component_name(original_name, collection) if original_name else ""
+            original_name = (
+                candidate.inferred_name if candidate.inferred_name is not None else ""
+            )
+            collection = (
+                self.manager.app.hardware
+                if candidate.kind == "hardware"
+                else self.manager.app.measurements
+            )
+            name = (
+                available_component_name(original_name, collection)
+                if original_name
+                else ""
+            )
             item = self.list.add_row(
-                [name, candidate.module, candidate.kind.title(), candidate.class_name, candidate.path],
-                candidate, editable=True,
+                [
+                    name,
+                    candidate.module,
+                    candidate.kind.title(),
+                    candidate.class_name,
+                    candidate.path,
+                ],
+                candidate,
+                editable=True,
             )
             item.setData(0, QtCore.Qt.ItemDataRole.UserRole + 1, original_name)
-            item.setToolTip(0, "Inferred from source; edit to override the constructor name.")
+            item.setToolTip(
+                0, "Inferred from source; edit to override the constructor name."
+            )
         for error in errors:
             item = self.list.add_row(["", "", "", "", error])
             item.setToolTip(4, error)
@@ -383,7 +462,9 @@ class ComponentPicker(QtWidgets.QDialog):
                 item.setForeground(column, QtGui.QColor("red"))
         self.filter_items()
         if errors:
-            self.manager.app.log.warning("Component discovery errors:\n%s", "\n".join(errors))
+            self.manager.app.log.warning(
+                "Component discovery errors:\n%s", "\n".join(errors)
+            )
 
     def suggest_available_names(self):
         for widget in (self.list, self.builtin_list):
@@ -392,8 +473,15 @@ class ComponentPicker(QtWidgets.QDialog):
                 item = widget.topLevelItem(index)
                 source = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
                 name = item.text(0)
-                if isinstance(source, (ComponentSource, BuiltinComponentSource)) and name:
-                    collection = self.manager.app.hardware if source.kind == "hardware" else self.manager.app.measurements
+                if (
+                    isinstance(source, (ComponentSource, BuiltinComponentSource))
+                    and name
+                ):
+                    collection = (
+                        self.manager.app.hardware
+                        if source.kind == "hardware"
+                        else self.manager.app.measurements
+                    )
                     item.setText(0, available_component_name(name, collection))
             del blocker
 
@@ -402,17 +490,26 @@ class ComponentPicker(QtWidgets.QDialog):
         for widget in (self.list, self.builtin_list, self.remove_page.list):
             for index in range(widget.topLevelItemCount()):
                 item = widget.topLevelItem(index)
-                item.setHidden(not any(text in item.text(column).casefold() for column in range(5)))
+                item.setHidden(
+                    not any(text in item.text(column).casefold() for column in range(5))
+                )
         self.update_add_button()
 
     def add_selected(self, *_args):
         widget = self.tabs.currentWidget()
         selected_list = self.list if widget is self.folder_page else self.builtin_list
         item = selected_list.currentItem() if widget is not self.remove_page else None
-        if item is None or item.isHidden() or not isinstance(
-            item.data(0, QtCore.Qt.ItemDataRole.UserRole), (ComponentSource, BuiltinComponentSource)
+        if (
+            item is None
+            or item.isHidden()
+            or not isinstance(
+                item.data(0, QtCore.Qt.ItemDataRole.UserRole),
+                (ComponentSource, BuiltinComponentSource),
+            )
         ):
-            QtWidgets.QMessageBox.information(self, "Select a component", "Select a component to add.")
+            QtWidgets.QMessageBox.information(
+                self, "Select a component", "Select a component to add."
+            )
             return
         source = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
         measurement_options = None
@@ -434,7 +531,9 @@ class ComponentPicker(QtWidgets.QDialog):
                 break
             except ComponentPersistenceError as error:
                 self.manager.app.log.exception("Could not save component")
-                QtWidgets.QMessageBox.warning(self, "Could not save component", str(error))
+                QtWidgets.QMessageBox.warning(
+                    self, "Could not save component", str(error)
+                )
                 return
             except Exception as error:
                 self.manager.app.log.exception("Could not add %s", source.class_name)
@@ -442,20 +541,27 @@ class ComponentPicker(QtWidgets.QDialog):
                     component_class = load_component_class(source)
                     inspect.signature(component_class)
                 except Exception as inspect_error:
-                    self.manager.app.log.exception("Could not inspect %s", source.class_name)
+                    self.manager.app.log.exception(
+                        "Could not inspect %s", source.class_name
+                    )
                     QtWidgets.QMessageBox.warning(
-                        self, "Could not add component",
+                        self,
+                        "Could not add component",
                         f"{error}\n\nCannot inspect the constructor: {inspect_error}",
                     )
                     return
-                dialog = ComponentArgumentsDialog(self, component_class, str(error), arguments)
+                dialog = ComponentArgumentsDialog(
+                    self, component_class, str(error), arguments
+                )
                 if dialog.exec_() != QtWidgets.QDialog.DialogCode.Accepted:
                     return
                 arguments = dialog.arguments
         self.suggest_available_names()
         self.refresh_hardware_choices()
         self.filter_items()
-        self.manager.app.show_status_bar_msg(f"Added {source.kind} {component.name}", 5000)
+        self.manager.app.show_status_bar_msg(
+            f"Added {source.kind} {component.name}", 5000
+        )
 
 
 class SavedComponentsPanel(QtWidgets.QWidget):
@@ -467,17 +573,28 @@ class SavedComponentsPanel(QtWidgets.QWidget):
         self.original_entries = []
         self.loaded = False
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(QtWidgets.QLabel(
-            "Removing a component updates the saved list and removes it from the running app. "
-            "Renaming a running component recreates it and resets its state."
-        ))
+        layout.addWidget(
+            QtWidgets.QLabel(
+                "Removing a component updates the saved list and removes it from the running app. "
+                "Renaming a running component recreates it and resets its state."
+            )
+        )
         self.list = ComponentTable(editable_names=True)
         self.list.setColumnCount(7)
-        self.list.setHeaderLabels([
-            "Name", "Module", "Kind", "Class", "Path / details",
-            "Initially hidden", "Unhide on connection",
-        ])
-        self.list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.list.setHeaderLabels(
+            [
+                "Name",
+                "Module",
+                "Kind",
+                "Class",
+                "Path / details",
+                "Initially hidden",
+                "Unhide on connection",
+            ]
+        )
+        self.list.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
+        )
         self.list.itemChanged.connect(self.rename_item)
         layout.addWidget(self.list)
         remove = QtWidgets.QPushButton("Remove selected")
@@ -499,12 +616,25 @@ class SavedComponentsPanel(QtWidgets.QWidget):
                     kwargs = arguments.get("kwargs")
                     if isinstance(kwargs, dict) and isinstance(kwargs.get("name"), str):
                         name = kwargs["name"]
-                values = [name if name is not None else "unavailable", entry.get("module", "?"),
-                          entry.get("kind", "?"), entry.get("class_name", "?"),
-                          entry.get("path", "") if entry.get("source") != "builtin"
-                          else "ScopeFoundry built-in"]
+                values = [
+                    name if name is not None else "unavailable",
+                    entry.get("module", "?"),
+                    entry.get("kind", "?"),
+                    entry.get("class_name", "?"),
+                    (
+                        entry.get("path", "")
+                        if entry.get("source") != "builtin"
+                        else "ScopeFoundry built-in"
+                    ),
+                ]
             else:
-                values = ["unavailable", "", "", "", json.dumps(entry, ensure_ascii=False)]
+                values = [
+                    "unavailable",
+                    "",
+                    "",
+                    "",
+                    json.dumps(entry, ensure_ascii=False),
+                ]
             item = self.list.add_row(values, entry, editable=isinstance(entry, dict))
             for column in range(5):
                 item.setToolTip(column, json.dumps(entry, ensure_ascii=False, indent=2))
@@ -519,7 +649,9 @@ class SavedComponentsPanel(QtWidgets.QWidget):
                 checkbox.setChecked(options.get("initially_hidden") is True)
                 self.list.setItemWidget(item, 5, checkbox)
                 combo = QtWidgets.QComboBox()
-                combo.setToolTip("Startup setting; changes take effect after restarting the app.")
+                combo.setToolTip(
+                    "Startup setting; changes take effect after restarting the app."
+                )
                 combo.addItem("None", None)
                 hardware_name = options.get("unhide_on_connection")
                 for name in self.manager.app.hardware.keys():
@@ -530,12 +662,14 @@ class SavedComponentsPanel(QtWidgets.QWidget):
                 self.list.setItemWidget(item, 6, combo)
                 checkbox.setEnabled(combo.currentData() is None)
                 checkbox.toggled.connect(
-                    lambda _checked, row=item, cb=checkbox, hw=combo:
-                        self.change_measurement_options(row, cb, hw)
+                    lambda _checked, row=item, cb=checkbox, hw=combo: self.change_measurement_options(
+                        row, cb, hw
+                    )
                 )
                 combo.currentIndexChanged.connect(
-                    lambda _index, row=item, cb=checkbox, hw=combo:
-                        self.change_measurement_options(row, cb, hw)
+                    lambda _index, row=item, cb=checkbox, hw=combo: self.change_measurement_options(
+                        row, cb, hw
+                    )
                 )
         del blocker
         self.entries_changed.emit()
@@ -547,10 +681,14 @@ class SavedComponentsPanel(QtWidgets.QWidget):
             "unhide_on_connection": combo.currentData(),
         }
         try:
-            self.manager.update_measurement_options(self.original_entries, entry, options)
+            self.manager.update_measurement_options(
+                self.original_entries, entry, options
+            )
         except Exception as error:
             self.manager.app.log.exception("Could not update measurement options")
-            QtWidgets.QMessageBox.warning(self, "Could not update measurement options", str(error))
+            QtWidgets.QMessageBox.warning(
+                self, "Could not update measurement options", str(error)
+            )
         self.reload()
 
     def rename_item(self, item, column):
@@ -560,16 +698,20 @@ class SavedComponentsPanel(QtWidgets.QWidget):
         old_name = self.manager.running_name(entry)
         if old_name is None and isinstance(entry, dict):
             arguments = entry.get("arguments")
-            if isinstance(arguments, dict) and isinstance(arguments.get("kwargs"), dict):
+            if isinstance(arguments, dict) and isinstance(
+                arguments.get("kwargs"), dict
+            ):
                 old_name = arguments["kwargs"].get("name")
         name = item.text(0).strip()
         if name == old_name or (old_name is None and name == "unavailable"):
             return
         if self.manager.running_name(entry) is not None:
             answer = QtWidgets.QMessageBox.question(
-                self, "Rename component",
+                self,
+                "Rename component",
                 f"Renaming '{old_name}' recreates the component and resets its state. Continue?",
-                QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+                QtWidgets.QMessageBox.StandardButton.Yes
+                | QtWidgets.QMessageBox.StandardButton.No,
                 QtWidgets.QMessageBox.StandardButton.No,
             )
             if answer != QtWidgets.QMessageBox.StandardButton.Yes:
@@ -579,7 +721,9 @@ class SavedComponentsPanel(QtWidgets.QWidget):
             self.manager.rename_saved(self.original_entries, entry, name)
         except Exception as error:
             self.manager.app.log.exception("Could not rename saved component")
-            QtWidgets.QMessageBox.warning(self, "Could not rename component", str(error))
+            QtWidgets.QMessageBox.warning(
+                self, "Could not rename component", str(error)
+            )
         self.reload()
 
     def reload(self):
@@ -589,14 +733,17 @@ class SavedComponentsPanel(QtWidgets.QWidget):
             self.list.clear()
             self.loaded = False
             self.manager.app.log.exception("Could not read saved components")
-            QtWidgets.QMessageBox.warning(self, "Could not read saved components", str(error))
+            QtWidgets.QMessageBox.warning(
+                self, "Could not read saved components", str(error)
+            )
             return
         self.set_entries(entries)
 
     def remove_selected(self):
         selected = [
             item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-            for item in self.list.selectedItems() if not item.isHidden()
+            for item in self.list.selectedItems()
+            if not item.isHidden()
         ]
         if not selected:
             return
@@ -604,8 +751,11 @@ class SavedComponentsPanel(QtWidgets.QWidget):
             self.manager.remove_saved(self.original_entries, selected)
         except Exception as error:
             self.manager.app.log.exception("Could not remove saved components")
-            QtWidgets.QMessageBox.warning(self, "Could not remove components", str(error))
+            QtWidgets.QMessageBox.warning(
+                self, "Could not remove components", str(error)
+            )
         self.reload()
+
 
 class SavedComponentsEditor(QtWidgets.QDialog):
     def __init__(self, manager, entries):
@@ -623,6 +773,7 @@ class SavedComponentsEditor(QtWidgets.QDialog):
     def remove_selected(self):
         self.panel.remove_selected()
 
+
 class DynamicComponents:
     config_key = "dynamic_components"
 
@@ -630,9 +781,11 @@ class DynamicComponents:
         self.app = app
         implementation_path = app.implementation_path
         self.root = next(
-            (directory / "ScopeFoundryHW"
-             for directory in (implementation_path, *implementation_path.parents)
-             if (directory / "ScopeFoundryHW").is_dir()),
+            (
+                directory / "ScopeFoundryHW"
+                for directory in (implementation_path, *implementation_path.parents)
+                if (directory / "ScopeFoundryHW").is_dir()
+            ),
             implementation_path,
         )
         self.added = {}
@@ -647,7 +800,9 @@ class DynamicComponents:
             entries = self._saved_entries(self._read_config())
         except (OSError, ValueError) as error:
             self.app.log.exception("Could not read saved components")
-            QtWidgets.QMessageBox.warning(self.app.ui, "Could not read saved components", str(error))
+            QtWidgets.QMessageBox.warning(
+                self.app.ui, "Could not read saved components", str(error)
+            )
             return
         SavedComponentsEditor(self, entries).exec_()
 
@@ -660,7 +815,9 @@ class DynamicComponents:
     def running_name(self, entry):
         for (kind, name), current in self.added.items():
             if current == entry:
-                collection = self.app.hardware if kind == "hardware" else self.app.measurements
+                collection = (
+                    self.app.hardware if kind == "hardware" else self.app.measurements
+                )
                 if name in collection:
                     return collection[name].name
         return None
@@ -669,7 +826,9 @@ class DynamicComponents:
         config = self._read_config()
         entries = self._saved_entries(config)
         if entries != original:
-            raise ValueError("Saved components changed elsewhere. Reopen the Edit tab and try again.")
+            raise ValueError(
+                "Saved components changed elsewhere. Reopen the Edit tab and try again."
+            )
         if not isinstance(entry, dict) or entry.get("kind") != "measurement":
             raise ValueError("Measurement options are only valid for measurements.")
         hardware_name = options["unhide_on_connection"]
@@ -678,7 +837,9 @@ class DynamicComponents:
         name = self.running_name(entry)
         if hardware_name != old_hardware_name and hardware_name is not None:
             if hardware_name not in self.app.hardware:
-                raise ValueError(f"Hardware '{hardware_name}' is not currently available.")
+                raise ValueError(
+                    f"Hardware '{hardware_name}' is not currently available."
+                )
         updated = dict(entry, measurement_options=dict(options))
         revised = list(entries)
         revised[revised.index(entry)] = updated
@@ -693,11 +854,15 @@ class DynamicComponents:
 
     def rename_saved(self, original, entry, name):
         if not name or name != name.strip():
-            raise ValueError("A component name must not be empty or have surrounding whitespace.")
+            raise ValueError(
+                "A component name must not be empty or have surrounding whitespace."
+            )
         config = self._read_config()
         entries = self._saved_entries(config)
         if entries != original:
-            raise ValueError("Saved components changed elsewhere. Reopen the Edit tab and try again.")
+            raise ValueError(
+                "Saved components changed elsewhere. Reopen the Edit tab and try again."
+            )
         index = entries.index(entry)
         source = self._source_for_entry(entry)
         component_class = load_component_class(source)
@@ -709,14 +874,17 @@ class DynamicComponents:
         parameters = list(signature.parameters.values())
         name_parameter = signature.parameters.get("name")
         if name_parameter and name_parameter.kind in (
-            inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
         ):
             position = parameters.index(name_parameter) - 1
             if position >= 0 and position < len(args):
                 args[position] = name
                 kwargs.pop("name", None)
             elif name_parameter.kind == inspect.Parameter.POSITIONAL_ONLY:
-                raise ValueError("This constructor requires the name as a positional argument.")
+                raise ValueError(
+                    "This constructor requires the name as a positional argument."
+                )
             else:
                 kwargs["name"] = name
         else:
@@ -726,20 +894,35 @@ class DynamicComponents:
         updated = dict(entry, arguments=new_arguments)
         old_name = self.running_name(entry)
         if source.kind == "hardware":
-            default_name = source.inferred_name if isinstance(source, ComponentSource) else source.name
-            saved_name = old_name or arguments.get("kwargs", {}).get("name") or default_name
+            default_name = (
+                source.inferred_name
+                if isinstance(source, ComponentSource)
+                else source.name
+            )
+            saved_name = (
+                old_name or arguments.get("kwargs", {}).get("name") or default_name
+            )
             if saved_name and any(
                 isinstance(item, dict)
                 and isinstance(item.get("measurement_options"), dict)
-                and item["measurement_options"].get("unhide_on_connection") == saved_name
+                and item["measurement_options"].get("unhide_on_connection")
+                == saved_name
                 for item in entries
             ):
-                raise ValueError(f"Remove measurements linked to hardware '{saved_name}' before renaming it.")
-        collection = self.app.hardware if source.kind == "hardware" else self.app.measurements
+                raise ValueError(
+                    f"Remove measurements linked to hardware '{saved_name}' before renaming it."
+                )
+        collection = (
+            self.app.hardware if source.kind == "hardware" else self.app.measurements
+        )
         if name in collection and name != old_name:
-            raise ComponentAlreadyExistsError(f"{source.kind.title()} '{name}' already exists.")
+            raise ComponentAlreadyExistsError(
+                f"{source.kind.title()} '{name}' already exists."
+            )
         if updated in entries and updated != entry:
-            raise ComponentAlreadyExistsError("This component is already in the saved list.")
+            raise ComponentAlreadyExistsError(
+                "This component is already in the saved list."
+            )
         if old_name is None:
             entries[index] = updated
             config[self.config_key] = entries
@@ -756,7 +939,9 @@ class DynamicComponents:
             raise ValueError(f"Stop measurement '{old_name}' before renaming it.")
 
         replacement = self.add(
-            source, new_arguments, persist=False,
+            source,
+            new_arguments,
+            persist=False,
             measurement_options=entry.get("measurement_options"),
         )
         replacement_key = (source.kind, replacement.name)
@@ -789,7 +974,9 @@ class DynamicComponents:
                 try:
                     latest = self._read_config()
                     if self._saved_entries(latest) != revised:
-                        raise ValueError("Saved components changed elsewhere during rename.")
+                        raise ValueError(
+                            "Saved components changed elsewhere during rename."
+                        )
                     latest[self.config_key] = original
                     self._save_config(latest)
                     self._remove_running(source.kind, replacement.name)
@@ -798,7 +985,9 @@ class DynamicComponents:
                         f"Rename failed ({error}); rollback also failed ({rollback_error}). "
                         "Check the running components and saved configuration."
                     ) from error
-            raise RuntimeError(f"Rename failed while removing '{old_name}': {error}.") from error
+            raise RuntimeError(
+                f"Rename failed while removing '{old_name}': {error}."
+            ) from error
 
     def _remove_running(self, kind, name):
         if kind == "hardware":
@@ -840,15 +1029,27 @@ class DynamicComponents:
         source = component_source_from_dict(entry)
         if isinstance(source, ComponentSource) and not Path(source.path).is_absolute():
             path = (self.app.implementation_path / source.path).resolve()
-            source = ComponentSource(source.root, source.module, str(path), source.class_name, source.kind)
+            source = ComponentSource(
+                source.root, source.module, str(path), source.class_name, source.kind
+            )
         return source
 
-    def add(self, source, arguments=None, persist=True, measurement_options=None, *, restoring=False):
+    def add(
+        self,
+        source,
+        arguments=None,
+        persist=True,
+        measurement_options=None,
+        *,
+        restoring=False,
+    ):
         component_class = load_component_class(source)
         arguments = arguments if arguments is not None else {"args": [], "kwargs": {}}
         args, kwargs = bind_component_arguments(component_class, self.app, arguments)
         if measurement_options is not None:
-            if source.kind != "measurement" or not isinstance(measurement_options, dict):
+            if source.kind != "measurement" or not isinstance(
+                measurement_options, dict
+            ):
                 raise ValueError("Measurement options are only valid for measurements.")
             if set(measurement_options) - {"initially_hidden", "unhide_on_connection"}:
                 raise ValueError("Unknown measurement options.")
@@ -859,26 +1060,38 @@ class DynamicComponents:
             if hardware_name is not None and (
                 not isinstance(hardware_name, str) or not hardware_name
             ):
-                raise ValueError("unhide_on_connection must be a hardware name or null.")
+                raise ValueError(
+                    "unhide_on_connection must be a hardware name or null."
+                )
             if hardware_name is not None and hardware_name not in self.app.hardware:
-                raise ValueError(f"Hardware '{hardware_name}' is not currently available.")
+                raise ValueError(
+                    f"Hardware '{hardware_name}' is not currently available."
+                )
         try:
             config = self._read_config() if persist else None
             saved = self._saved_entries(config) if persist else None
         except (OSError, ValueError) as error:
-            raise ComponentPersistenceError(f"Could not read the component configuration: {error}") from error
+            raise ComponentPersistenceError(
+                f"Could not read the component configuration: {error}"
+            ) from error
         entry = self._entry_for_source(source, arguments)
         if measurement_options is not None:
             entry["measurement_options"] = dict(measurement_options)
         if persist and entry in saved:
-            raise ComponentAlreadyExistsError(f"{source.class_name} is already in the saved component list.")
-        collection = self.app.hardware if source.kind == "hardware" else self.app.measurements
+            raise ComponentAlreadyExistsError(
+                f"{source.class_name} is already in the saved component list."
+            )
+        collection = (
+            self.app.hardware if source.kind == "hardware" else self.app.measurements
+        )
         bound = inspect.signature(component_class).bind(*args, **kwargs)
         expected_name = bound.arguments.get("name") or getattr(
             component_class, "name", component_class.__name__
         )
         if expected_name in collection:
-            raise ComponentAlreadyExistsError(f"{source.kind.title()} '{expected_name}' already exists.")
+            raise ComponentAlreadyExistsError(
+                f"{source.kind.title()} '{expected_name}' already exists."
+            )
         instance = component_class(*args, **kwargs)
         try:
             if source.kind == "hardware":
@@ -888,18 +1101,24 @@ class DynamicComponents:
                 if restoring and measurement_options is not None:
                     options["initially_hidden"] = initially_hidden
                     if hardware_name is not None:
-                        options["unhide_on_connection"] = self.app.hardware[hardware_name]
+                        options["unhide_on_connection"] = self.app.hardware[
+                            hardware_name
+                        ]
                 self.app.add_measurement(instance, **options)
             instance.operations.set_shortcut_parent(self.app.ui)
             if persist:
                 try:
                     config = self._read_config()
                     if self._saved_entries(config) != saved:
-                        raise ValueError("Saved components changed elsewhere during addition.")
+                        raise ValueError(
+                            "Saved components changed elsewhere during addition."
+                        )
                     config[self.config_key] = [*saved, entry]
                     self._save_config(config)
                 except Exception as error:
-                    raise ComponentPersistenceError(f"Could not save the component configuration: {error}") from error
+                    raise ComponentPersistenceError(
+                        f"Could not save the component configuration: {error}"
+                    ) from error
         except Exception as error:
             if instance.name in collection and collection[instance.name] is instance:
                 try:
@@ -908,7 +1127,9 @@ class DynamicComponents:
                     else:
                         self.app.remove_measurement(instance.name)
                 except Exception as rollback_error:
-                    self.app.log.exception("Could not roll back component %s", instance.name)
+                    self.app.log.exception(
+                        "Could not roll back component %s", instance.name
+                    )
                     raise ComponentPersistenceError(
                         f"Adding the component failed ({error}), and removing the partially "
                         f"added component also failed ({rollback_error})."
@@ -922,27 +1143,40 @@ class DynamicComponents:
         config = self._read_config()
         entries = self._saved_entries(config)
         if entries != original:
-            raise ValueError("Saved components changed elsewhere. Reopen the Edit tab and try again.")
+            raise ValueError(
+                "Saved components changed elsewhere. Reopen the Edit tab and try again."
+            )
         remaining = list(entries)
         running = {}
         for entry in selected:
             remaining.remove(entry)
             for key, current in self.added.items():
                 if current == entry:
-                    collection = self.app.hardware if key[0] == "hardware" else self.app.measurements
+                    collection = (
+                        self.app.hardware
+                        if key[0] == "hardware"
+                        else self.app.measurements
+                    )
                     if key[1] in collection:
                         component = collection[key[1]]
                         if key[0] == "measurement" and component.is_measuring():
-                            raise ValueError(f"Stop measurement '{key[1]}' before removing it.")
+                            raise ValueError(
+                                f"Stop measurement '{key[1]}' before removing it."
+                            )
                         running[id(entry)] = key
                     break
         for entry in selected:
             key = running.get(id(entry))
-            if key and key[0] == "hardware" and any(
-                isinstance(item, dict)
-                and isinstance(item.get("measurement_options"), dict)
-                and item["measurement_options"].get("unhide_on_connection") == key[1]
-                for item in remaining
+            if (
+                key
+                and key[0] == "hardware"
+                and any(
+                    isinstance(item, dict)
+                    and isinstance(item.get("measurement_options"), dict)
+                    and item["measurement_options"].get("unhide_on_connection")
+                    == key[1]
+                    for item in remaining
+                )
             ):
                 raise ValueError(
                     f"Remove measurements linked to hardware '{key[1]}' before removing it."
@@ -950,7 +1184,9 @@ class DynamicComponents:
         for entry in selected:
             config = self._read_config()
             if self._saved_entries(config) != entries:
-                raise ValueError("Saved components changed elsewhere. Earlier removals remain applied.")
+                raise ValueError(
+                    "Saved components changed elsewhere. Earlier removals remain applied."
+                )
             previous = list(entries)
             entries.remove(entry)
             config[self.config_key] = entries
@@ -969,12 +1205,16 @@ class DynamicComponents:
                     else:
                         self.app.remove_measurement(name)
             except Exception as error:
-                collection = self.app.hardware if kind == "hardware" else self.app.measurements
+                collection = (
+                    self.app.hardware if kind == "hardware" else self.app.measurements
+                )
                 if name in collection:
                     try:
                         current = self._read_config()
                         if self._saved_entries(current) != entries:
-                            raise ValueError("Saved components changed elsewhere during removal.")
+                            raise ValueError(
+                                "Saved components changed elsewhere during removal."
+                            )
                         current[self.config_key] = previous
                         self._save_config(current)
                     except Exception as rollback_error:
@@ -987,7 +1227,9 @@ class DynamicComponents:
                     self.removed(kind, name)
                     if entry in self.unresolved:
                         self.unresolved.remove(entry)
-                raise RuntimeError(f"Removal failed ({error}). Earlier removals remain applied.") from error
+                raise RuntimeError(
+                    f"Removal failed ({error}). Earlier removals remain applied."
+                ) from error
             if not key and entry in self.order:
                 self.order.remove(entry)
             if entry in self.unresolved:
@@ -999,13 +1241,7 @@ class DynamicComponents:
             self.order.remove(source)
 
     def _read_config(self):
-        path = self.app.microscope_config_path
-        if not path.exists():
-            return {}
-        config = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(config, dict):
-            raise ValueError("Microscope configuration must be a JSON object")
-        return config
+        return self.app.configuration_handler.load_config()
 
     def restore(self):
         try:
@@ -1013,7 +1249,9 @@ class DynamicComponents:
             entries = self._saved_entries(config)
         except (OSError, ValueError) as error:
             self.app.log.exception("Could not read saved components")
-            QtWidgets.QMessageBox.warning(self.app.ui, "Could not read saved components", str(error))
+            QtWidgets.QMessageBox.warning(
+                self.app.ui, "Could not read saved components", str(error)
+            )
             return
         errors = []
         for entry in entries:
@@ -1022,9 +1260,13 @@ class DynamicComponents:
                 component_class = load_component_class(source)
                 arguments = entry.get("arguments", {"args": [], "kwargs": {}})
                 validate_component_arguments(arguments)
-                args, kwargs = bind_component_arguments(component_class, self.app, arguments)
+                args, kwargs = bind_component_arguments(
+                    component_class, self.app, arguments
+                )
                 collection = (
-                    self.app.hardware if source.kind == "hardware" else self.app.measurements
+                    self.app.hardware
+                    if source.kind == "hardware"
+                    else self.app.measurements
                 )
                 bound = inspect.signature(component_class).bind(*args, **kwargs)
                 name = bound.arguments.get("name") or getattr(
@@ -1036,12 +1278,16 @@ class DynamicComponents:
                             f"Measurement '{name}' is already supplied by setup; "
                             "its saved measurement options cannot be applied."
                         )
-                    self.app.log.info("Saved component %s is already supplied by setup", name)
+                    self.app.log.info(
+                        "Saved component %s is already supplied by setup", name
+                    )
                     self.added[(source.kind, name)] = entry
                     self.order.append(entry)
                     continue
                 self.add(
-                    source, arguments=arguments, persist=False,
+                    source,
+                    arguments=arguments,
+                    persist=False,
                     measurement_options=entry.get("measurement_options"),
                     restoring=True,
                 )

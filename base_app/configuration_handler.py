@@ -7,7 +7,6 @@ from typing import Any, Dict
 
 from qtpy import QtCore, QtWidgets
 
-
 NEVER = "never"
 MODERATE = "moderate"
 STRICT = "strict"
@@ -34,9 +33,7 @@ class ConfigurationHandler(QtCore.QObject):
         self._load_file_loading_config()
 
     def _read_config(self) -> Dict[str, Any]:
-        config = json.loads(
-            self.app.microscope_config_path.read_text(encoding="utf-8")
-        )
+        config = json.loads(self.app.microscope_config_path.read_text(encoding="utf-8"))
         if not isinstance(config, dict):
             raise ValueError("Microscope configuration must be a JSON object")
         return config
@@ -46,14 +43,34 @@ class ConfigurationHandler(QtCore.QObject):
         try:
             return self._read_config()
         except FileNotFoundError:
-            return self.app._default_configs()
+            return self._default_configs()
         except (OSError, ValueError) as error:
             self.app.log.error(
                 "Could not load microscope configuration %s: %s",
                 self.app.microscope_config_path,
                 error,
             )
-            return self.app._default_configs()
+            return self._default_configs()
+
+    @staticmethod
+    def _default_configs() -> dict:
+        return {
+            "dynamic_components": [
+                {
+                    "source": "builtin",
+                    "module": "ScopeFoundry.h5_analyze_with_ipynb.ipynb_analysis_measure",
+                    "class_name": "IpynbAnalysisMeasurement",
+                    "kind": "measurement",
+                    "measurement_options": {
+                        "initially_hidden": True,
+                        "unhide_on_connection": None,
+                    },
+                }
+            ],
+            "setting_path_mappings": {
+                "app/ipynb_option": "mm/ipynb_analysis/ipynb_option"
+            },
+        }
 
     def save_config(self, config: Dict[str, Any]) -> None:
         path = self.app.microscope_config_path
@@ -96,7 +113,9 @@ class ConfigurationHandler(QtCore.QObject):
         if name == "file_loading_write_protected":
             valid = isinstance(value, bool)
         elif name == "settings_loading_reporting":
-            valid = isinstance(value, str) and value in SETTINGS_LOADING_REPORTING_OPTIONS
+            valid = (
+                isinstance(value, str) and value in SETTINGS_LOADING_REPORTING_OPTIONS
+            )
         else:
             raise ValueError(f"Unknown file loading configuration: {name}")
         if not valid:
@@ -172,8 +191,3 @@ class ConfigurationHandler(QtCore.QObject):
         )
         layout.addRow("Settings loading reporting", reporting)
         return group
-
-    @staticmethod
-    def remove_legacy_settings(settings: Dict[str, Any]) -> None:
-        for name in FILE_LOADING_OPTIONS:
-            settings.pop(f"app/{name}", None)

@@ -84,7 +84,7 @@ class BaseMicroscopeApp(BaseApp):
         super().__init__(argv, **kwargs)
 
         self.settings_icon_path = self.icons_path / "settings_logo.png"
-        
+
         self.implementation_file = get_child_file(self)
         self.implementation_path = self.implementation_file.parent
         self.docs_path = self.implementation_path / "docs"
@@ -131,23 +131,6 @@ class BaseMicroscopeApp(BaseApp):
         for component in (*self.hardware.values(), *self.measurements.values()):
             component.operations.set_shortcut_parent(self.ui)
 
-    @staticmethod
-    def _default_configs() -> dict:
-        return {
-            "dynamic_components": [
-                {
-                    "source": "builtin",
-                    "module": "ScopeFoundry.h5_analyze_with_ipynb.ipynb_analysis_measure",
-                    "class_name": "IpynbAnalysisMeasurement",
-                    "kind": "measurement",
-                    "measurement_options": {
-                        "initially_hidden": True,
-                        "unhide_on_connection": None,
-                    },
-                }
-            ],
-        }
-
     def load_microscope_config(self) -> Dict[str, Any]:
         return self.configuration_handler.load_config()
 
@@ -155,6 +138,7 @@ class BaseMicroscopeApp(BaseApp):
         self.configuration_handler.save_config(config)
 
     def _file_loading_writes_protected(self) -> bool:
+        """A helper method to check if file loading writes are protected. Required as file loading is handled in BaseApp"""
         return self.configuration_handler.file_loading_write_protected
 
     def setup(self) -> None:
@@ -1225,7 +1209,6 @@ class BaseMicroscopeApp(BaseApp):
                 settings.pop(key, None)
         else:
             raise ValueError("Choose an INI or HDF5 (.h5) settings file.")
-        self.configuration_handler.remove_legacy_settings(settings)
         return settings
 
     def settings_select_file_dialog(self) -> str:
