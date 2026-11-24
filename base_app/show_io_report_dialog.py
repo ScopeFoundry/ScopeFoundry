@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 from qtpy import QtWidgets
 
 from .base_app import WRITE_RES, get_missing_component
+from .configuration_handler import NEVER, MODERATE, STRICT
 from .. import ini_io
 from ..helper_funcs import open_file
 from ..widgets import QSearchableComboBox
@@ -13,10 +14,6 @@ IGNORE_ALWAYS = "ignore_always"
 REPLACE = "replace"
 REMOVE = "remove"
 MAP = "map"
-NEVER = "never"
-MODERATE = "moderate"
-STRICT = "strict"
-SETTINGS_LOADING_REPORTING_OPTIONS = [NEVER, MODERATE, STRICT]
 OPTION_LABELS = {
     IGNORE: "Ignore now",
     IGNORE_ALWAYS: "Ignore now and in future",
@@ -168,7 +165,7 @@ def apply_known_mappings(app, fname: str, missing_paths) -> bool:
 
 def show_io_report_dialog(fname: str, report, retry_func, error_msgs, app):
 
-    reporting = app.settings["settings_loading_reporting"]
+    reporting = app.configuration_handler.settings_loading_reporting
     if reporting == NEVER:
         return
 
@@ -239,7 +236,7 @@ def show_io_report_dialog(fname: str, report, retry_func, error_msgs, app):
     if protecteds:
         lines += [
             f"### protected ({len(protecteds)})",
-            "*`protected` are only updated if allowed by app/file_loading_write_protected (DISCOURAGED by default) *",
+            "*`protected` settings are only updated if allowed in the .scopefoundry file (DISCOURAGED by default) *",
             "  ",
         ]
         lines += protecteds
@@ -295,9 +292,8 @@ def show_io_report_dialog(fname: str, report, retry_func, error_msgs, app):
     buttons = QtWidgets.QHBoxLayout()
     layout.addLayout(buttons)
 
-    reporting_lq = app.settings.get_lq("settings_loading_reporting")
-    buttons.addWidget(QtWidgets.QLabel("settings loading reporting"))
-    buttons.addWidget(reporting_lq.new_default_widget())
+    buttons.addWidget(QtWidgets.QLabel("settings loading reporting (.scopefoundry)"))
+    buttons.addWidget(app.configuration_handler.new_reporting_widget())
     buttons.addStretch(1)
 
     def add_button(text, func, style=None):

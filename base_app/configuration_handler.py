@@ -1,0 +1,179 @@
+import json
+import os
+import stat
+import tempfile
+from functools import partial
+from typing import Any, Dict
+
+from qtpy import QtCore, QtWidgets
+
+
+NEVER = "never"
+MODERATE = "moderate"
+STRICT = "strict"
+SETTINGS_LOADING_REPORTING_OPTIONS = [NEVER, MODERATE, STRICT]
+FILE_LOADING_OPTIONS = ("file_loading_write_protected", "settings_loading_reporting")
+
+
+class ConfigurationHandler(QtCore.QObject):
+    """Manage .scopefoundry file-loading options and their persistent controls.
+
+    The JSON keys ``file_loading_write_protected`` and
+    ``settings_loading_reporting`` default to false and ``moderate``. Reporting
+    can also be ``never`` or ``strict``. These options are not profile settings.
+    """
+
+    file_loading_write_protected_changed = QtCore.Signal(bool)
+    settings_loading_reporting_changed = QtCore.Signal(str)
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.app = app
+        self.file_loading_write_protected = False
+        self.settings_loading_reporting = MODERATE
+        self._load_file_loading_config()
+
+    def _read_config(self) -> Dict[str, Any]:
+        config = json.loads(
+            self.app.microscope_config_path.read_text(encoding="utf-8")
+        )
+        if not isinstance(config, dict):
+            raise ValueError("Microscope configuration must be a JSON object")
+        return config
+
+    def load_config(self) -> Dict[str, Any]:
+        """Read configuration using the app's existing defaults if unavailable."""
+        try:
+            return self._read_config()
+        except FileNotFoundError:
+            return self.app._default_configs()
+        except (OSError, ValueError) as error:
+            self.app.log.error(
+                "Could not load microscope configuration %s: %s",
+                self.app.microscope_config_path,
+                error,
+            )
+            return self.app._default_configs()
+
+    def save_config(self, config: Dict[str, Any]) -> None:
+        path = self.app.microscope_config_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = json.dumps(config, indent=2) + "\n"
+        fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as file:
+                file.write(data)
+            if path.exists():
+                os.chmod(temporary, stat.S_IMODE(path.stat().st_mode))
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+
+    def _load_file_loading_config(self) -> None:
+        try:
+            config = self._read_config()
+        except FileNotFoundError:
+            return
+        except (OSError, ValueError) as error:
+            self.app.log.error(
+                "Could not load microscope configuration %s: %s",
+                self.app.microscope_config_path,
+                error,
+            )
+            return
+        for name in FILE_LOADING_OPTIONS:
+            if name in config:
+                try:
+                    self._validate_file_loading_config(name, config[name])
+                except ValueError as error:
+                    self.app.log.error("Invalid microscope configuration: %s", error)
+                else:
+                    setattr(self, name, config[name])
+
+    @staticmethod
+    def _validate_file_loading_config(name: str, value: Any) -> None:
+        if name == "file_loading_write_protected":
+            valid = isinstance(value, bool)
+        elif name == "settings_loading_reporting":
+            valid = isinstance(value, str) and value in SETTINGS_LOADING_REPORTING_OPTIONS
+        else:
+            raise ValueError(f"Unknown file loading configuration: {name}")
+        if not valid:
+            raise ValueError(f"Invalid value for {name}: {value!r}")
+
+    def set_file_loading_config(self, name: str, value: Any) -> None:
+        """Persist a file-loading option before applying it to the running app."""
+        self._validate_file_loading_config(name, value)
+        try:
+            config = self._read_config()
+        except FileNotFoundError:
+            config = {}
+        config[name] = value
+        self.save_config(config)
+        setattr(self, name, value)
+        getattr(self, f"{name}_changed").emit(value)
+
+    def _change_file_loading_config(self, name: str, value: Any) -> None:
+        if value == getattr(self, name):
+            return
+        if name == "file_loading_write_protected" and value:
+            answer = QtWidgets.QMessageBox.question(
+                self.app.ui,
+                "Enable protected setting writes?",
+                "Loading a settings file can overwrite protected settings. "
+                "This is discouraged. Enable this option?",
+                QtWidgets.QMessageBox.StandardButton.Yes
+                | QtWidgets.QMessageBox.StandardButton.No,
+                QtWidgets.QMessageBox.StandardButton.No,
+            )
+            if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+                self.file_loading_write_protected_changed.emit(
+                    self.file_loading_write_protected
+                )
+                return
+        try:
+            self.set_file_loading_config(name, value)
+        except (OSError, ValueError) as error:
+            self.app.log.error("Could not save microscope configuration: %s", error)
+            QtWidgets.QMessageBox.warning(
+                self.app.ui, "Could not save microscope configuration", str(error)
+            )
+            getattr(self, f"{name}_changed").emit(getattr(self, name))
+
+    def new_reporting_widget(self) -> QtWidgets.QComboBox:
+        combo = QtWidgets.QComboBox()
+        combo.addItems(SETTINGS_LOADING_REPORTING_OPTIONS)
+        combo.setCurrentText(self.settings_loading_reporting)
+        combo.currentTextChanged.connect(
+            partial(self._change_file_loading_config, "settings_loading_reporting")
+        )
+        self.settings_loading_reporting_changed.connect(combo.setCurrentText)
+        combo.setToolTip("Stored in the microscope's .scopefoundry file.")
+        return combo
+
+    def new_widget(self) -> QtWidgets.QGroupBox:
+        group = QtWidgets.QGroupBox("File loading configuration (.scopefoundry)")
+        layout = QtWidgets.QFormLayout(group)
+        protected = QtWidgets.QCheckBox()
+        protected.setChecked(self.file_loading_write_protected)
+        protected.setToolTip(
+            "Allow settings files to overwrite protected settings (discouraged)."
+        )
+        protected.toggled.connect(
+            partial(self._change_file_loading_config, "file_loading_write_protected")
+        )
+        self.file_loading_write_protected_changed.connect(protected.setChecked)
+        layout.addRow("Write protected settings", protected)
+        reporting = self.new_reporting_widget()
+        reporting.setToolTip(
+            "Never: no report. Moderate: skip missing components and use saved "
+            "mappings and ignores. Strict: report all missing settings."
+        )
+        layout.addRow("Settings loading reporting", reporting)
+        return group
+
+    @staticmethod
+    def remove_legacy_settings(settings: Dict[str, Any]) -> None:
+        for name in FILE_LOADING_OPTIONS:
+            settings.pop(f"app/{name}", None)

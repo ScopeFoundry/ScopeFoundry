@@ -35,6 +35,7 @@ from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 from ScopeFoundry.operations import Operation, Operations
 
 from .base_app import BaseApp
+from .configuration_handler import ConfigurationHandler
 from .profile_manager import ProfileManager
 
 # useful for developing - may cause problems:
@@ -91,6 +92,7 @@ class BaseMicroscopeApp(BaseApp):
             self.implementation_path / f"{self.implementation_file.stem}.scopefoundry"
         )
 
+        self.configuration_handler = ConfigurationHandler(self)
         self._setup_log_file_handler()
         self._setup_settings_operations(**kwargs)
 
@@ -147,18 +149,13 @@ class BaseMicroscopeApp(BaseApp):
         }
 
     def load_microscope_config(self) -> Dict[str, Any]:
-        try:
-            config = json.loads(self.microscope_config_path.read_text(encoding="utf-8"))
-            if isinstance(config, dict):
-                return config
-            return self._default_configs()
-        except (OSError, json.JSONDecodeError):
-            return self._default_configs()
+        return self.configuration_handler.load_config()
 
     def save_microscope_config(self, config: Dict[str, Any]) -> None:
-        path = self.microscope_config_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+        self.configuration_handler.save_config(config)
+
+    def _file_loading_writes_protected(self) -> bool:
+        return self.configuration_handler.file_loading_write_protected
 
     def setup(self) -> None:
         """Override to add Hardware and Measurement Components"""
@@ -234,25 +231,6 @@ class BaseMicroscopeApp(BaseApp):
                     f"{path} {old_value} -> {new_value}"
                 )
 
-    @QtCore.Slot(str, object, object)
-    def _confirm_file_loading_write_protected(
-        self, path: str, old_value: Any, new_value: Any
-    ) -> None:
-        if not new_value:
-            return
-
-        answer = QtWidgets.QMessageBox.question(
-            self.ui,
-            "Enable protected setting writes?",
-            "Loading a settings file can overwrite protected settings. "
-            "This is discouraged. Enable this option?",
-            QtWidgets.QMessageBox.StandardButton.Yes
-            | QtWidgets.QMessageBox.StandardButton.No,
-            QtWidgets.QMessageBox.StandardButton.No,
-        )
-        if answer != QtWidgets.QMessageBox.StandardButton.Yes:
-            self.settings["file_loading_write_protected"] = False
-
     def _setup_settings_operations(self, **kwargs: Any) -> None:
         initial_save_path = self.implementation_path / "data"
         if not initial_save_path.is_dir():
@@ -277,28 +255,6 @@ class BaseMicroscopeApp(BaseApp):
         # self.settings.New('log_dir', dtype='file', is_dir=True, initial=initial_log_dir)
 
         self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
-        self.settings.New(
-            "file_loading_write_protected",
-            bool,
-            initial=False,
-            description="When enabled, loading a settings file also updates "
-            "<b>protected</b> settings.",
-        ).add_listener_ui(
-            self._confirm_file_loading_write_protected,
-            argtype=(str, object, object),
-        )
-        self.settings.New(
-            "settings_loading_reporting",
-            str,
-            initial="moderate",
-            choices=["never", "moderate", "strict"],
-            description="Controls the report shown when loading settings files with "
-            "missing settings.<br><b>never</b>: never show the report.<br>"
-            "<b>moderate</b> (recommended): skip settings of missing components, "
-            "use stored mappings and ignores.<br>"
-            "<b>strict</b>: show the dialog for any missing setting, even if a "
-            "mapping or ignore exists.",
-        )
         self.add_operation(
             "Read from Hardwares",
             self.read_from_hardwares,
@@ -1262,13 +1218,15 @@ class BaseMicroscopeApp(BaseApp):
         fname = Path(fname)
         suffix = (expected_suffix or fname.suffix).lower()
         if suffix == ".ini":
-            return ini_io.load_settings(fname)
-        if suffix == ".h5":
+            settings = ini_io.load_settings(fname)
+        elif suffix == ".h5":
             settings = h5_io.load_settings(fname)
             for key in ("ScopeFoundry_version", "time_id", "unique_id", "uuid"):
                 settings.pop(key, None)
-            return settings
-        raise ValueError("Choose an INI or HDF5 (.h5) settings file.")
+        else:
+            raise ValueError("Choose an INI or HDF5 (.h5) settings file.")
+        self.configuration_handler.remove_legacy_settings(settings)
+        return settings
 
     def settings_select_file_dialog(self) -> str:
         """Open the standard settings file picker and return its selection."""
@@ -1771,6 +1729,7 @@ class BaseMicroscopeApp(BaseApp):
             widget.setWindowIcon(QtGui.QIcon(str(self.settings_icon_path)))
             layout = QtWidgets.QVBoxLayout(widget)
             layout.addWidget(app_widget)
+            layout.addWidget(self.configuration_handler.new_widget())
             layout.addLayout(hlayout)
 
         self._app_settings_widget.show()

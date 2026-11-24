@@ -41,8 +41,15 @@ class SettingsIOTest(unittest.TestCase):
         self._app_implementation_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self._app_implementation_dir.cleanup)
 
-        self.app = BaseMicroscopeApp([])
+        with patch(
+            "ScopeFoundry.base_app.base_microscope_app.get_child_file",
+            return_value=Path(self._app_implementation_dir.name) / "t.py",
+        ):
+            self.app = BaseMicroscopeApp([])
         self.addCleanup(close_app_widgets, self.app)
+        self.app.microscope_config_path = (
+            Path(self._app_implementation_dir.name) / "t.scopefoundry"
+        )
         self.ms = self.app.add_measurement(Measure1(self.app))
         self.hw = self.app.add_hardware(Hardware1(self.app))
         self.root = Path(__file__).parent
@@ -98,7 +105,9 @@ class SettingsIOTest(unittest.TestCase):
         self.hws["protected_int"] = 0
         self.app.settings_load_ini(fname, show_report=False)
         self.assertEqual(self.hws["protected_int"], 0)
-        self.app.settings["file_loading_write_protected"] = True
+        self.app.configuration_handler.set_file_loading_config(
+            "file_loading_write_protected", True
+        )
         self.app.settings_load_ini(fname, show_report=False)
         self.assertEqual(
             self.app._report["hardware/hardware1/protected_int"], WRITE_RES.SUCCESS
@@ -190,7 +199,8 @@ class SettingsIOTest(unittest.TestCase):
     def test_roundtrip(self):
 
         # all values are initial values
-        self.app.settings_save_ini(self.root / "settings_io_test_roundtrip.ini")
+        roundtrip = Path(self._app_implementation_dir.name) / "roundtrip.ini"
+        self.app.settings_save_ini(roundtrip)
 
         # change them up
         self.mms["string"] = "1"
@@ -206,7 +216,7 @@ class SettingsIOTest(unittest.TestCase):
 
         # load values
         self.app.settings_load_ini(
-            self.root / "settings_io_test_roundtrip.ini", show_report=False
+            roundtrip, show_report=False
         )
         self.assertEqual(self.mms["string"], "0")
         self.assertEqual(self.mms["float"], 0.0)
