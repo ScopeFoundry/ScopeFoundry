@@ -891,9 +891,9 @@ class ProfileManager:
                 0,
                 """For loading settings from a file the following flags are relevant:
 
-protected (🔒) : are ignored (even if checked here)
+protected (🔒) : are skipped (unless disabled in Preferences->File loading->Skip protected settings)
 
-Otherwise the the settings are set in three phases:
+The remaining settings are set in three phases:
 1) settings flagged with set_before_connection (🥇)
 2) "connected" settings (🥈)
 3) all other settings

@@ -137,9 +137,9 @@ class BaseMicroscopeApp(BaseApp):
     def save_microscope_config(self, config: Dict[str, Any]) -> None:
         self.configuration_handler.save_config(config)
 
-    def _file_loading_writes_protected(self) -> bool:
-        """A helper method to check if file loading writes are protected. Required as file loading is handled in BaseApp"""
-        return self.configuration_handler.file_loading_write_protected
+    def _skip_protected_settings(self) -> bool:
+        """Check whether file loading should skip protected settings."""
+        return self.configuration_handler.skip_protected_settings
 
     def setup(self) -> None:
         """Override to add Hardware and Measurement Components"""
@@ -389,7 +389,7 @@ class BaseMicroscopeApp(BaseApp):
             QtWidgets.QSizePolicy.Policy.Minimum,
             QtWidgets.QSizePolicy.Policy.Maximum,
         )
-        settings_btn = QtWidgets.QPushButton(" settings")
+        settings_btn = QtWidgets.QPushButton(" Preferences")
         settings_btn.clicked.connect(self.show_app_settings)
         settings_btn.setIcon(QtGui.QIcon(str(self.settings_icon_path)))
         relaod_btn = self.operations.new_button("Reload_Codes")
@@ -1689,7 +1689,7 @@ class BaseMicroscopeApp(BaseApp):
     def show_app_settings(self) -> None:
         if not hasattr(self, "_app_settings_widget"):
 
-            app_widget = new_widget(self, "app")
+            app_widget = new_widget(self, "app settings")
             app_widget.setAcceptDrops(True)
             app_widget.dragEnterEvent = self.on_drag_on_app_widget
             app_widget.dropEvent = self.on_drop_on_app_widget
@@ -1708,11 +1708,12 @@ class BaseMicroscopeApp(BaseApp):
                 QtWidgets.QSizePolicy.Policy.MinimumExpanding,
                 QtWidgets.QSizePolicy.Policy.MinimumExpanding,
             )
-            widget.setWindowTitle("settings")
+            widget.setWindowTitle("Preferences")
             widget.setWindowIcon(QtGui.QIcon(str(self.settings_icon_path)))
             layout = QtWidgets.QVBoxLayout(widget)
+            load_widget = self.configuration_handler.new_widget()
+            layout.addWidget(load_widget)
             layout.addWidget(app_widget)
-            layout.addWidget(self.configuration_handler.new_widget())
             layout.addLayout(hlayout)
 
         self._app_settings_widget.show()

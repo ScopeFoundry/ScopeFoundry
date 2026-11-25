@@ -106,7 +106,7 @@ class SettingsIOTest(unittest.TestCase):
         self.app.settings_load_ini(fname, show_report=False)
         self.assertEqual(self.hws["protected_int"], 0)
         self.app.configuration_handler.set_file_loading_config(
-            "file_loading_write_protected", True
+            "skip_protected_settings", False
         )
         self.app.settings_load_ini(fname, show_report=False)
         self.assertEqual(

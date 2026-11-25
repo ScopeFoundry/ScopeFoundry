@@ -280,8 +280,8 @@ class BaseApp(QtCore.QObject):
         lq.update_value(value)
         return WRITE_RES.SUCCESS
 
-    def _file_loading_writes_protected(self) -> bool:
-        """Override to indicate if file loading should not skip writing to protected settings."""
+    def _skip_protected_settings(self) -> bool:
+        """Override to indicate whether file loading should skip protected settings."""
         return False
 
     def write_setting_safe(
@@ -292,7 +292,7 @@ class BaseApp(QtCore.QObject):
             if get_missing_component(self, path) is not None:
                 return WRITE_RES.MISSING_COMPONENT
             return WRITE_RES.MISSING
-        elif lq.protected and not self._file_loading_writes_protected():
+        elif lq.protected and self._skip_protected_settings():
             return WRITE_RES.PROTECTED
         try:
             lq.update_value(value)

@@ -11,24 +11,24 @@ NEVER = "never"
 MODERATE = "moderate"
 STRICT = "strict"
 SETTINGS_LOADING_REPORTING_OPTIONS = [NEVER, MODERATE, STRICT]
-FILE_LOADING_OPTIONS = ("file_loading_write_protected", "settings_loading_reporting")
+FILE_LOADING_OPTIONS = ("skip_protected_settings", "settings_loading_reporting")
 
 
 class ConfigurationHandler(QtCore.QObject):
     """Manage .scopefoundry file-loading options and their persistent controls.
 
-    The JSON keys ``file_loading_write_protected`` and
-    ``settings_loading_reporting`` default to false and ``moderate``. Reporting
+    The JSON keys ``skip_protected_settings`` and
+    ``settings_loading_reporting`` default to true and ``moderate``. Reporting
     can also be ``never`` or ``strict``. These options are not profile settings.
     """
 
-    file_loading_write_protected_changed = QtCore.Signal(bool)
+    skip_protected_settings_changed = QtCore.Signal(bool)
     settings_loading_reporting_changed = QtCore.Signal(str)
 
     def __init__(self, app):
         super().__init__(app)
         self.app = app
-        self.file_loading_write_protected = False
+        self.skip_protected_settings = True
         self.settings_loading_reporting = MODERATE
         self._load_file_loading_config()
 
@@ -110,7 +110,7 @@ class ConfigurationHandler(QtCore.QObject):
 
     @staticmethod
     def _validate_file_loading_config(name: str, value: Any) -> None:
-        if name == "file_loading_write_protected":
+        if name == "skip_protected_settings":
             valid = isinstance(value, bool)
         elif name == "settings_loading_reporting":
             valid = (
@@ -136,7 +136,7 @@ class ConfigurationHandler(QtCore.QObject):
     def _change_file_loading_config(self, name: str, value: Any) -> None:
         if value == getattr(self, name):
             return
-        if name == "file_loading_write_protected" and value:
+        if name == "skip_protected_settings" and not value:
             answer = QtWidgets.QMessageBox.question(
                 self.app.ui,
                 "Enable protected setting writes?",
@@ -147,9 +147,7 @@ class ConfigurationHandler(QtCore.QObject):
                 QtWidgets.QMessageBox.StandardButton.No,
             )
             if answer != QtWidgets.QMessageBox.StandardButton.Yes:
-                self.file_loading_write_protected_changed.emit(
-                    self.file_loading_write_protected
-                )
+                self.skip_protected_settings_changed.emit(self.skip_protected_settings)
                 return
         try:
             self.set_file_loading_config(name, value)
@@ -172,22 +170,21 @@ class ConfigurationHandler(QtCore.QObject):
         return combo
 
     def new_widget(self) -> QtWidgets.QGroupBox:
-        group = QtWidgets.QGroupBox("File loading configuration (.scopefoundry)")
+        group = QtWidgets.QGroupBox("Loading settings from files")
         layout = QtWidgets.QFormLayout(group)
         protected = QtWidgets.QCheckBox()
-        protected.setChecked(self.file_loading_write_protected)
+        protected.setChecked(self.skip_protected_settings)
         protected.setToolTip(
-            "Allow settings files to overwrite protected settings (discouraged)."
+            "Skip protected settings (🔒) when loading settings from files."
         )
         protected.toggled.connect(
-            partial(self._change_file_loading_config, "file_loading_write_protected")
+            partial(self._change_file_loading_config, "skip_protected_settings")
         )
-        self.file_loading_write_protected_changed.connect(protected.setChecked)
-        layout.addRow("Write protected settings", protected)
+        self.skip_protected_settings_changed.connect(protected.setChecked)
+        layout.addRow("Skip protected settings", protected)
         reporting = self.new_reporting_widget()
-        reporting.setToolTip(
-            "Never: no report. Moderate: skip missing components and use saved "
-            "mappings and ignores. Strict: report all missing settings."
-        )
-        layout.addRow("Settings loading reporting", reporting)
+        reporting.setToolTip("""<b>Never:</b> never show a report. 
+            <b>Moderate:</b> skip missing components and use saved mappings and ignores.<br> 
+            <b>Strict:</b> report all missing settings.""")
+        layout.addRow("reporting model", reporting)
         return group
