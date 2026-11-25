@@ -7,6 +7,7 @@ from typing import Any, Dict
 
 from qtpy import QtCore, QtWidgets
 
+VERSION = "240"  # Change this when the configuration format changes to the ScopeFoundry release version
 NEVER = "never"
 MODERATE = "moderate"
 STRICT = "strict"
@@ -70,6 +71,7 @@ class ConfigurationHandler(QtCore.QObject):
             "setting_path_mappings": {
                 "app/ipynb_option": "mm/ipynb_analysis/ipynb_option"
             },
+            "configuration_format_version": VERSION,
         }
 
     def save_config(self, config: Dict[str, Any]) -> None:
