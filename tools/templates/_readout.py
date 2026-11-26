@@ -5,7 +5,7 @@ Created on $DATE_PRETTY
 """
 
 import pyqtgraph as pg
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets, QtGui
 
 from ScopeFoundry import Measurement, h5_io
 
@@ -25,6 +25,8 @@ class $READOUT_CLASS_NAME(Measurement):
 
         # data structure of the measurement
         self.data = {"y": [2, 5, 2], "img": [[2, 4], [1, 3]]}
+
+        self.color = None  # set to "AUTO" or best results with QtGui.QColor.fromHsv(hue, 58, 122, 95)
 
     def setup_figure(self):
         """

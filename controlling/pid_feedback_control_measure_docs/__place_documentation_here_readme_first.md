@@ -14,6 +14,8 @@
 
  - *profile*: Run a profile on the run to find performance problems
 
+ - *hidden*: Hidden measurements do not load their UI and are only listed in the tree if 'show hidden' is checked.
+
  - *Kp*: None
 
  - *Ki*: None

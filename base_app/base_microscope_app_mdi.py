@@ -131,15 +131,6 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.action_show_settings.setObjectName("action_show_settings")
         self.action_propose_from_file = QtGui.QAction(parent=MainWindow)
         self.action_propose_from_file.setObjectName("action_propose_from_file")
-        self.action_analyze_with_ipynb = QtGui.QAction(parent=MainWindow)
-        icon2 = QtGui.QIcon()
-        icon2.addPixmap(
-            QtGui.QPixmap("Jupyter_logo.png"),
-            QtGui.QIcon.Mode.Normal,
-            QtGui.QIcon.State.Off,
-        )
-        self.action_analyze_with_ipynb.setIcon(icon2)
-        self.action_analyze_with_ipynb.setObjectName("action_analyze_with_ipynb")
         self.menuFile.addAction(self.action_set_data_dir)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.action_load_ini)
@@ -151,7 +142,6 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.menuAdvanced.addSeparator()
         self.menuAdvanced.addAction(self.action_show_settings)
         self.menuAdvanced.addAction(self.action_propose_from_file)
-        self.menuAdvanced.addAction(self.action_analyze_with_ipynb)
         self.menuHelp.addAction(self.action_docs)
         self.menuHelp.addSeparator()
         self.menuHelp.addAction(self.action_about)
@@ -215,6 +205,3 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.action_load_all_measure_uis.setText(_translate("MainWindow", "load"))
         self.action_show_settings.setText(_translate("MainWindow", "Settings"))
         self.action_propose_from_file.setText(_translate("MainWindow", "Inspect file"))
-        self.action_analyze_with_ipynb.setText(
-            _translate("MainWindow", "analyze with ipynb")
-        )

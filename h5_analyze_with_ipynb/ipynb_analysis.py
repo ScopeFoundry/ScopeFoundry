@@ -2,13 +2,11 @@ import json
 from pathlib import Path
 from typing import List, Dict, Tuple, Union
 
-from ScopeFoundry.generate_loaders_py import (
+from .generate_loaders_py import (
     generate_loaders_py,
     get_measurement_name,
-    get_dset_names,
 )
-from .helper_funcs import open_file
-
+from ..helper_funcs import open_file
 
 IPYNB_DEMO_FNAME = "overview.ipynb"
 
@@ -175,9 +173,12 @@ def find_latest_file(files_metadata: Dict) -> Union[Dict, None]:
 def generate_ipynb(
     folder: str = ".", ipynb_fname: Union[Path, None] = None
 ) -> Tuple[Path, Dict]:
-    if ipynb_fname is None:
-        ipynb_fname = Path(folder) / IPYNB_DEMO_FNAME
+    folder = Path(folder)
+    if not folder.exists():
+        raise FileNotFoundError(f"{folder} does not exist - Select a valid folder")
 
+    if ipynb_fname is None:
+        ipynb_fname = folder / IPYNB_DEMO_FNAME
     if ipynb_fname.exists():
         with open(ipynb_fname, "r") as file:
             nb_content = json.load(file)
@@ -185,6 +186,9 @@ def generate_ipynb(
             nb_content = new_empty_nb_content(2)
     else:
         nb_content = new_empty_nb_content(2)
+        # with open(ipynb_fname, "w+") as file:
+        # pass
+        # json.dump(nb_content, file)
 
     return ipynb_fname, nb_content
 
@@ -268,8 +272,6 @@ def analyze_with_ipynb(
     option="last",
 ) -> None:
     loaders_fname, dset_names = generate_loaders_py(folder)
-    if not snippets and not descriptive_snippets:
-        snippets, descriptive_snippets = load_snippets(folder)
     ipynb_path = update_ipynb(
         folder,
         snippets=snippets,
@@ -285,7 +287,3 @@ def analyze_with_ipynb(
 
     if ipynb_path.exists():
         open_file(ipynb_path)
-
-
-if __name__ == "__main__":
-    analyze_with_ipynb(".")

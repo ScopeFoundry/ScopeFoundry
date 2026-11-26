@@ -31,7 +31,7 @@ class DatasetMetadata:
                 "Software": "ScopeFoundry",
                 # "Disclaimers": "This dataset is for internal use only.",
                 # "Warning": "This dataset is not for public distribution.",
-                "Source": self.app_name,    
+                "Source": self.app_name,
                 # "Comment": "This dataset is for internal use only.",
             },
         }
@@ -52,6 +52,7 @@ def new_dataset_metadata(measurement=None, fname: str = None) -> DatasetMetadata
                 unique_id_short=unique_id[0:13],
                 ext="h5",
             )
+
         h5_file_path = Path(app.settings["save_dir"]) / fname
         return DatasetMetadata(unique_id, u, t0, h5_file_path, app_name=app.name)
 

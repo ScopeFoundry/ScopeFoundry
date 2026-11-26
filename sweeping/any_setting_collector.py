@@ -2,6 +2,7 @@ from typing import Tuple, Callable
 import time
 
 from ScopeFoundry.measurement import Measurement
+from ScopeFoundry.widgets import QSearchableComboBox
 
 from .collector import Collector
 
@@ -18,7 +19,9 @@ class AnySettingCollector(Collector):
         color: Tuple[int] = None,
     ):
         self.host_measurement = host_measurement
-        self.setting_lq = host_measurement.settings.New(name, str, choices=[])
+        self.setting_lq = host_measurement.settings.New(
+            name, str, choices=[], default_widget_factory=QSearchableComboBox
+        )
 
         super().__init__(
             app=host_measurement.app,
@@ -44,10 +47,10 @@ class AnySettingCollector(Collector):
                 new_val = self.app.get_lq(self.setting_lq.val).read_from_hardware()
                 self.data = {self.setting_lq.val: new_val}
                 success = True
-                
+
             except Exception as e:
-                success =  False
-                
+                success = False
+
             time.sleep(0.05)
             if success:
                 break

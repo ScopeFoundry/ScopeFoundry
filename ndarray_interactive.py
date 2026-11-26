@@ -104,7 +104,7 @@ class ArrayLQ_QTableModel(NumpyQTableModel):
 
     def on_dataChanged(self,topLeft=None, bottomRight=None):
         # print "ArrayLQ_QTableModel", self.lq.name, 'on_dataChanged'
-        self.lq.update_value(np.array(self.array))
+        self.lq.update_value(np.array(self.array), _from_ui=True)
         # self.lq.send_display_updates(force=True)
 
 

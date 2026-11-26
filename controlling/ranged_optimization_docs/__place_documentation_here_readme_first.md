@@ -14,6 +14,8 @@
 
  - *profile*: Run a profile on the run to find performance problems
 
+ - *hidden*: Hidden measurements do not load their UI and are only listed in the tree if 'show hidden' is checked.
+
  - *f*: 
 <p>Sweeps a setting z within a range, measures an optimization quantity f(z)
 and calculates z0 such that:</p>

@@ -98,7 +98,7 @@ class LQCollection:
         spinbox_decimals: int = 2,
         spinbox_step: float = 0.1,
         colors=None,
-        protected: bool = False,  # a guard that prevents from being updated, i.e. file loading
+        protected: bool = False,  # a guard that prevents from being updated in certain situations, i.e. file loading
         is_dir: bool = False,
         default_dir: str = None,
         file_filters=(),
@@ -108,6 +108,7 @@ class LQCollection:
         is_cmd=False,
         is_clipboardable=False,
         default_widget_factory=None,
+        set_before_connection: bool = None,  # when loading settings from a file, this setting is applied before the hardware connected setting.
         **kwargs,
     ) -> LoggedQuantity:
         """
@@ -119,6 +120,20 @@ class LQCollection:
                 DeprecationWarning,
             )
             is_array = is_array or kwargs.pop("array", False)
+
+        if set_before_connection is None:
+            if self.path.startswith("mm/"):
+                set_before_connection = False
+            elif name.lower() in (
+                "com_port",
+                "address",
+                "port",
+                "serial_number",
+                "target_serial_number",
+            ):
+                set_before_connection = True
+            else:
+                set_before_connection = False
 
         kwargs.update(
             {
@@ -132,6 +147,7 @@ class LQCollection:
                 "fmt": fmt,
                 "description": description,
                 "protected": protected,
+                "set_before_connection": set_before_connection,
             }
         )
 
@@ -204,6 +220,9 @@ class LQCollection:
     def remove(self, name):
         lq = self._logged_quantities.pop(name)
         self.q_object.lq_removed.emit(lq)
+        for widget in lq.widget_list:
+            lq.disconnect_from_widget(widget)
+            widget.deleteLater()
         del self.__dict__[name]
         del lq
 
@@ -315,7 +334,12 @@ class LQCollection:
             )
             LQRange_kwargs.update({"center_lq": center_lq, "span_lq": span_lq})
         if include_sweep_type:
-            sweep_type_lq = self.New(f"{name}_sweep_type", str, choices=("up", "down"))
+            sweep_type_lq = self.New(
+                f"{name}_sweep_type",
+                str,
+                choices=("up", "down"),
+                description="allows to revert the order of the values, go back and forth and more.",
+            )
             LQRange_kwargs.update({"sweep_type_lq": sweep_type_lq})
 
         lqrange = LQRange(**LQRange_kwargs)
@@ -375,6 +399,7 @@ class LQCollection:
                 f"{name}_sweep_type",
                 str,
                 choices=("up", "down", "up_down", "down_up", "zig_zag", "zag_zig"),
+                description="allows to revert the order of the values, go back and forth and more.",
             )
         else:
             sweep_type = None
@@ -387,6 +412,7 @@ class LQCollection:
         )
 
         i_range = IntervaledLQRange(lq_ranges, is_active_lqs, no_duplicates, sweep_type)
+
         self.ranges[name] = i_range
         return i_range
 

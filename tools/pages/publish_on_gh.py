@@ -195,9 +195,6 @@ class FolderListWidget(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # Replace with the path to your parent directory
-    parent_directory = "/Users/benediktursprung/Library/CloudStorage/OneDrive-Personal/scope_foundries/scopefoundry_trovatello_lab/ScopeFoundryHW2"
-
     settings = LQCollection()
     settings.new_file("ScopeFoundryHW_dir", initial="/ScopeFoundryHW", is_dir=True)
     settings.New("gh_username", str, initial="ubene")

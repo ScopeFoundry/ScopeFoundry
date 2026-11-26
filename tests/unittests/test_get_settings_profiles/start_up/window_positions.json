@@ -1,0 +1,18 @@
+{
+    "main": {
+        "geometry": [
+            182,
+            96,
+            1105,
+            797
+        ],
+        "maximized": false,
+        "minimized": false,
+        "fullscreen": false,
+        "col_splitter_sizes": [
+            0,
+            325,
+            752
+        ]
+    }
+}

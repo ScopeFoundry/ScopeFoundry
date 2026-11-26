@@ -96,7 +96,7 @@ class Collector:
         index: int,
         host_measurement: Measurement,
         polling_func: Callable = None,
-        polling_time: float = 0.001,
+        polling_time: float = 0.1,
         int_time=None,
         *args,
         **kwargs,

@@ -3,3 +3,10 @@ __pycache__/
 .pydevproject
 tools/tools_defaults.ini
 ScopeFoundry.egg-info
+**/__**.md
+**/__place**.md
+**/*profiles/history/
+**/*.scopefoundry
+**/*_log_*.txt
+tests/unittests/settings_io_test_roundtrip.ini
+base_app/data/*

@@ -160,9 +160,6 @@ class FolderListWidget(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # Replace with the path to your parent directory
-    parent_directory = "/Users/benediktursprung/Library/CloudStorage/OneDrive-Personal/scope_foundries/scopefoundry_trovatello_lab/ScopeFoundryHW2"
-
     settings = LQCollection()
     settings.New("gh_username", str, initial="ubene")
     settings.New("message", str, initial="Initial commit")
@@ -173,7 +170,9 @@ if __name__ == "__main__":
         initial="--public",
         description="Choose whether to publish the repository as private or public.",
     )
-    widget = FolderListWidget(parent_directory, settings=settings)
+    from pathlib import Path
+
+    widget = FolderListWidget(Path.cwd(), settings=settings)
     widget.show()
 
     sys.exit(app.exec_())

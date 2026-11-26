@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="ScopeFoundry",
-    version="2.3.0",
+    version="2.4.0",
     description="a platform for laboratory equipment control and scientific data analysis",
     long_description=open("README.md", "r").read(),
     long_description_content_type="text/markdown",
@@ -34,6 +34,7 @@ setup(
         "ScopeFoundry.examples.measurements.example_3d_slowscan_measure_docs",
         "ScopeFoundry.graphics",
         "ScopeFoundry.graphics.zoomable_map",
+        "ScopeFoundry.h5_analyze_with_ipynb",
         "ScopeFoundry.logged_quantity",
         "ScopeFoundry.scanning",
         "ScopeFoundry.sequencer",
@@ -57,6 +58,7 @@ setup(
             "*.png",
             "*.svg",
             "*.qss",
+            "builtin_components.json",
             # for ScopeFoundry tools
             "_LICENSE",
             "*.md",

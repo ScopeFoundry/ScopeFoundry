@@ -13,7 +13,7 @@ class WelcomePage(Page):
 
         self.settings.new_file("ipynb_folder", is_dir=True)
         self.settings.New(
-            "ipynb_option", str, initial="all", choices=["all", "last", "smart"]
+            "ipynb_option", str, initial="all", choices=["all", "last", "remaining"]
         )
 
         self.operations.new(

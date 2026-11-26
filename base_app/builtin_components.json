@@ -1,0 +1,62 @@
+[
+  {
+    "module": "ScopeFoundry.controlling.pid_feedback_control_measure",
+    "class_name": "PIDFeedbackControl",
+    "name": "pid_feedback_control",
+    "kind": "measurement"
+  },
+  {
+    "module": "ScopeFoundry.controlling.ranged_optimization",
+    "class_name": "RangedOptimization",
+    "name": "ranged_optimization",
+    "kind": "measurement"
+  },
+  {
+    "module": "ScopeFoundry.h5_analyze_with_ipynb.ipynb_analysis_measure",
+    "class_name": "IpynbAnalysisMeasurement",
+    "name": "ipynb_analysis",
+    "kind": "measurement"
+  },
+  {
+    "module": "ScopeFoundry.sequencer.sequencer",
+    "class_name": "Sequencer",
+    "name": "sequencer",
+    "kind": "measurement"
+  },
+  {
+    "module": "ScopeFoundry.sequencer.sweep_sequencer",
+    "class_name": "SweepSequencer",
+    "name": "sweep_sequencer",
+    "kind": "measurement"
+  },
+  {
+    "module": "ScopeFoundry.sweeping.map_2D",
+    "class_name": "Map2D",
+    "name": "map_2d",
+    "kind": "measurement"
+  },
+  {
+    "module": "ScopeFoundry.sweeping.sweep_1D",
+    "class_name": "Sweep1D",
+    "name": "sweep_1d",
+    "kind": "measurement"
+  },
+  {
+    "module": "ScopeFoundry.sweeping.sweep_2D",
+    "class_name": "Sweep2D",
+    "name": "sweep_2d",
+    "kind": "measurement"
+  },
+  {
+    "module": "ScopeFoundry.sweeping.sweep_3D",
+    "class_name": "Sweep3D",
+    "name": "sweep_3d",
+    "kind": "measurement"
+  },
+  {
+    "module": "ScopeFoundry.sweeping.sweep_4D",
+    "class_name": "Sweep4D",
+    "name": "sweep_4d",
+    "kind": "measurement"
+  }
+]

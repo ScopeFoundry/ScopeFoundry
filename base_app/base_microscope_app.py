@@ -6,40 +6,46 @@ import subprocess
 import sys
 import time
 import warnings
-from shutil import copyfile
 
 from collections import OrderedDict
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Protocol
+from typing import Any, Dict, List, Optional, Protocol
 
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ScopeFoundry import h5_io, ini_io
+from ScopeFoundry.base_app.auto_color import auto_color
 from ScopeFoundry.dynamical_widgets import new_tree_widget, new_widget
-from ScopeFoundry.h5_analyze_with_ipynb import generate_loaders_py, update_ipynb
+from ScopeFoundry.dynamical_widgets.tree_widget import SearchField
 from ScopeFoundry.helper_funcs import (
     OrderedAttrDict,
     confirm_on_close,
     find_matches,
-    get_child_path,
     get_scopefoundry_version,
     ignore_on_close,
     itemize_launchers,
     load_qt_ui_file,
-    open_file,
     sibling_path,
+    get_child_file,
+    init_docs_path,
 )
-from ScopeFoundry.helper_funcs import init_docs_path
+
 from ScopeFoundry.logged_quantity import LoggedQuantity, LQCollection
 from ScopeFoundry.operations import Operation, Operations
 
 from .base_app import BaseApp
+from .configuration_handler import ConfigurationHandler
+from .profile_manager import ProfileManager
 
 # useful for developing - may cause problems:
 from .base_microscope_app_mdi import Ui_MainWindow
 from .logging_handlers import StatusBarHandler, new_log_file_handler
 from .show_io_report_dialog import show_io_report_dialog
+
+
+class ComponentAlreadyExistsError(ValueError):
+    """A hardware component or measurement conflicts with an existing entry."""
 
 
 class MeasurementProtocol(Protocol):
@@ -71,24 +77,37 @@ class BaseMicroscopeApp(BaseApp):
     """The name of the microscope app, default is ScopeFoundry."""
     mdi = True
     """Multiple Document Interface flag. Tells the app whether to include an MDI widget in the app."""
+    colorize_components = False
 
     def __init__(self, argv: List[str] = [], **kwargs: Any) -> None:
+
         super().__init__(argv, **kwargs)
 
         self.settings_icon_path = self.icons_path / "settings_logo.png"
-        self.jupyter_logo_path = self.icons_path / "jupyter_logo.png"
 
+        self.implementation_file = get_child_file(self)
+        self.implementation_path = self.implementation_file.parent
+        self.docs_path = self.implementation_path / "docs"
+        self.microscope_config_path = (
+            self.implementation_path / f"{self.implementation_file.stem}.scopefoundry"
+        )
+
+        self.configuration_handler = ConfigurationHandler(self)
         self._setup_log_file_handler()
         self._setup_settings_operations(**kwargs)
 
         # objects to overwrite and populate with setup function.
         self.hardware: Dict[str, HardwareProtocol] = OrderedAttrDict()
         self.measurements: Dict[str, MeasurementProtocol] = OrderedAttrDict()
+        self.profile_manager = ProfileManager(self)
         self.logo_path = str(self.icons_path / "scopefoundry_logo2B_1024.png")
         self.quickbar = None  # also with self.add_quickbar
-        self.docs_path = get_child_path(self) / "docs"
+
         self.setup()
 
+        from .component_picker import DynamicComponents
+
+        self.dynamic_components = DynamicComponents(self)
         self._setup_ui_base()
         self._setup_ui_buttons()
         self._setup_ui_tree_column()
@@ -96,13 +115,31 @@ class BaseMicroscopeApp(BaseApp):
             self._setup_ui_mdi_area()
         self._setup_ui_menu_bar()
         self.setup_ui()  # child may overrite
+        self._register_operation_shortcuts()
         self._post_setup_ui_quickaccess()
         self._setup_ui_logo()
         self._add_docs_to_help_menu()
-        self._init_py_analysis_directory()
+        self.dynamic_components.restore()
+        self.profile_manager.initialize_startup_profile()
 
         # self.snippets = {}
         # self.descriptive_snippets = ()
+
+    def _register_operation_shortcuts(self) -> None:
+        """QShortcut needs a widget parent, available once the main window exists."""
+        self.operations.set_shortcut_parent(self.ui)
+        for component in (*self.hardware.values(), *self.measurements.values()):
+            component.operations.set_shortcut_parent(self.ui)
+
+    def load_microscope_config(self) -> Dict[str, Any]:
+        return self.configuration_handler.load_config()
+
+    def save_microscope_config(self, config: Dict[str, Any]) -> None:
+        self.configuration_handler.save_config(config)
+
+    def _skip_protected_settings(self) -> bool:
+        """Check whether file loading should skip protected settings."""
+        return self.configuration_handler.skip_protected_settings
 
     def setup(self) -> None:
         """Override to add Hardware and Measurement Components"""
@@ -112,8 +149,74 @@ class BaseMicroscopeApp(BaseApp):
         """Optional override to set up ui elements after default ui is built"""
         pass
 
+    def add_setting_path(self, lq: LoggedQuantity) -> None:
+        super().add_setting_path(lq)
+        if not hasattr(self, "profile_manager"):
+            return
+        profile_action_text = "Save current value to profile..."
+        remove_profile_action_text = "Remove saved value from profile..."
+        if (
+            not lq.ro
+            and not lq.protected
+            and not any(
+                len(action) >= 2 and action[-2] == profile_action_text
+                for action in lq.actions
+            )
+        ):
+            lq.actions.append(
+                (
+                    profile_action_text,
+                    partial(self.profile_manager.save_setting_to_profile, lq.path),
+                )
+            )
+        if (
+            not lq.ro
+            and not lq.protected
+            and not any(
+                len(action) >= 2 and action[-2] == remove_profile_action_text
+                for action in lq.actions
+            )
+        ):
+            lq.actions.append(
+                (
+                    remove_profile_action_text,
+                    partial(self.profile_manager.remove_setting_from_profile, lq.path),
+                )
+            )
+        if not lq.ro and self._save_ui_lq_change_snapshot not in lq.ui_listeners:
+            lq.add_listener_ui(
+                self._save_ui_lq_change_snapshot, argtype=(str, object, object)
+            )
+
+    def remove_setting_path(self, lq: LoggedQuantity) -> None:
+        if self._save_ui_lq_change_snapshot in lq.ui_listeners:
+            lq.remove_listener_ui(
+                self._save_ui_lq_change_snapshot, argtype=(str, object, object)
+            )
+        super().remove_setting_path(lq)
+
+    @QtCore.Slot(str, object, object)
+    def _save_ui_lq_change_snapshot(
+        self, path: str, old_value: Any, new_value: Any
+    ) -> None:
+        if path.endswith("/activation") and path.startswith("mm/"):
+            mm = path.split("/")[1]
+            if new_value:
+                self.profile_manager.history.save_snapshot(f"{mm} started")
+            else:
+                self.profile_manager.history.save_snapshot(f"{mm} stopped")
+        else:
+            if isinstance(new_value, float):
+                self.profile_manager.history.save_snapshot(
+                    f"{path} {round(old_value, 6)} -> {round(new_value, 6)}"
+                )
+            else:
+                self.profile_manager.history.save_snapshot(
+                    f"{path} {old_value} -> {new_value}"
+                )
+
     def _setup_settings_operations(self, **kwargs: Any) -> None:
-        initial_save_path = Path.cwd() / "data"
+        initial_save_path = self.implementation_path / "data"
         if not initial_save_path.is_dir():
             initial_save_path.mkdir()
         self.save_dir = self.settings.new_file(
@@ -137,22 +240,69 @@ class BaseMicroscopeApp(BaseApp):
 
         self.setup_dark_mode_option(dark_mode=kwargs.get("dark_mode", None))
         self.add_operation(
-            "analyze with ipynb",
-            self.on_analyze_with_ipynb,
-            "generates h5_data_loaders.py, overview.ipynb, and tries to launch overview.ipynb (vscode with jupyter extension recommended)",
-            self.jupyter_logo_path,
-        )
-        self.settings.New(
-            "ipynb_option", str, initial="last", choices=["all", "last", "remaining"]
-        )
-        self.add_operation(
             "Read from Hardwares",
             self.read_from_hardwares,
             description="reads settings from <b>connected</b> hardwares",
         )
+        self.add_operation(
+            "Reload_Codes",
+            self.reload_codes,
+            description="reloads modules for all hardware and measurements",
+            icon_path=QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserReload
+            ),
+            keyboard_shortcut="Ctrl+R",
+        )
+
+    def reload_codes(self):
+        for hw in self.hardware.values():
+            hw.reload_code()
+        for meas in self.measurements.values():
+            meas.reload_code()
+
+    def reload_hardware(self, name: str) -> HardwareProtocol:
+        """Replace the named hardware using its original constructor arguments."""
+        return self._reload_component(self.hardware[name], "hardware")
+
+    def reload_measurement(self, name: str) -> MeasurementProtocol:
+        """Replace the named measurement using its original constructor arguments."""
+        return self._reload_component(self.measurements[name], "measurement")
+
+    def _reload_component(self, component, kind):
+        from .component_reload import reload_component
+
+        if getattr(self, "_component_reload_in_progress", False):
+            raise RuntimeError("Another component is already being reloaded")
+        self._component_reload_in_progress = True
+        try:
+            reload_component(self, component, kind)
+        finally:
+            self._component_reload_in_progress = False
+
+    def _reload_component_from_ui(self, component, kind):
+        try:
+            collection = self.hardware if kind == "hardware" else self.measurements
+            if (
+                component.name not in collection
+                or collection[component.name] is not component
+            ):
+                raise ValueError(
+                    f"{kind.title()} {component.name!r} is no longer registered"
+                )
+            if kind == "hardware":
+                replacement = self.reload_hardware(component.name)
+            elif kind == "measurement":
+                replacement = self.reload_measurement(component.name)
+        except Exception as error:
+            self.log.exception("Could not reload component %s", component.name)
+            QtWidgets.QMessageBox.warning(
+                self.ui, "Component reload failed", str(error)
+            )
+            return
+        self.show_status_bar_msg(f"Reloaded component {replacement.name}", 5000)
 
     def _setup_log_file_handler(self) -> None:
-        log_path = Path.cwd() / "log"
+        log_path = self.implementation_path / "log"
         if not log_path.is_dir():
             log_path.mkdir()
         _fname = f"{self.name}_log_{datetime.datetime.now():%y%m%d_%H%M%S}.txt"
@@ -175,6 +325,8 @@ class BaseMicroscopeApp(BaseApp):
             self.ui.col_splitter.setStretchFactor(1, 1)
 
         self._loaded_measure_uis = {}
+        self._measure_menu_actions = {}
+        self._pending_win_states = {}
 
         self.ui.show()
         self.ui.activateWindow()
@@ -217,9 +369,13 @@ class BaseMicroscopeApp(BaseApp):
     def _setup_ui_tree_column(self) -> None:
 
         self.mm_tree = new_tree_widget(
-            self.measurements.values(), ["Measurements", "Value"]
+            self.measurements.values(),
+            ["Measurements", "Value"],
         )
-        self.hw_tree = new_tree_widget(self.hardware.values(), ["Hardware", "Value"])
+        self.hw_tree = new_tree_widget(
+            self.hardware.values(),
+            ["Hardware", "Value"],
+        )
         app_widget = new_widget(
             obj=self,
             title="app",
@@ -233,17 +389,37 @@ class BaseMicroscopeApp(BaseApp):
             QtWidgets.QSizePolicy.Policy.Minimum,
             QtWidgets.QSizePolicy.Policy.Maximum,
         )
-        ipynb_btn = self.operations.new_button("analyze with ipynb")
-        ipynb_btn.setText(" analyze")
-        settings_btn = QtWidgets.QPushButton(" settings")
+        settings_btn = QtWidgets.QPushButton(" Preferences")
         settings_btn.clicked.connect(self.show_app_settings)
         settings_btn.setIcon(QtGui.QIcon(str(self.settings_icon_path)))
-        app_widget_btns_layout = QtWidgets.QHBoxLayout()
-        app_widget_btns_layout.addWidget(ipynb_btn)
-        app_widget_btns_layout.addWidget(settings_btn)
-        app_widget.layout().addLayout(app_widget_btns_layout)
+        relaod_btn = self.operations.new_button("Reload_Codes")
+        relaod_btn.setText("")
+        relaod_btn.setFixedWidth(20)
+        self._app_widget_buttons_layout = QtWidgets.QHBoxLayout()
+        self._app_widget_buttons_layout.addWidget(relaod_btn)
+        self._app_widget_buttons_layout.addWidget(settings_btn)
+        app_widget.layout().addLayout(self._app_widget_buttons_layout)
         app_widget.setObjectName("app_settings")
         app_widget.setTitle("to inspect drop a .h5 or .ini, to load also press ctrl")
+
+        self.tree_search_field = SearchField(
+            self.hw_tree, self.mm_tree, placeholder="search path, e.g. hw/power…"
+        )
+        self.ui.tree_layout.addWidget(self.tree_search_field)
+        self.add_component_button = QtWidgets.QPushButton("Add or remove components...")
+        self.add_component_button.clicked.connect(self.dynamic_components.show_picker)
+        self.ui.tree_layout.addWidget(self.add_component_button)
+        self.show_hidden_checkbox = QtWidgets.QCheckBox("show hidden")
+        self.show_hidden_checkbox.setToolTip(
+            "List hardware and measurements whose 'hidden' setting is checked"
+        )
+        self.show_hidden_checkbox.toggled.connect(self.hw_tree.set_show_hidden)
+        self.show_hidden_checkbox.toggled.connect(self.mm_tree.set_show_hidden)
+        search_layout = QtWidgets.QHBoxLayout()
+        search_layout.setContentsMargins(0, 0, 0, 0)
+        search_layout.addWidget(self.tree_search_field, 1)
+        search_layout.addWidget(self.show_hidden_checkbox)
+        self.ui.tree_layout.addLayout(search_layout)
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
         splitter.addWidget(self.hw_tree)
@@ -259,15 +435,36 @@ class BaseMicroscopeApp(BaseApp):
         self.console_subwin = self.add_mdi_subwin(self.console_widget, "Console")
 
         for name, measure in self.measurements.items():
+            if measure.settings["hidden"]:
+                continue
             self.log.debug(f"setting up figure for measurement {name}")
-            ui = self.load_measure_ui(measure)
-            if ui is not None:
-                subwin = self.add_mdi_subwin(ui, measure.name)
-                measure.subwin = subwin
+            self.load_measure_ui(measure)
+
+    def _on_measure_hidden_changed(self, measure: MeasurementProtocol, hidden) -> None:
+        """Hiding only hides the window; ui and subwin stay alive."""
+        if not hasattr(self, "ui"):
+            return
+        action = self._measure_menu_actions.get(measure.name)
+        if action is not None:
+            action.setVisible(not hidden)
+        if hidden:
+            widget = (
+                measure.subwin
+                if self.mdi
+                else self._loaded_measure_uis.get(measure.name)
+            )
+            if widget is not None:
+                widget.hide()
+            return
+        ui = self.load_measure_ui(measure)
+        widget = measure.subwin if self.mdi else ui
+        if widget is not None:
+            widget.show()
 
     def _load_all_measure_uis(self) -> None:
         for measure in self.measurements.values():
-            self.load_measure_ui(measure)
+            if not measure.settings["hidden"]:
+                self.load_measure_ui(measure)
         self.ui.action_load_all_measure_uis.setVisible(False)
 
     def _setup_ui_menu_bar(self) -> None:
@@ -297,25 +494,22 @@ class BaseMicroscopeApp(BaseApp):
 
         self.ui.action_show_settings.triggered.connect(self.show_app_settings)
         self.ui.action_show_settings.setIcon(QtGui.QIcon(str(self.settings_icon_path)))
-        self.ui.action_analyze_with_ipynb.triggered.connect(
-            partial(self.on_analyze_with_ipynb, folder=None)
-        )
-        self.ui.action_analyze_with_ipynb.setIcon(
-            QtGui.QIcon(str(self.jupyter_logo_path))
-        )
-
         self.ui.action_docs.triggered.connect(
             partial(self.launch_browser, url="https://www.scopefoundry.org/docs")
         )
         self.ui.action_about.triggered.connect(self.on_about)
         # Refer to existing ui object:
         self.menubar = self.ui.menuWindow
+        self.profile_manager.setup_menu(self.ui.menubar)
 
         self.ui.menuAdvanced.addAction(
             "new hardware", partial(self.start_tools, "new hardware")
         )
         self.ui.menuAdvanced.addAction(
             "new measurement", partial(self.start_tools, "new measurement")
+        )
+        self.ui.menuAdvanced.addAction(
+            "Edit saved components...", self.dynamic_components.show_saved_editor
         )
         self.ui.menuAdvanced.addAction(
             "publish hardware", partial(self.start_tools, "publish HW on GitHub")
@@ -333,6 +527,7 @@ class BaseMicroscopeApp(BaseApp):
                 self.window_positions_save_dialog
             )
             self.ui.action_load_all_measure_uis.setVisible(False)
+            self._add_view_mode_action()
         else:
             self.ui.tab_action.setVisible(False)
             self.ui.window_action.setVisible(False)
@@ -384,6 +579,44 @@ class BaseMicroscopeApp(BaseApp):
         # Apply initial width fix
         update_quickaccess_width()
 
+        self._install_proportional_subwin_scaling()
+
+    def _install_proportional_subwin_scaling(self) -> None:
+        """Scale subwindows with the MDI area when it is resized, e.g. by a splitter."""
+        app = self
+        mdi_area = self.ui.mdiArea
+        app._suppress_subwin_scaling = False
+
+        class _Filter(QtCore.QObject):
+            def eventFilter(self, obj, event):
+                if event.type() != QtCore.QEvent.Type.Resize:
+                    return False
+                old, new = event.oldSize(), event.size()
+                if (
+                    app._suppress_subwin_scaling
+                    or old.width() <= 0
+                    or old.height() <= 0
+                ):
+                    return False
+                if mdi_area.viewMode() != QtWidgets.QMdiArea.ViewMode.SubWindowView:
+                    return False
+                fx = new.width() / old.width()
+                fy = new.height() / old.height()
+                for sw in mdi_area.subWindowList():
+                    if sw.isMaximized() or sw.isMinimized() or sw.isFullScreen():
+                        continue
+                    g = sw.geometry()
+                    sw.setGeometry(
+                        round(g.x() * fx),
+                        round(g.y() * fy),
+                        max(round(g.width() * fx), 1),
+                        max(round(g.height() * fy), 1),
+                    )
+                return False
+
+        mdi_area._scale_filter = _Filter(mdi_area)
+        mdi_area.installEventFilter(mdi_area._scale_filter)
+
     def _adjust_quickaccess_scroll_area_size_policies(self) -> None:
         # Fix horizontal scrolling: ensure content widget width matches viewport width
         scroll_area = self.ui.quickaccess_scrollArea
@@ -424,10 +657,45 @@ class BaseMicroscopeApp(BaseApp):
     def set_subwindow_mode(self) -> None:
         """Switches Multiple Document Interface to Subwindowed viewing mode."""
         self.ui.mdiArea.setViewMode(QtWidgets.QMdiArea.ViewMode.SubWindowView)
+        self._update_view_mode_action()
 
     def set_tab_mode(self) -> None:
         """Switches Multiple Document Interface to Tabbed viewing mode."""
         self.ui.mdiArea.setViewMode(QtWidgets.QMdiArea.ViewMode.TabbedView)
+        self._update_view_mode_action()
+
+    # figure spaces pad both labels to a similar width
+    _VIEW_MODE_LABELS = {
+        "subwindow": "\u29c9 Windows",
+        "tab": "\u25ad Tabs\u2007\u2007\u2007",
+    }
+
+    def _add_view_mode_action(self) -> None:
+        # QMenuBar only renders plain actions and menus, not widgets
+        action = QtGui.QAction(self.ui.menubar)
+        action.triggered.connect(self.toggle_view_mode)
+        self._view_mode_action = action
+        self.ui.menubar.addAction(action)
+        self._update_view_mode_action()
+
+    def _update_view_mode_action(self) -> None:
+        action = getattr(self, "_view_mode_action", None)
+        if action is None:
+            return
+        tabbed = self.ui.mdiArea.viewMode() == QtWidgets.QMdiArea.ViewMode.TabbedView
+        # label shows the current mode
+        action.setText(self._VIEW_MODE_LABELS["tab" if tabbed else "subwindow"])
+        action.setToolTip(
+            "Tabbed mode (click for subwindows)"
+            if tabbed
+            else "Subwindow mode (click for tabs)"
+        )
+
+    def toggle_view_mode(self) -> None:
+        if self.ui.mdiArea.viewMode() == QtWidgets.QMdiArea.ViewMode.TabbedView:
+            self.set_subwindow_mode()
+        else:
+            self.set_tab_mode()
 
     def tile_layout(self) -> None:
         """Tiles subwindows in user interface. Specifically in the Multi Document Interface."""
@@ -440,9 +708,9 @@ class BaseMicroscopeApp(BaseApp):
         self.ui.mdiArea.cascadeSubWindows()
 
     def bring_measure_ui_to_front(self, measure: MeasurementProtocol) -> None:
+        self.load_measure_ui(measure)
         ui = self._loaded_measure_uis.get(measure.name, None)
         if ui is None:
-            # measure also has no subwin
             return
         if self.mdi:
             self.bring_mdi_subwin_to_front(measure.subwin)
@@ -450,20 +718,28 @@ class BaseMicroscopeApp(BaseApp):
             ui.show()
 
     def load_measure_ui(self, measure: MeasurementProtocol) -> QtWidgets.QWidget:
-        if measure.name in self._loaded_measure_uis:
-            return self._loaded_measure_uis[measure.name]
+        """Idempotently builds the ui (and, with mdi, its subwindow) of *measure*."""
+        name = measure.name
+        if name not in self._loaded_measure_uis:
+            measure.setup_figure()
+            if not hasattr(measure, "ui"):
+                self._loaded_measure_uis[name] = None
+                for btn in measure._show_btns:
+                    btn.setVisible(False)
+            else:
+                self._loaded_measure_uis[name] = measure.ui
+                measure.ui.setWindowTitle(name)
+                self._measure_menu_actions[name] = self.ui.menuWindow.addAction(
+                    name, measure.show_ui
+                )
 
-        measure.setup_figure()
-        if not hasattr(measure, "ui"):
-            self._loaded_measure_uis[measure.name] = None
-            for btn in measure._show_btns:
-                btn.setVisible(False)
-            return None
-
-        self._loaded_measure_uis[measure.name] = measure.ui
-        measure.ui.setWindowTitle(measure.name)
-        self.ui.menuWindow.addAction(measure.name, measure.show_ui)
-        return measure.ui
+        ui = self._loaded_measure_uis[name]
+        if ui is not None and self.mdi and measure.subwin is None:
+            measure.subwin = self.add_mdi_subwin(ui, name, measure.color)
+            win_state = self._pending_win_states.pop(name, None)
+            if win_state is not None:
+                self._restore_win_state(measure.subwin, win_state)
+        return ui
 
     def bring_mdi_subwin_to_front(self, subwin: QtWidgets.QMdiSubWindow) -> None:
         view_mode = self.ui.mdiArea.viewMode()
@@ -475,7 +751,7 @@ class BaseMicroscopeApp(BaseApp):
             subwin.raise_()
 
     def add_mdi_subwin(
-        self, widget: QtWidgets.QWidget, name: str
+        self, widget: QtWidgets.QWidget, name: str, color: QtGui.QColor = None
     ) -> QtWidgets.QMdiSubWindow:
         mdiArea: QtWidgets.QMdiArea = self.ui.mdiArea
 
@@ -491,6 +767,7 @@ class BaseMicroscopeApp(BaseApp):
             | QtCore.Qt.WindowType.WindowMinMaxButtonsHint,
         )
         subwin.setMinimumSize(0, 0)
+        self._add_snap_actions(subwin)
         ignore_on_close(subwin)
         subwin.setWindowTitle(name)
         subwin.setWindowIcon(widget.windowIcon())
@@ -503,6 +780,101 @@ class BaseMicroscopeApp(BaseApp):
         subwin.show()
         return subwin
 
+    def _add_snap_actions(self, subwin: QtWidgets.QMdiSubWindow) -> None:
+        """Overlay snap buttons on the top right of the subwindow title bar."""
+        PM_TITLE = QtWidgets.QStyle.PixelMetric.PM_TitleBarHeight
+
+        class _TallTitleStyle(QtWidgets.QProxyStyle):
+            def pixelMetric(self, metric, option=None, widget=None):
+                value = super().pixelMetric(metric, option, widget)
+                return round(value * 1.3) if metric == PM_TITLE else value
+
+        subwin._tall_title_style = _TallTitleStyle(subwin.style().objectName())
+        subwin.setStyle(subwin._tall_title_style)
+
+        # the title bar uses the subwindow font; keep the content font unchanged
+        content_font = subwin.font()
+        title_font = QtGui.QFont(content_font)
+        title_font.setPointSizeF(content_font.pointSizeF() * 1.3)
+        title_font.setBold(True)
+        subwin.setFont(title_font)
+        subwin.widget().setFont(content_font)
+
+        buttons = []
+        for text, tip, side in [
+            ("\u2b12", "Snap top half", "top"),
+            ("\u2b13", "Snap bottom half", "bottom"),
+            ("\u25e7", "Snap left half", "left"),
+            ("\u25e8", "Snap right half", "right"),
+        ]:
+            btn = QtWidgets.QToolButton(subwin)
+            btn.setText(text)
+            btn.setToolTip(tip)
+            btn.setAutoRaise(True)
+            glyph_font = QtGui.QFont(title_font)
+            if side == "left" or side == "right":
+                glyph_font.setPointSizeF(title_font.pointSizeF() * 1.6)
+            btn.setFont(glyph_font)
+            btn.clicked.connect(partial(self.snap_mdi_subwin, subwin, side))
+            buttons.append(btn)
+
+        def reposition():
+            th = subwin.style().pixelMetric(
+                QtWidgets.QStyle.PixelMetric.PM_TitleBarHeight
+            )
+            size = round(th * 0.8)
+            # place the buttons left of the style's own min/max buttons
+            opt = QtWidgets.QStyleOptionTitleBar()
+            opt.initFrom(subwin)
+            opt.rect = QtCore.QRect(0, 0, subwin.width(), th)
+            opt.titleBarFlags = subwin.windowFlags()
+            opt.subControls = QtWidgets.QStyle.SubControl.SC_TitleBarMinButton
+            min_rect = subwin.style().subControlRect(
+                QtWidgets.QStyle.ComplexControl.CC_TitleBar,
+                opt,
+                QtWidgets.QStyle.SubControl.SC_TitleBarMinButton,
+                subwin,
+            )
+            right_edge = (
+                min_rect.left() if min_rect.isValid() else subwin.width() - 3 * th
+            )
+            widths = [size] * len(buttons)
+            x = right_edge - 8 - sum(widths)
+            visible = not subwin.isMaximized()
+            for btn, w in zip(buttons, widths):
+                btn.setGeometry(x, max((th - size) // 2, 0), w, size)
+                x += w
+                btn.setVisible(visible)
+                btn.raise_()
+
+        class _Filter(QtCore.QObject):
+            def eventFilter(self, obj, event):
+                if event.type() in (
+                    QtCore.QEvent.Type.Resize,
+                    QtCore.QEvent.Type.Show,
+                    QtCore.QEvent.Type.WindowStateChange,
+                ):
+                    reposition()
+                return False
+
+        subwin._snap_filter = _Filter(subwin)
+        subwin.installEventFilter(subwin._snap_filter)
+        reposition()
+
+    def snap_mdi_subwin(self, subwin: QtWidgets.QMdiSubWindow, side: str) -> None:
+        """Resize subwin to fill one half of the MDI area."""
+        area = self.ui.mdiArea.viewport().rect()
+        w, h = area.width(), area.height()
+        rects = {
+            "left": (0, 0, w // 2, h),
+            "right": (w // 2, 0, w - w // 2, h),
+            "top": (0, 0, w, h // 2),
+            "bottom": (0, h // 2, w, h - h // 2),
+        }
+        subwin.showNormal()
+        subwin.setGeometry(*rects[side])
+        subwin.raise_()
+
     def add_quickbar(self, widget: QtWidgets.QWidget) -> QtWidgets.QWidget:
         self.ui.quickaccess_scrollArea.setVisible(True)
         self.ui.quickaccess_scrollArea.show()
@@ -513,7 +885,8 @@ class BaseMicroscopeApp(BaseApp):
 
     def on_close(self) -> None:
         self.log.info("on_close")
-        # disconnect all hardware objects
+        self.profile_manager.history.save_snapshot("Application closing")
+        self.profile_manager.history.trim_history_dir()
         for hw in self.hardware.values():
             self.log.info(f"disconnecting {hw.name}")
             try:
@@ -522,70 +895,38 @@ class BaseMicroscopeApp(BaseApp):
             except Exception as err:
                 self.log.error(f"tried to disconnect {hw.name}: {err}")
 
-    def on_analyze_with_ipynb(self, folder: str = None) -> Path:
-        if folder is None:
-            folder = self.settings["save_dir"]
-
-        loaders_fname, dset_names = generate_loaders_py(folder)
-
-        ipynb_path = update_ipynb(
-            folder,
-            snippets=self.get_snippets(),
-            descriptive_snippets=(),
-        )
-
-        print("")
-        print("generated", loaders_fname, f"with {len(dset_names)} loader(s)")
-        print("")
-        print("check", ipynb_path)
-        print("")
-        if ipynb_path.exists():
-            open_file(ipynb_path)
-
-        folder = Path(folder)
-        # t0 = time.perf_counter()
-        for m in list(self.measurements.values()) + [self]:
-            print(m.name)
-            for source in m.get_py_analysis_scripts():
-                target_path = folder / source.name
-                if not target_path.exists():
-                    copyfile(source, target_path)
-        # t1 = time.perf_counter()
-        # print(f"copied analysis scripts in {t1-t0:.2f} seconds")
-        return ipynb_path
-
-    def get_snippets(self) -> Dict[str, str]:
-        snippets = {}
-        for name, measure in self.measurements.items():
-            try:
-                s = measure.get_py_snippet()
-                if isinstance(s, str):
-                    snippets[name] = s
-                else:
-                    snippets[name] = f"{name}.get_py_snippet returned: {repr(s)}"
-            except Exception as err:
-                self.log.error(f"Error getting snippet for {name}: {err}")
-        return snippets
-
     def read_from_hardwares(self):
         for hw in self.hardware.values():
             if hw.settings["connected"]:
                 hw.read_from_hardware()
 
-    def add_hardware(self, hw: HardwareProtocol) -> HardwareProtocol:
+    def add_hardware(
+        self, hw: HardwareProtocol, initially_hidden: Optional[bool] = None
+    ) -> HardwareProtocol:
         """Loads a HardwareComponent object into the app.
 
         If *hw* is a class, rather an instance, create an instance
+        and add it to self.hardware.
+
+        Raises ComponentAlreadyExistsError if its name is already registered.
         and add it to self.hardware
+
+        If *initially_hidden* is True, the hardware is only listed in the tree when
+        "show initially_hidden" is checked.
         """
         # If *hw* is a class, rather an instance, create an instance
         if inspect.isclass(hw):
             hw = hw(app=self)
 
+        hw.color = auto_color(hw)
+
         if hw.name in self.hardware.keys():
-            raise ValueError(
+            raise ComponentAlreadyExistsError(
                 f"Hardware '{hw.name}' already exists. Remove it first with app.remove_hardware('{hw.name}')"
             )
+
+        if initially_hidden is not None:
+            hw.settings["hidden"] = initially_hidden
 
         self.hardware.add(hw.name, hw)
 
@@ -595,6 +936,7 @@ class BaseMicroscopeApp(BaseApp):
             from ScopeFoundry.dynamical_widgets.tree_widget import SubtreeManager
 
             SubtreeManager(self.hw_tree, hw)
+            hw.operations.set_shortcut_parent(self.ui)
 
         return hw
 
@@ -602,7 +944,7 @@ class BaseMicroscopeApp(BaseApp):
         # DEPRECATED use add_hardware()
         return self.add_hardware(hw)
 
-    def remove_hardware(self, name: str) -> None:
+    def remove_hardware(self, name: str, del_entry: bool = False) -> None:
         if name not in self.hardware:
             self.log.warning(f"Hardware {name} not found")
             return
@@ -623,43 +965,100 @@ class BaseMicroscopeApp(BaseApp):
         hw._widgets_managers_.clear()
 
         self.remove_lq_collection_from_settings_path(hw.settings)
+        hw.operations.clear_shortcuts()
+        hw.teardown()
 
-        del self.hardware[name]
+        if del_entry:
+            del self.hardware[name]
+        else:
+            self.hardware[name] = None
+
+        self.dynamic_components.removed("hardware", name)
 
         self.log.info(f"Hardware {name} removed")
 
-    def add_measurement(self, measure: MeasurementProtocol) -> MeasurementProtocol:
+    def add_measurement(
+        self,
+        measure: MeasurementProtocol,
+        initially_hidden: Optional[bool] = None,
+        unhide_on_connection: Optional[HardwareProtocol] = None,
+    ) -> MeasurementProtocol:
         """Loads a Measurement object into the app.
 
         If *measure* is a class, rather an instance, create an instance
-        and add it to self.measurements
+        and add it to self.measurements.
 
+        Raises ComponentAlreadyExistsError if its name is already registered.
+        If *initially_hidden* is True, the measurement's UI is not loaded and it is only
+        listed in the tree when "show hidden" is checked. It can be unhidden
+        with its "hidden" setting. None leaves the setting untouched.
+
+        If *unhide_on_connection* is a hardware component, *initially_hidden* is
+        ignored and the measurement is hidden as long as that hardware is not
+        connected (one-way: changing "hidden" does not affect the hardware).
         """
         # If *measure* is a class, rather an instance, create an instance
         if inspect.isclass(measure):
             measure = measure(app=self)
 
+        measure.color = auto_color(measure)
+
         if measure.name in self.measurements.keys():
-            raise ValueError(
+            raise ComponentAlreadyExistsError(
                 f"Measurement '{measure.name}' already exists. Remove it first with app.remove_measurement('{measure.name}')"
             )
+
+        if unhide_on_connection is not None:
+            if not isinstance(
+                unhide_on_connection.settings, LQCollection
+            ) or not hasattr(unhide_on_connection, "connected"):
+                raise ValueError(
+                    "unhide_on_connection hardware must have a 'connected' LoggedQuantity"
+                )
+            self.set_measurement_connection_visibility(measure, unhide_on_connection)
+            initially_hidden = not unhide_on_connection.connected.val
+
+        if initially_hidden is not None:
+            measure.settings["hidden"] = initially_hidden
 
         self.measurements.add(measure.name, measure)
 
         self.add_lq_collection_to_settings_path(measure.settings)
 
+        measure._hidden_change_callback = partial(
+            self._on_measure_hidden_changed, measure
+        )
+        measure.settings.get_lq("hidden").updated_value[bool].connect(
+            measure._hidden_change_callback
+        )
+
         if hasattr(self, "mm_tree"):
             from ScopeFoundry.dynamical_widgets.tree_widget import SubtreeManager
 
             SubtreeManager(self.mm_tree, measure)
+            measure.operations.set_shortcut_parent(self.ui)
 
-        if self.mdi and hasattr(self, "ui"):
-            ui = self.load_measure_ui(measure)
-            if ui is not None:
-                subwin = self.add_mdi_subwin(ui, measure.name)
-                measure.subwin = subwin
+        if self.mdi and hasattr(self, "ui") and not measure.settings["hidden"]:
+            self.load_measure_ui(measure)
 
         return measure
+
+    def set_measurement_connection_visibility(
+        self, measure: MeasurementProtocol, hardware: Optional[HardwareProtocol]
+    ) -> None:
+        """Replace the one-way hardware connection listener on a measurement."""
+        listener = getattr(measure, "_unhide_on_connection_listener", None)
+        if listener is not None:
+            connected_lq, callback = listener
+            connected_lq.updated_value[bool].disconnect(callback)
+            del measure._unhide_on_connection_listener
+        if hardware is not None:
+            connected_lq = hardware.connected
+            hidden_lq = measure.settings.get_lq("hidden")
+            callback = lambda connected, lq=hidden_lq: lq.update_value(not connected)
+            connected_lq.updated_value[bool].connect(callback)
+            measure._unhide_on_connection_listener = (connected_lq, callback)
+            hidden_lq.update_value(not connected_lq.val)
 
     def add_measurement_component(
         self, measure: MeasurementProtocol
@@ -673,6 +1072,14 @@ class BaseMicroscopeApp(BaseApp):
             return
 
         measure = self.measurements[name]
+
+        self.set_measurement_connection_visibility(measure, None)
+        hidden_callback = getattr(measure, "_hidden_change_callback", None)
+        if hidden_callback is not None:
+            measure.settings.get_lq("hidden").updated_value[bool].disconnect(
+                hidden_callback
+            )
+            del measure._hidden_change_callback
 
         if measure.is_measuring():
             self.log.info(f"Interrupting {name} before removal")
@@ -700,23 +1107,30 @@ class BaseMicroscopeApp(BaseApp):
 
         if name in self._loaded_measure_uis:
             ui = self._loaded_measure_uis[name]
-            if ui and hasattr(measure, "subwin") and measure.subwin:
-                if self.mdi:
+            if ui:
+                if self.mdi and getattr(measure, "subwin", None):
                     self.ui.mdiArea.removeSubWindow(measure.subwin)
                     measure.subwin.deleteLater()
+                    measure.subwin = None
                 else:
                     ui.close()
                     ui.deleteLater()
             del self._loaded_measure_uis[name]
 
+        self._measure_menu_actions.pop(name, None)
+        self._pending_win_states.pop(name, None)
         for action in self.ui.menuWindow.actions():
             if action.text() == name:
                 self.ui.menuWindow.removeAction(action)
                 break
 
         self.remove_lq_collection_from_settings_path(measure.settings)
+        measure.operations.clear_shortcuts()
+        measure.teardown()
 
         del self.measurements[name]
+        if hasattr(self, "dynamic_components"):
+            self.dynamic_components.removed("measurement", name)
 
         self.log.info(f"Measurement {name} removed")
 
@@ -781,6 +1195,29 @@ class BaseMicroscopeApp(BaseApp):
         elif fname.suffix == ".h5":
             self.settings_load_h5(fname)
 
+    def read_settings_file(
+        self, fname: Path, expected_suffix: str = None
+    ) -> Dict[str, Any]:
+        """Read an INI or HDF5 settings file without applying its values."""
+        fname = Path(fname)
+        suffix = (expected_suffix or fname.suffix).lower()
+        if suffix == ".ini":
+            settings = ini_io.load_settings(fname)
+        elif suffix == ".h5":
+            settings = h5_io.load_settings(fname)
+            for key in ("ScopeFoundry_version", "time_id", "unique_id", "uuid"):
+                settings.pop(key, None)
+        else:
+            raise ValueError("Choose an INI or HDF5 (.h5) settings file.")
+        return settings
+
+    def settings_select_file_dialog(self) -> str:
+        """Open the standard settings file picker and return its selection."""
+        fname, _selected_filter = QtWidgets.QFileDialog.getOpenFileName(
+            self.ui, "Open Settings file", "", "Settings File (*.ini *.h5)"
+        )
+        return fname
+
     def settings_load_ini(
         self, fname: str, ignore_hw_connect: bool = False, show_report: bool = True
     ) -> None:
@@ -790,7 +1227,7 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the ini file.
         ==============  =========  ==============================================
         """
-        settings = ini_io.load_settings(fname)
+        settings = self.read_settings_file(fname, ".ini")
 
         if ignore_hw_connect:
             settings = {
@@ -801,25 +1238,11 @@ class BaseMicroscopeApp(BaseApp):
         self._report = report  # _report for test purpose
 
         if show_report:
-            show_io_report_dialog(fname, report, self.settings_load_ini, error_msgs)
+            show_io_report_dialog(
+                fname, report, self.settings_load_ini, error_msgs, self
+            )
         self.propose_settings_values(Path(fname).name, settings)
         self.log.info(f"settings loaded from {fname}")
-
-    def settings_load_file_threaded(self, fname: str) -> None:
-        """Loads settings from a file in a separate thread to avoid blocking the UI.
-
-        Currently only supports ini files.
-        """
-        from threading import Thread
-
-        def task():
-            self.settings_load_file(fname)
-
-        def on_finished():
-            self.log.info(f"Finished loading settings from {fname}")
-
-        threaded_task = Thread(target=task)
-        threaded_task.start()
 
     def settings_load_h5(
         self, fname: str, ignore_hw_connect: bool = False, show_report: bool = True
@@ -832,13 +1255,7 @@ class BaseMicroscopeApp(BaseApp):
         fname           str        relative path to the filename of the h5 file.
         ==============  =========  ====================================================================================
         """
-        settings = h5_io.load_settings(fname)
-
-        # ignoring some metadata that are not settings. Maybe should be excluded in h5_io.load_settings
-        for x in ("ScopeFoundry_version", "time_id", "unique_id", "uuid"):
-            if x in settings:
-                # print("ignoring", x)
-                settings.pop(x)
+        settings = self.read_settings_file(fname, ".h5")
 
         if ignore_hw_connect:
             settings = {
@@ -849,7 +1266,9 @@ class BaseMicroscopeApp(BaseApp):
         self._report = report  # _report for test purpose
 
         if show_report:
-            show_io_report_dialog(fname, report, self.settings_load_h5, error_msgs)
+            show_io_report_dialog(
+                fname, report, self.settings_load_h5, error_msgs, self
+            )
         self.propose_settings_values(Path(fname).name, settings)
         self.log.info(f"settings loaded from {fname}")
 
@@ -862,12 +1281,13 @@ class BaseMicroscopeApp(BaseApp):
             / f"{datetime.datetime.now():%y%m%d_%H%M%S}_settings.ini"
         )
         self.settings_save_ini(fname)
+        self.profile_manager.history.save_snapshot("Settings autosaved")
 
     def settings_load_last(self) -> None:
         """
         Loads last saved ini file.
         """
-        fnames = list(Path.cwd().glob("*_settings.ini"))
+        fnames = list(self.implementation_path.glob("*_settings.ini"))
         fnames += list(Path(self.settings["save_dir"]).glob("*_settings.ini"))
         self.settings_load_ini(sorted(fnames)[-1])
 
@@ -879,12 +1299,13 @@ class BaseMicroscopeApp(BaseApp):
         if fname:
             self.settings_save_ini(fname)
 
-    def settings_load_dialog(self) -> None:
-        """Opens a load ini dialogue in the app user interface"""
-        fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(
-            self.ui, "Open Settings file", "", "Settings File (*.ini *.h5)"
-        )
+    def settings_load_dialog(self) -> str:
+        """Select and load a settings file using the standard file picker."""
+        fname = self.settings_select_file_dialog()
+        if not fname:
+            return ""
         self.settings_load_file(fname)
+        return fname
 
     def get_operation(self, path: str) -> Operation:
         parts = path.split("/")
@@ -1011,31 +1432,88 @@ class BaseMicroscopeApp(BaseApp):
         )
         return self.settings.as_dict()
 
-    def set_window_positions(self, positions: Dict[str, Any]) -> None:
-        def restore_win_state(subwin: QtWidgets.QMdiSubWindow, win_state):
-            subwin.showNormal()
-            if win_state["maximized"]:
-                subwin.showMaximized()
-            elif win_state["minimized"]:
-                subwin.showMinimized()
-            else:
-                subwin.setGeometry(*win_state["geometry"])
+    @staticmethod
+    def _restore_win_state(subwin: QtWidgets.QMdiSubWindow, win_state) -> None:
+        subwin.showNormal()
+        if win_state.get("fullscreen", False):
+            subwin.showFullScreen()
+        elif win_state.get("maximized", False):
+            subwin.showMaximized()
+        elif win_state.get("minimized", False):
+            subwin.showMinimized()
+        else:
+            subwin.setGeometry(*win_state["geometry"])
+
+    def set_window_positions(
+        self, positions: Dict[str, Any], adjust_main_window_size: bool = True
+    ) -> None:
+        restore_win_state = self._restore_win_state
+
+        if not self.mdi:
+            main_state = positions.get("main", {})
+            if main_state and adjust_main_window_size:
+                restore_win_state(self.ui, main_state)
+            return
 
         self.set_subwindow_mode()
+        self._suppress_subwin_scaling = True
         for name, win_state in positions.items():
+            if name == "view_mode":
+                continue
             if name == "log":
                 restore_win_state(self.logging_subwin, win_state)
             elif name == "console":
                 restore_win_state(self.console_subwin, win_state)
-            elif name == "main":
+            elif name == "main" and adjust_main_window_size:
                 restore_win_state(self.ui, win_state)
                 self.ui.col_splitter.setSizes(win_state["col_splitter_sizes"])
             elif name.startswith("measurement/"):
-                M = self.measurements[name.split("/")[-1]]
-                restore_win_state(M.subwin, win_state)
+                mm_name = name.split("/")[-1]
+                if mm_name in self.measurements:
+                    M = self.measurements[mm_name]
+                    if M.subwin is None:
+                        # applied once the ui gets loaded
+                        self._pending_win_states[mm_name] = win_state
+                        continue
+                    restore_win_state(M.subwin, win_state)
+                    if M.settings["hidden"]:
+                        M.subwin.hide()
+
+        subwins = {
+            "log": self.logging_subwin,
+            "console": self.console_subwin,
+        }
+        for name in positions:
+            if name.startswith("measurement/"):
+                mm_name = name.split("/")[-1]
+                if mm_name in self.measurements:
+                    M = self.measurements[mm_name]
+                    if M.subwin and not M.settings["hidden"]:
+                        subwins[name] = M.subwin
+        z_ordered = sorted(
+            (n for n in subwins if "z" in positions[n]),
+            key=lambda n: positions[n]["z"],
+        )
+        for name in z_ordered:  # bottom to top
+            subwins[name].raise_()
+
+        if positions.get("view_mode") == "tab":
+            self.set_tab_mode()
+        else:
+            self.set_subwindow_mode()
+
+        # the active subwindow decides which tab is shown
+        if z_ordered:
+            self.ui.mdiArea.setActiveSubWindow(subwins[z_ordered[-1]])
+        self._suppress_subwin_scaling = False
 
     def get_window_positions(self) -> Dict[str, Any]:
         positions = OrderedDict()
+        stacking = (
+            self.ui.mdiArea.subWindowList(QtWidgets.QMdiArea.WindowOrder.StackingOrder)
+            if self.mdi
+            else []
+        )
 
         def qrect_to_tuple(qr):
             return (qr.x(), qr.y(), qr.width(), qr.height())
@@ -1047,17 +1525,27 @@ class BaseMicroscopeApp(BaseApp):
                 minimized=subwin.isMinimized(),
                 fullscreen=subwin.isFullScreen(),
             )
+            if subwin in stacking:
+                window_state["z"] = stacking.index(subwin)
             return window_state
 
         positions["main"] = win_state_from_subwin(self.ui)
         positions["main"]["col_splitter_sizes"] = self.ui.col_splitter.sizes()
 
+        if not self.mdi:
+            return positions
+
+        tabbed = self.ui.mdiArea.viewMode() == QtWidgets.QMdiArea.ViewMode.TabbedView
+        positions["view_mode"] = "tab" if tabbed else "subwindow"
+
         positions["log"] = win_state_from_subwin(self.logging_subwin)
         positions["console"] = win_state_from_subwin(self.console_subwin)
 
         for name, M in self.measurements.items():
-            if hasattr(M, "ui"):
+            if M.subwin is not None:
                 positions[f"measurement/{name}"] = win_state_from_subwin(M.subwin)
+            elif name in self._pending_win_states:
+                positions[f"measurement/{name}"] = self._pending_win_states[name]
 
         return positions
 
@@ -1066,16 +1554,18 @@ class BaseMicroscopeApp(BaseApp):
         with open(fname, "w") as outfile:
             json.dump(positions, outfile, indent=4)
 
-    def load_window_positions_json(self, fname: str) -> None:
+    def load_window_positions_json(
+        self, fname: str, adjust_main_window_size: bool = True
+    ) -> None:
         with open(fname, "r") as infile:
             positions = json.load(infile)
-        self.set_window_positions(positions)
+        self.set_window_positions(positions, adjust_main_window_size)
 
     def window_positions_load_dialog(self) -> None:
         fname, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(
             self.ui, "Open Window Position file", "", "position File (*.json)"
         )
-        self.load_window_positions_json(fname)
+        self.load_window_positions_json(fname, adjust_main_window_size=True)
 
     def window_positions_save_dialog(self) -> None:
         """Opens a save as ini dialogue in the app user interface."""
@@ -1117,10 +1607,7 @@ class BaseMicroscopeApp(BaseApp):
         path = Path(fname)
         if not path.exists() or path.suffix not in (".ini", ".h5"):
             return
-        if path.suffix == ".ini":
-            settings = ini_io.load_settings(path)
-        elif path.suffix == ".h5":
-            settings = h5_io.load_settings(path)
+        settings = self.read_settings_file(path)
         self.propose_settings_values(path.name, settings)
 
     def launch_browser(self, url: str) -> None:
@@ -1202,7 +1689,7 @@ class BaseMicroscopeApp(BaseApp):
     def show_app_settings(self) -> None:
         if not hasattr(self, "_app_settings_widget"):
 
-            app_widget = new_widget(self, "app")
+            app_widget = new_widget(self, "app settings")
             app_widget.setAcceptDrops(True)
             app_widget.dragEnterEvent = self.on_drag_on_app_widget
             app_widget.dropEvent = self.on_drop_on_app_widget
@@ -1221,9 +1708,11 @@ class BaseMicroscopeApp(BaseApp):
                 QtWidgets.QSizePolicy.Policy.MinimumExpanding,
                 QtWidgets.QSizePolicy.Policy.MinimumExpanding,
             )
-            widget.setWindowTitle("settings")
+            widget.setWindowTitle("Preferences")
             widget.setWindowIcon(QtGui.QIcon(str(self.settings_icon_path)))
             layout = QtWidgets.QVBoxLayout(widget)
+            load_widget = self.configuration_handler.new_widget()
+            layout.addWidget(load_widget)
             layout.addWidget(app_widget)
             layout.addLayout(hlayout)
 
@@ -1244,18 +1733,3 @@ class BaseMicroscopeApp(BaseApp):
             cmenu.addSeparator()
             for name, func in pairs:
                 cmenu.addAction(name, func)
-
-    def _init_py_analysis_directory(self) -> Path:
-        self.py_analysis_scripts_path = self.docs_path.parent / "py_analysis_scripts"
-        if not self.py_analysis_scripts_path.exists():
-            self.py_analysis_scripts_path.mkdir()
-            with open(
-                self.py_analysis_scripts_path / "__place_py_files_here.md", "w"
-            ) as f:
-                f.write(
-                    "Place .py files here that get copied to your data folder (never overrides, delete at data folder to update).\nIn particular useful to reference with snippets that gets returned with .get_py_snippets() method of the Measurement properly implemented."
-                )
-        return self.py_analysis_scripts_path
-
-    def get_py_analysis_scripts(self):
-        return self.py_analysis_scripts_path.glob("*.py")

@@ -5,12 +5,14 @@ from qtpy import QtWidgets
 
 from ScopeFoundry.base_app.base_app import BaseApp
 from ScopeFoundry.widgets import MinMaxQSlider
+from ScopeFoundry.tests.unittests.unittest_helpers import close_app_widgets
 
 
 class LQConnectToWidgetTest(unittest.TestCase):
 
     def setUp(self):
         self.app = app = BaseApp([])
+        self.addCleanup(close_app_widgets, self.app)
         self.settings = app.settings
         self.str = self.settings.New("str", str, initial="0")
         self.float = self.settings.New("float", float, vmin=-100, vmax=100)
@@ -20,11 +22,6 @@ class LQConnectToWidgetTest(unittest.TestCase):
             "choices", int, choices=(("one", 1), ("two", 2), ("three", 3))
         )
         self._dir = self.settings.New("dir", "file", initial="test_dir", is_dir=True)
-
-    def tearDown(self):
-        # self.app.on_close()
-        self.app.qtapp.exit()
-        del self.app
 
     def test_qdouble_spinbox(self):
         wf = QtWidgets.QDoubleSpinBox()
@@ -140,6 +137,42 @@ class LQConnectToWidgetTest(unittest.TestCase):
         self.assertEqual(self.float.value, 2.0)
         self.assertEqual(self.int.value, 2)
 
+    def test_qtext_edit(self):
+        widget = QtWidgets.QTextEdit()
+        widget.setText("3")
+
+        self.str.connect_to_widget(widget)
+        self.assertEqual(widget.toPlainText(), "0")
+
+        self.str.update_value("1")
+        self.assertEqual(widget.toPlainText(), "1")
+
+        widget.setText("2")
+        self.assertEqual(self.str.value, "2")
+
+    def test_qprogress_bar(self):
+        lq = self.settings.New("progress", int, initial=5, vmin=0, vmax=100)
+        widget = QtWidgets.QProgressBar()
+        widget.setRange(0, 100)
+        widget.setValue(3)
+
+        lq.connect_to_widget(widget)
+        self.assertEqual(widget.value(), 5)
+
+        lq.update_value(10)
+        self.assertEqual(widget.value(), 10)
+
+    def test_qlcd_number(self):
+        lq = self.settings.New("lcd", int, initial=5)
+        widget = QtWidgets.QLCDNumber()
+        widget.display(3)
+
+        lq.connect_to_widget(widget)
+        self.assertEqual(widget.value(), 5)
+
+        lq.update_value(10)
+        self.assertEqual(widget.value(), 10)
+
     def test_q_plain_text_edit(self):
 
         ws = QtWidgets.QPlainTextEdit()
@@ -174,17 +207,10 @@ class LQConnectToWidgetTest(unittest.TestCase):
         self.assertEqual(wb.isChecked(), True)
 
         # widget to lq
-        # print("checkbox3")
-
-        wb.setChecked(False)
-
-        # TODO The fact that emit is required controversial. Can one also check/uncheck without clicking?
-        wb.clicked.emit()
+        wb.click()
         self.assertEqual(self.bool.value, False)
 
-        # print("checkbox4")
-        wb.setChecked(True)
-        wb.clicked.emit(True)
+        wb.click()
         self.assertEqual(self.bool.value, True)
 
     def test_qcombo_box(self):
@@ -210,15 +236,28 @@ class LQConnectToWidgetTest(unittest.TestCase):
         wc.setCurrentIndex(2)
         self.assertEqual(self.choices.value, 3)
 
+    def test_qslider(self):
+        lq = self.settings.New("slider_init", int, initial=5, vmin=-100, vmax=100)
+        widget = QtWidgets.QSlider()
+        widget.setValue(3)
+
+        lq.connect_to_widget(widget)
+
+        self.assertEqual(widget.value(), 5)
+        self.assertEqual(len(lq.prev_vals), 0)
+
+        lq.update_value(7)
+        self.assertEqual(widget.value(), 7)
+
     def test_qslider_int_non_overflow(self):
-        lq = self.settings.New("int2", int, vmin=-100, vmax=100)
+        lq = self.settings.New("int2", int, initial=0, vmin=-100, vmax=100)
 
         wi = QtWidgets.QSlider()
         wi.setValue(3)
 
         # test on connection widget take lq value
         lq.connect_to_widget(wi)
-        self.assertEqual(wi.value(), 0.0)
+        self.assertEqual(wi.value(), 0)
 
         # lq to widget
         lq.update_value(1)
@@ -230,6 +269,7 @@ class LQConnectToWidgetTest(unittest.TestCase):
 
     def test_qslider_int_overflow(self):
         # falls back to act like a float
+        max_4byte_int = (1 << 31) - 1
         wi = QtWidgets.QSlider()
         wi.setValue(int(1000))
 
@@ -240,14 +280,15 @@ class LQConnectToWidgetTest(unittest.TestCase):
         self.assertAlmostEqual(lq._transform_from_slider(wi.value()), 0.0)
 
         # lq to widget
-        lq.update_value(int(1e11))
+        lq.update_value(max_4byte_int)
         self.assertAlmostEqual(
-            lq._transform_from_slider(wi.value()) / 1e12, int(1e11) / 1e12
+            lq._transform_from_slider(wi.value()) / 1e12, max_4byte_int / 1e12
         )
 
         # widget to lq
-        wi.setValue(lq._transform_to_slider(2e11))
-        self.assertAlmostEqual(lq.value / 1e12, 2e11 / 1e12)
+        target_value = max_4byte_int // 2
+        wi.setValue(lq._transform_to_slider(target_value))
+        self.assertAlmostEqual(lq.value / 1e12, target_value / 1e12)
 
     def test_qslider_float(self):
         wf = QtWidgets.QSlider()

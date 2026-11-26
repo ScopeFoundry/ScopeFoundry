@@ -1,6 +1,7 @@
 """
 author: Camille Stavrakas, Edward Barnard, Benedikt Ursprung
 """
+
 import datetime
 import time
 from typing import Sequence
@@ -8,6 +9,7 @@ from typing import Sequence
 import numpy as np
 import pyqtgraph as pg
 from qtpy import QtWidgets
+from ScopeFoundry.widgets import QSearchableComboBox
 from ScopeFoundry import Measurement, h5_io
 
 DESCRIPTION = """
@@ -54,7 +56,13 @@ class RangedOptimization(Measurement):
         Measurement.__init__(self, app, name)
 
     def setup(self):
-        self.settings.New("f", str, choices=("",), description=DESCRIPTION)
+        self.settings.New(
+            "f",
+            str,
+            choices=("",),
+            description=DESCRIPTION,
+            default_widget_factory=QSearchableComboBox,
+        )
         self.settings.New("N_samples", int, initial=10)
         self.settings.New(
             "sampling_period",
@@ -96,6 +104,7 @@ class RangedOptimization(Measurement):
             str,
             choices=[],
             description="path to a setting that can manipulate the sweep value z",
+            default_widget_factory=QSearchableComboBox,
         )
         self.settings.New(
             "z_read",
@@ -103,6 +112,7 @@ class RangedOptimization(Measurement):
             initial=SAME_AS_Z,
             choices=[SAME_AS_Z],
             description=f"if not <i>{SAME_AS_Z}</i> this setting will be used to get actual value of z",
+            default_widget_factory=QSearchableComboBox,
         )
         cs = list(post_processors.keys())
         self.settings.New(
@@ -121,18 +131,26 @@ class RangedOptimization(Measurement):
         self.add_operation("unfilter choices", self.unfilter_choices)
         self.add_operation("post process", self.post_process)
         self.add_operation("go to optimal value", self.go_to_optimal_value)
-        self.add_operation("go to post process value",
-                           self.go_to_post_process_value)
+        self.add_operation("go to post process value", self.go_to_post_process_value)
 
     def setup_figure(self):
         s = self.settings
 
         settings_layout = QtWidgets.QHBoxLayout()
         settings_layout.addWidget(
-            s.New_UI(("z_span", "z_num", "use_current_z_as_center", "z_center")))
+            s.New_UI(("z_span", "z_num", "use_current_z_as_center", "z_center"))
+        )
         settings_layout.addWidget(s.New_UI(("f", "z", "z_read", "z_offset")))
-        settings_layout.addWidget(s.New_UI(
-            ("N_samples", "sampling_period", "use_fine_optimization", "post_processor")))
+        settings_layout.addWidget(
+            s.New_UI(
+                (
+                    "N_samples",
+                    "sampling_period",
+                    "use_fine_optimization",
+                    "post_processor",
+                )
+            )
+        )
 
         take_pushButton = QtWidgets.QPushButton("interrupt and take")
         take_pushButton.clicked.connect(self.take_current_optimal)
@@ -165,8 +183,7 @@ class RangedOptimization(Measurement):
         self.try_connect_hws()
         self.update_z_center()
         z_ori = self.read_z()
-        d = self.data = mk_data_dict(
-            s["z_center"], s["z_span"], s["z_num"], z_ori)
+        d = self.data = mk_data_dict(s["z_center"], s["z_span"], s["z_num"], z_ori)
 
         self.ii = 0
         self.total_dpt = (1 + 2 * s["use_fine_optimization"]) * s["z_num"]
@@ -187,7 +204,7 @@ class RangedOptimization(Measurement):
                 val = d["z0"] + s["z_offset"]
                 msg = f"{self.name} interrupted with take, moving optimal to {val:0.2f}"
             else:
-                val = d['z_original']
+                val = d["z_original"]
                 msg = f"{self.name} interrupted, moving to original position to {val:0.2f}"
             timeout = timeout = s["z_span_travel_time"] / 4
             self.write_z_target(val, timeout, msg)
@@ -207,8 +224,7 @@ class RangedOptimization(Measurement):
         self.write_z_target(d[f"z_{name}"][0], s["z_span_travel_time"])
         for i, z in enumerate(d[f"z_{name}"]):
             self.set_progress((self.ii + 1) * 100 / self.total_dpt)
-            self.write_z_target(
-                z, s["z_span_travel_time"] / s["z_num"] / 4)
+            self.write_z_target(z, s["z_span_travel_time"] / s["z_num"] / 4)
             d[f"f_{name}"][i] = self.read_f()
             d["z0"] = d[f"z0_{name}"] = d[f"z_{name}"][np.argmax(d[f"f_{name}"])]
             if self.interrupt_measurement_called:
@@ -232,8 +248,7 @@ class RangedOptimization(Measurement):
     def save_h5(self):
         h5_file = h5_io.h5_base_file(app=self.app, measurement=self)
         group = h5_io.h5_create_measurement_group(self, h5_file)
-        self.data["times_history"] = [
-            int(t.timestamp()) for t in self.time_history]
+        self.data["times_history"] = [int(t.timestamp()) for t in self.time_history]
         self.data["z0_history"] = self.z0_history
         for k, v in self.data.items():
             group[k] = np.array(v)
@@ -291,8 +306,9 @@ class RangedOptimization(Measurement):
             return
         try:
             sec, hw_name, _ = lq_path.split("/")
-            print(self.name, "setting",
-                  "/".join([sec, hw_name, "connected"]), "to True")
+            print(
+                self.name, "setting", "/".join([sec, hw_name, "connected"]), "to True"
+            )
             self.app.write_setting("/".join([sec, hw_name, "connected"]), True)
         except (ValueError, KeyError) as e:
             print(self.name, "could connect")
@@ -343,8 +359,9 @@ class RangedOptimization(Measurement):
     def filter_choices(self):
         self._set_choices("f", self.app.get_setting_paths(True, False))
         self._set_choices("z", self.app.get_setting_paths(False, True))
-        self._set_choices("z_read", [SAME_AS_Z] + 
-                          self.app.get_setting_paths(True, False))
+        self._set_choices(
+            "z_read", [SAME_AS_Z] + self.app.get_setting_paths(True, False)
+        )
 
     def unfilter_choices(self):
         choices = self.app.get_setting_paths()
@@ -421,7 +438,7 @@ def mk_z_array(center, span, num):
 
 
 def gauss(x, a, x0, sigma):
-    return a * np.exp(-((x - x0) ** 2) / (2 * sigma ** 2))
+    return a * np.exp(-((x - x0) ** 2) / (2 * sigma**2))
 
 
 def fit_gauss(x, y):
@@ -454,6 +471,6 @@ post_processors = {
 }
 
 
-def post_process(x: Sequence, y: Sequence, post_processor: str="gauss_mean"):
+def post_process(x: Sequence, y: Sequence, post_processor: str = "gauss_mean"):
     func = post_processors[post_processor]
     return func(x, y)

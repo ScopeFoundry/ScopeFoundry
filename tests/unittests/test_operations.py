@@ -57,10 +57,5 @@ class TestOperations(unittest.TestCase):
         self.operations.remove("test_op")
         mock_func.assert_called_once_with("test_op")
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.app.quit()
-
-
 if __name__ == "__main__":
     unittest.main()

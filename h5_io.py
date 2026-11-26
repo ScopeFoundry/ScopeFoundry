@@ -49,10 +49,17 @@ D = data_set
                 * units
                     - log_quant_1 = '[n_m]'
         * ...
-    * measurement
-        * measurement_1
+    * other_measurements_settings
+        * measurement_2 (settings of measurements other than the one that created the file)
             - ScopeFoundry_Type = Measurement
-            - name = measurement_1
+            - name = measurement_2
+            * settings
+                - log_quant_1
+                - ...
+    * measurement
+        * root_measurement_name 
+            - ScopeFoundry_Type = Measurement
+            - name = root_measurement_name
                 * settings
                     - log_quant_1
                     - ...
@@ -60,12 +67,23 @@ D = data_set
                         - log_quant_1 = '[n_m]'
             D simple_data_set_2
             D ...
+    * other_measurements_settings
+        - name = measurement_2
+            * settings
+                - log_quant_1
+                - ...
+                * units
+                    - log_quant_1 = '[n_m]'
+        * ...
 
 other thoughts:
     DONE store git revision of code (implemented in /git group)
     DONE store git revision of ScopeFoundry (implemented in /git group)
     EMD compatibility, NeXUS compatibility
 """
+
+
+OTHER_MEASUREMENTS_GROUP = "other_measurements_settings"
 
 
 def h5_base_file(
@@ -81,7 +99,7 @@ def h5_base_file(
     root.attrs["time_id"] = int(dataset_metadata.t0)
     root.attrs["unique_id"] = dataset_metadata.unique_id
     root.attrs["uuid"] = str(dataset_metadata.u)
-    
+
     # Add git information in dedicated /git group
     try:
         git_group = root.create_group("git")
@@ -96,6 +114,7 @@ def h5_base_file(
 
     h5_save_app_lq(app, root)
     h5_save_hardware_lq(app, root)
+    h5_save_all_measurements_lq(app, root, exclude=measurement)
     return h5_file
 
 
@@ -117,6 +136,16 @@ def h5_save_hardware_lq(app, h5group: h5py.Group) -> None:
         h5_hc_settings_group = h5_hc_group.create_group("settings")
         h5_save_lqcoll_to_attrs(hc.settings, h5_hc_settings_group)
     return h5_hardware_group
+
+
+def h5_save_all_measurements_lq(app, h5group: h5py.Group, exclude=None) -> None:
+    """save settings of every measurement registered on *app*,
+    skipping *exclude* (the measurement whose group is created separately)"""
+    for m_name, m in app.measurements.items():
+        if exclude is not None and m_name == exclude.name:
+            continue
+        h5_meas_group = h5group.require_group(f"{OTHER_MEASUREMENTS_GROUP}/{m_name}")
+        h5_save_measurement_settings(m, h5_meas_group)
 
 
 def h5_save_lqcoll_to_attrs(settings, h5group: h5py.Group) -> None:
@@ -145,6 +174,8 @@ def h5_create_measurement_group(
 ) -> h5py.Group:
     if group_name is None:
         group_name = "measurement/" + measurement.name
+    if group_name in h5group:
+        return h5group[group_name]
     h5_meas_group = h5group.create_group(group_name)
     h5_save_measurement_settings(measurement, h5_meas_group)
     return h5_meas_group
@@ -369,13 +400,47 @@ def load_settings(fname: str) -> None:
     return settings
 
 
+def measurement_names_with_datasets(fname: str) -> set:
+    """Return measurement groups in an H5 file that contain datasets."""
+    if Path(fname).suffix.lower() != ".h5":
+        return set()
+
+    measurement_names = set()
+    with h5py.File(fname, "r") as file:
+        if "measurement" not in file or not isinstance(file["measurement"], h5py.Group):
+            return measurement_names
+
+        for measurement_name, measurement_group in file["measurement"].items():
+            if not isinstance(measurement_group, h5py.Group):
+                continue
+            found_dataset = [False]
+
+            def check_dataset(_name, node):
+                if isinstance(node, h5py.Dataset):
+                    found_dataset[0] = True
+
+            measurement_group.visititems(check_dataset)
+            if found_dataset[0]:
+                measurement_names.add(measurement_name)
+
+    return measurement_names
+
+
 def _settings_visitfunc(name: str, node: h5py.Group, settings: Dict[str, Any]) -> None:
-    if not name.endswith("settings"):
+    parts = name.split("/")
+    if parts[-1] != "settings":
         return
 
+    # other measurements are exposed as measurement/<measure_name>/<setting_name>
+    if len(parts) == 3 and parts[0] == OTHER_MEASUREMENTS_GROUP:
+        parts[0] = "mm"
+
+    parts[0] = parts[0].replace("measurement", "mm") 
+    parts[0] = parts[0].replace("hardware", "hw")
+
     for key, val in node.attrs.items():
-        lq_path = f"{name.replace('settings', key)}"
-        settings[lq_path] = val
+        settings["/".join(parts[:-1] + [key])] = val
+
 
 def load_non_settings_attrs(fname: str) -> Dict[str, Any]:
     path = Path(fname)
@@ -391,6 +456,7 @@ def load_non_settings_attrs(fname: str) -> Dict[str, Any]:
         file.visititems(visit_func)
 
     return attrs
+
 
 def _non_settings_attrs_visitfunc(
     name: str, node: h5py.Group, attrs: Dict[str, Any]

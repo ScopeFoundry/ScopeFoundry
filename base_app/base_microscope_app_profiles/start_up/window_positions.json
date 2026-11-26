@@ -1,0 +1,43 @@
+{
+    "main": {
+        "geometry": [
+            182,
+            96,
+            1105,
+            797
+        ],
+        "maximized": false,
+        "minimized": false,
+        "fullscreen": false,
+        "col_splitter_sizes": [
+            325,
+            325,
+            423
+        ]
+    },
+    "view_mode": "tab",
+    "log": {
+        "geometry": [
+            0,
+            0,
+            284,
+            278
+        ],
+        "maximized": false,
+        "minimized": false,
+        "fullscreen": false,
+        "z": 0
+    },
+    "console": {
+        "geometry": [
+            0,
+            0,
+            423,
+            692
+        ],
+        "maximized": true,
+        "minimized": false,
+        "fullscreen": false,
+        "z": 1
+    }
+}

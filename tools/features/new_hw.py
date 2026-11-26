@@ -22,7 +22,7 @@ class ComTypes(Enum):
 def new_hw(
     company: str = "thorlabs",
     model: str = "XX6000_glavo_mirror",
-    authors: str = "Benedikt Ursprung, Mark E.Ziffer",
+    authors: str = "Your Name",
     pretty_name: str = "galvo_mirror",
     overwrite_existing_module: bool = True,
     com_type: str = ComTypes.DLL.value,
