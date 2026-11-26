@@ -68,27 +68,19 @@ class IntervaledLQRange:
         elif sweep_type == "down":
             return self.array[::-1]
         elif sweep_type == "up_down":
-            return np.append((self.array, self.array[::-1]))
+            return np.append(self.array, self.array[::-1])
         elif sweep_type == "down_up":
-            return np.append((self.array[::-1], self.array))
+            return np.append(self.array[::-1], self.array)
         elif sweep_type == "zig_zag":
             mid = len(self.array) // 2
             return np.append(
-                [
-                    self.array[mid::],
-                    self.array[::-1],
-                    self.array[0:mid:],
-                ]
+                self.array[mid::], np.append(self.array[::-1], self.array[0:mid:])
             )
-        elif sweep_type == "zag_zip":
+        elif sweep_type == "zag_zig":
             mid = len(self.array) // 2
             return np.append(
-                [
-                    self.array[mid:0:-1],
-                    self.array[0::],
-                    self.array[:mid:-1],
-                ]
-            )
+                self.array[mid::], np.append(self.array[::-1], self.array[0:mid:])
+            )[::-1]
 
     def New_UI(self, include_clipboard_btns=True):
         header_layout = QtWidgets.QHBoxLayout()
@@ -150,7 +142,7 @@ class IntervaledLQRange:
         cliboard_button.setMaximumWidth(60)
         cliboard_button.clicked.connect(
             lambda: QtWidgets.QApplication.clipboard().setText(
-                "\n".join(map(str, self.array))
+                "\n".join(map(str, self.sweep_array))
             )
         )
         cliboard_button.setToolTip("Copy array to clipboard, one value per line")
@@ -160,7 +152,9 @@ class IntervaledLQRange:
         cliboard_button2 = QtWidgets.QPushButton(">> []")
         cliboard_button2.setMaximumWidth(60)
         cliboard_button2.clicked.connect(
-            lambda: QtWidgets.QApplication.clipboard().setText(str(self.array.tolist()))
+            lambda: QtWidgets.QApplication.clipboard().setText(
+                str(self.sweep_array.tolist())
+            )
         )
         cliboard_button2.setToolTip("Copy array to clipboard, as a python list")
         # cliboard_button2.setStyleSheet("color: rgba(255,255,0,10);")
